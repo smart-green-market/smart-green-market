@@ -1,0 +1,22 @@
+# Python
+.venv/
+env/
+__pycache__/
+*.pyc
+
+# Django
+db.sqlite3
+media/
+
+# Flutter
+.dart_tool/
+.flutter-plugins
+.flutter-plugins-dependencies
+.packages
+build/
+
+# VSCode
+.vscode/
+
+# Environment
+.env
