@@ -36,7 +36,10 @@ class LoginRequestSerializer(serializers.Serializer):
 class VerifySupplierSerializer(serializers.Serializer):
     verification_status = serializers.ChoiceField(
         choices=["pending", "approved", "rejected"],
-        help_text="Trạng thái duyệt nhà cung cấp (chỉ Admin)",
+        help_text=(
+            "Trạng thái duyệt nhà cung cấp. "
+            "Chỉ được `approved` khi đủ 3 loại giấy tờ và tất cả đã approved."
+        ),
     )
 
 

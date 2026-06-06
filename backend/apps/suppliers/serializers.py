@@ -1,9 +1,10 @@
 from django.contrib.auth import get_user_model
+from drf_spectacular.utils import extend_schema_field
 from rest_framework import serializers
 
 from apps.certifications.serializers import CertificationSerializer
 from apps.supplier_products.serializer import SupplierProductSerializer
-from .models import Supplier, SupplierDocument, SupplierDocumentType
+from .models import Supplier, SupplierDocument, SupplierDocumentType, SupplierDocumentStatus
 
 Account = get_user_model()
 
@@ -52,6 +53,7 @@ class SupplierDocumentReadSerializer(serializers.ModelSerializer):
             "created_at",
         ]
 
+    @extend_schema_field(serializers.URLField(allow_null=True))
     def get_file_url(self, obj):
         if not obj.file_url:
             return None
@@ -148,6 +150,45 @@ class SupplierDocumentSerializer(serializers.ModelSerializer):
         request = self.context["request"]
         validated_data["supplier"] = request.user.supplier_profile
         return super().create(validated_data)
+
+
+class SupplierDocumentBulkUploadSerializer(serializers.Serializer):
+    """Upload đồng thời 3 loại giấy tờ trong một request multipart."""
+
+    business_license = serializers.FileField(
+        help_text="Giấy phép kinh doanh (PDF, JPG, PNG)",
+    )
+    id_card = serializers.FileField(
+        help_text="CMND/CCCD (PDF, JPG, PNG)",
+    )
+    tax_certificate = serializers.FileField(
+        help_text="Giấy chứng nhận thuế (PDF, JPG, PNG)",
+    )
+
+    def validate(self, attrs):
+        user = self.context["request"].user
+        if not hasattr(user, "supplier_profile"):
+            raise serializers.ValidationError(
+                {"detail": "Bạn cần tạo hồ sơ supplier trước khi upload giấy tờ."}
+            )
+        return attrs
+
+    def create(self, validated_data):
+        supplier = self.context["request"].user.supplier_profile
+        documents = []
+        for document_type, file in validated_data.items():
+            document, _created = SupplierDocument.objects.update_or_create(
+                supplier=supplier,
+                document_type=document_type,
+                defaults={
+                    "file_url": file,
+                    "status": SupplierDocumentStatus.PENDING,
+                    "verified_by": None,
+                    "verified_at": None,
+                },
+            )
+            documents.append(document)
+        return documents
 
 
 class VerifySupplierDocumentSerializer(serializers.ModelSerializer):
