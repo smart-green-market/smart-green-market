@@ -8,6 +8,7 @@ from .views import (
     LogoutView,
     ProfileView,
     ChangePasswordView,
+    AvatarView,
 )
 
 urlpatterns = [
@@ -18,5 +19,6 @@ urlpatterns = [
     path("logout/", LogoutView.as_view()),
 
     path("profile/", ProfileView.as_view()),
+    path("profile/avatar/", AvatarView.as_view()),
     path("change-password/", ChangePasswordView.as_view()),
 ]

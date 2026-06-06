@@ -1,10 +1,18 @@
 from rest_framework import serializers
 
+from common.business_rules import MAX_IMAGES_PER_PRODUCT, MAX_PRODUCTS_PER_SUPPLIER
+from common.validators import validate_image_upload
+from apps.categories.models import CategoryStatus
 from apps.suppliers.models import SupplierVerificationStatus
 from .models import SupplierProduct, SupplierProductImage, SupplierProductStatus
 
 
 class SupplierProductImageSerializer(serializers.ModelSerializer):
+    image_url = serializers.FileField(
+        required=False,
+        help_text="Ảnh sản phẩm (jpg, png, webp — tối đa 5MB)",
+    )
+
     class Meta:
         model = SupplierProductImage
         fields = [
@@ -18,10 +26,29 @@ class SupplierProductImageSerializer(serializers.ModelSerializer):
         read_only_fields = ["created_at"]
         extra_kwargs = {
             "supplier_product": {"help_text": "ID sản phẩm cần gắn ảnh"},
-            "image_url": {"help_text": "URL ảnh sản phẩm"},
             "is_thumbnail": {"help_text": "true = ảnh đại diện (chỉ 1 ảnh/sản phẩm)"},
             "sort_order": {"help_text": "Thứ tự hiển thị (số nhỏ hiện trước)"},
         }
+
+    def validate_image_url(self, file):
+        if file and hasattr(file, "read"):
+            validate_image_upload(file)
+        return file
+
+    def validate(self, attrs):
+        product = attrs.get("supplier_product") or getattr(
+            self.instance, "supplier_product", None
+        )
+        if product and self.instance is None:
+            if product.images.count() >= MAX_IMAGES_PER_PRODUCT:
+                raise serializers.ValidationError(
+                    f"Mỗi sản phẩm tối đa {MAX_IMAGES_PER_PRODUCT} ảnh."
+                )
+        if self.instance is None and not attrs.get("image_url"):
+            raise serializers.ValidationError(
+                {"image_url": "Vui lòng chọn ảnh để upload."}
+            )
+        return attrs
 
     def validate_supplier_product(self, product):
         request = self.context.get("request")
@@ -56,6 +83,9 @@ class SupplierProductImageSerializer(serializers.ModelSerializer):
         return image
 
     def update(self, instance, validated_data):
+        new_file = validated_data.get("image_url")
+        if new_file and instance.image_url:
+            instance.image_url.delete(save=False)
         image = super().update(instance, validated_data)
         if image.is_thumbnail:
             SupplierProductImage.objects.filter(
@@ -91,6 +121,13 @@ class SupplierProductSerializer(serializers.ModelSerializer):
             "max_storage_temp": {"help_text": "Nhiệt độ bảo quản tối đa (°C)", "required": False},
         }
 
+    def validate_category(self, category):
+        if category.status != CategoryStatus.ACTIVE:
+            raise serializers.ValidationError(
+                "Danh mục chưa được duyệt, không thể gắn vào sản phẩm."
+            )
+        return category
+
     def validate(self, attrs):
         request = self.context.get("request")
         if request and request.user.is_authenticated:
@@ -103,7 +140,12 @@ class SupplierProductSerializer(serializers.ModelSerializer):
 
     def create(self, validated_data):
         request = self.context["request"]
-        validated_data["supplier"] = request.user.supplier_profile
+        supplier = request.user.supplier_profile
+        if SupplierProduct.objects.filter(supplier=supplier).count() >= MAX_PRODUCTS_PER_SUPPLIER:
+            raise serializers.ValidationError(
+                f"Mỗi nhà cung cấp tối đa {MAX_PRODUCTS_PER_SUPPLIER} sản phẩm."
+            )
+        validated_data["supplier"] = supplier
         validated_data.setdefault("status", SupplierProductStatus.PENDING)
         return super().create(validated_data)
 

@@ -70,7 +70,7 @@ class SupplierProductImage(models.Model):
         on_delete=models.CASCADE,
         related_name="images",
     )
-    image_url = models.URLField(max_length=500)
+    image_url = models.FileField(upload_to="product_images/")
     is_thumbnail = models.BooleanField(default=False)
     sort_order = models.IntegerField(default=0)
     created_at = models.DateTimeField(auto_now_add=True)

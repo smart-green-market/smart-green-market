@@ -1,4 +1,3 @@
-from django.contrib.auth import get_user_model
 from django.db.models import Prefetch
 from django.utils import timezone
 from drf_spectacular.utils import (
@@ -14,9 +13,20 @@ from rest_framework.response import Response
 
 from apps.accounts.models import AccountStatus
 from apps.supplier_products.models import SupplierProduct
-from common.openapi import VerifySupplierSerializer
+from common.openapi import (
+    PAGINATION_QUERY_HELP,
+    SupplierAccountStatusSerializer,
+    VerifySupplierSerializer,
+    paginated_response_schema,
+)
+from common.pagination import paginate_queryset
 from common.permission import IsAdmin, IsAdminOrSupplier, IsSupplier
-from apps.notifications.models import Notification, NotificationReceipt
+from common.notification_messages import (
+    admin_new_supplier_document,
+    supplier_document_reviewed,
+    supplier_verification_updated,
+)
+from common.notifications import notify_account, notify_admins
 from .openapi import SupplierDocumentBulkUploadForm, SupplierDocumentReplaceForm
 from .models import (
     Supplier,
@@ -33,7 +43,6 @@ from .serializers import (
     SupplierDocumentBulkUploadSerializer,
     VerifySupplierDocumentSerializer,
 )
-User = get_user_model()
 
 REQUIRED_DOCUMENT_TYPES = [choice[0] for choice in SupplierDocumentType.choices]
 
@@ -51,38 +60,27 @@ SUPPLIER_CREATE_EXAMPLE = OpenApiExample(
 
 
 def _notify_document_review(document, reviewer):
-    supplier_user = document.supplier.account
-    notification = Notification.objects.create(
-        title="Supplier document updated",
-        content=f"Your document was {document.status}",
-        type="success" if document.status == SupplierDocumentStatus.APPROVED else "error",
+    title, content, notif_type = supplier_document_reviewed(document)
+    notify_account(
+        account=document.supplier.account,
+        title=title,
+        content=content,
         reference_type="supplier_document",
         reference_id=document.id,
         created_by=reviewer,
-    )
-    NotificationReceipt.objects.create(
-        notification=notification,
-        account=supplier_user,
+        notif_type=notif_type,
     )
 
 
 def _notify_admins_new_document(document, created_by):
-    admins = User.objects.filter(role="admin")
-    notification = Notification.objects.create(
-        title="New supplier document pending",
-        content=(
-            f"Supplier {document.supplier.id} uploaded {document.document_type} "
-            "waiting for review"
-        ),
-        type="info",
+    title, content = admin_new_supplier_document(document)
+    notify_admins(
+        title=title,
+        content=content,
         reference_type="supplier_document",
         reference_id=document.id,
         created_by=created_by,
     )
-    NotificationReceipt.objects.bulk_create([
-        NotificationReceipt(notification=notification, account=admin)
-        for admin in admins
-    ])
 
 
 def _apply_document_verification(document, reviewer, new_status):
@@ -115,8 +113,8 @@ def _validate_supplier_ready_for_approval(supplier):
     list=extend_schema(
         tags=["Suppliers"],
         summary="Danh sách nhà cung cấp",
-        description="Admin xem tất cả. Supplier chỉ thấy hồ sơ của mình.",
-        responses={200: SupplierSerializer(many=True)},
+        description="Admin xem tất cả. Supplier chỉ thấy hồ sơ của mình." + PAGINATION_QUERY_HELP,
+        responses={200: paginated_response_schema(SupplierSerializer, "PaginatedSupplier")},
     ),
     retrieve=extend_schema(
         tags=["Suppliers"],
@@ -170,7 +168,7 @@ class SupplierViewSet(viewsets.ModelViewSet):
         return SupplierSerializer
 
     def get_permissions(self):
-        if self.action == "verify":
+        if self.action in ("verify", "account_status"):
             return [IsAdmin()]
         if self.action in ["create", "update", "partial_update", "destroy"]:
             return [IsSupplier()]
@@ -225,32 +223,119 @@ class SupplierViewSet(viewsets.ModelViewSet):
         serializer = VerifySupplierSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         new_status = serializer.validated_data["verification_status"]
+        rejection_reason = serializer.validated_data.get("rejection_reason", "")
 
         if new_status == SupplierVerificationStatus.APPROVED:
             _validate_supplier_ready_for_approval(supplier)
 
         supplier.verification_status = new_status
-        supplier.save(update_fields=["verification_status", "updated_at"])
+        supplier.rejection_reason = rejection_reason
+        supplier.verified_by = request.user
+        supplier.verified_at = timezone.now()
+        supplier.save(
+            update_fields=[
+                "verification_status",
+                "rejection_reason",
+                "verified_by",
+                "verified_at",
+                "updated_at",
+            ]
+        )
 
         if new_status == SupplierVerificationStatus.APPROVED:
             account = supplier.account
             if account.status == AccountStatus.PENDING:
                 account.status = AccountStatus.ACTIVE
                 account.save(update_fields=["status", "updated_at"])
+        elif new_status == SupplierVerificationStatus.REJECTED:
+            supplier.account.status = AccountStatus.PENDING
+            supplier.account.save(update_fields=["status", "updated_at"])
 
-        notification = Notification.objects.create(
-            title="Supplier verification updated",
-            content=f"Your supplier account was {supplier.verification_status}",
-            type="info",
+        title, content, notif_type = supplier_verification_updated(supplier)
+        if rejection_reason:
+            content = f"{content} Ghi chú: {rejection_reason}"
+        notify_account(
+            account=supplier.account,
+            title=title,
+            content=content,
             reference_type="supplier",
             reference_id=supplier.id,
             created_by=request.user,
-        )
-        NotificationReceipt.objects.create(
-            notification=notification,
-            account=supplier.account,
+            notif_type=notif_type,
         )
         return Response(SupplierDetailSerializer(supplier, context={"request": request}).data)
+
+    @extend_schema(
+        tags=["Suppliers"],
+        summary="Admin quản lý trạng thái tài khoản NCC",
+        description=(
+            "Kích hoạt (`active`), tạm khóa (`inactive`) hoặc vô hiệu hóa (`banned`) "
+            "tài khoản gắn với nhà cung cấp."
+        ),
+        request=SupplierAccountStatusSerializer,
+        responses={200: SupplierDetailSerializer},
+    )
+    @action(detail=True, methods=["post"], url_path="account-status")
+    def account_status(self, request, pk=None):
+        supplier = self.get_object()
+        serializer = SupplierAccountStatusSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        new_status = serializer.validated_data["status"]
+        reason = serializer.validated_data.get("reason", "")
+
+        supplier.account.status = new_status
+        supplier.account.save(update_fields=["status", "updated_at"])
+
+        status_labels = {
+            "active": "Kích hoạt",
+            "inactive": "Tạm khóa",
+            "banned": "Vô hiệu hóa",
+        }
+        notify_account(
+            account=supplier.account,
+            title=f"[Tài khoản] {status_labels.get(new_status, new_status)}",
+            content=(
+                f"Tài khoản {supplier.company_name} "
+                f"đã được {status_labels.get(new_status, new_status).lower()}."
+                + (f" Lý do: {reason}" if reason else "")
+            ),
+            reference_type="supplier",
+            reference_id=supplier.id,
+            created_by=request.user,
+            notif_type="warning" if new_status != "active" else "success",
+        )
+        return Response(SupplierDetailSerializer(supplier, context={"request": request}).data)
+
+    @extend_schema(
+        tags=["Supplier Documents"],
+        summary="Danh sách giấy tờ theo nhà cung cấp",
+        description=(
+            "Lấy toàn bộ giấy tờ của một supplier theo `supplier_id`.\n\n"
+            "Admin xem mọi supplier. Supplier chỉ xem được hồ sơ của mình."
+            + PAGINATION_QUERY_HELP
+        ),
+        responses={
+            200: paginated_response_schema(
+                SupplierDocumentReadSerializer,
+                "PaginatedSupplierDocumentRead",
+            )
+        },
+    )
+    @action(detail=True, methods=["get"], url_path="documents")
+    def documents(self, request, pk=None):
+        supplier = self.get_object()
+        documents = supplier.documents.select_related("verified_by").order_by(
+            "document_type", "-created_at"
+        )
+
+        def serialize(page):
+            return SupplierDocumentReadSerializer(
+                page,
+                many=True,
+                context={"request": request},
+            ).data
+
+        return paginate_queryset(self, request, documents, serialize)
 
 
 @extend_schema_view(
@@ -259,9 +344,17 @@ class SupplierViewSet(viewsets.ModelViewSet):
         summary="Danh sách giấy tờ",
         description=(
             "Admin xem tất cả giấy tờ. Supplier chỉ thấy của mình.\n\n"
+            "Lọc theo supplier (Admin): `?supplier_id={id}`\n"
+            "Hoặc dùng: `GET /api/suppliers/{supplier_id}/documents/`\n\n"
             "Duyệt giấy tờ: `POST /api/supplier-documents/{document_id}/verify/`"
+            + PAGINATION_QUERY_HELP
         ),
-        responses={200: SupplierDocumentSerializer(many=True)},
+        responses={
+            200: paginated_response_schema(
+                SupplierDocumentSerializer,
+                "PaginatedSupplierDocument",
+            )
+        },
     ),
     retrieve=extend_schema(
         tags=["Supplier Documents"],
@@ -338,9 +431,13 @@ class SupplierDocumentViewSet(viewsets.ModelViewSet):
 
     def get_queryset(self):
         user = self.request.user
+        qs = self.queryset
         if user.role == "admin":
-            return self.queryset
-        return self.queryset.filter(supplier__account=user)
+            supplier_id = self.request.query_params.get("supplier_id")
+            if supplier_id:
+                qs = qs.filter(supplier_id=supplier_id)
+            return qs
+        return qs.filter(supplier__account=user)
 
     def get_serializer_context(self):
         ctx = super().get_serializer_context()

@@ -14,6 +14,7 @@ from pathlib import Path
 from datetime import timedelta
 import os
 
+from django.core.exceptions import ImproperlyConfigured
 from dotenv import load_dotenv
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
@@ -81,6 +82,8 @@ REST_FRAMEWORK = {
         "rest_framework_simplejwt.authentication.JWTAuthentication",
     ),
     "DEFAULT_PERMISSION_CLASSES": ("rest_framework.permissions.IsAuthenticated",),
+    "DEFAULT_PAGINATION_CLASS": "common.pagination.LoadMorePagination",
+    "PAGE_SIZE": 20,
 }
 
 SIMPLE_JWT = {
@@ -138,6 +141,7 @@ SPECTACULAR_SETTINGS = {
             "name": "Auth",
             "description": (
                 "Đăng ký, đăng nhập, quản lý JWT và thông tin cá nhân. "
+                "Upload avatar qua `POST /api/profile/avatar/` (multipart/form-data). "
                 "Endpoint register trả token ngay — không cần login riêng cho onboarding."
             ),
         },
@@ -168,7 +172,10 @@ SPECTACULAR_SETTINGS = {
         },
         {
             "name": "Supplier Product Images",
-            "description": "Ảnh sản phẩm. Một ảnh có thể đặt làm thumbnail (`is_thumbnail=true`).",
+            "description": (
+                "Upload & quản lý ảnh sản phẩm (multipart/form-data, field `image_url`). "
+                "Một ảnh có thể đặt làm thumbnail (`is_thumbnail=true`)."
+            ),
         },
         {
             "name": "Cultivation Processes",
@@ -176,11 +183,22 @@ SPECTACULAR_SETTINGS = {
         },
         {
             "name": "Certifications",
-            "description": "Chứng nhận chất lượng/organic của supplier. Admin duyệt qua action `verify`.",
+            "description": (
+                "Chứng nhận chất lượng/organic của supplier. "
+                "Upload ảnh scan qua multipart/form-data (field `file_url`). "
+                "Admin duyệt qua action `verify`."
+            ),
+        },
+        {
+            "name": "System Config",
+            "description": "Cấu hình giới hạn hệ thống (upload, danh mục, sản phẩm, đăng nhập).",
         },
         {
             "name": "Notifications",
-            "description": "Thông báo hệ thống. Dùng `/my/` để lấy thông báo của user hiện tại.",
+            "description": (
+                "Thông báo hệ thống (tiếng Việt). "
+                "Dùng `GET /api/notifications/my/` — có `type_label` và `reference_type_label`."
+            ),
         },
     ],
 }
@@ -219,6 +237,8 @@ AUTH_USER_MODEL = "accounts.Account"
 
 # Database — Render dùng DATABASE_URL; local dùng biến DB_* trong .env
 DATABASE_URL = os.environ.get("DATABASE_URL")
+DB_PASSWORD = os.environ.get("DB_PASSWORD", "")
+
 if DATABASE_URL:
     import dj_database_url
 
@@ -230,12 +250,17 @@ if DATABASE_URL:
         )
     }
 else:
+    if not DB_PASSWORD:
+        raise ImproperlyConfigured(
+            "DB_PASSWORD is required. Set PostgreSQL credentials in backend/.env "
+            "(DB_NAME, DB_USER, DB_PASSWORD, DB_HOST, DB_PORT)."
+        )
     DATABASES = {
         "default": {
             "ENGINE": "django.db.backends.postgresql",
             "NAME": os.environ.get("DB_NAME", "smart_green_market"),
             "USER": os.environ.get("DB_USER", "postgres"),
-            "PASSWORD": os.environ.get("DB_PASSWORD", ""),
+            "PASSWORD": DB_PASSWORD,
             "HOST": os.environ.get("DB_HOST", "localhost"),
             "PORT": os.environ.get("DB_PORT", "5432"),
         }

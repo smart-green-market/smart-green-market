@@ -1,0 +1,49 @@
+from django.contrib.auth import get_user_model
+
+from apps.notifications.models import Notification, NotificationReceipt
+from common.notification_messages import plain_notification_text
+
+User = get_user_model()
+
+
+def notify_admins(title, content, reference_type, reference_id, created_by, notif_type="info"):
+    admins = User.objects.filter(role="admin")
+    if not admins.exists():
+        return
+    notification = Notification.objects.create(
+        title=plain_notification_text(title),
+        content=plain_notification_text(content),
+        type=notif_type,
+        reference_type=reference_type,
+        reference_id=reference_id,
+        created_by=created_by,
+    )
+    NotificationReceipt.objects.bulk_create([
+        NotificationReceipt(notification=notification, account=admin)
+        for admin in admins
+    ])
+
+
+def notify_account(
+    account,
+    title,
+    content,
+    reference_type,
+    reference_id,
+    created_by,
+    notif_type="info",
+):
+    if account is None:
+        return
+    notification = Notification.objects.create(
+        title=plain_notification_text(title),
+        content=plain_notification_text(content),
+        type=notif_type,
+        reference_type=reference_type,
+        reference_id=reference_id,
+        created_by=created_by,
+    )
+    NotificationReceipt.objects.create(
+        notification=notification,
+        account=account,
+    )

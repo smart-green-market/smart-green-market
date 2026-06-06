@@ -7,10 +7,10 @@ from django.conf import settings
 
 class Notification(models.Model):
     TYPE_CHOICES = [
-        ("info", "Info"),
-        ("warning", "Warning"),
-        ("success", "Success"),
-        ("error", "Error"),
+        ("info", "Thông tin"),
+        ("warning", "Cảnh báo"),
+        ("success", "Thành công"),
+        ("error", "Thất bại"),
     ]
 
     title = models.CharField(max_length=255)
@@ -29,6 +29,10 @@ class Notification(models.Model):
 
     created_at = models.DateTimeField(auto_now_add=True)
 
+    class Meta:
+        ordering = ["-created_at"]
+
+
 class NotificationReceipt(models.Model):
     notification = models.ForeignKey(Notification, on_delete=models.CASCADE)
     account = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
@@ -39,3 +43,4 @@ class NotificationReceipt(models.Model):
 
     class Meta:
         unique_together = ("notification", "account")
+        ordering = ["-notification__created_at"]

@@ -20,11 +20,15 @@ from rest_framework_simplejwt.views import (
 
 )
 
-from rest_framework.permissions import AllowAny
+from rest_framework.permissions import AllowAny, IsAuthenticated
+
+from rest_framework.parsers import FormParser, MultiPartParser
 
 
 
 from common.openapi import (
+
+    AvatarUploadForm,
 
     LoginRequestSerializer,
 
@@ -51,6 +55,8 @@ from .serializers import (
     ChangePasswordSerializer,
 
     LogoutSerializer,
+
+    AvatarUploadSerializer,
 
 )
 
@@ -374,7 +380,7 @@ class ProfileView(APIView):
 
     def get(self, request):
 
-        serializer = ProfileSerializer(request.Account)
+        serializer = ProfileSerializer(request.user, context={"request": request})
 
         return Response(serializer.data)
 
@@ -384,11 +390,12 @@ class ProfileView(APIView):
 
         serializer = ProfileSerializer(
 
-            request.Account,
+            request.user,
 
             data=request.data,
 
             partial=True,
+            context={"request": request},
 
         )
 
@@ -396,7 +403,7 @@ class ProfileView(APIView):
 
         serializer.save()
 
-        return Response(serializer.data)
+        return Response(ProfileSerializer(request.user, context={"request": request}).data)
 
 
 
@@ -432,7 +439,7 @@ class ChangePasswordView(APIView):
 
 
 
-        if not request.Account.check_password(
+        if not request.user.check_password(
 
             serializer.validated_data["old_password"]
 
@@ -448,15 +455,63 @@ class ChangePasswordView(APIView):
 
 
 
-        request.Account.set_password(
+        request.user.set_password(
 
             serializer.validated_data["new_password"]
 
         )
 
-        request.Account.save()
+        request.user.save()
 
 
 
         return Response({"detail": "Password changed successfully"})
+
+
+@extend_schema_view(
+    post=extend_schema(
+        tags=["Auth"],
+        summary="Upload / cập nhật avatar",
+        description=(
+            "Upload ảnh đại diện (multipart/form-data, field `avatar`).\n"
+            "Định dạng: jpg, png, webp — tối đa 5MB.\n"
+            "Thay avatar mới sẽ xóa file cũ trên server."
+        ),
+        request={"multipart/form-data": AvatarUploadForm},
+        responses={200: ProfileSerializer},
+    ),
+    delete=extend_schema(
+        tags=["Auth"],
+        summary="Xóa avatar",
+        description="Gỡ ảnh đại diện hiện tại của user đăng nhập.",
+        responses={200: ProfileSerializer},
+    ),
+)
+class AvatarView(APIView):
+    permission_classes = [IsAuthenticated]
+    parser_classes = [MultiPartParser, FormParser]
+
+    def post(self, request):
+        serializer = AvatarUploadSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        user = request.user
+        if user.avatar:
+            user.avatar.delete(save=False)
+        user.avatar = serializer.validated_data["avatar"]
+        user.save(update_fields=["avatar", "updated_at"])
+        return Response(
+            ProfileSerializer(user, context={"request": request}).data,
+            status=status.HTTP_200_OK,
+        )
+
+    def delete(self, request):
+        user = request.user
+        if user.avatar:
+            user.avatar.delete(save=False)
+            user.avatar = None
+            user.save(update_fields=["avatar", "updated_at"])
+        return Response(
+            ProfileSerializer(user, context={"request": request}).data,
+            status=status.HTTP_200_OK,
+        )
 

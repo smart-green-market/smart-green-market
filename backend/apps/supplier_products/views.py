@@ -1,12 +1,20 @@
+from django.utils import timezone
 from drf_spectacular.utils import extend_schema, extend_schema_view
 from rest_framework import viewsets
+from rest_framework.decorators import action
+from rest_framework.parsers import FormParser, MultiPartParser
+from rest_framework.response import Response
 
-from common.permission import IsActive
-from .models import SupplierProduct, SupplierProductImage, CultivationProcess
+from common.notifications import notify_account, notify_admins
+from common.openapi import PAGINATION_QUERY_HELP, paginated_response_schema
+from common.permission import IsAdmin, IsActive
+from .models import SupplierProduct, SupplierProductImage, CultivationProcess, SupplierProductStatus
+from .openapi import SupplierProductImageReplaceForm, SupplierProductImageUploadForm
 from .serializer import (
     SupplierProductSerializer,
     SupplierProductImageSerializer,
     CultivationProcessSerializer,
+    VerifySupplierProductSerializer,
 )
 
 
@@ -14,27 +22,18 @@ from .serializer import (
     list=extend_schema(
         tags=["Supplier Products"],
         summary="Danh sách sản phẩm",
-        description="Lấy danh sách sản phẩm supplier. Bao gồm nested `images`.",
-        responses={200: SupplierProductSerializer(many=True)},
+        description=PAGINATION_QUERY_HELP.strip(),
+        responses={
+            200: paginated_response_schema(
+                SupplierProductSerializer,
+                "PaginatedSupplierProduct",
+            )
+        },
     ),
-    retrieve=extend_schema(
-        tags=["Supplier Products"],
-        summary="Chi tiết sản phẩm",
-        responses={200: SupplierProductSerializer},
-    ),
-    create=extend_schema(
-        tags=["Supplier Products"],
-        summary="Tạo sản phẩm mới",
-        description=(
-            "Chỉ **supplier đã được duyệt** (`verification_status=approved`).\n"
-            "Sản phẩm mới có `status=pending`, chờ admin duyệt.\n"
-            "`supplier` tự gắn theo JWT."
-        ),
-        request=SupplierProductSerializer,
-        responses={201: SupplierProductSerializer},
-    ),
-    update=extend_schema(tags=["Supplier Products"], summary="Cập nhật toàn bộ sản phẩm"),
-    partial_update=extend_schema(tags=["Supplier Products"], summary="Cập nhật một phần sản phẩm"),
+    retrieve=extend_schema(tags=["Supplier Products"], summary="Chi tiết sản phẩm"),
+    create=extend_schema(tags=["Supplier Products"], summary="Tạo sản phẩm mới"),
+    update=extend_schema(tags=["Supplier Products"], summary="Cập nhật sản phẩm"),
+    partial_update=extend_schema(tags=["Supplier Products"], summary="Cập nhật một phần"),
     destroy=extend_schema(tags=["Supplier Products"], summary="Xóa sản phẩm"),
 )
 class SupplierProductViewSet(viewsets.ModelViewSet):
@@ -44,34 +43,104 @@ class SupplierProductViewSet(viewsets.ModelViewSet):
     ).prefetch_related("images")
     serializer_class = SupplierProductSerializer
 
+    def get_permissions(self):
+        if self.action == "verify":
+            return [IsAdmin()]
+        return [IsActive()]
+
+    def perform_create(self, serializer):
+        product = serializer.save()
+        notify_admins(
+            title="[Sản phẩm] Có sản phẩm mới chờ duyệt",
+            content=(
+                f"Sản phẩm {product.name} của {product.supplier.company_name} "
+                f"cần được duyệt."
+            ),
+            reference_type="supplier_product",
+            reference_id=product.id,
+            created_by=self.request.user,
+        )
+
+    @extend_schema(
+        tags=["Supplier Products"],
+        summary="Admin duyệt / từ chối sản phẩm",
+        request=VerifySupplierProductSerializer,
+        responses={200: SupplierProductSerializer},
+    )
+    @action(detail=True, methods=["post"])
+    def verify(self, request, pk=None):
+        product = self.get_object()
+        serializer = VerifySupplierProductSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        product.status = serializer.validated_data["status"]
+        product.rejection_reason = serializer.validated_data.get("rejection_reason", "")
+        product.verified_by = request.user
+        product.verified_at = timezone.now()
+        product.save()
+
+        approved = product.status == SupplierProductStatus.ACTIVE
+        notify_account(
+            account=product.supplier.account,
+            title=f"[Sản phẩm] \"{product.name}\" — {'Đã duyệt' if approved else 'Từ chối'}",
+            content=(
+                f"Sản phẩm {product.name} "
+                f"{'đã được duyệt' if approved else 'đã bị từ chối'}."
+                + (
+                    f" Lý do: {product.rejection_reason}"
+                    if product.rejection_reason
+                    else ""
+                )
+            ),
+            reference_type="supplier_product",
+            reference_id=product.id,
+            created_by=request.user,
+            notif_type="success" if approved else "error",
+        )
+        return Response(SupplierProductSerializer(product).data)
+
 
 @extend_schema_view(
     list=extend_schema(
         tags=["Supplier Product Images"],
         summary="Danh sách ảnh sản phẩm",
-        responses={200: SupplierProductImageSerializer(many=True)},
+        description=PAGINATION_QUERY_HELP.strip(),
+        responses={
+            200: paginated_response_schema(
+                SupplierProductImageSerializer,
+                "PaginatedSupplierProductImage",
+            )
+        },
     ),
-    retrieve=extend_schema(
-        tags=["Supplier Product Images"],
-        summary="Chi tiết ảnh",
-        responses={200: SupplierProductImageSerializer},
-    ),
+    retrieve=extend_schema(tags=["Supplier Product Images"], summary="Chi tiết ảnh"),
     create=extend_schema(
         tags=["Supplier Product Images"],
-        summary="Thêm ảnh sản phẩm",
+        summary="Upload ảnh sản phẩm",
         description=(
-            "Supplier chỉ thêm ảnh cho sản phẩm thuộc profile của mình.\n"
-            "Đặt `is_thumbnail=true` để chọn ảnh đại diện (tự bỏ thumbnail cũ)."
+            "Chọn ảnh trực tiếp trên Swagger (multipart/form-data).\n"
+            "Định dạng: jpg, png, webp — tối đa 5MB."
         ),
-        request=SupplierProductImageSerializer,
+        request={"multipart/form-data": SupplierProductImageUploadForm},
         responses={201: SupplierProductImageSerializer},
     ),
-    update=extend_schema(tags=["Supplier Product Images"], summary="Cập nhật ảnh"),
-    partial_update=extend_schema(tags=["Supplier Product Images"], summary="Cập nhật một phần ảnh"),
+    update=extend_schema(
+        tags=["Supplier Product Images"],
+        summary="Thay ảnh sản phẩm",
+        description="Chọn ảnh mới qua field `image_url` (multipart/form-data).",
+        request={"multipart/form-data": SupplierProductImageReplaceForm},
+        responses={200: SupplierProductImageSerializer},
+    ),
+    partial_update=extend_schema(
+        tags=["Supplier Product Images"],
+        summary="Cập nhật một phần (ảnh / thumbnail / thứ tự)",
+        description="Có thể upload ảnh mới qua field `image_url` (multipart/form-data).",
+        request={"multipart/form-data": SupplierProductImageReplaceForm},
+        responses={200: SupplierProductImageSerializer},
+    ),
     destroy=extend_schema(tags=["Supplier Product Images"], summary="Xóa ảnh"),
 )
 class SupplierProductImageViewSet(viewsets.ModelViewSet):
     permission_classes = [IsActive]
+    parser_classes = [MultiPartParser, FormParser]
     queryset = SupplierProductImage.objects.select_related(
         "supplier_product__supplier"
     )
@@ -82,25 +151,17 @@ class SupplierProductImageViewSet(viewsets.ModelViewSet):
     list=extend_schema(
         tags=["Cultivation Processes"],
         summary="Danh sách quy trình canh tác",
-        description="Các bước quy trình sản xuất của sản phẩm, sắp xếp theo `step_order`.",
-        responses={200: CultivationProcessSerializer(many=True)},
+        description=PAGINATION_QUERY_HELP.strip(),
+        responses={
+            200: paginated_response_schema(
+                CultivationProcessSerializer,
+                "PaginatedCultivationProcess",
+            )
+        },
     ),
-    retrieve=extend_schema(
-        tags=["Cultivation Processes"],
-        summary="Chi tiết bước quy trình",
-        responses={200: CultivationProcessSerializer},
-    ),
-    create=extend_schema(
-        tags=["Cultivation Processes"],
-        summary="Thêm bước quy trình",
-        description=(
-            "Mỗi sản phẩm có `step_order` unique. "
-            "Supplier chỉ thao tác quy trình của sản phẩm thuộc mình."
-        ),
-        request=CultivationProcessSerializer,
-        responses={201: CultivationProcessSerializer},
-    ),
-    update=extend_schema(tags=["Cultivation Processes"], summary="Cập nhật bước quy trình"),
+    retrieve=extend_schema(tags=["Cultivation Processes"], summary="Chi tiết bước quy trình"),
+    create=extend_schema(tags=["Cultivation Processes"], summary="Thêm bước quy trình"),
+    update=extend_schema(tags=["Cultivation Processes"], summary="Cập nhật bước"),
     partial_update=extend_schema(tags=["Cultivation Processes"], summary="Cập nhật một phần"),
     destroy=extend_schema(tags=["Cultivation Processes"], summary="Xóa bước quy trình"),
 )

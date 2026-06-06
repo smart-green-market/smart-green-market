@@ -1,0 +1,3 @@
+# Tránh requirements.txt bị lưu UTF-16 (gây lỗi pip trên Render/Linux)
+backend/requirements.txt text eol=lf
+backend/build.sh text eol=lf
