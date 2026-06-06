@@ -3,22 +3,21 @@ from django.db import models
 
 
 class SupplierVerificationStatus(models.TextChoices):
-    PENDING = "pending", "Pending"
-    APPROVED = "approved", "Approved"
-    REJECTED = "rejected", "Rejected"
+    PENDING = "pending", "Chờ duyệt"
+    APPROVED = "approved", "Đã duyệt"
+    REJECTED = "rejected", "Từ chối"
 
 
 class SupplierDocumentType(models.TextChoices):
-    BUSINESS_LICENSE = "business_license", "Business License"
-    ID_CARD = "id_card", "ID Card"
-    TAX_CERTIFICATE = "tax_certificate", "Tax Certificate"
-
+    BUSINESS_LICENSE = "business_license", "Giấy phép kinh doanh"
+    ID_CARD = "id_card", "CMND/CCCD"
+    TAX_CERTIFICATE = "tax_certificate", "Giấy chứng nhận thuế"
 
 
 class SupplierDocumentStatus(models.TextChoices):
-    PENDING = "pending", "Pending"
-    APPROVED = "approved", "Approved"
-    REJECTED = "rejected", "Rejected"
+    PENDING = "pending", "Chờ duyệt"
+    APPROVED = "approved", "Đã duyệt"
+    REJECTED = "rejected", "Từ chối"
 
 
 class Supplier(models.Model):
@@ -38,6 +37,15 @@ class Supplier(models.Model):
         choices=SupplierVerificationStatus.choices,
         default=SupplierVerificationStatus.PENDING,
     )
+    verified_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="verified_suppliers",
+    )
+    verified_at = models.DateTimeField(null=True, blank=True)
+    rejection_reason = models.TextField(blank=True)
 
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)

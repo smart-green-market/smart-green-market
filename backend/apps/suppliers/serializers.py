@@ -2,6 +2,7 @@ from django.contrib.auth import get_user_model
 from drf_spectacular.utils import extend_schema_field
 from rest_framework import serializers
 
+from apps.accounts.serializers import build_avatar_url
 from apps.certifications.serializers import CertificationSerializer
 from apps.supplier_products.serializer import SupplierProductSerializer
 from .models import Supplier, SupplierDocument, SupplierDocumentType, SupplierDocumentStatus
@@ -11,6 +12,8 @@ Account = get_user_model()
 
 class SupplierAccountNestedSerializer(serializers.ModelSerializer):
     """Thông tin tài khoản gắn với supplier."""
+
+    avatar_url = serializers.SerializerMethodField()
 
     class Meta:
         model = Account
@@ -22,12 +25,16 @@ class SupplierAccountNestedSerializer(serializers.ModelSerializer):
             "last_name",
             "full_name",
             "phone",
-            "avatar",
+            "avatar_url",
             "role",
             "status",
             "created_at",
             "updated_at",
         ]
+
+    @extend_schema_field(serializers.URLField(allow_null=True))
+    def get_avatar_url(self, obj):
+        return build_avatar_url(obj, self.context.get("request"))
 
 
 class SupplierDocumentReadSerializer(serializers.ModelSerializer):
@@ -71,6 +78,9 @@ class SupplierSerializer(serializers.ModelSerializer):
         read_only_fields = [
             "account",
             "verification_status",
+            "verified_by",
+            "verified_at",
+            "rejection_reason",
             "created_at",
             "updated_at",
         ]
@@ -116,6 +126,9 @@ class SupplierDetailSerializer(serializers.ModelSerializer):
             "address",
             "description",
             "verification_status",
+            "verified_by",
+            "verified_at",
+            "rejection_reason",
             "created_at",
             "updated_at",
             "documents",

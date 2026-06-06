@@ -22,7 +22,7 @@ class Account(AbstractUser):
     email = models.EmailField(unique=True)
     full_name = models.CharField(max_length=255, blank=True)
     phone = models.CharField(max_length=20, blank=True)
-    avatar = models.URLField(max_length=500, blank=True)  # hoặc ImageField
+    avatar = models.FileField(upload_to="avatars/", blank=True, null=True)
 
     role = models.CharField(
         max_length=20,
@@ -44,3 +44,13 @@ class Account(AbstractUser):
 
     def __str__(self):
         return self.username
+
+
+class LoginAttempt(models.Model):
+    username = models.CharField(max_length=150, unique=True)
+    failed_count = models.PositiveIntegerField(default=0)
+    locked_until = models.DateTimeField(null=True, blank=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = "login_attempts"

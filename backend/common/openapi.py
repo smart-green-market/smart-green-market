@@ -1,6 +1,35 @@
 """Schema helpers dùng chung cho Swagger (drf-spectacular)."""
 
+from drf_spectacular.utils import inline_serializer
 from rest_framework import serializers
+
+PAGINATION_QUERY_HELP = (
+    "\n\n**Phân trang (load more):** `?page=1&page_size=20` "
+    "(mặc định page=1, page_size=20, tối đa 100)."
+)
+
+
+def paginated_response_schema(item_serializer, name="PaginatedList"):
+    return inline_serializer(
+        name=name,
+        fields={
+            "count": serializers.IntegerField(help_text="Tổng số bản ghi"),
+            "next": serializers.URLField(
+                allow_null=True,
+                help_text="URL trang tiếp theo (dùng cho load more)",
+            ),
+            "previous": serializers.URLField(
+                allow_null=True,
+                help_text="URL trang trước",
+            ),
+            "page": serializers.IntegerField(help_text="Trang hiện tại (bắt đầu từ 1)"),
+            "page_size": serializers.IntegerField(help_text="Số bản ghi mỗi trang"),
+            "has_more": serializers.BooleanField(
+                help_text="true nếu còn dữ liệu để tải thêm",
+            ),
+            "results": item_serializer(many=True),
+        },
+    )
 
 
 class MessageResponseSerializer(serializers.Serializer):
@@ -36,26 +65,66 @@ class LoginRequestSerializer(serializers.Serializer):
 class VerifySupplierSerializer(serializers.Serializer):
     verification_status = serializers.ChoiceField(
         choices=["pending", "approved", "rejected"],
-        help_text=(
-            "Trạng thái duyệt nhà cung cấp. "
-            "Chỉ được `approved` khi đủ 3 loại giấy tờ và tất cả đã approved."
-        ),
+        help_text="approved | rejected | pending",
+    )
+    rejection_reason = serializers.CharField(
+        required=False,
+        allow_blank=True,
+        help_text="Lý do từ chối / yêu cầu bổ sung hồ sơ",
+    )
+
+
+class SupplierAccountStatusSerializer(serializers.Serializer):
+    status = serializers.ChoiceField(
+        choices=["active", "inactive", "banned"],
+        help_text="active (kích hoạt) | inactive (tạm khóa) | banned (vô hiệu hóa)",
+    )
+    reason = serializers.CharField(
+        required=False,
+        allow_blank=True,
+        help_text="Ghi chú lý do thay đổi trạng thái",
     )
 
 
 class MyNotificationItemSerializer(serializers.Serializer):
     receipt_id = serializers.IntegerField(help_text="ID bản ghi nhận thông báo")
     id = serializers.IntegerField(help_text="ID thông báo")
-    title = serializers.CharField()
-    content = serializers.CharField()
-    type = serializers.ChoiceField(choices=["info", "warning", "success", "error"])
-    reference_type = serializers.CharField(allow_null=True, help_text="Loại đối tượng liên quan")
-    reference_id = serializers.IntegerField(allow_null=True, help_text="ID đối tượng liên quan")
-    read_at = serializers.DateTimeField(allow_null=True, help_text="Thời điểm đọc (null = chưa đọc)")
-    created_at = serializers.DateTimeField()
+    title = serializers.CharField(help_text="Tiêu đề")
+    content = serializers.CharField(help_text="Nội dung chi tiết")
+    type = serializers.ChoiceField(
+        choices=["info", "warning", "success", "error"],
+        help_text="Mã loại thông báo",
+    )
+    type_label = serializers.CharField(help_text="Tên loại thông báo (tiếng Việt)")
+    reference_type = serializers.CharField(
+        allow_null=True,
+        help_text="Mã nhóm đối tượng liên quan",
+    )
+    reference_type_label = serializers.CharField(
+        help_text="Tên nhóm đối tượng (tiếng Việt)",
+    )
+    reference_id = serializers.IntegerField(
+        allow_null=True,
+        help_text="ID đối tượng liên quan",
+    )
+    read_at = serializers.DateTimeField(
+        allow_null=True,
+        help_text="Thời điểm đọc (null = chưa đọc)",
+    )
+    created_at = serializers.DateTimeField(help_text="Thời gian tạo thông báo")
 
 
 class MarkReadResponseSerializer(serializers.Serializer):
     message = serializers.CharField()
     notification_id = serializers.IntegerField()
     updated = serializers.IntegerField(help_text="Số bản ghi được cập nhật")
+
+
+AvatarUploadForm = inline_serializer(
+    name="AvatarUploadForm",
+    fields={
+        "avatar": serializers.FileField(
+            help_text="Ảnh đại diện (jpg, png, webp — tối đa 5MB)",
+        ),
+    },
+)
