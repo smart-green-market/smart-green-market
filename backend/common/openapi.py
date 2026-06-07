@@ -113,6 +113,36 @@ class MyNotificationItemSerializer(serializers.Serializer):
     created_at = serializers.DateTimeField(help_text="Thời gian tạo thông báo")
 
 
+def my_notification_list_response_schema():
+    return inline_serializer(
+        name="MyNotificationListResponse",
+        fields={
+            "unread_count": serializers.IntegerField(
+                help_text="Tổng số thông báo chưa đọc",
+            ),
+            "unread": MyNotificationItemSerializer(
+                many=True,
+                help_text="Danh sách thông báo chưa đọc (mới nhất trước)",
+            ),
+            "count": serializers.IntegerField(help_text="Tổng số bản ghi (cả đã đọc)"),
+            "next": serializers.URLField(
+                allow_null=True,
+                help_text="URL trang tiếp theo (dùng cho load more)",
+            ),
+            "previous": serializers.URLField(
+                allow_null=True,
+                help_text="URL trang trước",
+            ),
+            "page": serializers.IntegerField(help_text="Trang hiện tại (bắt đầu từ 1)"),
+            "page_size": serializers.IntegerField(help_text="Số bản ghi mỗi trang"),
+            "has_more": serializers.BooleanField(
+                help_text="true nếu còn dữ liệu để tải thêm",
+            ),
+            "results": MyNotificationItemSerializer(many=True),
+        },
+    )
+
+
 class MarkReadResponseSerializer(serializers.Serializer):
     message = serializers.CharField()
     notification_id = serializers.IntegerField()

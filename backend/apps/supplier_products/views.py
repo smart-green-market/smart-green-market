@@ -17,6 +17,7 @@ from common.querysets import (
 from .models import SupplierProduct, SupplierProductImage, CultivationProcess, SupplierProductStatus
 from .openapi import SupplierProductImageBulkUploadForm, SupplierProductImageReplaceForm
 from .serializer import (
+    SupplierProductListSerializer,
     SupplierProductSerializer,
     SupplierProductImageSerializer,
     SupplierProductImageBulkUploadSerializer,
@@ -35,12 +36,16 @@ from .serializer import (
         ),
         responses={
             200: paginated_response_schema(
-                SupplierProductSerializer,
+                SupplierProductListSerializer,
                 "PaginatedSupplierProduct",
             )
         },
     ),
-    retrieve=extend_schema(tags=["Supplier Products"], summary="Chi tiết sản phẩm"),
+    retrieve=extend_schema(
+        tags=["Supplier Products"],
+        summary="Chi tiết sản phẩm",
+        responses={200: SupplierProductListSerializer},
+    ),
     create=extend_schema(tags=["Supplier Products"], summary="Tạo sản phẩm mới"),
     update=extend_schema(tags=["Supplier Products"], summary="Cập nhật sản phẩm"),
     partial_update=extend_schema(tags=["Supplier Products"], summary="Cập nhật một phần"),
@@ -49,9 +54,17 @@ from .serializer import (
 class SupplierProductViewSet(viewsets.ModelViewSet):
     permission_classes = [IsActive]
     queryset = SupplierProduct.objects.select_related(
-        "supplier", "category", "verified_by"
+        "supplier",
+        "supplier__account",
+        "category",
+        "verified_by",
     ).prefetch_related("images")
     serializer_class = SupplierProductSerializer
+
+    def get_serializer_class(self):
+        if self.action in ("list", "retrieve", "verify"):
+            return SupplierProductListSerializer
+        return SupplierProductSerializer
 
     def get_permissions(self):
         if self.action == "verify":
@@ -83,7 +96,7 @@ class SupplierProductViewSet(viewsets.ModelViewSet):
         tags=["Supplier Products"],
         summary="Admin duyệt / từ chối sản phẩm",
         request=VerifySupplierProductSerializer,
-        responses={200: SupplierProductSerializer},
+        responses={200: SupplierProductListSerializer},
     )
     @action(detail=True, methods=["post"])
     def verify(self, request, pk=None):
@@ -114,7 +127,9 @@ class SupplierProductViewSet(viewsets.ModelViewSet):
             created_by=request.user,
             notif_type="success" if approved else "error",
         )
-        return Response(SupplierProductSerializer(product).data)
+        return Response(
+            SupplierProductListSerializer(product, context={"request": request}).data
+        )
 
 
 @extend_schema_view(

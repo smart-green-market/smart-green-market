@@ -1,8 +1,43 @@
 from rest_framework import serializers
 
 from apps.categories.models import Category, CategoryStatus
+from common.approval_nested import ApprovalAccountNestedSerializer
 from common.openapi_enums import schema_choice_field
 from common.business_rules import MAX_CATEGORIES_PER_SUPPLIER
+
+
+class CategoryReadSerializer(serializers.ModelSerializer):
+    status = schema_choice_field(choices=CategoryStatus.choices, read_only=True)
+    verified_by_username = serializers.CharField(
+        source="verified_by.username",
+        read_only=True,
+        allow_null=True,
+    )
+
+    class Meta:
+        model = Category
+        fields = [
+            "id",
+            "name",
+            "description",
+            "status",
+            "sort_order",
+            "verified_by",
+            "verified_by_username",
+            "verified_at",
+            "rejection_reason",
+            "created_at",
+            "updated_at",
+        ]
+
+
+class CategoryListSerializer(CategoryReadSerializer):
+    """Danh mục kèm người tạo — dùng cho danh sách chờ duyệt."""
+
+    created_by = ApprovalAccountNestedSerializer(read_only=True)
+
+    class Meta(CategoryReadSerializer.Meta):
+        fields = CategoryReadSerializer.Meta.fields + ["created_by"]
 
 
 class CategorySerializer(serializers.ModelSerializer):
