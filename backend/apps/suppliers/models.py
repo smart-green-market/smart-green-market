@@ -54,6 +54,7 @@ class Supplier(models.Model):
         db_table = "supplier"
         verbose_name = "Supplier"
         verbose_name_plural = "Suppliers"
+        ordering = ["-created_at", "-id"]
 
     def __str__(self):
         return self.company_name
@@ -91,6 +92,7 @@ class SupplierDocument(models.Model):
         db_table = "supplier_document"
         verbose_name = "Supplier Document"
         verbose_name_plural = "Supplier Documents"
+        ordering = ["document_type", "-created_at"]
         constraints = [
             models.UniqueConstraint(
                 fields=["supplier", "document_type"],

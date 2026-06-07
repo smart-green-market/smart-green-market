@@ -1,6 +1,6 @@
 from django.utils import timezone
 from drf_spectacular.utils import extend_schema, extend_schema_view
-from rest_framework import viewsets
+from rest_framework import status, viewsets
 from rest_framework.decorators import action
 from rest_framework.parsers import FormParser, MultiPartParser
 from rest_framework.response import Response
@@ -10,10 +10,19 @@ from common.notifications import notify_account, notify_admins
 from common.openapi import PAGINATION_QUERY_HELP, paginated_response_schema
 from common.pagination import paginate_queryset
 from common.permission import IsAdmin, IsActive
-from .models import Certification, CertificationAuditAction, CertificationStatus
-from .openapi import CertificationCreateForm, CertificationUpdateForm
+from common.querysets import ORDER_IMAGE, ORDER_NEWEST, filter_admin_or_supplier_account
+from .models import Certification, CertificationAuditAction, CertificationImage, CertificationStatus
+from .openapi import (
+    CertificationCreateForm,
+    CertificationImageBulkUploadForm,
+    CertificationImageReplaceForm,
+    CertificationUpdateForm,
+)
 from .serializers import (
     CertificationAuditLogSerializer,
+    CertificationCreateSerializer,
+    CertificationImageBulkUploadSerializer,
+    CertificationImageSerializer,
     CertificationSerializer,
     RevokeCertificationSerializer,
     VerifyCertificationSerializer,
@@ -28,6 +37,7 @@ from .serializers import (
         summary="Danh sách chứng nhận",
         description=(
             "Admin: thêm `?expired=true` để lọc chứng nhận hết hạn.\n"
+            "Supplier/Dealer chỉ thấy chứng nhận của mình.\n"
             "Hệ thống tự kiểm tra ngày hết hạn khi gọi API."
             + PAGINATION_QUERY_HELP
         ),
@@ -38,25 +48,27 @@ from .serializers import (
     retrieve=extend_schema(tags=["Certifications"], summary="Chi tiết chứng nhận"),
     create=extend_schema(
         tags=["Certifications"],
-        summary="Đăng ký chứng nhận mới (upload ảnh scan)",
+        summary="Đăng ký chứng nhận mới (upload nhiều ảnh scan)",
         description=(
-            "Chọn ảnh scan chứng nhận trực tiếp trên Swagger (multipart/form-data).\n"
-            "Định dạng: jpg, png, webp — tối đa 5MB."
+            "Supplier/Dealer đăng ký chứng nhận — `supplier` tự gắn theo JWT.\n"
+            "Chọn ảnh scan trên Swagger (multipart/form-data, field `images`).\n"
+            "Có thể chọn nhiều file cùng lúc.\n"
+            f"Tối đa 5 ảnh/chứng nhận, 5MB/ảnh"
         ),
         request={"multipart/form-data": CertificationCreateForm},
         responses={201: CertificationSerializer},
     ),
     update=extend_schema(
         tags=["Certifications"],
-        summary="Cập nhật chứng nhận",
-        description="Có thể thay ảnh scan qua field `file_url` (multipart/form-data).",
+        summary="Cập nhật thông tin chứng nhận",
+        description="Chỉ cập nhật metadata. Ảnh scan quản lý qua `/api/certification-images/`.",
         request={"multipart/form-data": CertificationUpdateForm},
         responses={200: CertificationSerializer},
     ),
     partial_update=extend_schema(
         tags=["Certifications"],
-        summary="Cập nhật một phần chứng nhận",
-        description="Có thể upload ảnh scan mới qua field `file_url` (multipart/form-data).",
+        summary="Cập nhật một phần thông tin chứng nhận",
+        description="Chỉ cập nhật metadata. Ảnh scan quản lý qua `/api/certification-images/`.",
         request={"multipart/form-data": CertificationUpdateForm},
         responses={200: CertificationSerializer},
     ),
@@ -66,8 +78,13 @@ class CertificationViewSet(viewsets.ModelViewSet):
     parser_classes = [MultiPartParser, FormParser]
     queryset = Certification.objects.select_related(
         "supplier", "supplier__account", "verified_by", "revoked_by"
-    )
+    ).prefetch_related("images")
     serializer_class = CertificationSerializer
+
+    def get_serializer_class(self):
+        if self.action == "create":
+            return CertificationCreateSerializer
+        return CertificationSerializer
 
     def get_permissions(self):
         if self.action in ("verify", "revoke", "audit_history"):
@@ -79,11 +96,35 @@ class CertificationViewSet(viewsets.ModelViewSet):
         qs = self.queryset.filter(deleted_at__isnull=True)
         if self.request.user.role == "admin":
             if self.request.query_params.get("expired") == "true":
-                return qs.filter(status=CertificationStatus.EXPIRED)
-            return qs
-        if hasattr(self.request.user, "supplier_profile"):
-            return qs.filter(supplier=self.request.user.supplier_profile)
-        return qs.none()
+                return filter_admin_or_supplier_account(
+                    qs.filter(status=CertificationStatus.EXPIRED),
+                    self.request.user,
+                    ordering=ORDER_NEWEST,
+                )
+            return filter_admin_or_supplier_account(
+                qs,
+                self.request.user,
+                ordering=ORDER_NEWEST,
+                pending_field="status",
+            )
+        return filter_admin_or_supplier_account(
+            qs,
+            self.request.user,
+            ordering=ORDER_NEWEST,
+            pending_field="status",
+        )
+
+    def create(self, request, *args, **kwargs):
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        self.perform_create(serializer)
+        return Response(
+            CertificationSerializer(
+                serializer.instance,
+                context={"request": request},
+            ).data,
+            status=status.HTTP_201_CREATED,
+        )
 
     def perform_create(self, serializer):
         certification = serializer.save()
@@ -144,7 +185,9 @@ class CertificationViewSet(viewsets.ModelViewSet):
             created_by=request.user,
             notif_type=notif_type,
         )
-        return Response(CertificationSerializer(certification).data)
+        return Response(
+            CertificationSerializer(certification, context={"request": request}).data
+        )
 
     @extend_schema(
         tags=["Certifications"],
@@ -182,7 +225,9 @@ class CertificationViewSet(viewsets.ModelViewSet):
             created_by=request.user,
             notif_type="error",
         )
-        return Response(CertificationSerializer(certification).data)
+        return Response(
+            CertificationSerializer(certification, context={"request": request}).data
+        )
 
     @extend_schema(
         tags=["Certifications"],
@@ -206,3 +251,78 @@ class CertificationViewSet(viewsets.ModelViewSet):
             return CertificationAuditLogSerializer(page, many=True).data
 
         return paginate_queryset(self, request, logs, serialize)
+
+
+@extend_schema_view(
+    list=extend_schema(
+        tags=["Certification Images"],
+        summary="Danh sách ảnh chứng nhận",
+        description=(
+            "Admin xem tất cả. Supplier/Dealer chỉ thấy ảnh chứng nhận của mình."
+            + PAGINATION_QUERY_HELP
+        ),
+        responses={
+            200: paginated_response_schema(
+                CertificationImageSerializer,
+                "PaginatedCertificationImage",
+            )
+        },
+    ),
+    retrieve=extend_schema(tags=["Certification Images"], summary="Chi tiết ảnh"),
+    create=extend_schema(
+        tags=["Certification Images"],
+        summary="Upload ảnh chứng nhận (1 hoặc nhiều ảnh)",
+        description=(
+            "Thêm ảnh scan cho chứng nhận đã tạo (multipart/form-data, field `images`).\n"
+            "Có thể chọn nhiều file cùng lúc."
+        ),
+        request={"multipart/form-data": CertificationImageBulkUploadForm},
+        responses={201: CertificationImageSerializer(many=True)},
+    ),
+    update=extend_schema(
+        tags=["Certification Images"],
+        summary="Thay ảnh chứng nhận",
+        request={"multipart/form-data": CertificationImageReplaceForm},
+        responses={200: CertificationImageSerializer},
+    ),
+    partial_update=extend_schema(
+        tags=["Certification Images"],
+        summary="Cập nhật một phần (ảnh / thứ tự)",
+        request={"multipart/form-data": CertificationImageReplaceForm},
+        responses={200: CertificationImageSerializer},
+    ),
+    destroy=extend_schema(tags=["Certification Images"], summary="Xóa ảnh"),
+)
+class CertificationImageViewSet(viewsets.ModelViewSet):
+    permission_classes = [IsActive]
+    parser_classes = [MultiPartParser, FormParser]
+    queryset = CertificationImage.objects.select_related(
+        "certification__supplier__account"
+    )
+    serializer_class = CertificationImageSerializer
+
+    def get_serializer_class(self):
+        if self.action == "create":
+            return CertificationImageBulkUploadSerializer
+        return CertificationImageSerializer
+
+    def create(self, request, *args, **kwargs):
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        images = serializer.save()
+        return Response(
+            CertificationImageSerializer(
+                images,
+                many=True,
+                context={"request": request},
+            ).data,
+            status=status.HTTP_201_CREATED,
+        )
+
+    def get_queryset(self):
+        return filter_admin_or_supplier_account(
+            self.queryset,
+            self.request.user,
+            account_lookup="certification__supplier__account",
+            ordering=ORDER_IMAGE,
+        )

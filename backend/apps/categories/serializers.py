@@ -1,10 +1,13 @@
 from rest_framework import serializers
 
 from apps.categories.models import Category, CategoryStatus
+from common.openapi_enums import schema_choice_field
 from common.business_rules import MAX_CATEGORIES_PER_SUPPLIER
 
 
 class CategorySerializer(serializers.ModelSerializer):
+    status = schema_choice_field(choices=CategoryStatus.choices, read_only=True)
+
     class Meta:
         model = Category
         fields = "__all__"
@@ -35,7 +38,7 @@ class CategorySerializer(serializers.ModelSerializer):
             self.instance is None
             and request
             and request.user.is_authenticated
-            and request.user.role == "supplier"
+            and request.user.role in ("supplier", "dealer")
         ):
             count = Category.objects.filter(created_by=request.user).count()
             if count >= MAX_CATEGORIES_PER_SUPPLIER:
@@ -53,13 +56,12 @@ class CategorySerializer(serializers.ModelSerializer):
 
 
 class VerifyCategorySerializer(serializers.Serializer):
-    status = serializers.ChoiceField(
+    status = schema_choice_field(
         choices=[
             CategoryStatus.ACTIVE,
             CategoryStatus.REJECTED,
             CategoryStatus.INACTIVE,
         ],
-        help_text="active (duyệt) | rejected (từ chối) | inactive (khóa)",
     )
     rejection_reason = serializers.CharField(
         required=False,

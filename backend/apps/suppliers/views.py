@@ -21,6 +21,12 @@ from common.openapi import (
 )
 from common.pagination import paginate_queryset
 from common.permission import IsAdmin, IsAdminOrSupplier, IsSupplier
+from common.querysets import (
+    ORDER_DOCUMENT,
+    ORDER_NEWEST,
+    _apply_order,
+    filter_admin_or_supplier_account,
+)
 from common.notification_messages import (
     admin_new_supplier_document,
     supplier_document_reviewed,
@@ -113,7 +119,7 @@ def _validate_supplier_ready_for_approval(supplier):
     list=extend_schema(
         tags=["Suppliers"],
         summary="Danh sách nhà cung cấp",
-        description="Admin xem tất cả. Supplier chỉ thấy hồ sơ của mình." + PAGINATION_QUERY_HELP,
+        description="Admin xem tất cả. Supplier/Dealer chỉ thấy hồ sơ của mình." + PAGINATION_QUERY_HELP,
         responses={200: paginated_response_schema(SupplierSerializer, "PaginatedSupplier")},
     ),
     retrieve=extend_schema(
@@ -185,12 +191,18 @@ class SupplierViewSet(viewsets.ModelViewSet):
                     "products",
                     queryset=SupplierProduct.objects.select_related(
                         "category", "verified_by"
-                    ).prefetch_related("images"),
+                    )
+                    .prefetch_related("images")
+                    .order_by("-updated_at", "-created_at", "-id"),
                 ),
             )
-        if user.role == "admin":
-            return qs
-        return qs.filter(account=user)
+        return filter_admin_or_supplier_account(
+            qs,
+            user,
+            account_lookup="account",
+            ordering=ORDER_NEWEST,
+            pending_field="verification_status",
+        )
 
     def get_serializer_context(self):
         ctx = super().get_serializer_context()
@@ -324,8 +336,10 @@ class SupplierViewSet(viewsets.ModelViewSet):
     @action(detail=True, methods=["get"], url_path="documents")
     def documents(self, request, pk=None):
         supplier = self.get_object()
-        documents = supplier.documents.select_related("verified_by").order_by(
-            "document_type", "-created_at"
+        documents = _apply_order(
+            supplier.documents.select_related("verified_by"),
+            ORDER_DOCUMENT,
+            pending_field="status",
         )
 
         def serialize(page):
@@ -343,7 +357,7 @@ class SupplierViewSet(viewsets.ModelViewSet):
         tags=["Supplier Documents"],
         summary="Danh sách giấy tờ",
         description=(
-            "Admin xem tất cả giấy tờ. Supplier chỉ thấy của mình.\n\n"
+            "Admin xem tất cả giấy tờ. Supplier/Dealer chỉ thấy của mình.\n\n"
             "Lọc theo supplier (Admin): `?supplier_id={id}`\n"
             "Hoặc dùng: `GET /api/suppliers/{supplier_id}/documents/`\n\n"
             "Duyệt giấy tờ: `POST /api/supplier-documents/{document_id}/verify/`"
@@ -430,14 +444,22 @@ class SupplierDocumentViewSet(viewsets.ModelViewSet):
         return [IsAdminOrSupplier()]
 
     def get_queryset(self):
-        user = self.request.user
         qs = self.queryset
-        if user.role == "admin":
+        if self.request.user.role == "admin":
             supplier_id = self.request.query_params.get("supplier_id")
             if supplier_id:
                 qs = qs.filter(supplier_id=supplier_id)
-            return qs
-        return qs.filter(supplier__account=user)
+            return _apply_order(
+                qs,
+                ORDER_DOCUMENT,
+                pending_field="status",
+            )
+        return filter_admin_or_supplier_account(
+            qs,
+            self.request.user,
+            ordering=ORDER_DOCUMENT,
+            pending_field="status",
+        )
 
     def get_serializer_context(self):
         ctx = super().get_serializer_context()

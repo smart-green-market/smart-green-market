@@ -1,4 +1,3 @@
-from django.db import models
 from django.utils import timezone
 from drf_spectacular.utils import extend_schema, extend_schema_view
 from rest_framework import viewsets
@@ -10,6 +9,7 @@ from common.notification_messages import admin_new_category, category_reviewed
 from common.notifications import notify_account, notify_admins
 from common.openapi import PAGINATION_QUERY_HELP, paginated_response_schema
 from common.permission import IsActive, IsAdmin
+from common.querysets import filter_admin_or_created_by, ORDER_CATEGORY
 from .models import Category, CategoryStatus
 from .serializers import (
     CategoryReorderSerializer,
@@ -23,8 +23,7 @@ from .serializers import (
         tags=["Categories"],
         summary="Danh sách danh mục",
         description=(
-            "Admin xem tất cả (sắp xếp theo `sort_order`). "
-            "User khác chỉ thấy `active` và `pending` do mình tạo."
+            "Admin xem tất cả. Supplier/Dealer chỉ thấy danh mục do mình tạo."
             + PAGINATION_QUERY_HELP
         ),
         responses={200: paginated_response_schema(CategorySerializer, "PaginatedCategory")},
@@ -57,13 +56,11 @@ class CategoryViewSet(viewsets.ModelViewSet):
         return [IsActive()]
 
     def get_queryset(self):
-        user = self.request.user
-        qs = self.queryset.order_by("sort_order", "name")
-        if user.role == "admin":
-            return qs
-        return qs.filter(
-            models.Q(status=CategoryStatus.ACTIVE)
-            | models.Q(created_by=user)
+        return filter_admin_or_created_by(
+            self.queryset,
+            self.request.user,
+            ordering=ORDER_CATEGORY,
+            pending_field="status",
         )
 
     def _ensure_can_edit(self, category):

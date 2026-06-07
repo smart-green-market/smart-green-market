@@ -1,0 +1,77 @@
+from django.db.models import Case, IntegerField, Value, When
+
+from apps.accounts.models import AccountRole
+
+PENDING_STATUS = "pending"
+
+# Thứ tự phụ sau khi ưu tiên pending
+ORDER_CATEGORY = ("sort_order", "name")
+ORDER_NEWEST = ("-created_at", "-id")
+ORDER_UPDATED = ("-updated_at", "-created_at", "-id")
+ORDER_DOCUMENT = ("document_type", "-created_at")
+ORDER_IMAGE = ("sort_order", "id")
+ORDER_CULTIVATION = ("step_order", "id")
+
+
+def is_admin(user):
+    return user.role == AccountRole.ADMIN
+
+
+def is_supplier_or_dealer(user):
+    return user.role in (AccountRole.SUPPLIER, AccountRole.DEALER)
+
+
+def order_pending_first(queryset, status_field, ordering, pending_values=PENDING_STATUS):
+    """Đưa bản ghi chờ duyệt lên đầu, sau đó sort theo ordering."""
+    if isinstance(pending_values, str):
+        pending_values = (pending_values,)
+    priority = Case(
+        When(**{f"{status_field}__in": pending_values}, then=Value(0)),
+        default=Value(1),
+        output_field=IntegerField(),
+    )
+    return queryset.annotate(_pending_priority=priority).order_by(
+        "_pending_priority",
+        *ordering,
+    )
+
+
+def _apply_order(queryset, ordering, pending_field=None, pending_values=PENDING_STATUS):
+    if pending_field:
+        return order_pending_first(queryset, pending_field, ordering, pending_values)
+    return queryset.order_by(*ordering)
+
+
+def filter_admin_or_created_by(
+    qs,
+    user,
+    ordering=ORDER_NEWEST,
+    pending_field=None,
+    pending_values=PENDING_STATUS,
+):
+    """Admin: tất cả. Supplier/Dealer: chỉ bản ghi do mình tạo."""
+    if is_admin(user):
+        filtered = qs
+    elif is_supplier_or_dealer(user):
+        filtered = qs.filter(created_by=user)
+    else:
+        return qs.none()
+    return _apply_order(filtered, ordering, pending_field, pending_values)
+
+
+def filter_admin_or_supplier_account(
+    qs,
+    user,
+    account_lookup="supplier__account",
+    ordering=ORDER_NEWEST,
+    pending_field=None,
+    pending_values=PENDING_STATUS,
+):
+    """Admin: tất cả. Supplier/Dealer: chỉ dữ liệu thuộc tài khoản NCC của mình."""
+    if is_admin(user):
+        filtered = qs
+    elif is_supplier_or_dealer(user):
+        filtered = qs.filter(**{account_lookup: user})
+    else:
+        return qs.none()
+    return _apply_order(filtered, ordering, pending_field, pending_values)

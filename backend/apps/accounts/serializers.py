@@ -4,20 +4,15 @@ from rest_framework import serializers
 from rest_framework.exceptions import AuthenticationFailed, ValidationError
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 
+from common.avatar import build_avatar_url
+from common.openapi_enums import schema_choice_field
 from common.validators import validate_image_upload
+from apps.suppliers.models import Supplier
+from apps.suppliers.serializers import SupplierLoginProfileSerializer
 from .login_guard import check_login_allowed, record_failed_login, reset_login_attempts
 from .models import AccountRole, AccountStatus
 
 Account = get_user_model()
-
-
-def build_avatar_url(account, request=None):
-    if not account.avatar:
-        return None
-    url = account.avatar.url
-    if request is not None:
-        return request.build_absolute_uri(url)
-    return url
 
 
 class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
@@ -40,10 +35,29 @@ class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
             raise ValidationError("Tài khoản đã bị vô hiệu hóa.")
         if user.status == AccountStatus.INACTIVE:
             raise ValidationError("Tài khoản đang bị tạm khóa.")
+
+        request = self.context.get("request")
+        data["account"] = LoginAccountSerializer(user, context={"request": request}).data
+
+        supplier = (
+            Supplier.objects.filter(account=user)
+            .prefetch_related("documents__verified_by")
+            .select_related("verified_by")
+            .first()
+        )
+        data["supplier_profile"] = (
+            SupplierLoginProfileSerializer(
+                supplier,
+                context={"request": request},
+            ).data
+            if supplier
+            else None
+        )
         return data
 
 
 class RegisterSerializer(serializers.ModelSerializer):
+    full_name = serializers.CharField(max_length=255, help_text="Họ và tên")
     password = serializers.CharField(
         write_only=True,
         help_text="Mật khẩu (tối thiểu theo validator Django)",
@@ -52,10 +66,7 @@ class RegisterSerializer(serializers.ModelSerializer):
         write_only=True,
         help_text="Nhập lại mật khẩu — phải khớp với password",
     )
-    role = serializers.ChoiceField(
-        choices=AccountRole.choices,
-        help_text="Vai trò: buyer | supplier | dealer. Supplier/dealer → status=pending",
-    )
+    role = schema_choice_field(choices=AccountRole.choices)
 
     class Meta:
         model = Account
@@ -64,16 +75,13 @@ class RegisterSerializer(serializers.ModelSerializer):
             "email",
             "password",
             "repassword",
-            "first_name",
-            "last_name",
+            "full_name",
             "phone",
             "role",
         ]
         extra_kwargs = {
             "username": {"help_text": "Tên đăng nhập (unique)"},
             "email": {"help_text": "Email (unique)"},
-            "first_name": {"help_text": "Tên"},
-            "last_name": {"help_text": "Họ"},
             "phone": {"help_text": "Số điện thoại"},
         }
 
@@ -97,8 +105,35 @@ class RegisterSerializer(serializers.ModelSerializer):
         return account
 
 
+class LoginAccountSerializer(serializers.ModelSerializer):
+    """Thông tin tài khoản tối giản — dùng trong response login."""
+
+    avatar_url = serializers.SerializerMethodField()
+    role = schema_choice_field(choices=AccountRole.choices, read_only=True)
+    status = schema_choice_field(choices=AccountStatus.choices, read_only=True)
+
+    class Meta:
+        model = Account
+        fields = [
+            "id",
+            "username",
+            "email",
+            "full_name",
+            "phone",
+            "avatar_url",
+            "role",
+            "status",
+        ]
+
+    @extend_schema_field(serializers.URLField(allow_null=True))
+    def get_avatar_url(self, obj):
+        return build_avatar_url(obj, self.context.get("request"))
+
+
 class ProfileSerializer(serializers.ModelSerializer):
     avatar_url = serializers.SerializerMethodField()
+    role = schema_choice_field(choices=AccountRole.choices, read_only=True)
+    status = schema_choice_field(choices=AccountStatus.choices, read_only=True)
 
     class Meta:
         model = Account
@@ -112,6 +147,17 @@ class ProfileSerializer(serializers.ModelSerializer):
     @extend_schema_field(serializers.URLField(allow_null=True))
     def get_avatar_url(self, obj):
         return build_avatar_url(obj, self.context.get("request"))
+
+
+class LoginResponseSerializer(serializers.Serializer):
+    access = serializers.CharField(help_text="JWT access token (thời hạn 30 phút)")
+    refresh = serializers.CharField(help_text="JWT refresh token (thời hạn 7 ngày)")
+    account = LoginAccountSerializer(help_text="Thông tin tài khoản đăng nhập")
+    supplier_profile = SupplierLoginProfileSerializer(
+        allow_null=True,
+        required=False,
+        help_text="Hồ sơ nhà cung cấp + giấy tờ (null nếu không phải supplier hoặc chưa tạo hồ sơ)",
+    )
 
 
 class AvatarUploadSerializer(serializers.Serializer):

@@ -2,10 +2,12 @@ from django.contrib.auth import get_user_model
 from drf_spectacular.utils import extend_schema_field
 from rest_framework import serializers
 
-from apps.accounts.serializers import build_avatar_url
+from common.avatar import build_avatar_url
+from common.openapi_enums import schema_choice_field
 from apps.certifications.serializers import CertificationSerializer
 from apps.supplier_products.serializer import SupplierProductSerializer
-from .models import Supplier, SupplierDocument, SupplierDocumentType, SupplierDocumentStatus
+from .models import Supplier, SupplierDocument, SupplierDocumentType, SupplierDocumentStatus, SupplierVerificationStatus
+from apps.accounts.models import AccountRole, AccountStatus
 
 Account = get_user_model()
 
@@ -14,6 +16,8 @@ class SupplierAccountNestedSerializer(serializers.ModelSerializer):
     """Thông tin tài khoản gắn với supplier."""
 
     avatar_url = serializers.SerializerMethodField()
+    role = schema_choice_field(choices=AccountRole.choices, read_only=True)
+    status = schema_choice_field(choices=AccountStatus.choices, read_only=True)
 
     class Meta:
         model = Account
@@ -41,6 +45,14 @@ class SupplierDocumentReadSerializer(serializers.ModelSerializer):
     """Giấy tờ — dùng khi đọc/nested (trả URL file đầy đủ)."""
 
     file_url = serializers.SerializerMethodField()
+    document_type = schema_choice_field(
+        choices=SupplierDocumentType.choices,
+        read_only=True,
+    )
+    status = schema_choice_field(
+        choices=SupplierDocumentStatus.choices,
+        read_only=True,
+    )
     verified_by_username = serializers.CharField(
         source="verified_by.username",
         read_only=True,
@@ -72,6 +84,11 @@ class SupplierDocumentReadSerializer(serializers.ModelSerializer):
 
 
 class SupplierSerializer(serializers.ModelSerializer):
+    verification_status = schema_choice_field(
+        choices=SupplierVerificationStatus.choices,
+        read_only=True,
+    )
+
     class Meta:
         model = Supplier
         fields = "__all__"
@@ -90,9 +107,6 @@ class SupplierSerializer(serializers.ModelSerializer):
             "phone": {"help_text": "Hotline liên hệ công ty"},
             "address": {"help_text": "Địa chỉ trụ sở / kho hàng"},
             "description": {"help_text": "Giới thiệu ngắn về nhà cung cấp", "required": False},
-            "verification_status": {
-                "help_text": "pending | approved | rejected (chỉ Admin cập nhật qua verify)",
-            },
         }
 
     def create(self, validated_data):
@@ -107,6 +121,34 @@ class SupplierSerializer(serializers.ModelSerializer):
         return super().create(validated_data)
 
 
+class SupplierLoginProfileSerializer(serializers.ModelSerializer):
+    """Hồ sơ NCC kèm giấy tờ — dùng trong response login."""
+
+    documents = SupplierDocumentReadSerializer(many=True, read_only=True)
+    verification_status = schema_choice_field(
+        choices=SupplierVerificationStatus.choices,
+        read_only=True,
+    )
+
+    class Meta:
+        model = Supplier
+        fields = [
+            "id",
+            "company_name",
+            "tax_code",
+            "phone",
+            "address",
+            "description",
+            "verification_status",
+            "verified_by",
+            "verified_at",
+            "rejection_reason",
+            "created_at",
+            "updated_at",
+            "documents",
+        ]
+
+
 class SupplierDetailSerializer(serializers.ModelSerializer):
     """Chi tiết supplier kèm account, giấy tờ, chứng nhận và sản phẩm."""
 
@@ -114,6 +156,10 @@ class SupplierDetailSerializer(serializers.ModelSerializer):
     documents = SupplierDocumentReadSerializer(many=True, read_only=True)
     certifications = CertificationSerializer(many=True, read_only=True)
     products = SupplierProductSerializer(many=True, read_only=True)
+    verification_status = schema_choice_field(
+        choices=SupplierVerificationStatus.choices,
+        read_only=True,
+    )
 
     class Meta:
         model = Supplier
@@ -139,6 +185,11 @@ class SupplierDetailSerializer(serializers.ModelSerializer):
 
 class SupplierDocumentSerializer(serializers.ModelSerializer):
     file_url = serializers.FileField(help_text="File giấy tờ (PDF, JPG, PNG...)")
+    document_type = schema_choice_field(choices=SupplierDocumentType.choices)
+    status = schema_choice_field(
+        choices=SupplierDocumentStatus.choices,
+        read_only=True,
+    )
 
     class Meta:
         model = SupplierDocument
@@ -151,12 +202,7 @@ class SupplierDocumentSerializer(serializers.ModelSerializer):
             "created_at",
         ]
         extra_kwargs = {
-            "document_type": {
-                "help_text": (
-                    f"Loại giấy tờ: {', '.join(c[0] for c in SupplierDocumentType.choices)}"
-                ),
-            },
-            "status": {"help_text": "pending | approved | rejected (Admin duyệt)"},
+            "file_url": {"help_text": "File giấy tờ (PDF, JPG, PNG...)"},
         }
 
     def create(self, validated_data):
@@ -204,10 +250,10 @@ class SupplierDocumentBulkUploadSerializer(serializers.Serializer):
         return documents
 
 
-class VerifySupplierDocumentSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = SupplierDocument
-        fields = ["status"]
-        extra_kwargs = {
-            "status": {"help_text": "approved hoặc rejected"},
-        }
+class VerifySupplierDocumentSerializer(serializers.Serializer):
+    status = schema_choice_field(
+        choices=[
+            SupplierDocumentStatus.APPROVED,
+            SupplierDocumentStatus.REJECTED,
+        ],
+    )

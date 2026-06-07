@@ -1,19 +1,26 @@
-"""OpenAPI schema cho upload file chứng nhận (Swagger UI hiển thị nút chọn file)."""
+"""OpenAPI schema cho upload ảnh chứng nhận (Swagger UI hiển thị nút chọn file)."""
 
 from rest_framework import serializers
 from drf_spectacular.utils import inline_serializer
 
+from common.business_rules import MAX_IMAGES_PER_CERTIFICATION, allowed_image_extensions_label
+
+_IMAGE_HELP = (
+    f"Ảnh scan chứng nhận ({allowed_image_extensions_label()} — tối đa 5MB/ảnh). "
+    f"Tối đa {MAX_IMAGES_PER_CERTIFICATION} ảnh/chứng nhận."
+)
+
 CertificationCreateForm = inline_serializer(
     name="CertificationCreateForm",
     fields={
-        "supplier": serializers.IntegerField(help_text="ID nhà cung cấp sở hữu chứng nhận"),
         "name": serializers.CharField(help_text="Tên chứng nhận (vd: VietGAP, Organic EU)"),
         "certificate_code": serializers.CharField(help_text="Mã số trên giấy chứng nhận"),
         "issued_by": serializers.CharField(help_text="Cơ quan cấp"),
         "issue_date": serializers.DateField(help_text="Ngày cấp (YYYY-MM-DD)"),
         "expiry_date": serializers.DateField(help_text="Ngày hết hạn (YYYY-MM-DD)"),
-        "file_url": serializers.FileField(
-            help_text="Ảnh scan chứng nhận (jpg, png, webp — tối đa 5MB)",
+        "images": serializers.ListField(
+            child=serializers.FileField(),
+            help_text="Chọn một hoặc nhiều ảnh scan (field `images`)",
         ),
         "description": serializers.CharField(
             required=False,
@@ -26,16 +33,35 @@ CertificationCreateForm = inline_serializer(
 CertificationUpdateForm = inline_serializer(
     name="CertificationUpdateForm",
     fields={
-        "supplier": serializers.IntegerField(required=False),
         "name": serializers.CharField(required=False),
         "certificate_code": serializers.CharField(required=False),
         "issued_by": serializers.CharField(required=False),
         "issue_date": serializers.DateField(required=False),
         "expiry_date": serializers.DateField(required=False),
-        "file_url": serializers.FileField(
-            required=False,
-            help_text="Ảnh scan mới (jpg, png, webp — tối đa 5MB)",
-        ),
         "description": serializers.CharField(required=False, allow_blank=True),
+    },
+)
+
+CertificationImageBulkUploadForm = inline_serializer(
+    name="CertificationImageBulkUploadForm",
+    fields={
+        "certification": serializers.IntegerField(
+            help_text="ID chứng nhận cần gắn ảnh",
+        ),
+        "images": serializers.ListField(
+            child=serializers.FileField(),
+            help_text="Chọn một hoặc nhiều ảnh (field `images`)",
+        ),
+    },
+)
+
+CertificationImageReplaceForm = inline_serializer(
+    name="CertificationImageReplaceForm",
+    fields={
+        "image_url": serializers.FileField(help_text=_IMAGE_HELP),
+        "sort_order": serializers.IntegerField(
+            required=False,
+            help_text="Thứ tự hiển thị",
+        ),
     },
 )

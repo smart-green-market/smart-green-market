@@ -3,6 +3,8 @@
 from drf_spectacular.utils import inline_serializer
 from rest_framework import serializers
 
+from .openapi_enums import schema_choice_field
+
 PAGINATION_QUERY_HELP = (
     "\n\n**Phân trang (load more):** `?page=1&page_size=20` "
     "(mặc định page=1, page_size=20, tối đa 100)."
@@ -63,9 +65,8 @@ class LoginRequestSerializer(serializers.Serializer):
 
 
 class VerifySupplierSerializer(serializers.Serializer):
-    verification_status = serializers.ChoiceField(
+    verification_status = schema_choice_field(
         choices=["pending", "approved", "rejected"],
-        help_text="approved | rejected | pending",
     )
     rejection_reason = serializers.CharField(
         required=False,
@@ -75,9 +76,8 @@ class VerifySupplierSerializer(serializers.Serializer):
 
 
 class SupplierAccountStatusSerializer(serializers.Serializer):
-    status = serializers.ChoiceField(
+    status = schema_choice_field(
         choices=["active", "inactive", "banned"],
-        help_text="active (kích hoạt) | inactive (tạm khóa) | banned (vô hiệu hóa)",
     )
     reason = serializers.CharField(
         required=False,
@@ -91,9 +91,8 @@ class MyNotificationItemSerializer(serializers.Serializer):
     id = serializers.IntegerField(help_text="ID thông báo")
     title = serializers.CharField(help_text="Tiêu đề")
     content = serializers.CharField(help_text="Nội dung chi tiết")
-    type = serializers.ChoiceField(
+    type = schema_choice_field(
         choices=["info", "warning", "success", "error"],
-        help_text="Mã loại thông báo",
     )
     type_label = serializers.CharField(help_text="Tên loại thông báo (tiếng Việt)")
     reference_type = serializers.CharField(

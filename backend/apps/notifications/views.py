@@ -16,6 +16,8 @@ from common.openapi import (
     paginated_response_schema,
 )
 from common.pagination import paginate_queryset
+from common.permission import IsAdmin
+from apps.accounts.models import AccountRole
 from .models import Notification, NotificationReceipt
 from .serializers import NotificationSerializer
 
@@ -25,7 +27,7 @@ from .serializers import NotificationSerializer
         tags=["Notifications"],
         summary="Danh sách thông báo (toàn hệ thống)",
         description=(
-            "Trả về tất cả thông báo trong DB. Thường dùng `/my/` thay endpoint này."
+            "Chỉ Admin. User thường dùng `/my/` để xem thông báo của mình."
             + PAGINATION_QUERY_HELP
         ),
         responses={200: paginated_response_schema(NotificationSerializer, "PaginatedNotification")},
@@ -49,6 +51,18 @@ from .serializers import NotificationSerializer
 class NotificationViewSet(viewsets.ModelViewSet):
     queryset = Notification.objects.all().order_by("-created_at")
     serializer_class = NotificationSerializer
+
+    def get_queryset(self):
+        if self.action == "my":
+            return self.queryset
+        if self.request.user.role == AccountRole.ADMIN:
+            return self.queryset.order_by("-created_at", "-id")
+        return Notification.objects.none()
+
+    def get_permissions(self):
+        if self.action in ("list", "retrieve", "create", "update", "partial_update", "destroy"):
+            return [IsAdmin()]
+        return super().get_permissions()
 
     @extend_schema(
         tags=["Notifications"],

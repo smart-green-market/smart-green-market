@@ -31,7 +31,6 @@ class Certification(models.Model):
     issue_date = models.DateField()
     expiry_date = models.DateField()
     description = models.TextField(blank=True)
-    file_url = models.FileField(upload_to="certifications/")
 
     status = models.CharField(
         max_length=20,
@@ -70,6 +69,21 @@ class Certification(models.Model):
     def is_expired(self):
         from django.utils import timezone
         return self.expiry_date < timezone.localdate()
+
+
+class CertificationImage(models.Model):
+    certification = models.ForeignKey(
+        Certification,
+        on_delete=models.CASCADE,
+        related_name="images",
+    )
+    image_url = models.FileField(upload_to="certifications/")
+    sort_order = models.IntegerField(default=0)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = "certification_images"
+        ordering = ["sort_order", "id"]
 
 
 class CertificationAuditLog(models.Model):

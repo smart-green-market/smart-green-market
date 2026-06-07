@@ -1,6 +1,6 @@
 from django.utils import timezone
 from drf_spectacular.utils import extend_schema, extend_schema_view
-from rest_framework import viewsets
+from rest_framework import status, viewsets
 from rest_framework.decorators import action
 from rest_framework.parsers import FormParser, MultiPartParser
 from rest_framework.response import Response
@@ -8,11 +8,18 @@ from rest_framework.response import Response
 from common.notifications import notify_account, notify_admins
 from common.openapi import PAGINATION_QUERY_HELP, paginated_response_schema
 from common.permission import IsAdmin, IsActive
+from common.querysets import (
+    ORDER_CULTIVATION,
+    ORDER_IMAGE,
+    ORDER_UPDATED,
+    filter_admin_or_supplier_account,
+)
 from .models import SupplierProduct, SupplierProductImage, CultivationProcess, SupplierProductStatus
-from .openapi import SupplierProductImageReplaceForm, SupplierProductImageUploadForm
+from .openapi import SupplierProductImageBulkUploadForm, SupplierProductImageReplaceForm
 from .serializer import (
     SupplierProductSerializer,
     SupplierProductImageSerializer,
+    SupplierProductImageBulkUploadSerializer,
     CultivationProcessSerializer,
     VerifySupplierProductSerializer,
 )
@@ -22,7 +29,10 @@ from .serializer import (
     list=extend_schema(
         tags=["Supplier Products"],
         summary="Danh sách sản phẩm",
-        description=PAGINATION_QUERY_HELP.strip(),
+        description=(
+            "Admin xem tất cả. Supplier/Dealer chỉ thấy sản phẩm của mình."
+            + PAGINATION_QUERY_HELP
+        ),
         responses={
             200: paginated_response_schema(
                 SupplierProductSerializer,
@@ -47,6 +57,14 @@ class SupplierProductViewSet(viewsets.ModelViewSet):
         if self.action == "verify":
             return [IsAdmin()]
         return [IsActive()]
+
+    def get_queryset(self):
+        return filter_admin_or_supplier_account(
+            self.queryset,
+            self.request.user,
+            ordering=ORDER_UPDATED,
+            pending_field="status",
+        )
 
     def perform_create(self, serializer):
         product = serializer.save()
@@ -103,7 +121,10 @@ class SupplierProductViewSet(viewsets.ModelViewSet):
     list=extend_schema(
         tags=["Supplier Product Images"],
         summary="Danh sách ảnh sản phẩm",
-        description=PAGINATION_QUERY_HELP.strip(),
+        description=(
+            "Admin xem tất cả. Supplier/Dealer chỉ thấy ảnh sản phẩm của mình."
+            + PAGINATION_QUERY_HELP
+        ),
         responses={
             200: paginated_response_schema(
                 SupplierProductImageSerializer,
@@ -116,11 +137,13 @@ class SupplierProductViewSet(viewsets.ModelViewSet):
         tags=["Supplier Product Images"],
         summary="Upload ảnh sản phẩm",
         description=(
-            "Chọn ảnh trực tiếp trên Swagger (multipart/form-data).\n"
-            "Định dạng: jpg, png, webp — tối đa 5MB."
+            "Chọn ảnh trên Swagger (multipart/form-data, field `images`).\n"
+            "Có thể chọn nhiều file cùng lúc.\n"
+            "- `is_thumbnail=true`: ảnh đầu tiên làm ảnh đại diện\n"
+            f"- Định dạng: jpg, jpeg, png, webp, gif, bmp, tif, avif, heic... — tối đa 5MB/ảnh"
         ),
-        request={"multipart/form-data": SupplierProductImageUploadForm},
-        responses={201: SupplierProductImageSerializer},
+        request={"multipart/form-data": SupplierProductImageBulkUploadForm},
+        responses={201: SupplierProductImageSerializer(many=True)},
     ),
     update=extend_schema(
         tags=["Supplier Product Images"],
@@ -146,12 +169,41 @@ class SupplierProductImageViewSet(viewsets.ModelViewSet):
     )
     serializer_class = SupplierProductImageSerializer
 
+    def get_serializer_class(self):
+        if self.action == "create":
+            return SupplierProductImageBulkUploadSerializer
+        return SupplierProductImageSerializer
+
+    def create(self, request, *args, **kwargs):
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        images = serializer.save()
+        return Response(
+            SupplierProductImageSerializer(
+                images,
+                many=True,
+                context={"request": request},
+            ).data,
+            status=status.HTTP_201_CREATED,
+        )
+
+    def get_queryset(self):
+        return filter_admin_or_supplier_account(
+            self.queryset,
+            self.request.user,
+            account_lookup="supplier_product__supplier__account",
+            ordering=ORDER_IMAGE,
+        )
+
 
 @extend_schema_view(
     list=extend_schema(
         tags=["Cultivation Processes"],
         summary="Danh sách quy trình canh tác",
-        description=PAGINATION_QUERY_HELP.strip(),
+        description=(
+            "Admin xem tất cả. Supplier/Dealer chỉ thấy quy trình sản phẩm của mình."
+            + PAGINATION_QUERY_HELP
+        ),
         responses={
             200: paginated_response_schema(
                 CultivationProcessSerializer,
@@ -171,3 +223,11 @@ class CultivationProcessViewSet(viewsets.ModelViewSet):
         "supplier_product__supplier"
     )
     serializer_class = CultivationProcessSerializer
+
+    def get_queryset(self):
+        return filter_admin_or_supplier_account(
+            self.queryset,
+            self.request.user,
+            account_lookup="supplier_product__supplier__account",
+            ordering=ORDER_CULTIVATION,
+        )

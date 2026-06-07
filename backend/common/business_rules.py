@@ -5,14 +5,39 @@ MAX_UPLOAD_IMAGE_SIZE_BYTES = MAX_UPLOAD_IMAGE_SIZE_MB * 1024 * 1024
 
 ALLOWED_IMAGE_CONTENT_TYPES = {
     "image/jpeg",
+    "image/jpg",
     "image/png",
     "image/webp",
+    "image/gif",
+    "image/bmp",
+    "image/tiff",
+    "image/avif",
+    "image/heic",
+    "image/heif",
 }
-ALLOWED_IMAGE_EXTENSIONS = {".jpg", ".jpeg", ".png", ".webp"}
+ALLOWED_IMAGE_EXTENSIONS = {
+    ".jpg",
+    ".jpeg",
+    ".jfif",
+    ".png",
+    ".webp",
+    ".gif",
+    ".bmp",
+    ".tif",
+    ".tiff",
+    ".avif",
+    ".heic",
+    ".heif",
+}
+
+
+def allowed_image_extensions_label():
+    return ", ".join(sorted(ext.lstrip(".") for ext in ALLOWED_IMAGE_EXTENSIONS))
 
 MAX_CATEGORIES_PER_SUPPLIER = 5
 MAX_PRODUCTS_PER_SUPPLIER = 100
 MAX_IMAGES_PER_PRODUCT = 5
+MAX_IMAGES_PER_CERTIFICATION = 5
 MAX_LOGIN_ATTEMPTS = 5
 LOGIN_LOCKOUT_MINUTES = 15
 
@@ -24,6 +49,7 @@ def get_public_config():
         "max_categories_per_supplier": MAX_CATEGORIES_PER_SUPPLIER,
         "max_products_per_supplier": MAX_PRODUCTS_PER_SUPPLIER,
         "max_images_per_product": MAX_IMAGES_PER_PRODUCT,
+        "max_images_per_certification": MAX_IMAGES_PER_CERTIFICATION,
         "max_login_attempts": MAX_LOGIN_ATTEMPTS,
         "login_lockout_minutes": LOGIN_LOCKOUT_MINUTES,
     }
