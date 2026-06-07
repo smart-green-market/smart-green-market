@@ -1,5 +1,9 @@
 from rest_framework import serializers
 
+from common.approval_nested import (
+    ApprovalCategoryNestedSerializer,
+    ApprovalSupplierNestedSerializer,
+)
 from common.business_rules import (
     MAX_IMAGES_PER_PRODUCT,
     MAX_PRODUCTS_PER_SUPPLIER,
@@ -189,6 +193,47 @@ class SupplierProductImageBulkUploadSerializer(serializers.Serializer):
                 ).exclude(pk=image.pk).update(is_thumbnail=False)
             created.append(image)
         return created
+
+
+class SupplierProductReadSerializer(serializers.ModelSerializer):
+    images = SupplierProductImageSerializer(many=True, read_only=True)
+    status = schema_choice_field(choices=SupplierProductStatus.choices, read_only=True)
+    verified_by_username = serializers.CharField(
+        source="verified_by.username",
+        read_only=True,
+        allow_null=True,
+    )
+
+    class Meta:
+        model = SupplierProduct
+        fields = [
+            "id",
+            "name",
+            "slug",
+            "unit",
+            "description",
+            "storage_duration_days",
+            "min_storage_temp",
+            "max_storage_temp",
+            "status",
+            "verified_by",
+            "verified_by_username",
+            "verified_at",
+            "rejection_reason",
+            "created_at",
+            "updated_at",
+            "images",
+        ]
+
+
+class SupplierProductListSerializer(SupplierProductReadSerializer):
+    """Sản phẩm kèm NCC và danh mục — dùng cho danh sách chờ duyệt."""
+
+    supplier = ApprovalSupplierNestedSerializer(read_only=True)
+    category = ApprovalCategoryNestedSerializer(read_only=True)
+
+    class Meta(SupplierProductReadSerializer.Meta):
+        fields = SupplierProductReadSerializer.Meta.fields + ["supplier", "category"]
 
 
 class SupplierProductSerializer(serializers.ModelSerializer):

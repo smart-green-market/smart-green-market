@@ -12,6 +12,7 @@ from common.permission import IsActive, IsAdmin
 from common.querysets import filter_admin_or_created_by, ORDER_CATEGORY
 from .models import Category, CategoryStatus
 from .serializers import (
+    CategoryListSerializer,
     CategoryReorderSerializer,
     CategorySerializer,
     VerifyCategorySerializer,
@@ -26,9 +27,13 @@ from .serializers import (
             "Admin xem tất cả. Supplier/Dealer chỉ thấy danh mục do mình tạo."
             + PAGINATION_QUERY_HELP
         ),
-        responses={200: paginated_response_schema(CategorySerializer, "PaginatedCategory")},
+        responses={200: paginated_response_schema(CategoryListSerializer, "PaginatedCategory")},
     ),
-    retrieve=extend_schema(tags=["Categories"], summary="Chi tiết danh mục"),
+    retrieve=extend_schema(
+        tags=["Categories"],
+        summary="Chi tiết danh mục",
+        responses={200: CategoryListSerializer},
+    ),
     create=extend_schema(
         tags=["Categories"],
         summary="Tạo danh mục",
@@ -47,8 +52,17 @@ from .serializers import (
 )
 class CategoryViewSet(viewsets.ModelViewSet):
     permission_classes = [IsActive]
-    queryset = Category.objects.select_related("created_by", "verified_by")
+    queryset = Category.objects.select_related(
+        "created_by",
+        "created_by__supplier_profile",
+        "verified_by",
+    )
     serializer_class = CategorySerializer
+
+    def get_serializer_class(self):
+        if self.action in ("list", "retrieve", "verify", "lock", "unlock"):
+            return CategoryListSerializer
+        return CategorySerializer
 
     def get_permissions(self):
         if self.action in ("verify", "reorder", "lock", "unlock"):
@@ -116,7 +130,7 @@ class CategoryViewSet(viewsets.ModelViewSet):
         tags=["Categories"],
         summary="Admin duyệt / từ chối / khóa danh mục",
         request=VerifyCategorySerializer,
-        responses={200: CategorySerializer},
+        responses={200: CategoryListSerializer},
     )
     @action(detail=True, methods=["post"])
     def verify(self, request, pk=None):
@@ -141,12 +155,12 @@ class CategoryViewSet(viewsets.ModelViewSet):
             created_by=request.user,
             notif_type=notif_type,
         )
-        return Response(CategorySerializer(category).data)
+        return Response(CategoryListSerializer(category).data)
 
     @extend_schema(
         tags=["Categories"],
         summary="Admin khóa danh mục (vi phạm)",
-        responses={200: CategorySerializer},
+        responses={200: CategoryListSerializer},
     )
     @action(detail=True, methods=["post"])
     def lock(self, request, pk=None):
@@ -164,12 +178,12 @@ class CategoryViewSet(viewsets.ModelViewSet):
             created_by=request.user,
             notif_type="warning",
         )
-        return Response(CategorySerializer(category).data)
+        return Response(CategoryListSerializer(category).data)
 
     @extend_schema(
         tags=["Categories"],
         summary="Admin mở khóa danh mục",
-        responses={200: CategorySerializer},
+        responses={200: CategoryListSerializer},
     )
     @action(detail=True, methods=["post"])
     def unlock(self, request, pk=None):
@@ -189,7 +203,7 @@ class CategoryViewSet(viewsets.ModelViewSet):
             created_by=request.user,
             notif_type="success",
         )
-        return Response(CategorySerializer(category).data)
+        return Response(CategoryListSerializer(category).data)
 
     @extend_schema(
         tags=["Categories"],

@@ -2,10 +2,11 @@ from django.contrib.auth import get_user_model
 from drf_spectacular.utils import extend_schema_field
 from rest_framework import serializers
 
+from common.approval_nested import ApprovalSupplierNestedSerializer
 from common.avatar import build_avatar_url
 from common.openapi_enums import schema_choice_field
-from apps.certifications.serializers import CertificationSerializer
-from apps.supplier_products.serializer import SupplierProductSerializer
+from apps.certifications.serializers import CertificationReadSerializer
+from apps.supplier_products.serializer import SupplierProductReadSerializer
 from .models import Supplier, SupplierDocument, SupplierDocumentType, SupplierDocumentStatus, SupplierVerificationStatus
 from apps.accounts.models import AccountRole, AccountStatus
 
@@ -49,6 +50,7 @@ class SupplierDocumentReadSerializer(serializers.ModelSerializer):
         choices=SupplierDocumentType.choices,
         read_only=True,
     )
+    document_type_label = serializers.SerializerMethodField()
     status = schema_choice_field(
         choices=SupplierDocumentStatus.choices,
         read_only=True,
@@ -64,6 +66,7 @@ class SupplierDocumentReadSerializer(serializers.ModelSerializer):
         fields = [
             "id",
             "document_type",
+            "document_type_label",
             "file_url",
             "status",
             "verified_by",
@@ -71,6 +74,13 @@ class SupplierDocumentReadSerializer(serializers.ModelSerializer):
             "verified_at",
             "created_at",
         ]
+
+    @extend_schema_field(serializers.CharField())
+    def get_document_type_label(self, obj):
+        return dict(SupplierDocumentType.choices).get(
+            obj.document_type,
+            obj.document_type,
+        )
 
     @extend_schema_field(serializers.URLField(allow_null=True))
     def get_file_url(self, obj):
@@ -81,6 +91,15 @@ class SupplierDocumentReadSerializer(serializers.ModelSerializer):
         if request is not None:
             return request.build_absolute_uri(url)
         return url
+
+
+class SupplierDocumentListSerializer(SupplierDocumentReadSerializer):
+    """Giấy tờ kèm thông tin nhà cung cấp — dùng cho danh sách / chi tiết doc."""
+
+    supplier = ApprovalSupplierNestedSerializer(read_only=True)
+
+    class Meta(SupplierDocumentReadSerializer.Meta):
+        fields = SupplierDocumentReadSerializer.Meta.fields + ["supplier"]
 
 
 class SupplierSerializer(serializers.ModelSerializer):
@@ -121,6 +140,40 @@ class SupplierSerializer(serializers.ModelSerializer):
         return super().create(validated_data)
 
 
+class SupplierListSerializer(serializers.ModelSerializer):
+    """Nhà cung cấp kèm tài khoản — dùng cho danh sách chờ duyệt."""
+
+    account = SupplierAccountNestedSerializer(read_only=True)
+    verification_status = schema_choice_field(
+        choices=SupplierVerificationStatus.choices,
+        read_only=True,
+    )
+    verified_by_username = serializers.CharField(
+        source="verified_by.username",
+        read_only=True,
+        allow_null=True,
+    )
+
+    class Meta:
+        model = Supplier
+        fields = [
+            "id",
+            "account",
+            "company_name",
+            "tax_code",
+            "phone",
+            "address",
+            "description",
+            "verification_status",
+            "verified_by",
+            "verified_by_username",
+            "verified_at",
+            "rejection_reason",
+            "created_at",
+            "updated_at",
+        ]
+
+
 class SupplierLoginProfileSerializer(serializers.ModelSerializer):
     """Hồ sơ NCC kèm giấy tờ — dùng trong response login."""
 
@@ -154,8 +207,8 @@ class SupplierDetailSerializer(serializers.ModelSerializer):
 
     account = SupplierAccountNestedSerializer(read_only=True)
     documents = SupplierDocumentReadSerializer(many=True, read_only=True)
-    certifications = CertificationSerializer(many=True, read_only=True)
-    products = SupplierProductSerializer(many=True, read_only=True)
+    certifications = CertificationReadSerializer(many=True, read_only=True)
+    products = SupplierProductReadSerializer(many=True, read_only=True)
     verification_status = schema_choice_field(
         choices=SupplierVerificationStatus.choices,
         read_only=True,

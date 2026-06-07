@@ -23,6 +23,7 @@ from .serializers import (
     CertificationCreateSerializer,
     CertificationImageBulkUploadSerializer,
     CertificationImageSerializer,
+    CertificationListSerializer,
     CertificationSerializer,
     RevokeCertificationSerializer,
     VerifyCertificationSerializer,
@@ -42,10 +43,17 @@ from .serializers import (
             + PAGINATION_QUERY_HELP
         ),
         responses={
-            200: paginated_response_schema(CertificationSerializer, "PaginatedCertification")
+            200: paginated_response_schema(
+                CertificationListSerializer,
+                "PaginatedCertification",
+            )
         },
     ),
-    retrieve=extend_schema(tags=["Certifications"], summary="Chi tiết chứng nhận"),
+    retrieve=extend_schema(
+        tags=["Certifications"],
+        summary="Chi tiết chứng nhận",
+        responses={200: CertificationListSerializer},
+    ),
     create=extend_schema(
         tags=["Certifications"],
         summary="Đăng ký chứng nhận mới (upload nhiều ảnh scan)",
@@ -84,6 +92,8 @@ class CertificationViewSet(viewsets.ModelViewSet):
     def get_serializer_class(self):
         if self.action == "create":
             return CertificationCreateSerializer
+        if self.action in ("list", "retrieve", "verify", "revoke"):
+            return CertificationListSerializer
         return CertificationSerializer
 
     def get_permissions(self):
@@ -119,7 +129,7 @@ class CertificationViewSet(viewsets.ModelViewSet):
         serializer.is_valid(raise_exception=True)
         self.perform_create(serializer)
         return Response(
-            CertificationSerializer(
+            CertificationListSerializer(
                 serializer.instance,
                 context={"request": request},
             ).data,
@@ -147,7 +157,7 @@ class CertificationViewSet(viewsets.ModelViewSet):
         tags=["Certifications"],
         summary="Admin duyệt / từ chối chứng nhận",
         request=VerifyCertificationSerializer,
-        responses={200: CertificationSerializer},
+        responses={200: CertificationListSerializer},
     )
     @action(detail=True, methods=["post"])
     def verify(self, request, pk=None):
@@ -186,14 +196,17 @@ class CertificationViewSet(viewsets.ModelViewSet):
             notif_type=notif_type,
         )
         return Response(
-            CertificationSerializer(certification, context={"request": request}).data
+            CertificationListSerializer(
+                certification,
+                context={"request": request},
+            ).data
         )
 
     @extend_schema(
         tags=["Certifications"],
         summary="Admin thu hồi chứng nhận không hợp lệ",
         request=RevokeCertificationSerializer,
-        responses={200: CertificationSerializer},
+        responses={200: CertificationListSerializer},
     )
     @action(detail=True, methods=["post"])
     def revoke(self, request, pk=None):
@@ -226,7 +239,10 @@ class CertificationViewSet(viewsets.ModelViewSet):
             notif_type="error",
         )
         return Response(
-            CertificationSerializer(certification, context={"request": request}).data
+            CertificationListSerializer(
+                certification,
+                context={"request": request},
+            ).data
         )
 
     @extend_schema(

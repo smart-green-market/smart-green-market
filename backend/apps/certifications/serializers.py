@@ -1,6 +1,7 @@
 from django.utils import timezone
 from rest_framework import serializers
 
+from common.approval_nested import ApprovalSupplierNestedSerializer
 from common.business_rules import (
     MAX_IMAGES_PER_CERTIFICATION,
     allowed_image_extensions_label,
@@ -175,6 +176,57 @@ class CertificationAuditLogSerializer(serializers.ModelSerializer):
             "note",
             "created_at",
         ]
+
+
+class CertificationReadSerializer(serializers.ModelSerializer):
+    is_expired = serializers.BooleanField(read_only=True)
+    status = schema_choice_field(choices=CertificationStatus.choices, read_only=True)
+    images = CertificationImageSerializer(many=True, read_only=True)
+    verified_by_username = serializers.CharField(
+        source="verified_by.username",
+        read_only=True,
+        allow_null=True,
+    )
+    revoked_by_username = serializers.CharField(
+        source="revoked_by.username",
+        read_only=True,
+        allow_null=True,
+    )
+
+    class Meta:
+        model = Certification
+        fields = [
+            "id",
+            "name",
+            "certificate_code",
+            "issued_by",
+            "issue_date",
+            "expiry_date",
+            "description",
+            "status",
+            "is_expired",
+            "verified_by",
+            "verified_by_username",
+            "verified_at",
+            "rejection_reason",
+            "revoked_by",
+            "revoked_by_username",
+            "revoked_at",
+            "revoke_reason",
+            "deleted_at",
+            "created_at",
+            "updated_at",
+            "images",
+        ]
+
+
+class CertificationListSerializer(CertificationReadSerializer):
+    """Chứng nhận kèm nhà cung cấp — dùng cho danh sách chờ duyệt."""
+
+    supplier = ApprovalSupplierNestedSerializer(read_only=True)
+
+    class Meta(CertificationReadSerializer.Meta):
+        fields = CertificationReadSerializer.Meta.fields + ["supplier"]
 
 
 class CertificationSerializer(serializers.ModelSerializer):

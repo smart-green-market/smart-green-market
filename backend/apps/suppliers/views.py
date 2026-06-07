@@ -42,8 +42,10 @@ from .models import (
     SupplierVerificationStatus,
 )
 from .serializers import (
+    SupplierListSerializer,
     SupplierSerializer,
     SupplierDetailSerializer,
+    SupplierDocumentListSerializer,
     SupplierDocumentReadSerializer,
     SupplierDocumentSerializer,
     SupplierDocumentBulkUploadSerializer,
@@ -120,7 +122,7 @@ def _validate_supplier_ready_for_approval(supplier):
         tags=["Suppliers"],
         summary="Danh sách nhà cung cấp",
         description="Admin xem tất cả. Supplier/Dealer chỉ thấy hồ sơ của mình." + PAGINATION_QUERY_HELP,
-        responses={200: paginated_response_schema(SupplierSerializer, "PaginatedSupplier")},
+        responses={200: paginated_response_schema(SupplierListSerializer, "PaginatedSupplier")},
     ),
     retrieve=extend_schema(
         tags=["Suppliers"],
@@ -171,6 +173,8 @@ class SupplierViewSet(viewsets.ModelViewSet):
     def get_serializer_class(self):
         if self.action == "retrieve":
             return SupplierDetailSerializer
+        if self.action == "list":
+            return SupplierListSerializer
         return SupplierSerializer
 
     def get_permissions(self):
@@ -328,7 +332,7 @@ class SupplierViewSet(viewsets.ModelViewSet):
         ),
         responses={
             200: paginated_response_schema(
-                SupplierDocumentReadSerializer,
+                SupplierDocumentListSerializer,
                 "PaginatedSupplierDocumentRead",
             )
         },
@@ -337,13 +341,16 @@ class SupplierViewSet(viewsets.ModelViewSet):
     def documents(self, request, pk=None):
         supplier = self.get_object()
         documents = _apply_order(
-            supplier.documents.select_related("verified_by"),
+            supplier.documents.select_related(
+                "supplier__account",
+                "verified_by",
+            ),
             ORDER_DOCUMENT,
             pending_field="status",
         )
 
         def serialize(page):
-            return SupplierDocumentReadSerializer(
+            return SupplierDocumentListSerializer(
                 page,
                 many=True,
                 context={"request": request},
@@ -365,7 +372,7 @@ class SupplierViewSet(viewsets.ModelViewSet):
         ),
         responses={
             200: paginated_response_schema(
-                SupplierDocumentSerializer,
+                SupplierDocumentListSerializer,
                 "PaginatedSupplierDocument",
             )
         },
@@ -373,7 +380,7 @@ class SupplierViewSet(viewsets.ModelViewSet):
     retrieve=extend_schema(
         tags=["Supplier Documents"],
         summary="Chi tiết giấy tờ",
-        responses={200: SupplierDocumentSerializer},
+        responses={200: SupplierDocumentListSerializer},
     ),
     create=extend_schema(
         tags=["Supplier Documents"],
@@ -412,13 +419,19 @@ class SupplierViewSet(viewsets.ModelViewSet):
     destroy=extend_schema(tags=["Supplier Documents"], summary="Xóa giấy tờ"),
 )
 class SupplierDocumentViewSet(viewsets.ModelViewSet):
-    queryset = SupplierDocument.objects.select_related("supplier", "verified_by")
+    queryset = SupplierDocument.objects.select_related(
+        "supplier",
+        "supplier__account",
+        "verified_by",
+    )
     serializer_class = SupplierDocumentSerializer
     parser_classes = [MultiPartParser, FormParser]
 
     def get_serializer_class(self):
         if self.action == "create":
             return SupplierDocumentBulkUploadSerializer
+        if self.action in ("list", "retrieve"):
+            return SupplierDocumentListSerializer
         return SupplierDocumentSerializer
 
     def create(self, request, *args, **kwargs):
@@ -476,7 +489,7 @@ class SupplierDocumentViewSet(viewsets.ModelViewSet):
             "Ví dụ: `POST /api/supplier-documents/5/verify/`"
         ),
         request=VerifySupplierDocumentSerializer,
-        responses={200: SupplierDocumentReadSerializer},
+        responses={200: SupplierDocumentListSerializer},
         examples=[
             OpenApiExample(
                 "Duyệt giấy tờ",
@@ -496,5 +509,8 @@ class SupplierDocumentViewSet(viewsets.ModelViewSet):
             serializer.validated_data["status"],
         )
         return Response(
-            SupplierDocumentReadSerializer(document, context={"request": request}).data
+            SupplierDocumentListSerializer(
+                document,
+                context={"request": request},
+            ).data
         )
