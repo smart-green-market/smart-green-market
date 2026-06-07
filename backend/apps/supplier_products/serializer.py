@@ -1,16 +1,46 @@
 from rest_framework import serializers
 
-from common.business_rules import MAX_IMAGES_PER_PRODUCT, MAX_PRODUCTS_PER_SUPPLIER
+from common.business_rules import (
+    MAX_IMAGES_PER_PRODUCT,
+    MAX_PRODUCTS_PER_SUPPLIER,
+    allowed_image_extensions_label,
+)
+from common.openapi_enums import schema_choice_field
 from common.validators import validate_image_upload
 from apps.categories.models import CategoryStatus
 from apps.suppliers.models import SupplierVerificationStatus
 from .models import SupplierProduct, SupplierProductImage, SupplierProductStatus
 
+_IMAGE_FIELD_HELP = (
+    f"Ảnh sản phẩm ({allowed_image_extensions_label()} — tối đa 5MB/ảnh)"
+)
+
+
+def _ensure_product_image_permission(user, product):
+    if not user or not user.is_authenticated:
+        return
+    if user.role == "admin":
+        return
+    if user.role in ("supplier", "dealer"):
+        profile = getattr(user, "supplier_profile", None)
+        if not profile or product.supplier_id != profile.id:
+            raise serializers.ValidationError(
+                "Bạn không có quyền thao tác ảnh của sản phẩm này."
+            )
+        return
+    raise serializers.ValidationError(
+        "Bạn không có quyền thao tác ảnh của sản phẩm này."
+    )
+
+
+def _collect_upload_files(request):
+    return request.FILES.getlist("images")
+
 
 class SupplierProductImageSerializer(serializers.ModelSerializer):
     image_url = serializers.FileField(
         required=False,
-        help_text="Ảnh sản phẩm (jpg, png, webp — tối đa 5MB)",
+        help_text=_IMAGE_FIELD_HELP,
     )
 
     class Meta:
@@ -51,15 +81,12 @@ class SupplierProductImageSerializer(serializers.ModelSerializer):
         return attrs
 
     def validate_supplier_product(self, product):
-        request = self.context.get("request")
-        user = getattr(request, "user", None)
-
-        if user and user.is_authenticated and user.role == "supplier":
-            profile = getattr(user, "supplier_profile", None)
-            if not profile or product.supplier_id != profile.id:
-                raise serializers.ValidationError(
-                    "Bạn không có quyền thao tác ảnh của sản phẩm này."
-                )
+        _ensure_product_image_permission(
+            self.context.get("request").user
+            if self.context.get("request")
+            else None,
+            product,
+        )
         return product
 
     def _ensure_single_thumbnail(self, product, current_id=None):
@@ -95,8 +122,78 @@ class SupplierProductImageSerializer(serializers.ModelSerializer):
         return image
 
 
+class SupplierProductImageBulkUploadSerializer(serializers.Serializer):
+    """Upload nhiều ảnh sản phẩm trong một request multipart."""
+
+    supplier_product = serializers.PrimaryKeyRelatedField(
+        queryset=SupplierProduct.objects.all(),
+        help_text="ID sản phẩm cần gắn ảnh",
+    )
+    is_thumbnail = serializers.BooleanField(
+        required=False,
+        default=False,
+        help_text="true = ảnh đầu tiên trong batch làm ảnh đại diện",
+    )
+
+    def validate(self, attrs):
+        request = self.context["request"]
+        product = attrs["supplier_product"]
+        _ensure_product_image_permission(request.user, product)
+
+        files = _collect_upload_files(request)
+        if not files:
+            raise serializers.ValidationError(
+                {"images": "Vui lòng chọn ít nhất 1 ảnh (field `images`)."}
+            )
+
+        for file in files:
+            validate_image_upload(file)
+
+        current_count = product.images.count()
+        if current_count + len(files) > MAX_IMAGES_PER_PRODUCT:
+            remaining = max(0, MAX_IMAGES_PER_PRODUCT - current_count)
+            raise serializers.ValidationError(
+                {
+                    "images": (
+                        f"Mỗi sản phẩm tối đa {MAX_IMAGES_PER_PRODUCT} ảnh. "
+                        f"Còn upload được {remaining} ảnh."
+                    )
+                }
+            )
+
+        attrs["files"] = files
+        return attrs
+
+    def create(self, validated_data):
+        product = validated_data["supplier_product"]
+        files = validated_data["files"]
+        set_thumbnail = validated_data.get("is_thumbnail", False)
+        base_sort = (
+            product.images.order_by("-sort_order").values_list("sort_order", flat=True).first()
+            or -1
+        ) + 1
+
+        created = []
+        for index, file in enumerate(files):
+            is_thumbnail = set_thumbnail and index == 0
+            image = SupplierProductImage.objects.create(
+                supplier_product=product,
+                image_url=file,
+                is_thumbnail=is_thumbnail,
+                sort_order=base_sort + index,
+            )
+            if is_thumbnail:
+                SupplierProductImage.objects.filter(
+                    supplier_product=product,
+                    is_thumbnail=True,
+                ).exclude(pk=image.pk).update(is_thumbnail=False)
+            created.append(image)
+        return created
+
+
 class SupplierProductSerializer(serializers.ModelSerializer):
     images = SupplierProductImageSerializer(many=True, read_only=True)
+    status = schema_choice_field(choices=SupplierProductStatus.choices, read_only=True)
 
     class Meta:
         model = SupplierProduct
@@ -150,10 +247,18 @@ class SupplierProductSerializer(serializers.ModelSerializer):
         return super().create(validated_data)
 
 
-class VerifySupplierProductSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = SupplierProduct
-        fields = ["status", "rejection_reason"]
+class VerifySupplierProductSerializer(serializers.Serializer):
+    status = schema_choice_field(
+        choices=[
+            SupplierProductStatus.ACTIVE,
+            SupplierProductStatus.REJECTED,
+            SupplierProductStatus.INACTIVE,
+        ],
+    )
+    rejection_reason = serializers.CharField(
+        required=False,
+        allow_blank=True,
+    )
 
 from .models import CultivationProcess  # thêm import
 

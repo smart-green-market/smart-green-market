@@ -8,6 +8,7 @@ from .business_rules import (
     ALLOWED_IMAGE_EXTENSIONS,
     MAX_UPLOAD_IMAGE_SIZE_BYTES,
     MAX_UPLOAD_IMAGE_SIZE_MB,
+    allowed_image_extensions_label,
 )
 
 
@@ -18,13 +19,15 @@ def validate_image_upload(file):
     content_type = getattr(file, "content_type", "")
     if content_type and content_type not in ALLOWED_IMAGE_CONTENT_TYPES:
         raise DRFValidationError(
-            f"Định dạng ảnh không hợp lệ. Chỉ chấp nhận: jpg, png, webp."
+            f"Định dạng ảnh không hợp lệ. "
+            f"Chỉ chấp nhận: {allowed_image_extensions_label()}."
         )
 
     ext = os.path.splitext(file.name)[1].lower()
     if ext not in ALLOWED_IMAGE_EXTENSIONS:
         raise DRFValidationError(
-            f"Phần mở rộng file không hợp lệ ({ext}). Chỉ chấp nhận: jpg, png, webp."
+            f"Phần mở rộng file không hợp lệ ({ext}). "
+            f"Chỉ chấp nhận: {allowed_image_extensions_label()}."
         )
 
     if file.size > MAX_UPLOAD_IMAGE_SIZE_BYTES:

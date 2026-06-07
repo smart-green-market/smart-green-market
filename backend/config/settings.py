@@ -173,7 +173,7 @@ SPECTACULAR_SETTINGS = {
         {
             "name": "Supplier Product Images",
             "description": (
-                "Upload & quản lý ảnh sản phẩm (multipart/form-data, field `image_url`). "
+                "Upload & quản lý ảnh sản phẩm (multipart/form-data, field `images`). "
                 "Một ảnh có thể đặt làm thumbnail (`is_thumbnail=true`)."
             ),
         },
@@ -185,9 +185,13 @@ SPECTACULAR_SETTINGS = {
             "name": "Certifications",
             "description": (
                 "Chứng nhận chất lượng/organic của supplier. "
-                "Upload ảnh scan qua multipart/form-data (field `file_url`). "
-                "Admin duyệt qua action `verify`."
+                "Đăng ký kèm nhiều ảnh scan (field `images`). "
+                "Thêm ảnh sau qua `/api/certification-images/`. Admin duyệt qua `verify`."
             ),
+        },
+        {
+            "name": "Certification Images",
+            "description": "Ảnh scan chứng nhận — upload/thay/xóa từng ảnh hoặc nhiều ảnh cùng lúc.",
         },
         {
             "name": "System Config",

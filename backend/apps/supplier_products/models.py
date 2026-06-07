@@ -54,6 +54,7 @@ class SupplierProduct(models.Model):
         db_table = "supplier_products"
         verbose_name = "Supplier Product"
         verbose_name_plural = "Supplier Products"
+        ordering = ["-updated_at", "-created_at", "-id"]
         constraints = [
             models.UniqueConstraint(
                 fields=["supplier", "slug"],

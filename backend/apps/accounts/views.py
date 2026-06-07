@@ -48,6 +48,8 @@ from .serializers import (
 
     CustomTokenObtainPairSerializer,
 
+    LoginResponseSerializer,
+
     RegisterSerializer,
 
     ProfileSerializer,
@@ -80,9 +82,7 @@ REGISTER_EXAMPLE = OpenApiExample(
 
         "repassword": "12345678",
 
-        "first_name": "Nguyen",
-
-        "last_name": "Van A",
+        "full_name": "Nguyen Van A",
 
         "phone": "0901234567",
 
@@ -184,7 +184,11 @@ class RegisterView(APIView):
 
         description=(
 
-            "Xác thực bằng username + password, trả cặp JWT access/refresh.\n\n"
+            "Xác thực bằng username + password, trả JWT và dữ liệu user đầy đủ.\n\n"
+
+            "- `account`: thông tin tài khoản (id, username, email, role, status, ...)\n"
+
+            "- `supplier_profile`: hồ sơ NCC + `documents[]` (null nếu chưa có)\n\n"
 
             "Access token hết hạn sau **30 phút**. Dùng `/api/refresh/` để lấy access mới."
 
@@ -192,7 +196,7 @@ class RegisterView(APIView):
 
         request=LoginRequestSerializer,
 
-        responses={200: TokenPairResponseSerializer},
+        responses={200: LoginResponseSerializer},
 
         examples=[
 

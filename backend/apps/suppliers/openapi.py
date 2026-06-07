@@ -3,6 +3,9 @@
 from rest_framework import serializers
 from drf_spectacular.utils import inline_serializer
 
+from common.openapi_enums import schema_choice_field
+from apps.suppliers.models import SupplierDocumentType
+
 SupplierDocumentBulkUploadForm = inline_serializer(
     name="SupplierDocumentBulkUploadForm",
     fields={
@@ -21,10 +24,9 @@ SupplierDocumentBulkUploadForm = inline_serializer(
 SupplierDocumentReplaceForm = inline_serializer(
     name="SupplierDocumentReplaceForm",
     fields={
-        "document_type": serializers.ChoiceField(
-            choices=["business_license", "id_card", "tax_certificate"],
+        "document_type": schema_choice_field(
+            choices=SupplierDocumentType.choices,
             required=False,
-            help_text="Loại giấy tờ (PUT bắt buộc)",
         ),
         "file_url": serializers.FileField(
             help_text="File giấy tờ mới (PDF, JPG, PNG)",
