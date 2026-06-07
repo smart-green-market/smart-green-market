@@ -4,6 +4,7 @@ from rest_framework import serializers
 
 from common.approval_nested import ApprovalSupplierNestedSerializer
 from common.avatar import build_avatar_url
+from common.files import build_media_url
 from common.openapi_enums import schema_choice_field
 from apps.certifications.serializers import CertificationReadSerializer
 from apps.supplier_products.serializer import SupplierProductReadSerializer
@@ -84,13 +85,7 @@ class SupplierDocumentReadSerializer(serializers.ModelSerializer):
 
     @extend_schema_field(serializers.URLField(allow_null=True))
     def get_file_url(self, obj):
-        if not obj.file_url:
-            return None
-        request = self.context.get("request")
-        url = obj.file_url.url
-        if request is not None:
-            return request.build_absolute_uri(url)
-        return url
+        return build_media_url(obj.file_url, self.context.get("request"))
 
 
 class SupplierDocumentListSerializer(SupplierDocumentReadSerializer):

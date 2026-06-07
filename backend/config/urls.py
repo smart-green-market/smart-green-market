@@ -24,6 +24,7 @@ from drf_spectacular.views import (
 )
 from django.conf import settings
 from django.conf.urls.static import static
+from django.views.static import serve
 
 urlpatterns = [
     path("admin/", admin.site.urls),
@@ -50,5 +51,16 @@ urlpatterns = [
 
 ]
 
-# Phục vụ media trên Render free (file mất khi redeploy — dùng S3/Cloudinary cho production thật)
-urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
+# DEBUG=True: django.contrib.staticfiles phục vụ media.
+# DEBUG=False (Render): static() không thêm route → phải serve thủ công.
+# Lưu ý: disk Render free là tạm — file mất khi redeploy/restart.
+if settings.DEBUG:
+    urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
+else:
+    urlpatterns += [
+        path(
+            f"{settings.MEDIA_URL.lstrip('/')}/<path:path>",
+            serve,
+            {"document_root": settings.MEDIA_ROOT},
+        ),
+    ]

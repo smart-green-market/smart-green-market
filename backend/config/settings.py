@@ -68,13 +68,28 @@ CORS_ALLOW_CREDENTIALS = True
 
 # Application definition
 
+CLOUDINARY_URL = os.environ.get("CLOUDINARY_URL")
+
+if CLOUDINARY_URL:
+    import cloudinary
+
+    cloudinary.config(cloudinary_url=CLOUDINARY_URL, secure=True)
+
+CLOUDINARY_STORAGE = (
+    {
+        "SECURE": True,
+        "MEDIA_TAG": "smart-green-market",
+    }
+    if CLOUDINARY_URL
+    else {}
+)
+
 INSTALLED_APPS = [
     "django.contrib.admin",
     "django.contrib.auth",
     "django.contrib.contenttypes",
     "django.contrib.sessions",
     "django.contrib.messages",
-    "django.contrib.staticfiles",
     "corsheaders",
     "rest_framework",
     "rest_framework_simplejwt.token_blacklist",
@@ -86,6 +101,17 @@ INSTALLED_APPS = [
     "apps.certifications",
     "apps.notifications",
 ]
+
+if CLOUDINARY_URL:
+    _staticfiles_index = INSTALLED_APPS.index("corsheaders")
+    INSTALLED_APPS.insert(_staticfiles_index, "cloudinary_storage")
+    INSTALLED_APPS.insert(_staticfiles_index + 1, "django.contrib.staticfiles")
+    INSTALLED_APPS.insert(_staticfiles_index + 2, "cloudinary")
+else:
+    INSTALLED_APPS.insert(
+        INSTALLED_APPS.index("corsheaders"),
+        "django.contrib.staticfiles",
+    )
 
 # Cấu hình dùng JWT làm authentication mặc định
 REST_FRAMEWORK = {
@@ -320,17 +346,28 @@ USE_TZ = True
 
 STATIC_URL = "static/"
 STATIC_ROOT = BASE_DIR / "staticfiles"
-STORAGES = {
-    "default": {
-        "BACKEND": "django.core.files.storage.FileSystemStorage",
-    },
-    "staticfiles": {
-        "BACKEND": "whitenoise.storage.CompressedManifestStaticFilesStorage",
-    },
-}
-
 MEDIA_URL = "/media/"
 MEDIA_ROOT = BASE_DIR / "media"
+
+if CLOUDINARY_URL:
+    STORAGES = {
+        "default": {
+            # raw: hỗ trợ cả ảnh (jpg, png) lẫn PDF giấy tờ
+            "BACKEND": "cloudinary_storage.storage.RawMediaCloudinaryStorage",
+        },
+        "staticfiles": {
+            "BACKEND": "whitenoise.storage.CompressedManifestStaticFilesStorage",
+        },
+    }
+else:
+    STORAGES = {
+        "default": {
+            "BACKEND": "django.core.files.storage.FileSystemStorage",
+        },
+        "staticfiles": {
+            "BACKEND": "whitenoise.storage.CompressedManifestStaticFilesStorage",
+        },
+    }
 
 if not DEBUG:
     SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
