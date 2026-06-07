@@ -16,8 +16,8 @@ export default function AdminLayout() {
                 </div>
 
                 {/* Right icons */}
-                {/* <div className="flex items-center gap-3">
-                    <button className="relative p-2 rounded-full hover:bg-neutral-100 transition-colors text-neutral-600">
+                <div className="flex items-center gap-3">
+                    <button className="cursor-pointer relative p-2 rounded-full hover:bg-neutral-100 transition-colors text-neutral-600">
                         <Bell className="w-[18px] h-[18px]" />
                         <span className="absolute top-2 right-2 w-2 h-2 bg-teal-700 rounded-full border-2 border-stone-50" />
                     </button>
@@ -27,7 +27,7 @@ export default function AdminLayout() {
                             A
                         </div>
                     </div>
-                </div> */}
+                </div>
             </header>
 
             {/* ── Sidebar ───────────────────────────────────────────────────── */}
