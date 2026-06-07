@@ -11,8 +11,8 @@ from common.notification_messages import (
 from common.openapi import (
     MarkReadResponseSerializer,
     MessageResponseSerializer,
-    MyNotificationItemSerializer,
     PAGINATION_QUERY_HELP,
+    my_notification_list_response_schema,
     paginated_response_schema,
 )
 from common.pagination import paginate_queryset
@@ -20,6 +20,27 @@ from common.permission import IsAdmin
 from apps.accounts.models import AccountRole
 from .models import Notification, NotificationReceipt
 from .serializers import NotificationSerializer
+
+
+def serialize_notification_receipt(receipt):
+    notification = receipt.notification
+    return {
+        "receipt_id": receipt.id,
+        "id": notification.id,
+        "title": notification.title,
+        "content": notification.content,
+        "type": notification.type,
+        "type_label": notification_type_label(notification.type),
+        "reference_type": notification.reference_type,
+        "reference_type_label": reference_type_label(notification.reference_type),
+        "reference_id": notification.reference_id,
+        "read_at": receipt.read_at,
+        "created_at": notification.created_at,
+    }
+
+
+def serialize_notification_receipts(receipts):
+    return [serialize_notification_receipt(r) for r in receipts]
 
 
 @extend_schema_view(
@@ -69,17 +90,14 @@ class NotificationViewSet(viewsets.ModelViewSet):
         summary="Thông báo của tôi",
         description=(
             "Lấy danh sách thông báo gửi đến user đăng nhập, sắp xếp mới nhất trước.\n\n"
+            "- `unread_count` + `unread[]`: thông báo chưa đọc (badge / dropdown)\n"
+            "- `results[]`: danh sách phân trang (cả đã đọc và chưa đọc)\n"
             "- `read_at=null`: chưa đọc\n"
             "- `type_label`: loại thông báo (Thông tin / Thành công / ...)\n"
             "- `reference_type_label`: nhóm nội dung (Giấy tờ / Danh mục / ...)"
             + PAGINATION_QUERY_HELP
         ),
-        responses={
-            200: paginated_response_schema(
-                MyNotificationItemSerializer,
-                "PaginatedMyNotification",
-            )
-        },
+        responses={200: my_notification_list_response_schema()},
     )
     @action(detail=False, methods=["get"])
     def my(self, request):
@@ -87,27 +105,19 @@ class NotificationViewSet(viewsets.ModelViewSet):
             account=request.user
         ).select_related("notification").order_by("-notification__created_at")
 
-        def serialize(page):
-            return [
-                {
-                    "receipt_id": r.id,
-                    "id": r.notification.id,
-                    "title": r.notification.title,
-                    "content": r.notification.content,
-                    "type": r.notification.type,
-                    "type_label": notification_type_label(r.notification.type),
-                    "reference_type": r.notification.reference_type,
-                    "reference_type_label": reference_type_label(
-                        r.notification.reference_type
-                    ),
-                    "reference_id": r.notification.reference_id,
-                    "read_at": r.read_at,
-                    "created_at": r.notification.created_at,
-                }
-                for r in page
-            ]
-
-        return paginate_queryset(self, request, receipts, serialize)
+        unread_receipts = list(receipts.filter(read_at__isnull=True))
+        response = paginate_queryset(
+            self,
+            request,
+            receipts,
+            serialize_notification_receipts,
+        )
+        response.data = {
+            "unread_count": len(unread_receipts),
+            "unread": serialize_notification_receipts(unread_receipts),
+            **response.data,
+        }
+        return response
 
     @extend_schema(
         tags=["Notifications"],
