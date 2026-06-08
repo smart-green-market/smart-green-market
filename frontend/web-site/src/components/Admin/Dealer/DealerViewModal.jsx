@@ -60,8 +60,12 @@ export default function DealerViewModal({
                 <div className="w-full max-w-[760px] max-h-[90vh] bg-white rounded-2xl shadow-2xl border border-neutral-200 flex flex-col overflow-hidden">
 
                     {/* HEADER */}
-                    <div className="px-6 py-4 border-b border-neutral-200 flex items-center justify-end shrink-0">
-
+                    <div className="px-6 py-4 border-b border-neutral-200 flex items-center justify-between shrink-0">
+                    <div>
+                            <h2 className="text-lg font-bold text-neutral-900">
+                                Danh mục sản phẩm
+                            </h2>
+                        </div>
                         <button
                             disabled={loading}
                             onClick={onClose}

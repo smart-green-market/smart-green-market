@@ -4,7 +4,7 @@ import { tableStyles, paginationVi } from "../../common/tableStyles";
 // ── Status config ─────────────────────────────────────────────────────────────
 const STATUS_CONFIG = {
     active:  { label: "ĐANG HOẠT ĐỘNG", bg: "bg-green-200",   text: "text-green-800"  },
-    rejected:  { label: "TẠM NGƯNG",      bg: "bg-red-200",    text: "text-red-700"   },
+    rejected:  { label: "TỪ CHỐI",      bg: "bg-red-200",    text: "text-red-700"   },
     pending: { label: "CHỜ DUYỆT",        bg: "bg-amber-200",  text: "text-amber-800" },
     inactive: { label: "KHÓA",        bg: "bg-blue-200",  text: "text-blue-800" },
 };

@@ -46,7 +46,12 @@ export default function SupplierViewModal({
                 {/* MODAL */}
                 <div className="w-full max-w-[760px] max-h-[90vh] overflow-hidden rounded-2xl bg-white shadow-2xl border border-neutral-200 flex flex-col">
                     {/* HEADER */}
-                    <div className="px-6 py-4 border-b border-neutral-200 flex items-center justify-end">
+                    <div className="px-6 py-4 border-b border-neutral-200 flex items-center justify-between shrink-0">
+                    <div>
+                            <h2 className="text-lg font-bold text-neutral-900">
+                                Danh mục nhà cung cấp
+                            </h2>
+                        </div>
                         <button
                             disabled={loading}
                             onClick={onClose}

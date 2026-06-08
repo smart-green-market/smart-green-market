@@ -78,6 +78,10 @@ export const categoryService = {
   //   "status": "active / rejected",
   //   "rejection_reason": "string"
   // }
+
+  // Supplier
+  getsupplierCategories: () =>
+    axiosClient.get("/categories/").then((res) => res.data.results),
 };
 
 // Xử lý bug

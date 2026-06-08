@@ -20,9 +20,9 @@ export default function AdminLayout() {
                     <NotificationBell />
 
                     <div className="pl-4 border-l border-neutral-200 flex items-center gap-2">
-                        <div className="w-8 h-8 rounded-full bg-emerald-800 flex items-center justify-center text-white text-xs font-bold font-['Geist',sans-serif]">
+                        <button className="w-8 h-8 rounded-full bg-emerald-800 hover:bg-emerald-900 active:scale-95 flex items-center justify-center text-white text-xs font-bold font-['Geist',sans-serif] cursor-pointer transition-all shadow-sm overflow-hidden">
                             A
-                        </div>
+                        </button>
                     </div>
                 </div>
             </header>
