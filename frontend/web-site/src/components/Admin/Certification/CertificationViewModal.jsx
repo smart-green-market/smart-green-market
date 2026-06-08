@@ -68,7 +68,7 @@ export default function CertificationViewModal({
                     <div className="px-8 py-4 border-b border-neutral-200 flex items-center justify-between shrink-0">
 
                         <h2 className="text-xl font-semibold text-zinc-900">
-                            Chi tiết chứng chỉ
+                            Chi tiết chứng chỉ "{certification.name}"
                         </h2>
 
                         <button
@@ -82,66 +82,62 @@ export default function CertificationViewModal({
                     </div>
 
                     {/* Scrollable Body */}
-                    <div className="flex-1 overflow-y-auto px-8 pt-8 pb-7 flex flex-col gap-6 scrollbar-thin scrollbar-thumb-neutral-300 scrollbar-track-transparent">
+                    <div className="flex-1 overflow-y-auto scrollbar-thin scrollbar-thumb-neutral-300 scrollbar-track-transparent">
+                        
+                        <div className="p-6 flex flex-col gap-5">
+                            {/* Grid 1 */}
+                            <div className="grid grid-cols-2 gap-4">
+                                <InfoField
+                                    label="Mã chứng chỉ"
+                                    value={certification.code}
+                                    mono
+                                />
+                                <InfoField
+                                    label="Nhà cung cấp"
+                                    value={certification.supplier?.company_name}
+                                />
+                            </div>
 
-                        <div className="grid grid-cols-2 gap-6">
+                            {/* Grid 2 */}
+                            <div className="grid grid-cols-2 gap-4">
+                                <DateField
+                                    label="Ngày cấp"
+                                    value={certification.issueDate}
+                                />
+                                <DateField
+                                    label="Ngày hết hạn"
+                                    value={certification.expiryDate}
+                                    danger
+                                />
+                            </div>
 
-                            <InfoField
-                                label="Mã chứng chỉ"
-                                value={
-                                    certification.code
-                                }
-                                mono
-                            />
+                            {/* Grid 3 */}
+                            <div className="grid grid-cols-2 gap-4">
+                                <InfoField
+                                    label="Cơ quan cấp"
+                                    value={certification.issuedBy}
+                                />
+                                <InfoField
+                                    label="Ngày duyệt chứng chỉ"
+                                    value={certification.verifiedAt}
+                                />
+                            </div>
 
-                            <InfoField
-                                label="Nhà cung cấp"
-                                value={
-                                    certification.supplier
-                                }
-                                mono
+                            {/* IMAGE */}
+                            <div className="w-full rounded-2xl overflow-hidden border border-neutral-200 bg-neutral-100">
+                                <img
+                                    src={certification.images?.[0]?.image_url}
+                                    alt=""
+                                    className="w-full object-contain"
+                                />
+                            </div>
+
+                            {/* Description */}
+                            <TextAreaField
+                                label="Mô tả chi tiết"
+                                value={certification.description}
                             />
                         </div>
-
-                        <div className="grid grid-cols-2 gap-6">
-                            <DateField
-                                label="Ngày cấp"
-                                value={
-                                    certification.issueDate
-                                }
-                            />
-
-                            <DateField
-                                label="Ngày hết hạn"
-                                value={
-                                    certification.expiryDate
-                                }
-                                danger
-                            />
-                        </div>
-                         <div className="grid grid-cols-2 gap-6">
-
-                            <InfoField
-                                label="Cơ quan cấp"
-                                value={
-                                    certification.issuedBy
-                                }
-                                mono
-                            />
-
-                            <InfoField
-                                label="Ngày duyệt chứng chỉ"
-                                value={
-                                    certification.verifiedAt
-                                }
-                            />
-                        </div>
-                        <TextAreaField
-                            label="Mô tả chi tiết"
-                            value={
-                                certification.description
-                            }
-                        />
                     </div>
 
                     {/* Footer */}

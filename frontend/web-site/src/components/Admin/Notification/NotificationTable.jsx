@@ -1,6 +1,10 @@
 import DataTable from "react-data-table-component";
 import { tableStyles, paginationVi } from "../../common/tableStyles";
 
+const STATUS_CONFIG = {
+    read:  { label: "ĐÃ ĐỌC", bg: "bg-green-200",   text: "text-green-800"  },
+    unread:  { label: "CHƯA ĐỌC",        bg: "bg-red-200",     text: "text-red-700"   },
+};
 const TYPE = {
     info: {label: "THÔNG BÁO"},
     warning: {label: "CẢNH BÁO"},
@@ -57,6 +61,22 @@ const buildColumns = (onView) => [
         },
     },
     {
+        name: "Trạng thái",
+        selector: (row) => row.readAt,
+        sortable: true,
+        center: true,
+        
+        grow: 1,
+        cell: (row) => {
+            const st = row.readAt ? STATUS_CONFIG.read : STATUS_CONFIG.unread;
+            return (
+                <span className={`px-2.5 py-1 rounded-full text-sm font-semibold font-['Geist',sans-serif] uppercase tracking-wide ${st.bg} ${st.text}`}>
+                    {st.label}
+                </span>
+            );
+        },
+    },
+    {
     name: "Thao tác",
     width: "250px",
     center: true,
@@ -74,16 +94,55 @@ const buildColumns = (onView) => [
     ignoreRowClick: true,
   },
 ];
-
+const conditionalRowStyles = [
+    {
+        when: (row) => !!row.readAt, // Đã đọc (read_at có dữ liệu)
+        style: {
+            backgroundColor: "#f5f5f5", // Màu nền tối hơn (neutral-100/stone-100)
+            color: "#737373",           // Chữ mờ đi chút
+            opacity: 0.85,
+        },
+    },
+    {
+        when: (row) => !row.readAt, // Chưa đọc (read_at null)
+        style: {
+            backgroundColor: "#ffffff", // Sáng lên
+            fontWeight: "bold",
+        },
+    },
+];
 export default function NotificationTable({ data, search, statusFilter, onView }) {
     const filtered = data.filter((row) => {
-        const matchName   = row.title.toLowerCase().includes(search.toLowerCase()) ||
-                            row.type.toLowerCase().includes(search.toLowerCase()) ||
-                            row.referenceType.toLowerCase().includes(search.toLowerCase()) ||
-                            row.status.toLowerCase().includes(search.toLowerCase());
-        const matchStatus = statusFilter ? row.status === statusFilter : true;
+        const notiType = TYPE[row.type]?.label || row.type || "";
+        const notiTypeRef = TYPE_REF[row.referenceType]?.label || row.referenceType || "";
+        const notiTitle = row.title || "";
+
+        // 1. Lọc theo thanh tìm kiếm
+        const matchName = 
+            notiType.toLowerCase().includes(search.toLowerCase()) ||
+            notiTypeRef.toLowerCase().includes(search.toLowerCase()) ||
+            notiTitle.toLowerCase().includes(search.toLowerCase());
+
+        // 2. Logic phân loại bộ lọc nâng cao
+        let matchFilter = true;
+
+        if (statusFilter && statusFilter !== "all") {
+            if (statusFilter === "read") {
+                matchFilter = !!row.readAt; // Có dữ liệu thời gian => Đã đọc
+            } else if (statusFilter === "unread") {
+                matchFilter = !row.readAt;  // null => Chưa đọc
+            } else {
+                // Lọc theo các loại Group Type/Ref cũ của bạn
+                const typeGroup = ["info", "warning", "success", "error"];
+                if (typeGroup.includes(statusFilter)) {
+                    matchFilter = row.type === statusFilter;
+                } else {
+                    matchFilter = row.referenceType === statusFilter;
+                }
+            }
+        }
         
-        return matchName && matchStatus;
+        return matchName && matchFilter;
     });
 
     const columns = buildColumns(onView);
@@ -94,11 +153,10 @@ export default function NotificationTable({ data, search, statusFilter, onView }
                 columns={columns}
                 data={filtered}
                 pagination
-                paginationServer
-                paginationTotalRows={data?.count}
-                paginationPerPage={data?.page_size }
+                paginationPerPage={10}
                 paginationComponentOptions={paginationVi}
                 customStyles={tableStyles}
+                conditionalRowStyles={conditionalRowStyles}
                 noDataComponent={
                     <div className="py-16 text-sm text-neutral-400 font-['Geist',sans-serif]">
                         Không tìm thấy thông báo.

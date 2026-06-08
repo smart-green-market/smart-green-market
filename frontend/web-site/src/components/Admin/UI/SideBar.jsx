@@ -23,7 +23,7 @@ const NAV_ITEMS = [
     { label: "Quản lý sản phẩm",     icon: Package,         to: "/quan-tri/san-pham" },
     { label: "Quản lý chứng chỉ",    icon: FileCheck,       to: "/quan-tri/chung-chi" },
     { label: "Quản lý giấy tờ",    icon: FileText,       to: "/quan-tri/giay-to" },
-    { label: "Quản lý thông báo",    icon: Bell,       to: "/quan-tri/thong-bao" },
+    //{ label: "Quản lý thông báo",    icon: Bell,       to: "/quan-tri/thong-bao" },
 ];
 
 export default function SideBar() {

@@ -1,6 +1,7 @@
 const OPTIONS = [
     { label: "TẤT CẢ",         value: "" },
-    { label: "ĐÃ DUYỆT", value: "approved" },
+    { label: "ĐÃ DUYỆT", value: "active" },
+    { label: "KHÓA",        value: "inactive" },
     { label: "TỪ CHỐI",        value: "rejected" },
     { label: "ĐĂNG KÝ",      value: "pending" },
 ];

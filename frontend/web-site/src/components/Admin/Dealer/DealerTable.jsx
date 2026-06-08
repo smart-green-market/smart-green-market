@@ -122,9 +122,7 @@ export default function DealerTable({ data, search, statusFilter, onView,}) {
                 columns={buildColumns(onView)}
                 data={filtered}
                 pagination
-                paginationServer
-                paginationTotalRows={data?.count}
-                paginationPerPage={data?.page_size }
+                paginationPerPage={10}
                 paginationComponentOptions={paginationVi}
                 customStyles={tableStyles}
                 noDataComponent={

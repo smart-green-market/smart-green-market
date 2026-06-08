@@ -1,6 +1,8 @@
 import { useState } from "react";
 import { X } from "lucide-react";
 import ConfirmModal from "../../common/ConfirmModal";
+import DateField from "../../common/DateField";
+import InfoField from "../../common/InfoField";
 
 export default function SupplierViewModal({
     isOpen,
@@ -79,8 +81,8 @@ export default function SupplierViewModal({
                             <InfoField label="Mô tả" value={supplier.description} />
 
                             <div className="grid grid-cols-2 gap-4">
-                                <InfoField label="Trạng thái duyệt" value={supplier.verification_status} />
-                                <InfoField label="Trạng thái tài khoản" value={supplier.account_status} />
+                                <DateField label="Ngày đăng ký" value={supplier.created_at} />
+                                <DateField label="Ngày được duyệt" value={supplier?.verified_at} />
                             </div>
                         </div>
                     </div>
@@ -100,7 +102,7 @@ export default function SupplierViewModal({
                                         variant: "success",
                                         action: () => onApprove(supplier),
                                     })}
-                                    className="px-6 py-2.5 rounded-xl bg-green-500 hover:bg-green-400 text-white font-semibold"
+                                    className="px-6 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-white font-semibold"
                                 >
                                     Duyệt
                                 </button>
@@ -134,7 +136,7 @@ export default function SupplierViewModal({
                                 })}
                                 className="px-6 py-2.5 rounded-xl bg-red-500 hover:bg-red-400 text-white font-semibold"
                             >
-                                Từ chối nhà cung cấp
+                                Từ chối
                             </button>
                         )}
 
@@ -149,7 +151,7 @@ export default function SupplierViewModal({
                                         variant: "success",
                                         action: () => onApprove(supplier),
                                     })}
-                                    className="px-6 py-2.5 rounded-xl bg-green-500 hover:bg-green-400 text-white font-semibold"
+                                    className="px-6 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-white font-semibold"
                                 >
                                     Duyệt
                                 </button>
@@ -171,19 +173,5 @@ export default function SupplierViewModal({
                 variant={confirmConfig?.variant}
             />
         </>
-    );
-}
-
-// COMPONENTS CON GIỮ NGUYÊN
-function InfoField({ label, value }) {
-    return (
-        <div className="flex flex-col gap-1.5">
-            <label className="text-xs font-semibold uppercase tracking-wide text-neutral-500">
-                {label}
-            </label>
-            <div className="px-4 py-3 rounded-xl border border-neutral-200 bg-stone-100 text-sm">
-                {value || "-"}
-            </div>
-        </div>
     );
 }

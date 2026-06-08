@@ -89,41 +89,15 @@ const buildColumns = (onView) => [
     },
 ];
 
-export default function SupplierTable({ data, search, statusFilter, onView,}) {
-    const filtered = data.filter((row) => {
-        const keyword = (search ?? "").toLowerCase();
-
-        const matchName =
-            (row.company_name  ?? "")
-                .toLowerCase()
-                .includes(keyword) ||
-
-            (row.address ?? "")
-                .toLowerCase()
-                .includes(keyword) ||
-
-            (row.phone ?? "")
-                .toLowerCase()
-                .includes(keyword) ||
-
-            (row.verification_status ?? "")
-                .toLowerCase()
-                .includes(keyword);
-        const matchStatus =
-            !statusFilter ||
-            row.verification_status === statusFilter;
-
-        return matchName && matchStatus;
-    });
+export default function SupplierTable({ data, onView,}) {
 
     return (
         <div className="w-full rounded-xl border border-neutral-200 overflow-hidden">
             <DataTable
                 columns={buildColumns(onView)}
-                data={filtered}
+                data={data}
                 pagination
-                paginationTotalRows={data?.count}
-                paginationPerPage={data?.page_size }
+                paginationPerPage={10}
                 paginationComponentOptions={paginationVi}
                 customStyles={tableStyles}
                 noDataComponent={

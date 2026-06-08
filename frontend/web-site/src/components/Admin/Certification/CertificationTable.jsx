@@ -3,24 +3,13 @@ import { tableStyles, paginationVi } from "../../common/tableStyles";
 
 // ── Status config ─────────────────────────────────────────────────────────────
 const STATUS_CONFIG = {
-    active:  { label: "ĐÃ DUYỆT", bg: "bg-green-200",   text: "text-green-800"  },
+    approved:  { label: "ĐÃ DUYỆT", bg: "bg-green-200",   text: "text-green-800"  },
     rejected:  { label: "TỪ CHỐI",        bg: "bg-red-200",     text: "text-red-700"   },
     pending: { label: "CHỜ DUYỆT",        bg: "bg-amber-200",  text: "text-amber-700" },
 };
 
 // ── Column definitions ────────────────────────────────────────────────────────
 const buildColumns = (onView) => [
-    {
-        name: "CODE",
-        selector: (row) => row.certificate_code,
-        sortable: true,
-        width: '100px',
-        cell: (row) => (
-            <span className="font-bold text-sm font-semibold font-['Geist',sans-serif]">
-                {row.certificate_code}
-            </span>
-        ),
-    },
     {
         name: "Tên chứng chỉ",
         selector: (row) => row.name,
@@ -35,13 +24,13 @@ const buildColumns = (onView) => [
     },
     {
         name: "Nhà cung cấp",
-        selector: (row) => row.supplier,
+        selector: (row) => row.supplier?.company_name,
         sortable: true,
         center: true,
         grow: 1,
         cell: (row) => (
             <span className="font-bold text-sm font-semibold font-['Geist',sans-serif]">
-                {row.supplier}
+                {row.supplier?.company_name}
             </span>
         ),
     },
@@ -83,8 +72,7 @@ const buildColumns = (onView) => [
 export default function CertificationTable({ data, search, statusFilter, onView }) {
     const filtered = data.filter((row) => {
         const matchName   = row.name.toLowerCase().includes(search.toLowerCase()) ||
-                            row.supplier.toLowerCase().includes(search.toLowerCase()) ||
-                            row.status.toLowerCase().includes(search.toLowerCase());
+                            row.supplier?.company_name.toLowerCase().includes(search.toLowerCase());
         const matchStatus = statusFilter ? row.status === statusFilter : true;
         
         return matchName && matchStatus;
@@ -98,9 +86,7 @@ export default function CertificationTable({ data, search, statusFilter, onView 
                 columns={columns}
                 data={filtered}
                 pagination
-                paginationServer
-                paginationTotalRows={data?.count}
-                paginationPerPage={data?.page_size }
+                paginationPerPage={10}
                 paginationComponentOptions={paginationVi}
                 customStyles={tableStyles}
                 noDataComponent={

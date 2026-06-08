@@ -2,6 +2,8 @@ import { useState } from "react";
 import { X } from "lucide-react";
 
 import ConfirmModal from "../../common/ConfirmModal";
+import DateField from "../../common/DateField";
+import InfoField from "../../common/InfoField";
 
 const DOCUMENT_TYPE_LABELS = {
     business_license:
@@ -25,8 +27,9 @@ export default function DocumentViewModal({
 
     if (!isOpen || !document) return null;
 
-    const isPending =
-        document.status === "pending";
+    const isPending = document.status === "pending";
+    const isApprove = document.status === "approved";
+    const isRejected = document.status === "rejected";
 
     const handleApprove = async () => {
         await onApprove(document);
@@ -88,8 +91,7 @@ export default function DocumentViewModal({
                                         document.supplier?.company_name
                                     }
                                 />
-                            </div>
-
+                            </div>      
                             {/* IMAGE */}
                             <div className="w-full rounded-2xl overflow-hidden border border-neutral-200 bg-neutral-100">
 
@@ -101,7 +103,15 @@ export default function DocumentViewModal({
                                     className="w-full object-contain"
                                 />
                             </div>
+                            
+                            <div className="mt-5">
+                                <div className="grid grid-cols-2 gap-4">
+                                <DateField label="Ngày đăng ký" value={document.created_at} />
+                                <DateField label="Ngày được duyệt" value={document?.verified_at} />
+                            </div>
                         </div>
+                                                    </div>
+
                     </div>
 
                     {/* FOOTER */}
@@ -119,6 +129,34 @@ export default function DocumentViewModal({
                                 Từ chối
                             </button>
 
+                            <button
+                                onClick={() =>
+                                    setConfirmType(
+                                        "approve"
+                                    )
+                                }
+                                className="cursor-pointer px-6 py-2.5 rounded-xl bg-green-700 hover:bg-green-600 text-white font-semibold transition-colors"
+                            >
+                                Duyệt
+                            </button>
+                        </div>
+                    )}
+                    {isApprove && (
+                        <div className="px-6 py-4 border-t border-neutral-200 flex justify-end gap-3 shrink-0">
+                            <button
+                                onClick={() =>
+                                    setConfirmType(
+                                        "reject"
+                                    )
+                                }
+                                className="cursor-pointer px-6 py-2.5 rounded-xl bg-red-500 hover:bg-red-400 text-white font-semibold transition-colors"
+                            >
+                                Từ chối
+                            </button>
+                        </div>
+                    )}
+                    {isRejected && (
+                        <div className="px-6 py-4 border-t border-neutral-200 flex justify-end gap-3 shrink-0">
                             <button
                                 onClick={() =>
                                     setConfirmType(
@@ -166,20 +204,5 @@ export default function DocumentViewModal({
                 variant="danger"
             />
         </>
-    );
-}
-
-function InfoField({ label, value }) {
-    return (
-        <div className="flex flex-col gap-2">
-
-            <label className="text-xs font-semibold uppercase tracking-wide text-neutral-500">
-                {label}
-            </label>
-
-            <div className="px-4 py-3 rounded-xl border border-neutral-200 bg-stone-100 text-sm">
-                {value || "-"}
-            </div>
-        </div>
     );
 }

@@ -3,6 +3,8 @@ import { useState } from "react";
 import { X } from "lucide-react";
 
 import ConfirmModal from "../../common/ConfirmModal";
+import DateField from "../../common/DateField";
+import InfoField from "../../common/InfoField";
 
 export default function CategoryViewModal({
     isOpen,
@@ -85,26 +87,11 @@ export default function CategoryViewModal({
                             }
                         />
 
-                        <InfoField
-                            label="Trạng thái"
-                            value={
-                                category.status
-                            }
-                        />
-
-                        <InfoField
-                            label="Ngày tạo"
-                            value={
-                                category.created_at
-                            }
-                        />
-
-                        <InfoField
-                            label="Ngày duyệt"
-                            value={
-                                category.verified_at
-                            }
-                        />
+                        <div className="grid grid-cols-2 gap-4">
+                                                        <DateField label="Ngày đăng ký" value={category.created_at} />
+                                                        <DateField label="Ngày được duyệt" value={category?.verified_at} />
+                                                    </div>
+                        
                     </div>
 
                     {/* FOOTER */}
@@ -265,22 +252,5 @@ export default function CategoryViewModal({
                 }
             />
         </>
-    );
-}
-
-function InfoField({
-    label,
-    value,
-}) {
-    return (
-        <div className="flex flex-col gap-1.5">
-            <label className="text-xs font-semibold uppercase tracking-wide text-neutral-500">
-                {label}
-            </label>
-
-            <div className="px-4 py-3 rounded-xl border border-neutral-200 bg-stone-100 text-sm text-neutral-800">
-                {value || "-"}
-            </div>
-        </div>
     );
 }
