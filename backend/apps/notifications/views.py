@@ -1,3 +1,4 @@
+from django.db.models import Case, IntegerField, Value, When
 from django.utils import timezone
 from drf_spectacular.utils import extend_schema, extend_schema_view
 from rest_framework import viewsets
@@ -91,7 +92,7 @@ class NotificationViewSet(viewsets.ModelViewSet):
         description=(
             "Lấy danh sách thông báo gửi đến user đăng nhập, sắp xếp mới nhất trước.\n\n"
             "- `unread_count` + `unread[]`: thông báo chưa đọc (badge / dropdown)\n"
-            "- `results[]`: danh sách phân trang (cả đã đọc và chưa đọc)\n"
+            "- `results[]`: chưa đọc lên trước, sau đó mới nhất trước trong từng nhóm\n"
             "- `read_at=null`: chưa đọc\n"
             "- `type_label`: loại thông báo (Thông tin / Thành công / ...)\n"
             "- `reference_type_label`: nhóm nội dung (Giấy tờ / Danh mục / ...)"
@@ -101,9 +102,18 @@ class NotificationViewSet(viewsets.ModelViewSet):
     )
     @action(detail=False, methods=["get"])
     def my(self, request):
-        receipts = NotificationReceipt.objects.filter(
-            account=request.user
-        ).select_related("notification").order_by("-notification__created_at")
+        receipts = (
+            NotificationReceipt.objects.filter(account=request.user)
+            .select_related("notification")
+            .annotate(
+                _unread_priority=Case(
+                    When(read_at__isnull=True, then=Value(0)),
+                    default=Value(1),
+                    output_field=IntegerField(),
+                )
+            )
+            .order_by("_unread_priority", "-notification__created_at", "-id")
+        )
 
         unread_receipts = list(receipts.filter(read_at__isnull=True))
         response = paginate_queryset(
