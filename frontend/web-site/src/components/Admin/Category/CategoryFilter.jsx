@@ -1,10 +1,8 @@
 const OPTIONS = [
     { label: "TẤT CẢ",         value: "" },
-    { label: "ĐÃ DUYỆT", value: "approved" },
+    { label: "ĐÃ DUYỆT", value: "active" },
+    { label: "KHÓA",        value: "inactive" },
     { label: "TỪ CHỐI",        value: "rejected" },
-    { label: "GIẤY PHÉP KINH DOANH", value: "business_license" },
-    { label: "CMND / CCCD",        value: "id_card" },
-    { label: "CHỨNG NHẬN THUẾ",      value: "tax_certificate" },
     { label: "ĐĂNG KÝ",      value: "pending" },
 ];
 

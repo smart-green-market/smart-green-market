@@ -92,13 +92,31 @@ const buildColumns = (onView) => [
 
 export default function DocumentTable({ data, search, statusFilter, onView }) {
     const filtered = data.filter((row) => {
-        const matchName   = row.document_type.toLowerCase().includes(search.toLowerCase()) ||
-                            row.supplier?.company_name.toLowerCase().includes(search.toLowerCase()) ||
-                            row.status.toLowerCase().includes(search.toLowerCase());
+        const documentTypeLabel =
+            DOCUMENT_TYPE_LABELS[
+                row.document_type
+            ] || row.document_type;
+        // 1. Lọc theo ô tìm kiếm (Tìm text theo loại, tên cty, trạng thái)
+        const matchName = documentTypeLabel.toLowerCase().includes(search.toLowerCase()) ||
+                        row.supplier?.company_name.toLowerCase().includes(search.toLowerCase());
 
-        const matchStatus = statusFilter ? row.status === statusFilter : true;
+        // 2. Logic phân loại bộ lọc nút bấm
+        const statusGroup = ["approved", "rejected", "pending"];
+        const docTypeGroup = ["business_license", "id_card", "tax_certificate"];
+
+        let matchFilter = true;
+
+        if (statusFilter) {
+            if (statusGroup.includes(statusFilter)) {
+                // Nếu nút được bấm thuộc nhóm Trạng thái
+                matchFilter = row.status === statusFilter;
+            } else if (docTypeGroup.includes(statusFilter)) {
+                // Nếu nút được bấm thuộc nhóm Loại chứng chỉ
+                matchFilter = row.document_type === statusFilter;
+            }
+        }
         
-        return matchName && matchStatus;
+        return matchName && matchFilter;
     });
 
     const columns = buildColumns(onView);
@@ -109,9 +127,7 @@ export default function DocumentTable({ data, search, statusFilter, onView }) {
                 columns={columns}
                 data={filtered}
                 pagination
-                paginationServer
-                paginationTotalRows={data?.count}
-                paginationPerPage={data?.page_size }
+                paginationPerPage={10}
                 paginationComponentOptions={paginationVi}
                 customStyles={tableStyles}
                 noDataComponent={

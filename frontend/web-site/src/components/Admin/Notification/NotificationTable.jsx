@@ -94,9 +94,7 @@ export default function NotificationTable({ data, search, statusFilter, onView }
                 columns={columns}
                 data={filtered}
                 pagination
-                paginationServer
-                paginationTotalRows={data?.count}
-                paginationPerPage={data?.page_size }
+                paginationPerPage={10}
                 paginationComponentOptions={paginationVi}
                 customStyles={tableStyles}
                 noDataComponent={

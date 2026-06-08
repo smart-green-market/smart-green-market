@@ -74,11 +74,7 @@ export default function CertificationPage() {
                             description:
                                 item.description,
 
-                            fileUrl:
-                                item.file_url,
-
-                            supplier:
-                                item.supplier,
+                            images: item.images || [],
 
                             status:
                                 item.status,
@@ -94,6 +90,20 @@ export default function CertificationPage() {
 
                             updatedAt:
                                 item.updated_at,
+
+                            supplier: {
+                                id: item.supplier?.id,
+                                company_name:
+                                    item.supplier?.company_name,
+                                tax_code:
+                                    item.supplier?.tax_code,
+                                phone:
+                                    item.supplier?.phone,
+                                address:
+                                    item.supplier?.address,
+                                account_username: item.supplier?.account_username,
+                                account_full_name : item.supplier?.account_full_name,
+                            },
                         })
                     );
 

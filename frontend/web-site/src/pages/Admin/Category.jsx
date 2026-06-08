@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import Toolbar from "../../components/Admin/UI/Toolbar";
-import Filter from "../../components/Admin/UI/Filter";
+import Filter from "../../components/Admin/Category/CategoryFilter";
 import CategoryTable from "../../components/Admin/Category/CategoryTable";
 import CategoryViewModal from "../../components/Admin/Category/CategoryViewModal";
 import { categoryService, handleApiError} from "../../services/api/categoryService";

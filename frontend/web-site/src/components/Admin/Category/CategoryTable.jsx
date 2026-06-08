@@ -6,7 +6,7 @@ const STATUS_CONFIG = {
     active:  { label: "ĐANG HOẠT ĐỘNG", bg: "bg-green-200",   text: "text-green-800"  },
     rejected:  { label: "TẠM NGƯNG",      bg: "bg-red-200",    text: "text-red-700"   },
     pending: { label: "CHỜ DUYỆT",        bg: "bg-amber-200",  text: "text-amber-800" },
-    inactive: { label: "CHỜ DUYỆT",        bg: "bg-blue-200",  text: "text-blue-800" },
+    inactive: { label: "KHÓA",        bg: "bg-blue-200",  text: "text-blue-800" },
 };
 
 // ── Column definitions ────────────────────────────────────────────────────────
@@ -69,9 +69,7 @@ export default function CategoryTable({ data, search, statusFilter, onView }) {
                 columns={buildColumns(onView)}
                 data={filtered}
                 pagination
-                paginationServer
-                paginationTotalRows={data?.count}
-                paginationPerPage={data?.page_size }
+                paginationPerPage={10}
                 paginationComponentOptions={paginationVi}
                 customStyles={tableStyles}
                 noDataComponent={

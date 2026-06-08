@@ -135,18 +135,9 @@ export default function SupplierPage() {
                     updated_at:
                         detail.updated_at,
 
+                    verified_at: detail.verified_at,
+
                     // ── ACCOUNT
-                    account_status:
-                        detail.account?.status,
-
-                    first_name:
-                        detail.account
-                            ?.first_name,
-
-                    last_name:
-                        detail.account
-                            ?.last_name,
-
                     full_name:
                         detail.account
                             ?.full_name,
@@ -155,18 +146,7 @@ export default function SupplierPage() {
                         detail.account?.email,
 
                     avatar:
-                        detail.account?.avatar,
-
-                    // ── RELATIONS
-                    documents:
-                        detail.documents || [],
-
-                    certifications:
-                        detail.certifications ||
-                        [],
-
-                    products:
-                        detail.products || [],
+                        detail.account?.avatar_url,
                 };
 
                 setViewRow(
@@ -265,7 +245,7 @@ const handleReject = async (supplier) => {
                 item.phone
                     ?.toLowerCase()
                     .includes(keyword) ||
-                item.tax_code
+                item.address
                     ?.toLowerCase()
                     .includes(keyword);
 
