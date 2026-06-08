@@ -59,18 +59,21 @@ export default function NotificationBell() {
     }, []);
 
     // Xử lý đánh dấu đã đọc khi xem
+    // Xử lý đánh dấu đã đọc khi xem
     const handleMarkRead = useCallback(async (id) => {
         try {
             setActionLoading(true);
-            await notificationService.mark_read(id);
+            // Gọi API cập nhật trạng thái đã đọc trên server
+            await notificationService.mark_read(id); 
+            
             const nowIso = new Date().toISOString();
             
-            // Đồng bộ trực tiếp state cục bộ của Chuông
+            // Cập nhật nhanh trạng thái tại local để giao diện phản hồi lập tức (Không đợi đóng modal)
             setNotifications(prev => prev.map(item => item.id === id ? { ...item, readAt: nowIso } : item));
             setUnreadCount(prev => Math.max(0, prev - 1));
             setViewRow(prev => prev && prev.id === id ? { ...prev, readAt: nowIso } : prev);
         } catch (error) {
-            console.error(handleApiError(error));
+            console.error(handleApiError(error, "Không thể đánh dấu đã đọc"));
         } finally {
             setActionLoading(false);
         }
@@ -129,11 +132,12 @@ export default function NotificationBell() {
                     }}
                 />
             )}
-
-            {/* Modal hiển thị chi tiết khi click vào thông báo từ chuông */}
             <NotificationViewModal
                 isOpen={viewRow !== null}
-                onClose={() => setViewRow(null)}
+                onClose={() => {
+                    setViewRow(null);      
+                    fetchBellData();     
+                }}
                 notification={viewRow}
                 onChange={() => viewRow && handleMarkRead(viewRow.id)}
                 loading={actionLoading}

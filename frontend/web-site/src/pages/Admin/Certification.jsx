@@ -164,7 +164,7 @@ export default function CertificationPage() {
 
     // ── REJECT ─────────────────────────────────────────
     const handleReject =
-        async (certification) => {
+        async (certification, customReason) => {
 
             try {
                 setActionLoading(true);
@@ -173,24 +173,20 @@ export default function CertificationPage() {
                     certification.id,
                     {
                         status: "rejected",
-                        rejection_reason:
-                            "Rejected by admin",
+                        rejection_reason: customReason || "Không đạt yêu cầu hệ thống",
                     }
                 );
 
                 setViewRow(null);
-
                 await fetchCertifications();
 
             } catch (error) {
-
                 console.error(
                     handleApiError(
                         error,
                         "Không thể từ chối chứng chỉ"
                     )
                 );
-
             } finally {
                 setActionLoading(false);
             }
