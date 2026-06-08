@@ -1,7 +1,7 @@
 const OPTIONS = [
     { label: "TẤT CẢ",         value: "" },
-    { label: "ĐÃ ĐỌC", value: "active" },
-    { label: "CHƯA ĐỌC",        value: "rejected" },
+    { label: "ĐÃ ĐỌC", value: "read" },
+    { label: "CHƯA ĐỌC",        value: "unread" },
     { label: "THÔNG BÁO",        value: "info" },
     { label: "CẢNH BÁO",        value: "warning" },
     { label: "THÀNH CÔNG",        value: "success" },

@@ -37,7 +37,7 @@ export default function App() {
                             <Route path="san-pham" element={<ProductPage />} />
                             <Route path="chung-chi" element={<CertificationPage />} />
                             <Route path="giay-to" element={<DocumentPage />} />
-                            <Route path="thong-bao" element={<NotificationPage />} />
+                            <Route path="tat-ca-thong-bao" element={<NotificationPage />} />
                         </Route>
                     </Route>
                 </Routes>

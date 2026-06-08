@@ -35,7 +35,7 @@ export default function NotificationPage() {
     const [
         statusFilter,
         setStatusFilter,
-    ] = useState("");
+    ] = useState("unread");
 
     const [viewRow, setViewRow] =
         useState(null);
@@ -84,8 +84,7 @@ export default function NotificationPage() {
                             createdBy:
                                 item.created_by,
 
-                            // local state
-                            isRead: false,
+                            readAt:item.read_at,
                         })
                     );
 
@@ -106,113 +105,61 @@ export default function NotificationPage() {
             }
         }, []);
 
-    // ── FETCH DETAIL NOTIFICATION ─────────────────────
-    const handleViewNotification =
-        useCallback(async (row) => {
-            try {
-                setLoading(true);
+    const handleMarkRead = useCallback(async (notificationId) => {
+        try {
+            setActionLoading(true);
+            await notificationService.mark_read(notificationId);
 
-                const detail =
-                    await notificationService.getById(
-                        row.id
-                    );
+            // Cập nhật giá trị trực tiếp trên UI (Client State) biến `readAt` thành mốc thời gian hiện tại
+            const nowIsoString = new Date().toISOString();
+            setData((prev) =>
+                prev.map((item) =>
+                    item.id === notificationId ? { ...item, readAt: nowIsoString } : item
+                )
+            );
 
-                const formattedDetail = {
-                    id: detail.id,
+            setViewRow((prev) =>
+                prev && prev.id === notificationId ? { ...prev, readAt: nowIsoString } : prev
+            );
+        } catch (error) {
+            console.error(handleApiError(error, "Không thể đánh dấu đã đọc"));
+        } finally {
+            setActionLoading(false);
+        }
+    }, []);
 
-                    type:
-                        detail.type,
+    // ── BẤM NÚT XEM CHI TIẾT ───────────────────────────
+    const handleViewNotification = useCallback(async (row) => {
+        try {
+            setLoading(true);
+            const detail = await notificationService.getById(row.id);
 
-                    typeLabel:
-                        detail.type_label,
+            const formattedDetail = {
+                id: detail.id,
+                type: detail.type,
+                typeLabel: detail.type_label,
+                title: detail.title,
+                content: detail.content,
+                referenceType: detail.reference_type,
+                referenceTypeLabel: detail.reference_type_label,
+                referenceId: detail.reference_id,
+                createdAt: detail.created_at,
+                createdBy: detail.created_by,
+                readAt: detail.read_at || row.readAt, // Lấy mốc từ detail hoặc fallback row hiện tại
+            };
 
-                    title:
-                        detail.title,
+            setViewRow(formattedDetail);
 
-                    content:
-                        detail.content,
-
-                    referenceType:
-                        detail.reference_type,
-
-                    referenceTypeLabel:
-                        detail.reference_type_label,
-
-                    referenceId:
-                        detail.reference_id,
-
-                    createdAt:
-                        detail.created_at,
-
-                    createdBy:
-                        detail.created_by,
-
-                    isRead:
-                        row.isRead,
-                };
-
-                setViewRow(
-                    formattedDetail
-                );
-
-            } catch (error) {
-
-                handleApiError(
-                    error,
-                    "Không thể tải chi tiết thông báo"
-                );
-
-            } finally {
-                setLoading(false);
+            // ĐÚNG YÊU CẦU: Nếu thông báo này CHƯA ĐỌC, tự động chạy hàm kích hoạt API mark_read luôn
+            if (!formattedDetail.readAt) {
+                await handleMarkRead(row.id);
             }
-        }, []);
-
-    // ── MARK READ ─────────────────────────────────────
-    const handleMarkRead =
-        async (notification) => {
-
-            try {
-                setActionLoading(true);
-
-                await notificationService.mark_read(
-                    notification.id
-                );
-
-                // update local state
-                setData((prev) =>
-                    prev.map((item) =>
-                        item.id ===
-                        notification.id
-                            ? {
-                                ...item,
-                                isRead: true,
-                            }
-                            : item
-                    )
-                );
-
-                setViewRow((prev) =>
-                    prev
-                        ? {
-                            ...prev,
-                            isRead: true,
-                        }
-                        : null
-                );
-
-            } catch (error) {
-
-                console.error(
-                    handleApiError(
-                        error,
-                        "Không thể đánh dấu đã đọc"
-                    )
-                );
-
-            } finally {
-                setActionLoading(false);
-            }
-        };
+        } catch (error) {
+            handleApiError(error, "Không thể tải chi tiết thông báo");
+        } finally {
+            setLoading(false);
+        }
+    }, [handleMarkRead]);
 
     // ── INITIAL FETCH ─────────────────────────────────
     useEffect(() => {
@@ -271,9 +218,7 @@ export default function NotificationPage() {
                     setViewRow(null)
                 }
                 notification={viewRow}
-                onChange={
-                    handleMarkRead
-                }
+                onChange={() => viewRow && handleMarkRead(viewRow.id)}
                 loading={
                     actionLoading
                 }
