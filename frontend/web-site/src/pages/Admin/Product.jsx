@@ -1,70 +1,202 @@
-import { useState } from "react";
-import Toolbar from "../../components/Admin/UI/Toolbar";
-import Filter  from "../../components/Admin/UI/Filter";
+import { useCallback, useEffect, useMemo, useState } from "react";
+
+import SearchBar from "../../components/Admin/UI/SearchBar";
+import Filter from "../../components/Admin/Product/ProductFilter";
 import ProductTable from "../../components/Admin/Product/ProductTable";
-import ConfirmModal from "../../components/common/ConfirmModal";
+import ProductViewModal from "../../components/Admin/Product/ProductViewModal";
 
-// ── Mock data ─────────────────────────────────────────────────────────────────
-const INITIAL_DATA = [
-  { id: 1, code: "#GM-P-01", name: "Rau cải thìa",    supplier: "Nông trại Xanh", status: "active",  image: "../public/images/rau.jpg" },
-  { id: 2, code: "#GM-P-02", name: "Cà chua bi",       supplier: "Garden Fresh",   status: "pending", image: "../public/images/rau.jpg" },
-  { id: 3, code: "#GM-P-03", name: "Táo hữu cơ",       supplier: "Nông trại Xanh", status: "paused",  image: "../public/images/rau.jpg" },
-  { id: 4, code: "#GM-P-04", name: "Khoai tây Đà Lạt", supplier: "VietFarm",       status: "active",  image: "../public/images/rau.jpg" },
-  { id: 5, code: "#GM-P-05", name: "Dưa leo sạch",     supplier: "VietFarm",       status: "active",  image: "../public/images/rau.jpg" },
-  { id: 6, code: "#GM-P-06", name: "Bí đỏ hữu cơ",    supplier: "Nông trại Xanh", status: "active",  image: "../public/images/rau.jpg" },
-  { id: 7, code: "#GM-P-07", name: "Ớt chuông đỏ",    supplier: "Garden Fresh",   status: "pending", image: "../public/images/rau.jpg" },
-];
+import { productService, handleApiError } from "../../services/api/productService";
+const formatProduct = (p) => ({
+  id:                    p.id,
+  name:                  p.name,
+  slug:                  p.slug,
+  unit:                  p.unit,
+  description:           p.description,
+  storage_duration_days: p.storage_duration_days,
+  min_storage_temp:      p.min_storage_temp,
+  max_storage_temp:      p.max_storage_temp,
+  status:                p.status,
+  rejection_reason:      p.rejection_reason,
+  verified_by:           p.verified_by,
+  verified_by_username:  p.verified_by_username,
+  verified_at:           p.verified_at,
+  created_at:            p.created_at,
+  updated_at:            p.updated_at,
+  images:                p.images ?? [],
+  image:                 p.images?.find((i) => i.is_thumbnail)?.image_url ?? p.images?.[0]?.image_url,
+  supplier:              p.supplier,
+  supplier_name:         p.supplier?.company_name,
+  category_name:         p.category?.name,
+});
 
+// ── Page ────────────────────────────────────────────────────────────────────────
 export default function ProductPage() {
-  const [data,         setData]         = useState(INITIAL_DATA);
-  const [search,       setSearch]       = useState("");
-  const [statusFilter, setStatusFilter] = useState("pending");
+  // ─── State ────────────────────────────────────────────────────────────────
+  const [data,          setData]          = useState([]);
+  const [loading,       setLoading]       = useState(false);
+  const [actionLoading, setActionLoading] = useState(false);
+  const [error,         setError]         = useState("");
+  const [modalError,    setModalError]    = useState("");
 
-  // Modal states
-  const [deleteRow, setDeleteRow] = useState(null); // row | null
+  const [search,        setSearch]        = useState("");
+  const [statusFilter,  setStatusFilter]  = useState("pending");
 
-  // ── CRUD ──────────────────────────────────────────────────────────────────
-  const handleDelete = () => {
-    setData((prev) => prev.filter((row) => row.id !== deleteRow.id));
-  };
+  const [viewRow,       setViewRow]       = useState(null);
 
+  // ─── Fetch all ────────────────────────────────────────────────────────────
+  const fetchProducts = useCallback(async () => {
+    try {
+      setLoading(true);
+      setError("");
+      const response = await productService.getAll();
+      // API có thể trả về { results: [...] } hoặc []
+      const list = Array.isArray(response) ? response : response.results ?? [];
+      setData(list.map(formatProduct));
+    } catch (err) {
+      setError(handleApiError(err, "Không thể tải danh sách sản phẩm"));
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchProducts();
+  }, [fetchProducts]);
+
+  // ─── Fetch detail (mở modal) ─────────────────────────────────────────────
+  const handleViewProduct = useCallback(async (row) => {
+    try {
+      setLoading(true);
+      setModalError("");
+      const detail = await productService.getById(row.id);
+      setViewRow(formatProduct(detail));
+    } catch (err) {
+      setError(handleApiError(err, "Không thể tải chi tiết sản phẩm"));
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  // ─── Approve (pending → active) ──────────────────────────────────────────
+  const handleApprove = useCallback(async (product) => {
+    try {
+      setActionLoading(true);
+      setModalError("");
+      await productService.verify(product.id, { status: "active" });
+      setViewRow(null);
+      await fetchProducts();
+    } catch (err) {
+      const msg = handleApiError(err, "Không thể duyệt sản phẩm");
+      setModalError(msg);
+      throw new Error(msg); // giữ modal mở nếu cần
+    } finally {
+      setActionLoading(false);
+    }
+  }, [fetchProducts]);
+
+  // ─── Reject (pending → paused/rejected) ──────────────────────────────────
+  const handleReject = useCallback(async (product) => {
+    try {
+      setActionLoading(true);
+      setModalError("");
+      await productService.verify(product.id, {
+        status: "rejected",
+        rejection_reason: "",
+      });
+      setViewRow(null);
+      await fetchProducts();
+    } catch (err) {
+      const msg = handleApiError(err, "Không thể từ chối sản phẩm");
+      setModalError(msg);
+    } finally {
+      setActionLoading(false);
+    }
+  }, [fetchProducts]);
+
+  // ─── Pause (active → paused) ──────────────────────────────────────────────
+  const handlePause = useCallback(async (product) => {
+    try {
+      setActionLoading(true);
+      setModalError("");
+      await productService.verify(product.id, { status: "inactive" });
+      setViewRow(null);
+      await fetchProducts();
+    } catch (err) {
+      const msg = handleApiError(err, "Không thể tạm ngưng sản phẩm");
+      setModalError(msg);
+    } finally {
+      setActionLoading(false);
+    }
+  }, [fetchProducts]);
+
+  const filteredData = useMemo(() => {
+        return data.filter((item) => {
+            const keyword =
+                search.toLowerCase();
+
+            const matchSearch =
+                item.name
+                    ?.toLowerCase()
+                    .includes(keyword) ||
+                item.category_name
+                    ?.toLowerCase()
+                    .includes(keyword) ||
+                item.supplier_name
+                    ?.toLowerCase()
+                    .includes(keyword);
+
+            const matchStatus =
+                !statusFilter ||
+                item.status === statusFilter;
+
+            return (
+                matchSearch &&
+                matchStatus
+            );
+        });
+    }, [data, search, statusFilter]);
+  // ─── Render ───────────────────────────────────────────────────────────────
   return (
     <div className="flex flex-col gap-6 px-8 pt-6 pb-10">
-
-      {/* Toolbar: search + filter button + add CTA */}
-      <Toolbar
-        search={search}
-        onSearch={setSearch}
-        searchPlaceholder="Tìm kiếm sản phẩm..."
+      {/* SEARCH */}
+      <SearchBar
+        value={search}
+        onChange={setSearch}
+        placeholder="Tìm kiếm sản phẩm..."
       />
-
-      {/* Status filter chips */}
+      
+      {/* FILTER */}
       <div className="flex items-center gap-3">
-        <span className="text-xs font-semibold text-neutral-400 uppercase tracking-wide font-['Geist',sans-serif]">
+        <span className="text-xs font-semibold uppercase tracking-wide text-neutral-500">
           Lọc:
         </span>
         <Filter value={statusFilter} onChange={setStatusFilter} />
       </div>
 
-      {/* Data table — pagination & sort built-in */}
+      {/* ERROR */}
+            {error && (
+                <div className="px-4 py-3 rounded-xl bg-red-100 text-red-700 text-sm">
+                    {error}
+                </div>
+            )}
+            
+      {/* TABLE */}
       <ProductTable
-        data={data}
-        search={search}
-        statusFilter={statusFilter}
-        // onView={(row) => {/* mở ProductDetailModal nếu có */}}
-        onDelete={(row) => setDeleteRow(row)}
+        data={filteredData}
+        onView={handleViewProduct}
       />
 
-      {/* ── Modals ──────────────────────────────────────────────────────── */}
-      <ConfirmModal
-        isOpen={deleteRow !== null}
-        onClose={() => setDeleteRow(null)}
-        onConfirm={handleDelete}
-        title="Xóa sản phẩm"
-        message={`Bạn có chắc chắn muốn xóa sản phẩm "${deleteRow?.name}" không?`}
-        confirmText="Xóa"
-        cancelText="Hủy"
-        variant="danger"
+      {/* DETAIL MODAL */}
+      <ProductViewModal
+        isOpen={viewRow !== null}
+        onClose={() => { setViewRow(null); setModalError(""); }}
+        product={viewRow}
+        onApprove={handleApprove}
+        onReject={handleReject}
+        onActive={handleApprove}
+        onPause={handlePause}
+        loading={actionLoading}
+        error={modalError}
       />
     </div>
   );

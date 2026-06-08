@@ -26,6 +26,8 @@ export default function CategoryViewModal({
 
     const isInactive = category.status === "inactive";
 
+    const isRejected = category.status === "rejected";
+
     // ── OPEN CONFIRM ─────────────────────
     const openConfirm = ({
         title,
@@ -61,7 +63,12 @@ export default function CategoryViewModal({
                 {/* MODAL */}
                 <div className="w-full max-w-[620px] bg-white rounded-2xl shadow-2xl border border-neutral-200 overflow-hidden flex flex-col">
                 {/* HEADER */}
-                <div className="px-6 py-4 border-b border-neutral-200 flex justify-end">
+                <div className="px-6 py-4 border-b border-neutral-200 flex items-center justify-between shrink-0">
+                    <div>
+                            <h2 className="text-lg font-bold text-neutral-900">
+                                Danh mục sản phẩm
+                            </h2>
+                        </div>
                     <button
                         disabled={loading}
                         onClick={onClose}
@@ -217,6 +224,36 @@ export default function CategoryViewModal({
                                 className="px-6 py-2.5 bg-green-600 hover:bg-green-500 text-white rounded-xl font-semibold transition-colors"
                             >
                                 Mở khóa
+                            </button>
+                        )}
+                        {/* REJECTED */}
+                        {isRejected && (
+                            <button
+                                onClick={() =>
+                                    openConfirm(
+                                        {
+                                            title:
+                                                "Duyệt danh mục",
+
+                                            message: `Bạn có chắc chắn muốn duyệt lại "${category.name}" không?`,
+
+                                            confirmText:
+                                                "Duyệt",
+
+                                            variant:
+                                                "success",
+
+                                            action:
+                                                () =>
+                                                    onApprove(
+                                                        category
+                                                    ),
+                                        }
+                                    )
+                                }
+                                className="px-6 py-2.5 bg-amber-600 hover:bg-amber-500 text-white rounded-xl font-semibold transition-colors"
+                            >
+                                Duyệt
                             </button>
                         )}
                     </div>

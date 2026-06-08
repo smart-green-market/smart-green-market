@@ -144,7 +144,11 @@ export default function CategoryPage() {
         try {
             setActionLoading(true);
             await categoryService.lock(
-                category.id
+                category.id,{
+                    status: "inactive",
+                    rejection_reason:
+                        "Không hợp lệ",
+                }
             );
             setViewRow(null);
             await fetchCategories();
@@ -162,7 +166,9 @@ export default function CategoryPage() {
         try {
             setActionLoading(true);
             await categoryService.unlock(
-                category.id
+                category.id,{
+                    status: "active",
+                }
             );
             setViewRow(null);
             await fetchCategories();

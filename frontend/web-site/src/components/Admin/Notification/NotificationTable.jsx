@@ -25,9 +25,12 @@ const buildColumns = (onView) => [
         sortable: true,
         width: '200px',
         cell: (row) => {
-            const st = TYPE[row.type];
+            const st = TYPE[row.type] || {
+                label: row.type || "KHÔNG XÁC ĐỊNH",
+            };
+
             return (
-                <span className={`px-2.5 py-1 rounded-full font-bold text-sm font-semibold font-['Geist',sans-serif] uppercase tracking-wide ${st.bg} ${st.text}`}>
+                <span className="px-2.5 py-1 rounded-full font-bold text-sm font-semibold font-['Geist',sans-serif] uppercase tracking-wide">
                     {st.label}
                 </span>
             );
@@ -52,9 +55,12 @@ const buildColumns = (onView) => [
         
         grow: 1,
         cell: (row) => {
-            const st = TYPE_REF[row.referenceType];
+            const st = TYPE_REF[row.referenceType] || {
+                label: row.referenceType || "KHÔNG XÁC ĐỊNH",
+            };
+
             return (
-                <span className={`px-2.5 py-1 rounded-full font-bold text-sm font-semibold font-['Geist',sans-serif] uppercase tracking-wide ${st.bg} ${st.text}`}>
+                <span className="px-2.5 py-1 rounded-full font-bold text-sm font-semibold font-['Geist',sans-serif] uppercase tracking-wide">
                     {st.label}
                 </span>
             );
@@ -70,7 +76,7 @@ const buildColumns = (onView) => [
         cell: (row) => {
             const st = row.readAt ? STATUS_CONFIG.read : STATUS_CONFIG.unread;
             return (
-                <span className={`px-2.5 py-1 rounded-full text-sm font-semibold font-['Geist',sans-serif] uppercase tracking-wide ${st.bg} ${st.text}`}>
+                <span className={`px-2.5 py-1 rounded-full text-sm font-semibold font-['Geist',sans-serif] uppercase tracking-wide`}>
                     {st.label}
                 </span>
             );
@@ -126,7 +132,7 @@ export default function NotificationTable({ data, search, statusFilter, onView }
         // 2. Logic phân loại bộ lọc nâng cao
         let matchFilter = true;
 
-        if (statusFilter && statusFilter !== "all") {
+        if (statusFilter && statusFilter !== "") {
             if (statusFilter === "read") {
                 matchFilter = !!row.readAt; // Có dữ liệu thời gian => Đã đọc
             } else if (statusFilter === "unread") {

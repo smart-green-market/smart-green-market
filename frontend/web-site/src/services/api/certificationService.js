@@ -50,7 +50,13 @@ export const certificationService = {
 
   // --- SUPPLIER
   create: (data) =>
-    axiosClient.post("/certifications/", data).then((res) => res.data.data),
+    axiosClient
+      .post("/certifications/", data, {
+        headers: {
+          "Content-Type": "multipart/form-data",
+        },
+      })
+      .then((res) => res.data), // <-- CHÚ Ý: Tuyệt đối không để res.data.data
 
   //   {
   //     "name": "string",
@@ -83,7 +89,6 @@ export const certificationService = {
   verify: (id, data) => {
     const formData = new FormData();
     formData.append("status", data.status);
-    // Nếu có lý do từ chối thì gửi lên, nếu không thì để chuỗi rỗng
     formData.append("rejection_reason", data.rejection_reason || "");
 
     return axiosClient

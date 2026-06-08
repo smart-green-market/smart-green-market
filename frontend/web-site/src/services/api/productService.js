@@ -1,69 +1,119 @@
 import axiosClient from "./axiosClient";
 
 export const productService = {
-  // USER
-  usergetAll: (params) =>
-    axiosClient.get("/products", { params: params }).then((res) => {
-      return res.data;
-    }),
-
-  usergetId: (id) => axiosClient.get(`/products/${id}`).then((res) => res.data),
-
-  usergetNewest: (soLuong) =>
-    axiosClient
-      .get(`/products/newest?soLuong=${soLuong}`)
-      .then((res) => res.data),
-
-  usergetBestSelling: (soLuong) =>
-    axiosClient
-      .get(`/products/best-selling?soLuong=${soLuong}`)
-      .then((res) => res.data),
-
-  usergetByCategory: (maDanhMuc, soLuong) =>
-    axiosClient
-      .get(`/products/category/${maDanhMuc}?soLuong=${soLuong}`)
-      .then((res) => res.data),
-
-  usergetBySlug: (slug) =>
-    axiosClient.get(`/products/slug/${slug}`).then((res) => res.data),
-
-  usergetRelated: (id) =>
-    axiosClient.get(`/products/${id}/related`).then((res) => res.data),
-
   // ADMIN
-  getAdminList: async () => {
-    const res = await axiosClient.get("/admin/products");
-    return res.data; // API trả mảng
-  },
-  getDetailProduct: async (id) => {
-    const res = await axiosClient.get(`/admin/products/${id}`);
+  getAll: async () => {
+    const res = await axiosClient.get("/supplier-products/");
     return res.data;
   },
 
-  // SUPPLIER
-  AddProduct: async (formData) => {
-    const res = await axiosClient.post(`/admin/products`, formData, {
-      headers: { "Content-Type": "multipart/form-data" },
-    });
+  // {
+  //   "count": 123,
+  //   "next": "http://api.example.org/accounts/?page=4",
+  //   "previous": "http://api.example.org/accounts/?page=2",
+  //   "results": [
+  //     {
+  //       "count": 0,
+  //       "next": "string",
+  //       "previous": "string",
+  //       "page": 0,
+  //       "page_size": 0,
+  //       "has_more": true,
+  //       "results": [
+  //         {
+  //           "id": 0,
+  //           "name": "string",
+  //           "slug": "1e7i__3p-RJYcPNbklxKHObFk9RFoVYwGGG49m_VIm3XdAH4R",
+  //           "unit": "string",
+  //           "description": "string",
+  //           "storage_duration_days": 2147483647,
+  //           "min_storage_temp": "996.7",
+  //           "max_storage_temp": "-1",
+  //           "status": "pending",
+  //           "verified_by": 0,
+  //           "verified_by_username": "string",
+  //           "verified_at": "2026-06-08T05:28:34.682Z",
+  //           "rejection_reason": "string",
+  //           "created_at": "2026-06-08T05:28:34.682Z",
+  //           "updated_at": "2026-06-08T05:28:34.682Z",
+  //           "images": [
+  //             {
+  //               "id": 0,
+  //               "supplier_product": 0,
+  //               "image_url": "string",
+  //               "is_thumbnail": true,
+  //               "sort_order": 2147483647,
+  //               "created_at": "2026-06-08T05:28:34.682Z"
+  //             }
+  //           ],
+  //           "supplier": {
+  //             "id": 0,
+  //             "company_name": "string",
+  //             "tax_code": "string",
+  //             "phone": "string",
+  //             "address": "string",
+  //             "verification_status": "pending",
+  //             "account_username": "string",
+  //             "account_full_name": "string"
+  //           },
+  //           "category": {
+  //             "id": 0,
+  //             "name": "string",
+  //             "status": "pending"
+  //           }
+  //         }
+  //       ]
+  //     }
+  //   ]
+  // }
+
+  getById: async (id) => {
+    const res = await axiosClient.get(`/supplier-products/${id}/`);
     return res.data;
   },
 
-  updateProduct: async (id, formData) => {
-    const res = await axiosClient.put(`/admin/products/${id}`, formData, {
-      headers: { "Content-Type": "multipart/form-data" },
-    });
+  addProduct: async (formData) => {
+    // Sửa lại thành:
+    const res = await axiosClient.post("/supplier-products/", formData);
+    // Đã xóa bỏ { headers: { "Content-Type": "multipart/form-data" } }
+    return res.data;
+  },
+  addImageProduct: async (formData) => {
+    const res = await axiosClient.post("/supplier-product-images/", formData);
+    return res.data;
+  },
+  updateProduct: async (id, payload) => {
+    const res = await axiosClient.patch(`/supplier-products/${id}/`, payload);
     return res.data;
   },
 
   deleteProduct: async (id) => {
-    const res = await axiosClient.delete(`/admin/products/${id}`);
+    const res = await axiosClient.delete(`/supplier-products/${id}`);
     return res.data;
   },
 
-  delete: (id) =>
-    axiosClient
-      .delete(`/admin/products/${id}`)
-      .then((res) => res.data.danhSach),
+  verify: (id, data) => {
+    const formData = new FormData();
+    formData.append("status", data.status);
+    formData.append("rejection_reason", data.rejection_reason || "");
+
+    return axiosClient
+      .post(`/supplier-products/${id}/verify/`, formData, {
+        headers: {
+          "Content-Type": "multipart/form-data",
+        },
+      })
+      .then((res) => res.data);
+    //   {
+    //     "status": "approved / rejected",
+    //     "rejection_reason": "string"
+    //   }
+  },
+  remove: (id) => {
+    return axiosClient
+      .delete(`/supplier-products/${id}/`)
+      .then((res) => res.data);
+  },
 };
 
 // Xử lý bug
