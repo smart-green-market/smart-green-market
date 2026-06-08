@@ -103,10 +103,10 @@ INSTALLED_APPS = [
 ]
 
 if CLOUDINARY_URL:
+    # Không thêm cloudinary_storage app — tránh ghi đè collectstatic (lỗi Django 6)
     _staticfiles_index = INSTALLED_APPS.index("corsheaders")
-    INSTALLED_APPS.insert(_staticfiles_index, "cloudinary_storage")
-    INSTALLED_APPS.insert(_staticfiles_index + 1, "django.contrib.staticfiles")
-    INSTALLED_APPS.insert(_staticfiles_index + 2, "cloudinary")
+    INSTALLED_APPS.insert(_staticfiles_index, "django.contrib.staticfiles")
+    INSTALLED_APPS.insert(_staticfiles_index + 1, "cloudinary")
 else:
     INSTALLED_APPS.insert(
         INSTALLED_APPS.index("corsheaders"),
@@ -349,25 +349,22 @@ STATIC_ROOT = BASE_DIR / "staticfiles"
 MEDIA_URL = "/media/"
 MEDIA_ROOT = BASE_DIR / "media"
 
-if CLOUDINARY_URL:
-    STORAGES = {
-        "default": {
-            # raw: hỗ trợ cả ảnh (jpg, png) lẫn PDF giấy tờ
-            "BACKEND": "cloudinary_storage.storage.RawMediaCloudinaryStorage",
-        },
-        "staticfiles": {
-            "BACKEND": "whitenoise.storage.CompressedManifestStaticFilesStorage",
-        },
-    }
-else:
-    STORAGES = {
-        "default": {
-            "BACKEND": "django.core.files.storage.FileSystemStorage",
-        },
-        "staticfiles": {
-            "BACKEND": "whitenoise.storage.CompressedManifestStaticFilesStorage",
-        },
-    }
+_STATICFILES_BACKEND = "whitenoise.storage.CompressedManifestStaticFilesStorage"
+_DEFAULT_FILE_BACKEND = (
+    "cloudinary_storage.storage.RawMediaCloudinaryStorage"
+    if CLOUDINARY_URL
+    else "django.core.files.storage.FileSystemStorage"
+)
+
+STORAGES = {
+    "default": {
+        "BACKEND": _DEFAULT_FILE_BACKEND,
+    },
+    "staticfiles": {
+        "BACKEND": _STATICFILES_BACKEND,
+    },
+}
+
 
 if not DEBUG:
     SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
