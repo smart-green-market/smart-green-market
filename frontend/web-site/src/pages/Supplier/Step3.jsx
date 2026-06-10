@@ -1,5 +1,5 @@
 import React, { useRef, useState } from "react";
-import { supplierDocumentService } from "../../services/api/supplierdocumentService";
+import { accountDocumentService } from "../../services/api/accountDocumentService";
 
 const DOC_TYPES = [
   {
@@ -44,7 +44,7 @@ export default function Step3({ onNext, onBack }) {
     setError("");
     setLoading(true);
 
-    await supplierDocumentService.upload(selectedFiles);
+    await accountDocumentService.upload(selectedFiles);
 
     onNext();
   } catch (err) {

@@ -1,11 +1,12 @@
 #!/usr/bin/env python
+"""Điểm vào quản lý Django cho dự án Smart Green Market."""
+
 import os  # os.environ để đọc biến môi trường
 import sys  # sys.argv để lấy các tham số command line ví dụ:python manage.py runserver
 
 
 def main():
-    """Run administrative tasks."""
-
+    """Khởi chạy lệnh quản trị Django từ dòng lệnh."""
     os.environ.setdefault("DJANGO_SETTINGS_MODULE", "config.settings")
     try:
         from django.core.management import execute_from_command_line

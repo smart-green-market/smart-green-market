@@ -1,3 +1,5 @@
+"""Validator kiểm tra file ảnh upload (định dạng, phần mở rộng, dung lượng)."""
+
 import os
 
 from django.core.exceptions import ValidationError
@@ -13,6 +15,7 @@ from .business_rules import (
 
 
 def validate_image_upload(file):
+    """Kiểm tra file ảnh hợp lệ cho DRF; raise ValidationError nếu không hợp lệ."""
     if file is None:
         return
 
@@ -37,7 +40,22 @@ def validate_image_upload(file):
         )
 
 
+REJECTION_REASON_REQUIRED_MSG = "Vui lòng nhập lý do từ chối."
+
+
+def require_rejection_reason(attrs, status_field, reason_field, rejected_statuses):
+    """Bắt buộc reason_field không rỗng khi status_field thuộc rejected_statuses."""
+    status = attrs.get(status_field)
+    if status in rejected_statuses:
+        reason = (attrs.get(reason_field) or "").strip()
+        if not reason:
+            raise DRFValidationError({reason_field: REJECTION_REASON_REQUIRED_MSG})
+        attrs[reason_field] = reason
+    return attrs
+
+
 def validate_image_upload_django(file):
+    """Bọc validate_image_upload, chuyển lỗi sang ValidationError của Django."""
     try:
         validate_image_upload(file)
     except DRFValidationError as exc:

@@ -1,3 +1,5 @@
+"""Serializer cho sản phẩm, ảnh sản phẩm và quy trình canh tác."""
+
 from rest_framework import serializers
 
 from common.approval_nested import (
@@ -10,7 +12,7 @@ from common.business_rules import (
     allowed_image_extensions_label,
 )
 from common.openapi_enums import schema_choice_field
-from common.validators import validate_image_upload
+from common.validators import require_rejection_reason, validate_image_upload
 from apps.categories.models import CategoryStatus
 from apps.suppliers.models import SupplierVerificationStatus
 from .models import SupplierProduct, SupplierProductImage, SupplierProductStatus
@@ -21,6 +23,7 @@ _IMAGE_FIELD_HELP = (
 
 
 def _ensure_product_image_permission(user, product):
+    """Kiểm tra quyền thao tác ảnh của sản phẩm."""
     if not user or not user.is_authenticated:
         return
     if user.role == "admin":
@@ -38,16 +41,21 @@ def _ensure_product_image_permission(user, product):
 
 
 def _collect_upload_files(request):
+    """Thu thập danh sách file upload từ field `images`."""
     return request.FILES.getlist("images")
 
 
 class SupplierProductImageSerializer(serializers.ModelSerializer):
+    """Serializer upload và cập nhật ảnh sản phẩm."""
+
     image_url = serializers.FileField(
         required=False,
         help_text=_IMAGE_FIELD_HELP,
     )
 
     class Meta:
+        """Cấu hình trường ảnh sản phẩm."""
+
         model = SupplierProductImage
         fields = [
             "id",
@@ -65,11 +73,13 @@ class SupplierProductImageSerializer(serializers.ModelSerializer):
         }
 
     def validate_image_url(self, file):
+        """Kiểm tra định dạng và kích thước file ảnh."""
         if file and hasattr(file, "read"):
             validate_image_upload(file)
         return file
 
     def validate(self, attrs):
+        """Kiểm tra giới hạn số ảnh và bắt buộc có file khi tạo mới."""
         product = attrs.get("supplier_product") or getattr(
             self.instance, "supplier_product", None
         )
@@ -85,6 +95,7 @@ class SupplierProductImageSerializer(serializers.ModelSerializer):
         return attrs
 
     def validate_supplier_product(self, product):
+        """Kiểm tra quyền thao tác ảnh trên sản phẩm."""
         _ensure_product_image_permission(
             self.context.get("request").user
             if self.context.get("request")
@@ -94,6 +105,7 @@ class SupplierProductImageSerializer(serializers.ModelSerializer):
         return product
 
     def _ensure_single_thumbnail(self, product, current_id=None):
+        """Đảm bảo chỉ một ảnh đại diện trên mỗi sản phẩm."""
         if not self.validated_data.get("is_thumbnail", False):
             return
         qs = SupplierProductImage.objects.filter(
@@ -105,6 +117,7 @@ class SupplierProductImageSerializer(serializers.ModelSerializer):
         qs.update(is_thumbnail=False)
 
     def create(self, validated_data):
+        """Tạo ảnh mới và bỏ thumbnail các ảnh khác nếu cần."""
         image = super().create(validated_data)
         if image.is_thumbnail:
             SupplierProductImage.objects.filter(
@@ -114,6 +127,7 @@ class SupplierProductImageSerializer(serializers.ModelSerializer):
         return image
 
     def update(self, instance, validated_data):
+        """Cập nhật ảnh, xóa file cũ và đồng bộ thumbnail."""
         new_file = validated_data.get("image_url")
         if new_file and instance.image_url:
             instance.image_url.delete(save=False)
@@ -140,6 +154,7 @@ class SupplierProductImageBulkUploadSerializer(serializers.Serializer):
     )
 
     def validate(self, attrs):
+        """Kiểm tra quyền, file upload và giới hạn số ảnh."""
         request = self.context["request"]
         product = attrs["supplier_product"]
         _ensure_product_image_permission(request.user, product)
@@ -169,6 +184,7 @@ class SupplierProductImageBulkUploadSerializer(serializers.Serializer):
         return attrs
 
     def create(self, validated_data):
+        """Tạo nhiều ảnh sản phẩm từ danh sách file upload."""
         product = validated_data["supplier_product"]
         files = validated_data["files"]
         set_thumbnail = validated_data.get("is_thumbnail", False)
@@ -196,6 +212,8 @@ class SupplierProductImageBulkUploadSerializer(serializers.Serializer):
 
 
 class SupplierProductReadSerializer(serializers.ModelSerializer):
+    """Serializer đọc thông tin sản phẩm kèm ảnh."""
+
     images = SupplierProductImageSerializer(many=True, read_only=True)
     status = schema_choice_field(choices=SupplierProductStatus.choices, read_only=True)
     verified_by_username = serializers.CharField(
@@ -205,12 +223,16 @@ class SupplierProductReadSerializer(serializers.ModelSerializer):
     )
 
     class Meta:
+        """Cấu hình trường đọc sản phẩm."""
+
         model = SupplierProduct
         fields = [
             "id",
             "name",
             "slug",
             "unit",
+            "wholesale_price",
+            "daily_production_capacity",
             "description",
             "storage_duration_days",
             "min_storage_temp",
@@ -224,6 +246,25 @@ class SupplierProductReadSerializer(serializers.ModelSerializer):
             "updated_at",
             "images",
         ]
+        extra_kwargs = {
+            "id": {"help_text": "ID sản phẩm"},
+            "name": {"help_text": "Tên sản phẩm"},
+            "slug": {"help_text": "Slug URL (unique trong phạm vi NCC)"},
+            "unit": {"help_text": "Đơn vị bán (kg, túi, thùng...)"},
+            "wholesale_price": {"help_text": "Giá bán sỉ cho đại lý (VND)"},
+            "daily_production_capacity": {
+                "help_text": "Năng lực sản xuất TB/ngày (cùng đơn vị unit)",
+            },
+            "description": {"help_text": "Mô tả chi tiết"},
+            "storage_duration_days": {"help_text": "Số ngày bảo quản được"},
+            "min_storage_temp": {"help_text": "Nhiệt độ bảo quản tối thiểu (°C)"},
+            "max_storage_temp": {"help_text": "Nhiệt độ bảo quản tối đa (°C)"},
+            "verified_by": {"help_text": "ID admin duyệt sản phẩm"},
+            "verified_at": {"help_text": "Thời điểm duyệt/từ chối"},
+            "rejection_reason": {"help_text": "Lý do từ chối (nếu status=rejected)"},
+            "created_at": {"help_text": "Thời điểm tạo"},
+            "updated_at": {"help_text": "Thời điểm cập nhật gần nhất"},
+        }
 
 
 class SupplierProductListSerializer(SupplierProductReadSerializer):
@@ -233,14 +274,20 @@ class SupplierProductListSerializer(SupplierProductReadSerializer):
     category = ApprovalCategoryNestedSerializer(read_only=True)
 
     class Meta(SupplierProductReadSerializer.Meta):
+        """Mở rộng trường thêm nhà cung cấp và danh mục."""
+
         fields = SupplierProductReadSerializer.Meta.fields + ["supplier", "category"]
 
 
 class SupplierProductSerializer(serializers.ModelSerializer):
+    """Serializer tạo và cập nhật sản phẩm nhà cung cấp."""
+
     images = SupplierProductImageSerializer(many=True, read_only=True)
     status = schema_choice_field(choices=SupplierProductStatus.choices, read_only=True)
 
     class Meta:
+        """Cấu hình trường ghi sản phẩm."""
+
         model = SupplierProduct
         fields = "__all__"
         read_only_fields = [
@@ -257,6 +304,14 @@ class SupplierProductSerializer(serializers.ModelSerializer):
             "name": {"help_text": "Tên sản phẩm"},
             "slug": {"help_text": "Slug URL (unique trong phạm vi supplier)"},
             "unit": {"help_text": "Đơn vị bán (kg, túi, thùng...)"},
+            "wholesale_price": {
+                "help_text": "Giá bán sỉ cho đại lý",
+                "required": False,
+            },
+            "daily_production_capacity": {
+                "help_text": "Năng lực sản xuất TB/ngày (cùng đơn vị với unit)",
+                "required": False,
+            },
             "description": {"help_text": "Mô tả chi tiết sản phẩm", "required": False},
             "storage_duration_days": {"help_text": "Số ngày bảo quản được", "required": False},
             "min_storage_temp": {"help_text": "Nhiệt độ bảo quản tối thiểu (°C)", "required": False},
@@ -264,6 +319,7 @@ class SupplierProductSerializer(serializers.ModelSerializer):
         }
 
     def validate_category(self, category):
+        """Chỉ cho phép gắn danh mục đã được duyệt."""
         if category.status != CategoryStatus.ACTIVE:
             raise serializers.ValidationError(
                 "Danh mục chưa được duyệt, không thể gắn vào sản phẩm."
@@ -271,6 +327,7 @@ class SupplierProductSerializer(serializers.ModelSerializer):
         return category
 
     def validate(self, attrs):
+        """Kiểm tra nhà cung cấp đã được duyệt trước khi tạo/sửa."""
         request = self.context.get("request")
         if request and request.user.is_authenticated:
             profile = getattr(request.user, "supplier_profile", None)
@@ -281,6 +338,7 @@ class SupplierProductSerializer(serializers.ModelSerializer):
         return attrs
 
     def create(self, validated_data):
+        """Tạo sản phẩm mới với trạng thái chờ duyệt."""
         request = self.context["request"]
         supplier = request.user.supplier_profile
         if SupplierProduct.objects.filter(supplier=supplier).count() >= MAX_PRODUCTS_PER_SUPPLIER:
@@ -293,6 +351,8 @@ class SupplierProductSerializer(serializers.ModelSerializer):
 
 
 class VerifySupplierProductSerializer(serializers.Serializer):
+    """Serializer Admin duyệt hoặc từ chối sản phẩm."""
+
     status = schema_choice_field(
         choices=[
             SupplierProductStatus.ACTIVE,
@@ -303,12 +363,29 @@ class VerifySupplierProductSerializer(serializers.Serializer):
     rejection_reason = serializers.CharField(
         required=False,
         allow_blank=True,
+        help_text="Bắt buộc khi status=rejected hoặc inactive",
     )
+
+    def validate(self, attrs):
+        return require_rejection_reason(
+            attrs,
+            "status",
+            "rejection_reason",
+            {
+                SupplierProductStatus.REJECTED,
+                SupplierProductStatus.INACTIVE,
+            },
+        )
+
 
 from .models import CultivationProcess  # thêm import
 
 class CultivationProcessSerializer(serializers.ModelSerializer):
+    """Serializer quản lý các bước quy trình canh tác."""
+
     class Meta:
+        """Cấu hình trường quy trình canh tác."""
+
         model = CultivationProcess
         fields = [
             "id",
@@ -327,6 +404,7 @@ class CultivationProcessSerializer(serializers.ModelSerializer):
         }
 
     def validate_supplier_product(self, product):
+        """Kiểm tra quyền thao tác quy trình trên sản phẩm."""
         request = self.context.get("request")
         user = getattr(request, "user", None)
 

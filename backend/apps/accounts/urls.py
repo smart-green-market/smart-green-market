@@ -1,5 +1,7 @@
-from django.urls import path
+from django.urls import include, path
+from rest_framework.routers import DefaultRouter
 
+from .document_views import AccountDocumentViewSet
 from .views import (
     RegisterView,
     LoginView,
@@ -11,7 +13,11 @@ from .views import (
     AvatarView,
 )
 
+router = DefaultRouter()
+router.register("account-documents", AccountDocumentViewSet)
+
 urlpatterns = [
+    path("", include(router.urls)),
     path("register/", RegisterView.as_view()),
     path("login/", LoginView.as_view()),
     path("refresh/", RefreshView.as_view()),

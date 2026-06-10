@@ -1,3 +1,5 @@
+"""Phân trang load-more và helper cho custom @action."""
+
 from rest_framework.pagination import PageNumberPagination
 from rest_framework.response import Response
 
@@ -11,6 +13,7 @@ class LoadMorePagination(PageNumberPagination):
     max_page_size = 100
 
     def get_paginated_response(self, data):
+        """Trả response JSON gồm metadata phân trang và danh sách kết quả."""
         return Response(
             {
                 "count": self.page.paginator.count,

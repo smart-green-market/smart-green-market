@@ -1,3 +1,5 @@
+"""API ViewSet quản lý sản phẩm, ảnh sản phẩm và quy trình canh tác."""
+
 from django.utils import timezone
 from drf_spectacular.utils import extend_schema, extend_schema_view
 from rest_framework import status, viewsets
@@ -7,6 +9,11 @@ from rest_framework.response import Response
 
 from common.notifications import notify_account, notify_admins
 from common.openapi import PAGINATION_QUERY_HELP, paginated_response_schema
+from common.verify_openapi import (
+    SUPPLIER_PRODUCT_VERIFY_APPROVE,
+    SUPPLIER_PRODUCT_VERIFY_REJECT,
+    VERIFY_REJECT_HELP,
+)
 from common.permission import IsAdmin, IsActive
 from common.querysets import (
     ORDER_CULTIVATION,
@@ -52,6 +59,8 @@ from .serializer import (
     destroy=extend_schema(tags=["Supplier Products"], summary="Xóa sản phẩm"),
 )
 class SupplierProductViewSet(viewsets.ModelViewSet):
+    """ViewSet CRUD và duyệt sản phẩm nhà cung cấp."""
+
     permission_classes = [IsActive]
     queryset = SupplierProduct.objects.select_related(
         "supplier",
@@ -62,16 +71,19 @@ class SupplierProductViewSet(viewsets.ModelViewSet):
     serializer_class = SupplierProductSerializer
 
     def get_serializer_class(self):
+        """Trả về serializer phù hợp theo action hiện tại."""
         if self.action in ("list", "retrieve", "verify"):
             return SupplierProductListSerializer
         return SupplierProductSerializer
 
     def get_permissions(self):
+        """Chỉ Admin được duyệt sản phẩm."""
         if self.action == "verify":
             return [IsAdmin()]
         return [IsActive()]
 
     def get_queryset(self):
+        """Lọc sản phẩm theo quyền Admin hoặc nhà cung cấp."""
         return filter_admin_or_supplier_account(
             self.queryset,
             self.request.user,
@@ -80,6 +92,7 @@ class SupplierProductViewSet(viewsets.ModelViewSet):
         )
 
     def perform_create(self, serializer):
+        """Lưu sản phẩm mới và gửi thông báo cho Admin."""
         product = serializer.save()
         notify_admins(
             title="[Sản phẩm] Có sản phẩm mới chờ duyệt",
@@ -95,11 +108,17 @@ class SupplierProductViewSet(viewsets.ModelViewSet):
     @extend_schema(
         tags=["Supplier Products"],
         summary="Admin duyệt / từ chối sản phẩm",
+        description=(
+            "`rejected` / `inactive` bắt buộc `rejection_reason`."
+            + VERIFY_REJECT_HELP
+        ),
         request=VerifySupplierProductSerializer,
         responses={200: SupplierProductListSerializer},
+        examples=[SUPPLIER_PRODUCT_VERIFY_APPROVE, SUPPLIER_PRODUCT_VERIFY_REJECT],
     )
     @action(detail=True, methods=["post"])
     def verify(self, request, pk=None):
+        """Admin duyệt hoặc từ chối sản phẩm và thông báo nhà cung cấp."""
         product = self.get_object()
         serializer = VerifySupplierProductSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
@@ -177,6 +196,8 @@ class SupplierProductViewSet(viewsets.ModelViewSet):
     destroy=extend_schema(tags=["Supplier Product Images"], summary="Xóa ảnh"),
 )
 class SupplierProductImageViewSet(viewsets.ModelViewSet):
+    """ViewSet upload và quản lý ảnh sản phẩm."""
+
     permission_classes = [IsActive]
     parser_classes = [MultiPartParser, FormParser]
     queryset = SupplierProductImage.objects.select_related(
@@ -185,11 +206,13 @@ class SupplierProductImageViewSet(viewsets.ModelViewSet):
     serializer_class = SupplierProductImageSerializer
 
     def get_serializer_class(self):
+        """Dùng serializer bulk upload khi tạo nhiều ảnh."""
         if self.action == "create":
             return SupplierProductImageBulkUploadSerializer
         return SupplierProductImageSerializer
 
     def create(self, request, *args, **kwargs):
+        """Upload một hoặc nhiều ảnh sản phẩm."""
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         images = serializer.save()
@@ -203,6 +226,7 @@ class SupplierProductImageViewSet(viewsets.ModelViewSet):
         )
 
     def get_queryset(self):
+        """Lọc ảnh theo quyền Admin hoặc nhà cung cấp sở hữu sản phẩm."""
         return filter_admin_or_supplier_account(
             self.queryset,
             self.request.user,
@@ -233,6 +257,8 @@ class SupplierProductImageViewSet(viewsets.ModelViewSet):
     destroy=extend_schema(tags=["Cultivation Processes"], summary="Xóa bước quy trình"),
 )
 class CultivationProcessViewSet(viewsets.ModelViewSet):
+    """ViewSet quản lý các bước quy trình canh tác sản phẩm."""
+
     permission_classes = [IsActive]
     queryset = CultivationProcess.objects.select_related(
         "supplier_product__supplier"
@@ -240,6 +266,7 @@ class CultivationProcessViewSet(viewsets.ModelViewSet):
     serializer_class = CultivationProcessSerializer
 
     def get_queryset(self):
+        """Lọc quy trình theo quyền Admin hoặc nhà cung cấp sở hữu sản phẩm."""
         return filter_admin_or_supplier_account(
             self.queryset,
             self.request.user,

@@ -1,8 +1,12 @@
+"""Model danh mục sản phẩm nông sản."""
+
 from django.conf import settings
 from django.db import models
 
 
 class CategoryStatus(models.TextChoices):
+    """Các trạng thái duyệt và hoạt động của danh mục."""
+
     PENDING = "pending", "Chờ duyệt"
     ACTIVE = "active", "Hoạt động"
     INACTIVE = "inactive", "Đã khóa"
@@ -10,6 +14,8 @@ class CategoryStatus(models.TextChoices):
 
 
 class Category(models.Model):
+    """Danh mục sản phẩm do Supplier/Dealer tạo, Admin duyệt."""
+
     name = models.CharField(max_length=255)
     description = models.TextField(blank=True, null=True)
     status = models.CharField(
@@ -38,10 +44,13 @@ class Category(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
+        """Cấu hình bảng và thứ tự mặc định."""
+
         db_table = "categories"
         verbose_name = "Category"
         verbose_name_plural = "Categories"
         ordering = ["sort_order", "name"]
 
     def __str__(self):
+        """Trả về tên danh mục."""
         return self.name

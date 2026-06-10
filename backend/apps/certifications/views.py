@@ -1,3 +1,5 @@
+"""API ViewSet quản lý chứng nhận chất lượng và ảnh scan."""
+
 from django.utils import timezone
 from drf_spectacular.utils import extend_schema, extend_schema_view
 from rest_framework import status, viewsets
@@ -8,6 +10,12 @@ from rest_framework.response import Response
 from common.notification_messages import admin_new_certification, certification_reviewed
 from common.notifications import notify_account, notify_admins
 from common.openapi import PAGINATION_QUERY_HELP, paginated_response_schema
+from common.verify_openapi import (
+    CERT_REVOKE,
+    CERT_VERIFY_APPROVE,
+    CERT_VERIFY_REJECT,
+    VERIFY_REJECT_HELP,
+)
 from common.pagination import paginate_queryset
 from common.permission import IsAdmin, IsActive
 from common.querysets import ORDER_IMAGE, ORDER_NEWEST, filter_admin_or_supplier_account
@@ -83,6 +91,8 @@ from .serializers import (
     destroy=extend_schema(tags=["Certifications"], summary="Xóa chứng nhận"),
 )
 class CertificationViewSet(viewsets.ModelViewSet):
+    """ViewSet CRUD, duyệt và thu hồi chứng nhận chất lượng."""
+
     parser_classes = [MultiPartParser, FormParser]
     queryset = Certification.objects.select_related(
         "supplier", "supplier__account", "verified_by", "revoked_by"
@@ -90,6 +100,7 @@ class CertificationViewSet(viewsets.ModelViewSet):
     serializer_class = CertificationSerializer
 
     def get_serializer_class(self):
+        """Trả về serializer phù hợp theo action hiện tại."""
         if self.action == "create":
             return CertificationCreateSerializer
         if self.action in ("list", "retrieve", "verify", "revoke"):
@@ -97,11 +108,13 @@ class CertificationViewSet(viewsets.ModelViewSet):
         return CertificationSerializer
 
     def get_permissions(self):
+        """Chỉ Admin được duyệt, thu hồi và xem lịch sử audit."""
         if self.action in ("verify", "revoke", "audit_history"):
             return [IsAdmin()]
         return [IsActive()]
 
     def get_queryset(self):
+        """Lọc chứng nhận theo quyền và trạng thái hết hạn."""
         mark_expired_certifications()
         qs = self.queryset.filter(deleted_at__isnull=True)
         if self.request.user.role == "admin":
@@ -125,6 +138,7 @@ class CertificationViewSet(viewsets.ModelViewSet):
         )
 
     def create(self, request, *args, **kwargs):
+        """Tạo chứng nhận mới kèm ảnh scan."""
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         self.perform_create(serializer)
@@ -137,6 +151,7 @@ class CertificationViewSet(viewsets.ModelViewSet):
         )
 
     def perform_create(self, serializer):
+        """Lưu chứng nhận, ghi audit log và thông báo Admin."""
         certification = serializer.save()
         log_certification_action(
             certification,
@@ -156,11 +171,17 @@ class CertificationViewSet(viewsets.ModelViewSet):
     @extend_schema(
         tags=["Certifications"],
         summary="Admin duyệt / từ chối chứng nhận",
+        description=(
+            "`rejected` bắt buộc kèm `rejection_reason`."
+            + VERIFY_REJECT_HELP
+        ),
         request=VerifyCertificationSerializer,
         responses={200: CertificationListSerializer},
+        examples=[CERT_VERIFY_APPROVE, CERT_VERIFY_REJECT],
     )
     @action(detail=True, methods=["post"])
     def verify(self, request, pk=None):
+        """Admin duyệt hoặc từ chối chứng nhận và thông báo nhà cung cấp."""
         certification = self.get_object()
         serializer = VerifyCertificationSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
@@ -205,11 +226,14 @@ class CertificationViewSet(viewsets.ModelViewSet):
     @extend_schema(
         tags=["Certifications"],
         summary="Admin thu hồi chứng nhận không hợp lệ",
+        description="`revoke_reason` bắt buộc, không được để trống.",
         request=RevokeCertificationSerializer,
         responses={200: CertificationListSerializer},
+        examples=[CERT_REVOKE],
     )
     @action(detail=True, methods=["post"])
     def revoke(self, request, pk=None):
+        """Admin thu hồi chứng nhận không hợp lệ và soft-delete."""
         certification = self.get_object()
         serializer = RevokeCertificationSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
@@ -258,12 +282,14 @@ class CertificationViewSet(viewsets.ModelViewSet):
     )
     @action(detail=True, methods=["get"], url_path="audit-history")
     def audit_history(self, request, pk=None):
+        """Trả về lịch sử duyệt/thu hồi của chứng nhận."""
         certification = self.get_object()
         logs = certification.audit_logs.select_related("performed_by").order_by(
             "-created_at"
         )
 
         def serialize(page):
+            """Chuyển trang audit log sang dict."""
             return CertificationAuditLogSerializer(page, many=True).data
 
         return paginate_queryset(self, request, logs, serialize)
@@ -310,6 +336,8 @@ class CertificationViewSet(viewsets.ModelViewSet):
     destroy=extend_schema(tags=["Certification Images"], summary="Xóa ảnh"),
 )
 class CertificationImageViewSet(viewsets.ModelViewSet):
+    """ViewSet upload và quản lý ảnh scan chứng nhận."""
+
     permission_classes = [IsActive]
     parser_classes = [MultiPartParser, FormParser]
     queryset = CertificationImage.objects.select_related(
@@ -318,11 +346,13 @@ class CertificationImageViewSet(viewsets.ModelViewSet):
     serializer_class = CertificationImageSerializer
 
     def get_serializer_class(self):
+        """Dùng serializer bulk upload khi tạo nhiều ảnh."""
         if self.action == "create":
             return CertificationImageBulkUploadSerializer
         return CertificationImageSerializer
 
     def create(self, request, *args, **kwargs):
+        """Upload một hoặc nhiều ảnh scan chứng nhận."""
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         images = serializer.save()
@@ -336,6 +366,7 @@ class CertificationImageViewSet(viewsets.ModelViewSet):
         )
 
     def get_queryset(self):
+        """Lọc ảnh theo quyền Admin hoặc nhà cung cấp sở hữu chứng nhận."""
         return filter_admin_or_supplier_account(
             self.queryset,
             self.request.user,

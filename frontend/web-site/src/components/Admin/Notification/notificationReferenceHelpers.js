@@ -1,7 +1,7 @@
 import { categoryService } from "../../../services/api/categoryService";
 import { productService } from "../../../services/api/productService";
 import { supplierService } from "../../../services/api/suppilerService";
-import { supplierDocumentService } from "../../../services/api/supplierDocumentService";
+import { accountDocumentService } from "../../../services/api/accountDocumentService";
 import { certificationService } from "../../../services/api/certificationService";
 
 export const SUPPORTED_REFERENCE_TYPES = [
@@ -9,11 +9,14 @@ export const SUPPORTED_REFERENCE_TYPES = [
     "supplier",
     "supplier_product",
     "supplier_document",
+    "account_document",
     "certification",
 ];
 
 const REFERENCE_TYPE_ALIASES = {
     supplier_category: "category",
+    supplier_document: "account_document",
+    account_document: "account_document",
 };
 
 export function normalizeReferenceType(referenceType) {
@@ -127,7 +130,14 @@ const formatDocument = (detail) => ({
     status: detail.status,
     verified_at: detail.verified_at,
     created_at: detail.created_at,
-    supplier: detail.supplier,
+    supplier: detail.supplier ?? {
+        id: detail.account?.id,
+        company_name:
+            detail.account?.profile_name
+            || detail.account?.full_name
+            || detail.account?.username,
+        phone: detail.account?.phone,
+    },
     verified_by: detail.verified_by,
 });
 
@@ -170,12 +180,12 @@ const REFERENCE_FETCHERS = {
         format: formatSupplier,
         type: "supplier",
     },
-    supplier_document: {
+    account_document: {
         entityLabel: "Giấy tờ",
-        getById: (id) => supplierDocumentService.getById(id),
-        getAll: () => supplierDocumentService.getAll(),
+        getById: (id) => accountDocumentService.getById(id),
+        getAll: () => accountDocumentService.getAll(),
         format: formatDocument,
-        type: "supplier_document",
+        type: "account_document",
     },
     certification: {
         entityLabel: "Chứng chỉ",

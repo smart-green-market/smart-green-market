@@ -24,6 +24,7 @@ load_dotenv(BASE_DIR / ".env")
 
 
 def _env_bool(name: str, default: bool = False) -> bool:
+    """Đọc biến môi trường dạng boolean (true/1/yes)."""
     return os.environ.get(name, str(default)).lower() in ("true", "1", "yes")
 
 
@@ -98,6 +99,9 @@ INSTALLED_APPS = [
     "apps.suppliers",
     "apps.categories",
     "apps.supplier_products",
+    "apps.dealers",
+    "apps.dealer_products",
+    "apps.purchase_orders",
     "apps.certifications",
     "apps.notifications",
 ]
@@ -125,7 +129,7 @@ REST_FRAMEWORK = {
 }
 
 SIMPLE_JWT = {
-    "ACCESS_TOKEN_LIFETIME": timedelta(minutes=30),
+    "ACCESS_TOKEN_LIFETIME": timedelta(hours=2),
     "REFRESH_TOKEN_LIFETIME": timedelta(days=7),
     "ROTATE_REFRESH_TOKENS": True,
     "BLACKLIST_AFTER_ROTATION": True,
@@ -143,12 +147,21 @@ SPECTACULAR_SETTINGS = {
         "1. **Bước 1** — `POST /api/register/` với `role=supplier` → nhận `access` + `refresh`.\n"
         "2. **Bước 2** — Dùng token vừa nhận:\n"
         "   - `POST /api/suppliers/` — tạo hồ sơ công ty\n"
-        "   - `POST /api/supplier-documents/` — upload 3 giấy tờ một lần (multipart)\n\n"
+        "   - `POST /api/account-documents/` — upload 3 giấy tờ một lần (multipart)\n\n"
         "## Luồng Admin duyệt Supplier\n"
         "1. `GET /api/suppliers/{supplier_id}/` — xem hồ sơ + `documents[]`\n"
-        "2. `POST /api/supplier-documents/{document_id}/verify/` — duyệt từng giấy tờ\n"
+        "2. `POST /api/account-documents/{document_id}/verify/` — duyệt từng giấy tờ\n"
         "3. `POST /api/suppliers/{supplier_id}/verify/` — duyệt supplier (cần đủ 3 giấy tờ approved)\n\n"
         "Supplier mới có `status=pending`, chờ Admin duyệt.\n\n"
+        "## Luồng đăng ký Dealer (2 bước)\n"
+        "1. **Bước 1** — `POST /api/register/` với `role=dealer` → nhận `access` + `refresh`.\n"
+        "2. **Bước 2** — Dùng token vừa nhận:\n"
+        "   - `POST /api/dealers/` — tạo hồ sơ cửa hàng\n"
+        "   - `POST /api/account-documents/` — upload 3 giấy tờ (multipart)\n\n"
+        "## Luồng Admin duyệt Dealer\n"
+        "1. `GET /api/dealers/{id}/` — xem hồ sơ + `documents[]`\n"
+        "2. Duyệt giấy tờ từng file\n"
+        "3. `POST /api/dealers/{id}/verify/` với `{ \"status\": \"active\" }`\n\n"
         "## Vai trò (role)\n"
         "| Role | Mô tả |\n"
         "|------|-------|\n"
@@ -191,10 +204,37 @@ SPECTACULAR_SETTINGS = {
             ),
         },
         {
-            "name": "Supplier Documents",
+            "name": "Dealers",
             "description": (
-                "Upload & quản lý giấy tờ nhà cung cấp (giấy phép KD, CMND, giấy thuế). "
-                "Upload dạng multipart/form-data. Mỗi loại giấy tờ chỉ 1 file/supplier."
+                "Quản lý hồ sơ đại lý. Dealer tạo profile sau đăng ký. "
+                "Admin duyệt qua `POST /api/dealers/{id}/verify/`."
+            ),
+        },
+        {
+            "name": "Dealer Products",
+            "description": (
+                "Sản phẩm bán lẻ của đại lý, gắn sản phẩm NCC. "
+                "Admin duyệt qua action `verify`."
+            ),
+        },
+        {
+            "name": "Dealer Product Images",
+            "description": "Ảnh sản phẩm đại lý (URL — field `image_url`).",
+        },
+        {
+            "name": "Dealer Inventory",
+            "description": (
+                "Tồn kho lô hàng nhập từ phiếu nhập hoàn tất. "
+                "Ghi hao hụt: `POST /api/dealer-inventory-batches/{id}/record-wastage/`."
+            ),
+        },
+        {
+            "name": "Account Documents",
+            "description": (
+                "Upload & quản lý giấy tờ tài khoản supplier/dealer "
+                "(giấy phép KD, CMND, giấy thuế). "
+                "Upload dạng multipart/form-data qua `POST /api/account-documents/bulk-upload/`. "
+                "Mỗi loại giấy tờ chỉ 1 file/tài khoản."
             ),
         },
         {
@@ -239,7 +279,23 @@ SPECTACULAR_SETTINGS = {
             "name": "Notifications",
             "description": (
                 "Thông báo hệ thống (tiếng Việt). "
-                "Dùng `GET /api/notifications/my/` — có `type_label` và `reference_type_label`."
+                "Dùng `GET /api/notifications/my/` — có `type_label`, `reference_type_label`, "
+                "và `reference_status`/`reference_order_code` khi liên quan phiếu nhập."
+            ),
+        },
+        {
+            "name": "Purchase Orders",
+            "description": (
+                "Phiếu nhập hàng đại lý → NCC. Luồng: tạo đơn → NCC xác nhận → cọc → "
+                "chuẩn bị → giao hàng → thanh toán cuối → hoàn tất. "
+                "VietQR: `GET /api/purchase-orders/{id}/payment-qr/`."
+            ),
+        },
+        {
+            "name": "Banks",
+            "description": (
+                "Danh sách ngân hàng Napas/VietQR cho dropdown cấu hình TK NCC. "
+                "Lưu `bank_bin` + `bank_name` từ response khi PATCH supplier profile."
             ),
         },
     ],
