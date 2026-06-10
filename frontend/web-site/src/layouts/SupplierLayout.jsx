@@ -1,5 +1,6 @@
 import { Outlet } from "react-router-dom";
 import { Bell } from "lucide-react";
+import AppToaster from "../components/common/AppToaster";
 import SideBar from "../components/Supplier/UI/SideBar";
 import Logo from "../components/Supplier/UI/Logo";
 
@@ -33,6 +34,8 @@ export default function SupplierLayout() {
             <main className="pt-16 pl-64 min-h-screen">
                 <Outlet />
             </main>
+
+            <AppToaster />
         </div>
     );
 }

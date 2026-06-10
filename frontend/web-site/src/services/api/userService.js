@@ -2,6 +2,9 @@ import axiosClient from "./axiosClient";
 
 export const userService = {
   getAll: () => axiosClient.get("/users/").then((res) => res.data.result),
+
+  verify: (id, data) =>
+    axiosClient.post(`/users/${id}/verify/`, data).then((res) => res.data),
 };
 
 // Xử lý bug

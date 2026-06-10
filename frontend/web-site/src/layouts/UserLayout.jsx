@@ -1,6 +1,7 @@
 import { Outlet } from "react-router-dom";
 import Header from "../components/User/Ui/Header";
 import Footer from "../components/User/Ui/Footer";
+import AppToaster from "../components/common/AppToaster";
 
 export default function UserLayout() {
     return (
@@ -10,6 +11,7 @@ export default function UserLayout() {
                 <Outlet />
             </main>
             <Footer />
+            <AppToaster />
         </div>
     );
 }

@@ -111,7 +111,7 @@ export default function NotificationBell() {
             {/* Nút Chuông */}
             <button 
                 onClick={() => setIsOpenDropdown(!isOpenDropdown)}
-                className="cursor-pointer relative p-2 rounded-full hover:bg-neutral-100 transition-colors text-neutral-600"
+                className="hover:scale-105 cursor-pointer relative p-2 rounded-full hover:bg-neutral-100 transition-colors text-neutral-600"
             >
                 <Bell className="w-[18px] h-[18px]" />
                 {unreadCount > 0 && (

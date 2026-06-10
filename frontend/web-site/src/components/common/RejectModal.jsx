@@ -1,38 +1,54 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { X } from "lucide-react";
 import { getFeedbackVariant } from "./feedbackVariants";
 import { appToast } from "./toast";
 
-export default function ConfirmModal({
+export default function RejectModal({
     isOpen,
     onClose,
     onConfirm,
-    title,
+    title = "Từ chối",
     message,
-    confirmText = "Xác nhận",
+    confirmText = "Từ chối",
     cancelText = "Hủy",
-    variant = "warning",
+    reasonLabel = "Lý do từ chối",
+    reasonPlaceholder = "Nhập lý do từ chối...",
     successMessage,
     errorMessage,
     showToast = true,
     loading: externalLoading = false,
 }) {
+    const [reason, setReason] = useState("");
     const [internalLoading, setInternalLoading] = useState(false);
+    const [reasonError, setReasonError] = useState("");
     const loading = externalLoading || internalLoading;
-    const style = getFeedbackVariant(variant);
+    const style = getFeedbackVariant("reject");
     const Icon = style.Icon;
+
+    useEffect(() => {
+        if (!isOpen) {
+            setReason("");
+            setReasonError("");
+        }
+    }, [isOpen]);
 
     if (!isOpen) return null;
 
     const handleConfirm = async () => {
+        const trimmedReason = reason.trim();
+
+        if (!trimmedReason) {
+            setReasonError("Vui lòng nhập lý do từ chối.");
+            return;
+        }
+
         try {
             setInternalLoading(true);
-            await onConfirm?.();
+            setReasonError("");
+            await onConfirm?.(trimmedReason);
 
             if (showToast) {
-                appToast[variant === "danger" ? "danger" : variant](
-                    successMessage || style.defaultSuccessMessage,
-                );
+                appToast.reject(successMessage || style.defaultSuccessMessage);
             }
 
             onClose?.();
@@ -40,7 +56,7 @@ export default function ConfirmModal({
             console.error(error);
 
             if (showToast) {
-                appToast.danger(errorMessage || style.defaultErrorMessage);
+                appToast.reject(errorMessage || style.defaultErrorMessage);
             }
         } finally {
             setInternalLoading(false);
@@ -48,7 +64,7 @@ export default function ConfirmModal({
     };
 
     return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50 p-4">
             <div
                 className={`mx-4 w-full max-w-md overflow-hidden rounded-xl border bg-white shadow-xl ${style.panelClass}`}
             >
@@ -72,8 +88,35 @@ export default function ConfirmModal({
                     </button>
                 </div>
 
-                <div className="px-6 py-4">
-                    <div className="text-gray-600">{message}</div>
+                <div className="space-y-4 px-6 py-4">
+                    {message ? <div className="text-gray-600">{message}</div> : null}
+
+                    <div className="space-y-2">
+                        <label
+                            htmlFor="rejection-reason"
+                            className="text-sm font-medium text-neutral-700"
+                        >
+                            {reasonLabel}
+                        </label>
+                        <textarea
+                            id="rejection-reason"
+                            rows={4}
+                            value={reason}
+                            onChange={(event) => {
+                                setReason(event.target.value);
+                                if (reasonError) setReasonError("");
+                            }}
+                            placeholder={reasonPlaceholder}
+                            className={`w-full resize-none rounded-lg border px-4 py-3 text-sm text-zinc-900 outline-none transition focus:ring-2 ${
+                                reasonError
+                                    ? "border-red-400 focus:ring-red-200"
+                                    : "border-stone-300 focus:ring-rose-200"
+                            }`}
+                        />
+                        {reasonError ? (
+                            <p className="text-sm text-red-600">{reasonError}</p>
+                        ) : null}
+                    </div>
                 </div>
 
                 <div className="flex gap-3 border-t border-neutral-200 bg-neutral-50 px-6 py-4">

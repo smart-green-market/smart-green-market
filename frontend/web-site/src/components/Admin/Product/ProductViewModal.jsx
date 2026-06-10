@@ -2,6 +2,7 @@ import { useState } from "react";
 import { X, Package, Tag, Building2, Clock } from "lucide-react";
 
 import ConfirmModal from "../../common/ConfirmModal";
+import RejectModal from "../../common/RejectModal";
 import InfoField from "../../common/InfoField";
 import DateField from "../../common/DateField";
 import StatusBadge from "../../common/StatusBadge";
@@ -33,6 +34,7 @@ export default function ProductViewModal({
     error = "",
 }) {
     const [confirmConfig, setConfirmConfig] = useState(null);
+    const [rejectConfig, setRejectConfig] = useState(null);
 
     if (!isOpen || !product) return null;
 
@@ -45,6 +47,16 @@ export default function ProductViewModal({
 
     // ── Confirm ─────────────────────────────────────────────────────────────
     const openConfirm = (cfg) => setConfirmConfig(cfg);
+
+    const openReject = (cfg) => setRejectConfig(cfg);
+
+    const handleRejectConfirm = async (reason) => {
+        if (rejectConfig?.action) {
+            await rejectConfig.action(reason);
+        }
+        setRejectConfig(null);
+        onClose();
+    };
 
     const handleConfirm = async () => {
         if (confirmConfig?.action) {
@@ -197,15 +209,14 @@ export default function ProductViewModal({
                                 <button
                                     disabled={loading}
                                     onClick={() =>
-                                        openConfirm({
+                                        openReject({
                                             title: "Từ chối sản phẩm",
                                             message: `Bạn có chắc chắn muốn từ chối "${product.name}"?`,
-                                            confirmText: "Từ chối",
-                                            variant: "danger",
-                                            action: () => onReject(product),
+                                            action: (reason) =>
+                                                onReject(product, reason),
                                         })
                                     }
-                                    className="px-5 py-2.5 rounded-xl text-sm font-bold bg-red-100 text-red-700 hover:bg-red-200 transition-colors cursor-pointer disabled:opacity-50"
+                                    className="cursor-pointer px-6 py-2.5 rounded-xl bg-red-500 hover:bg-red-400 text-white font-semibold"
                                 >
                                     Từ chối
                                 </button>
@@ -221,7 +232,7 @@ export default function ProductViewModal({
                                             action: () => onApprove(product),
                                         })
                                     }
-                                    className="px-5 py-2.5 rounded-xl text-sm font-bold bg-emerald-700 text-white hover:bg-emerald-800 transition-colors cursor-pointer disabled:opacity-50"
+                                    className="cursor-pointer px-6 py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-white font-semibold"
                                 >
                                     Duyệt
                                 </button>
@@ -241,7 +252,7 @@ export default function ProductViewModal({
                                         action: () => onPause(product),
                                     })
                                 }
-                                className="px-5 py-2.5 rounded-xl text-sm font-bold bg-orange-100 text-orange-700 hover:bg-orange-200 transition-colors cursor-pointer disabled:opacity-50"
+                                className="cursor-pointer px-6 py-2.5 rounded-xl bg-gray-500 hover:bg-gray-400 text-white font-semibold"
                             >
                                 Tạm ngưng
                             </button>
@@ -260,7 +271,7 @@ export default function ProductViewModal({
                                         action: () => onApprove(product),
                                     })
                                 }
-                                className="px-5 py-2.5 rounded-xl text-sm font-bold bg-emerald-700 text-white hover:bg-emerald-800 transition-colors cursor-pointer disabled:opacity-50"
+                                className="cursor-pointer px-6 py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-white font-semibold"
                             >
                                 Kích hoạt
                             </button>
@@ -279,6 +290,15 @@ export default function ProductViewModal({
                 confirmText={confirmConfig?.confirmText}
                 cancelText="Hủy"
                 variant={confirmConfig?.variant}
+            />
+
+            <RejectModal
+                isOpen={rejectConfig !== null}
+                onClose={() => setRejectConfig(null)}
+                onConfirm={handleRejectConfirm}
+                title={rejectConfig?.title}
+                message={rejectConfig?.message}
+                loading={loading}
             />
         </>
     );

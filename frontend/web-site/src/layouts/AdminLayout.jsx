@@ -1,5 +1,5 @@
 import { Outlet } from "react-router-dom";
-import { Toaster } from "sonner";
+import AppToaster from "../components/common/AppToaster";
 import SideBar from "../components/Admin/UI/SideBar";
 import NotificationBell from "../components/common/NotificationBell";
 
@@ -20,7 +20,7 @@ export default function AdminLayout() {
                     <NotificationBell />
 
                     <div className="pl-4 border-l border-neutral-200 flex items-center gap-2">
-                        <button className="w-8 h-8 rounded-full bg-emerald-800 hover:bg-emerald-900 active:scale-95 flex items-center justify-center text-white text-xs font-bold font-['Geist',sans-serif] cursor-pointer transition-all shadow-sm overflow-hidden">
+                        <button className="hover:scale-105 w-8 h-8 rounded-full bg-emerald-800 hover:bg-emerald-900 flex items-center justify-center text-white text-xs font-bold font-['Geist',sans-serif] cursor-pointer transition-all shadow-sm overflow-hidden">
                             A
                         </button>
                     </div>
@@ -36,11 +36,7 @@ export default function AdminLayout() {
             </main>
 
             {/* ── Toast ─────────────────────────────────────────────────────── */} 
-            <Toaster 
-                position="top-right" 
-                richColors 
-                closeButton 
-            />
+            <AppToaster />
         </div>
     );
 }

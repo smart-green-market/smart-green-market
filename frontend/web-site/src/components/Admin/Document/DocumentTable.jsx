@@ -1,11 +1,12 @@
 import DataTable from "react-data-table-component";
 import { tableStyles, paginationVi } from "../../common/tableStyles";
+import { formatDateTime } from "../../common/formatDateTime";
 
 // ── Status ─────────────────────────────────────────────────────────────
 const STATUS_CONFIG = {
     approved:  { label: "ĐÃ DUYỆT", bg: "bg-green-200",   text: "text-green-800"  },
-    rejected:  { label: "TỪ CHỐI",        bg: "bg-red-200",     text: "text-red-700"   },
-    pending: { label: "CHỜ DUYỆT",        bg: "bg-amber-200",  text: "text-amber-700" },
+    rejected:  { label: "TỪ CHỐI",        bg: "bg-red-200",     text: "text-red-800"   },
+    pending: { label: "CHỜ DUYỆT",        bg: "bg-amber-200",  text: "text-amber-800" },
 };
 
 // ── TYPE ─────────────────────────────────────────────────────────────
@@ -53,6 +54,18 @@ const buildColumns = (onView) => [
         grow: 1,
         cell: (row) => (
             <span className="text-sm font-semibold font-['Geist',sans-serif]">{row.supplier?.company_name}</span>
+        ),
+    },
+    {
+        name: "THỜI GIAN",
+        selector: (row) => row.createdAt,
+        sortable: true,
+        center: true,
+        width: '150px',
+        cell: (row) => (
+            <span className="font-bold text-sm font-semibold font-['Geist',sans-serif]">
+                {formatDateTime(row.createdAt)}
+            </span>
         ),
     },
     {
