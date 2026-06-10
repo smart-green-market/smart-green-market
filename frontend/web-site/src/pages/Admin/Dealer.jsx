@@ -133,26 +133,24 @@ export default function DealerPage() {
     };
 
     // ── REJECT ───────────────────────────────────────────
-    const handleReject = async (dealer) => {
+    const handleReject = async (dealer, rejectionReason) => {
         try {
             setActionLoading(true);
 
-            await dealerService.verify(
-                dealer.id,
-                {
-                    status: "rejected",
-                }
-            );
+            await dealerService.verify(dealer.id, {
+                status: "rejected",
+                rejection_reason: rejectionReason,
+            });
 
             setViewRow(null);
             await fetchDealer();
         } catch (error) {
-            console.error(
-                handleApiError(
-                    error,
-                    "Không thể từ chối đại lý"
-                )
+            const msg = handleApiError(
+                error,
+                "Không thể từ chối đại lý"
             );
+            console.error(msg);
+            throw new Error(msg);
         } finally {
             setActionLoading(false);
         }

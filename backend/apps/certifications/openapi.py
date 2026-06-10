@@ -33,12 +33,31 @@ CertificationCreateForm = inline_serializer(
 CertificationUpdateForm = inline_serializer(
     name="CertificationUpdateForm",
     fields={
-        "name": serializers.CharField(required=False),
-        "certificate_code": serializers.CharField(required=False),
-        "issued_by": serializers.CharField(required=False),
-        "issue_date": serializers.DateField(required=False),
-        "expiry_date": serializers.DateField(required=False),
-        "description": serializers.CharField(required=False, allow_blank=True),
+        "name": serializers.CharField(
+            required=False,
+            help_text="Tên chứng nhận (vd: VietGAP, Organic EU)",
+        ),
+        "certificate_code": serializers.CharField(
+            required=False,
+            help_text="Mã số trên giấy chứng nhận",
+        ),
+        "issued_by": serializers.CharField(
+            required=False,
+            help_text="Cơ quan cấp",
+        ),
+        "issue_date": serializers.DateField(
+            required=False,
+            help_text="Ngày cấp (YYYY-MM-DD)",
+        ),
+        "expiry_date": serializers.DateField(
+            required=False,
+            help_text="Ngày hết hạn (YYYY-MM-DD)",
+        ),
+        "description": serializers.CharField(
+            required=False,
+            allow_blank=True,
+            help_text="Ghi chú thêm",
+        ),
     },
 )
 

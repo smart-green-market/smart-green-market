@@ -1,12 +1,17 @@
+"""Serializer cho danh mục sản phẩm nông sản."""
+
 from rest_framework import serializers
 
 from apps.categories.models import Category, CategoryStatus
 from common.approval_nested import ApprovalAccountNestedSerializer
 from common.openapi_enums import schema_choice_field
 from common.business_rules import MAX_CATEGORIES_PER_SUPPLIER
+from common.validators import require_rejection_reason
 
 
 class CategoryReadSerializer(serializers.ModelSerializer):
+    """Serializer đọc thông tin danh mục (không kèm người tạo)."""
+
     status = schema_choice_field(choices=CategoryStatus.choices, read_only=True)
     verified_by_username = serializers.CharField(
         source="verified_by.username",
@@ -15,6 +20,8 @@ class CategoryReadSerializer(serializers.ModelSerializer):
     )
 
     class Meta:
+        """Cấu hình trường serializer đọc danh mục."""
+
         model = Category
         fields = [
             "id",
@@ -29,6 +36,17 @@ class CategoryReadSerializer(serializers.ModelSerializer):
             "created_at",
             "updated_at",
         ]
+        extra_kwargs = {
+            "id": {"help_text": "ID danh mục"},
+            "name": {"help_text": "Tên danh mục"},
+            "description": {"help_text": "Mô tả ngắn"},
+            "sort_order": {"help_text": "Thứ tự hiển thị (số nhỏ hiện trước)"},
+            "verified_by": {"help_text": "ID admin duyệt"},
+            "verified_at": {"help_text": "Thời điểm duyệt/từ chối"},
+            "rejection_reason": {"help_text": "Lý do từ chối (nếu status=rejected)"},
+            "created_at": {"help_text": "Thời điểm tạo"},
+            "updated_at": {"help_text": "Thời điểm cập nhật gần nhất"},
+        }
 
 
 class CategoryListSerializer(CategoryReadSerializer):
@@ -37,13 +55,19 @@ class CategoryListSerializer(CategoryReadSerializer):
     created_by = ApprovalAccountNestedSerializer(read_only=True)
 
     class Meta(CategoryReadSerializer.Meta):
+        """Mở rộng trường thêm thông tin người tạo."""
+
         fields = CategoryReadSerializer.Meta.fields + ["created_by"]
 
 
 class CategorySerializer(serializers.ModelSerializer):
+    """Serializer tạo và cập nhật danh mục."""
+
     status = schema_choice_field(choices=CategoryStatus.choices, read_only=True)
 
     class Meta:
+        """Cấu hình trường ghi danh mục."""
+
         model = Category
         fields = "__all__"
         read_only_fields = [
@@ -68,6 +92,7 @@ class CategorySerializer(serializers.ModelSerializer):
         }
 
     def validate(self, attrs):
+        """Kiểm tra giới hạn số danh mục mỗi nhà cung cấp."""
         request = self.context.get("request")
         if (
             self.instance is None
@@ -83,6 +108,7 @@ class CategorySerializer(serializers.ModelSerializer):
         return attrs
 
     def create(self, validated_data):
+        """Tạo danh mục mới với trạng thái chờ duyệt."""
         request = self.context.get("request")
         if request and request.user.is_authenticated:
             validated_data["created_by"] = request.user
@@ -91,6 +117,8 @@ class CategorySerializer(serializers.ModelSerializer):
 
 
 class VerifyCategorySerializer(serializers.Serializer):
+    """Serializer Admin duyệt, từ chối hoặc khóa danh mục."""
+
     status = schema_choice_field(
         choices=[
             CategoryStatus.ACTIVE,
@@ -101,14 +129,32 @@ class VerifyCategorySerializer(serializers.Serializer):
     rejection_reason = serializers.CharField(
         required=False,
         allow_blank=True,
-        help_text="Lý do từ chối/khóa",
+        help_text="Bắt buộc khi status=rejected hoặc inactive",
     )
+
+    def validate(self, attrs):
+        return require_rejection_reason(
+            attrs,
+            "status",
+            "rejection_reason",
+            {CategoryStatus.REJECTED, CategoryStatus.INACTIVE},
+        )
 
 
 class CategoryReorderItemSerializer(serializers.Serializer):
-    id = serializers.IntegerField()
-    sort_order = serializers.IntegerField(min_value=0)
+    """Một phần tử trong danh sách sắp xếp lại danh mục."""
+
+    id = serializers.IntegerField(help_text="ID danh mục cần đổi thứ tự")
+    sort_order = serializers.IntegerField(
+        min_value=0,
+        help_text="Thứ tự hiển thị mới (số nhỏ hiện trước)",
+    )
 
 
 class CategoryReorderSerializer(serializers.Serializer):
-    items = CategoryReorderItemSerializer(many=True)
+    """Serializer Admin sắp xếp thứ tự hiển thị nhiều danh mục."""
+
+    items = CategoryReorderItemSerializer(
+        many=True,
+        help_text="Danh sách {id, sort_order} cần cập nhật",
+    )

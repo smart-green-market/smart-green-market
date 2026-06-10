@@ -1,3 +1,5 @@
+"""Helper tạo thông báo và gửi tới admin hoặc tài khoản cụ thể."""
+
 from django.contrib.auth import get_user_model
 
 from apps.notifications.models import Notification, NotificationReceipt
@@ -7,6 +9,7 @@ User = get_user_model()
 
 
 def notify_admins(title, content, reference_type, reference_id, created_by, notif_type="info"):
+    """Tạo thông báo và gửi cho tất cả tài khoản admin."""
     admins = User.objects.filter(role="admin")
     if not admins.exists():
         return
@@ -33,6 +36,7 @@ def notify_account(
     created_by,
     notif_type="info",
 ):
+    """Tạo thông báo và gửi cho một tài khoản."""
     if account is None:
         return
     notification = Notification.objects.create(

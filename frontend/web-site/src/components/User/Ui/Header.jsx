@@ -1,4 +1,6 @@
 import { Search, ShoppingCart, Newspaper, User } from "lucide-react";
+import { Link } from "react-router-dom";
+import CategoryDropdown from "../Home/CategoryDropdown";
 
 export default function Header() {
     return (
@@ -8,15 +10,13 @@ export default function Header() {
                 {/* Logo + Nav */}
                 <div className="flex items-center gap-8 shrink-0">
                     <span className="text-emerald-950 text-2xl font-bold font-serif cursor-pointer select-none">
-                        GreenMarket
+                        <Link to="/trang-chu">GreenMarket</Link>
                     </span>
                     <nav className="flex items-center gap-6">
-                        <a href="#" className="text-neutral-600 text-sm font-medium hover:scale-105 hover:text-green-600 transition-colors">
+                        <Link to="/trang-chu" className="text-neutral-600 text-sm font-medium hover:scale-105 hover:text-green-600 transition-colors">
                             Cửa hàng
-                        </a>
-                        <a href="#" className="text-neutral-600 text-sm font-medium hover:scale-105 hover:text-green-600 transition-colors">
-                            Danh mục
-                        </a>
+                        </Link>
+                        <CategoryDropdown />
                     </nav>
                 </div>
 
@@ -34,15 +34,19 @@ export default function Header() {
 
                 {/* Icons */}
                 <div className="flex items-center gap-2 shrink-0">
-                    <button className="p-2 rounded-full hover:bg-zinc-100 hover:text-green-600 transition-colors text-zinc-700">
+                    <Link to="/theo-doi-don-hang"
+                        className="p-2 rounded-full hover:bg-zinc-100 hover:text-green-600 transition-colors text-zinc-700">
                         <Newspaper className="w-5 h-5" />
-                    </button>
-                    <button className="p-2 rounded-full hover:bg-zinc-100 hover:text-green-600 transition-colors text-zinc-700">
+                    </Link>
+                    <Link
+                        to="/gio-hang"
+                        className="p-2 rounded-full hover:bg-zinc-100 hover:text-green-600 transition-colors text-zinc-700"
+                    >
                         <ShoppingCart className="w-5 h-5" />
-                    </button>
-                    <button className="p-2 rounded-full hover:bg-zinc-100 hover:text-green-600 transition-colors text-zinc-700">
+                    </Link>
+                    <Link to="/tai-khoan/" className="p-2 rounded-full hover:bg-zinc-100 hover:text-green-600 transition-colors text-zinc-700">
                         <User className="w-5 h-5" />
-                    </button>
+                    </Link>
                 </div>
 
             </div>

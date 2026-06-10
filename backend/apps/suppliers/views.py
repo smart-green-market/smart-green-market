@@ -1,58 +1,41 @@
+"""API quản lý nhà cung cấp và luồng duyệt hồ sơ."""
+
 from django.db.models import Prefetch
 from django.utils import timezone
-from drf_spectacular.utils import (
-    extend_schema,
-    extend_schema_view,
-    OpenApiExample,
-)
-from rest_framework import viewsets, status
+from drf_spectacular.utils import OpenApiExample, extend_schema, extend_schema_view
+from rest_framework import viewsets
 from rest_framework.decorators import action
 from rest_framework.exceptions import ValidationError
-from rest_framework.parsers import FormParser, MultiPartParser
 from rest_framework.response import Response
 
-from apps.accounts.models import AccountStatus
+from apps.accounts.document_serializers import AccountDocumentListSerializer
+from apps.accounts.models import AccountDocument, AccountDocumentStatus, AccountDocumentType, AccountStatus
 from apps.supplier_products.models import SupplierProduct
+from common.notification_messages import supplier_verification_updated
+from common.notifications import notify_account
 from common.openapi import (
     PAGINATION_QUERY_HELP,
     SupplierAccountStatusSerializer,
     VerifySupplierSerializer,
     paginated_response_schema,
 )
+from common.verify_openapi import (
+    SUPPLIER_VERIFY_APPROVE,
+    SUPPLIER_VERIFY_REJECT,
+    VERIFY_REJECT_HELP,
+)
 from common.pagination import paginate_queryset
 from common.permission import IsAdmin, IsAdminOrSupplier, IsSupplier
-from common.querysets import (
-    ORDER_DOCUMENT,
-    ORDER_NEWEST,
-    _apply_order,
-    filter_admin_or_supplier_account,
-)
-from common.notification_messages import (
-    admin_new_supplier_document,
-    supplier_document_reviewed,
-    supplier_verification_updated,
-)
-from common.notifications import notify_account, notify_admins
-from .openapi import SupplierDocumentBulkUploadForm, SupplierDocumentReplaceForm
-from .models import (
-    Supplier,
-    SupplierDocument,
-    SupplierDocumentStatus,
-    SupplierDocumentType,
-    SupplierVerificationStatus,
-)
+from common.querysets import ORDER_DOCUMENT, ORDER_NEWEST, _apply_order, filter_admin_or_supplier_account
+
+from .models import Supplier, SupplierVerificationStatus
 from .serializers import (
+    SupplierDetailSerializer,
     SupplierListSerializer,
     SupplierSerializer,
-    SupplierDetailSerializer,
-    SupplierDocumentListSerializer,
-    SupplierDocumentReadSerializer,
-    SupplierDocumentSerializer,
-    SupplierDocumentBulkUploadSerializer,
-    VerifySupplierDocumentSerializer,
 )
 
-REQUIRED_DOCUMENT_TYPES = [choice[0] for choice in SupplierDocumentType.choices]
+REQUIRED_DOCUMENT_TYPES = [choice[0] for choice in AccountDocumentType.choices]
 
 SUPPLIER_CREATE_EXAMPLE = OpenApiExample(
     "Tạo hồ sơ supplier (Bước 2 onboarding)",
@@ -62,46 +45,18 @@ SUPPLIER_CREATE_EXAMPLE = OpenApiExample(
         "phone": "0901234567",
         "address": "123 Duong X, Quan Y, Ha Noi",
         "description": "Chuyen cung cap rau cu huu co",
+        "bank_name": "Vietcombank",
+        "bank_bin": "970436",
+        "account_number": "26022005111",
+        "account_name": "Nguyễn Công Mẫn",
     },
     request_only=True,
 )
 
 
-def _notify_document_review(document, reviewer):
-    title, content, notif_type = supplier_document_reviewed(document)
-    notify_account(
-        account=document.supplier.account,
-        title=title,
-        content=content,
-        reference_type="supplier_document",
-        reference_id=document.id,
-        created_by=reviewer,
-        notif_type=notif_type,
-    )
-
-
-def _notify_admins_new_document(document, created_by):
-    title, content = admin_new_supplier_document(document)
-    notify_admins(
-        title=title,
-        content=content,
-        reference_type="supplier_document",
-        reference_id=document.id,
-        created_by=created_by,
-    )
-
-
-def _apply_document_verification(document, reviewer, new_status):
-    document.status = new_status
-    document.verified_by = reviewer
-    document.verified_at = timezone.now()
-    document.save()
-    _notify_document_review(document, reviewer)
-    return document
-
-
 def _validate_supplier_ready_for_approval(supplier):
-    docs = {doc.document_type: doc for doc in supplier.documents.all()}
+    """Kiểm tra supplier đã upload đủ và được duyệt hết giấy tờ bắt buộc."""
+    docs = {doc.document_type: doc for doc in supplier.account.documents.all()}
     missing = [t for t in REQUIRED_DOCUMENT_TYPES if t not in docs]
     if missing:
         raise ValidationError({
@@ -109,7 +64,7 @@ def _validate_supplier_ready_for_approval(supplier):
         })
     not_approved = [
         t for t in REQUIRED_DOCUMENT_TYPES
-        if docs[t].status != SupplierDocumentStatus.APPROVED
+        if docs[t].status != AccountDocumentStatus.APPROVED
     ]
     if not_approved:
         raise ValidationError({
@@ -131,7 +86,7 @@ def _validate_supplier_ready_for_approval(supplier):
             "**Luồng duyệt Admin:**\n"
             "1. Mở chi tiết supplier (`GET /api/suppliers/{supplier_id}/`)\n"
             "2. Xem `documents[]` — lấy `documents[].id` từng giấy tờ\n"
-            "3. Duyệt từng giấy tờ: `POST /api/supplier-documents/{document_id}/verify/`\n"
+            "3. Duyệt từng giấy tờ: `POST /api/account-documents/{document_id}/verify/`\n"
             "4. Khi đủ 3 giấy tờ approved → duyệt supplier: `POST /api/suppliers/{supplier_id}/verify/`\n\n"
             "Trả về: `account`, `documents`, `certifications`, `products`."
         ),
@@ -144,7 +99,10 @@ def _validate_supplier_ready_for_approval(supplier):
             "**Bước 2 onboarding** — gọi ngay sau `POST /api/register/` với Bearer token.\n\n"
             "- Mỗi account chỉ tạo được **1** supplier profile.\n"
             "- `account` tự gắn theo JWT, không cần gửi.\n"
-            "- `verification_status` mặc định `pending`."
+            "- `verification_status` mặc định `pending`.\n"
+            "- TK nhận tiền (VietQR): chọn ngân hàng từ `GET /api/banks/`, "
+            "gửi `bank_bin` + `bank_name` khớp; `account_number`, `account_name` "
+            "(khuyến nghị không dấu, viết hoa cho VietQR)."
         ),
         request=SupplierSerializer,
         responses={201: SupplierSerializer},
@@ -167,6 +125,8 @@ def _validate_supplier_ready_for_approval(supplier):
     ),
 )
 class SupplierViewSet(viewsets.ModelViewSet):
+    """ViewSet CRUD hồ sơ nhà cung cấp và các thao tác duyệt liên quan."""
+
     queryset = Supplier.objects.select_related("account")
     serializer_class = SupplierSerializer
 
@@ -188,8 +148,11 @@ class SupplierViewSet(viewsets.ModelViewSet):
         user = self.request.user
         qs = self.queryset
         if self.action in ["retrieve", "verify"]:
-            qs = qs.prefetch_related(
-                "documents__verified_by",
+            qs = qs.select_related("account").prefetch_related(
+                Prefetch(
+                    "account__documents",
+                    queryset=AccountDocument.objects.select_related("verified_by"),
+                ),
                 "certifications",
                 Prefetch(
                     "products",
@@ -221,17 +184,12 @@ class SupplierViewSet(viewsets.ModelViewSet):
             "- URL `{id}` = **supplier_id** (cùng id khi xem chi tiết supplier)\n"
             "- `approved`: yêu cầu đủ 3 loại giấy tờ và tất cả đã `approved`; "
             "kích hoạt tài khoản supplier (`account.status=active`)\n"
-            "- `rejected`: từ chối hồ sơ supplier"
+            "- `rejected`: từ chối hồ sơ supplier (bắt buộc `rejection_reason`)"
+            + VERIFY_REJECT_HELP
         ),
         request=VerifySupplierSerializer,
         responses={200: SupplierDetailSerializer},
-        examples=[
-            OpenApiExample(
-                "Duyệt supplier",
-                value={"verification_status": "approved"},
-                request_only=True,
-            )
-        ],
+        examples=[SUPPLIER_VERIFY_APPROVE, SUPPLIER_VERIFY_REJECT],
     )
     @action(detail=True, methods=["post"])
     def verify(self, request, pk=None):
@@ -323,17 +281,17 @@ class SupplierViewSet(viewsets.ModelViewSet):
         return Response(SupplierDetailSerializer(supplier, context={"request": request}).data)
 
     @extend_schema(
-        tags=["Supplier Documents"],
+        tags=["Suppliers"],
         summary="Danh sách giấy tờ theo nhà cung cấp",
         description=(
-            "Lấy toàn bộ giấy tờ của một supplier theo `supplier_id`.\n\n"
+            "Lấy toàn bộ giấy tờ của tài khoản gắn với supplier theo `supplier_id`.\n\n"
             "Admin xem mọi supplier. Supplier chỉ xem được hồ sơ của mình."
             + PAGINATION_QUERY_HELP
         ),
         responses={
             200: paginated_response_schema(
-                SupplierDocumentListSerializer,
-                "PaginatedSupplierDocumentRead",
+                AccountDocumentListSerializer,
+                "PaginatedSupplierAccountDocument",
             )
         },
     )
@@ -341,176 +299,16 @@ class SupplierViewSet(viewsets.ModelViewSet):
     def documents(self, request, pk=None):
         supplier = self.get_object()
         documents = _apply_order(
-            supplier.documents.select_related(
-                "supplier__account",
-                "verified_by",
-            ),
+            supplier.account.documents.select_related("account", "verified_by"),
             ORDER_DOCUMENT,
             pending_field="status",
         )
 
         def serialize(page):
-            return SupplierDocumentListSerializer(
+            return AccountDocumentListSerializer(
                 page,
                 many=True,
                 context={"request": request},
             ).data
 
         return paginate_queryset(self, request, documents, serialize)
-
-
-@extend_schema_view(
-    list=extend_schema(
-        tags=["Supplier Documents"],
-        summary="Danh sách giấy tờ",
-        description=(
-            "Admin xem tất cả giấy tờ. Supplier/Dealer chỉ thấy của mình.\n\n"
-            "Lọc theo supplier (Admin): `?supplier_id={id}`\n"
-            "Hoặc dùng: `GET /api/suppliers/{supplier_id}/documents/`\n\n"
-            "Duyệt giấy tờ: `POST /api/supplier-documents/{document_id}/verify/`"
-            + PAGINATION_QUERY_HELP
-        ),
-        responses={
-            200: paginated_response_schema(
-                SupplierDocumentListSerializer,
-                "PaginatedSupplierDocument",
-            )
-        },
-    ),
-    retrieve=extend_schema(
-        tags=["Supplier Documents"],
-        summary="Chi tiết giấy tờ",
-        responses={200: SupplierDocumentListSerializer},
-    ),
-    create=extend_schema(
-        tags=["Supplier Documents"],
-        summary="Upload 3 loại giấy tờ (một lần)",
-        description=(
-            "Chọn **3 file** trực tiếp trên Swagger (multipart/form-data).\n\n"
-            "Gửi đủ 3 field sau khi đã tạo supplier profile:\n"
-            "- `business_license` — Giấy phép kinh doanh\n"
-            "- `id_card` — CMND/CCCD\n"
-            "- `tax_certificate` — Giấy chứng nhận thuế\n\n"
-            "Upload lại sẽ thay file cũ và reset trạng thái về `pending`."
-        ),
-        request={
-            "multipart/form-data": SupplierDocumentBulkUploadForm,
-        },
-        responses={201: SupplierDocumentReadSerializer(many=True)},
-    ),
-    update=extend_schema(
-        tags=["Supplier Documents"],
-        summary="Thay thế giấy tờ",
-        description="Chọn file mới qua field `file_url` (multipart/form-data).",
-        request={
-            "multipart/form-data": SupplierDocumentReplaceForm,
-        },
-        responses={200: SupplierDocumentReadSerializer},
-    ),
-    partial_update=extend_schema(
-        tags=["Supplier Documents"],
-        summary="Cập nhật một phần giấy tờ",
-        description="Chọn file mới qua field `file_url` (multipart/form-data).",
-        request={
-            "multipart/form-data": SupplierDocumentReplaceForm,
-        },
-        responses={200: SupplierDocumentReadSerializer},
-    ),
-    destroy=extend_schema(tags=["Supplier Documents"], summary="Xóa giấy tờ"),
-)
-class SupplierDocumentViewSet(viewsets.ModelViewSet):
-    queryset = SupplierDocument.objects.select_related(
-        "supplier",
-        "supplier__account",
-        "verified_by",
-    )
-    serializer_class = SupplierDocumentSerializer
-    parser_classes = [MultiPartParser, FormParser]
-
-    def get_serializer_class(self):
-        if self.action == "create":
-            return SupplierDocumentBulkUploadSerializer
-        if self.action in ("list", "retrieve"):
-            return SupplierDocumentListSerializer
-        return SupplierDocumentSerializer
-
-    def create(self, request, *args, **kwargs):
-        serializer = self.get_serializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
-        documents = serializer.save()
-        for document in documents:
-            _notify_admins_new_document(document, request.user)
-        return Response(
-            SupplierDocumentReadSerializer(
-                documents,
-                many=True,
-                context={"request": request},
-            ).data,
-            status=status.HTTP_201_CREATED,
-        )
-
-    def get_permissions(self):
-        if self.action in ["create", "update", "partial_update", "destroy"]:
-            return [IsSupplier()]
-        if self.action == "verify":
-            return [IsAdmin()]
-        return [IsAdminOrSupplier()]
-
-    def get_queryset(self):
-        qs = self.queryset
-        if self.request.user.role == "admin":
-            supplier_id = self.request.query_params.get("supplier_id")
-            if supplier_id:
-                qs = qs.filter(supplier_id=supplier_id)
-            return _apply_order(
-                qs,
-                ORDER_DOCUMENT,
-                pending_field="status",
-            )
-        return filter_admin_or_supplier_account(
-            qs,
-            self.request.user,
-            ordering=ORDER_DOCUMENT,
-            pending_field="status",
-        )
-
-    def get_serializer_context(self):
-        ctx = super().get_serializer_context()
-        ctx["request"] = self.request
-        return ctx
-
-    @extend_schema(
-        tags=["Supplier Documents"],
-        summary="Admin duyệt giấy tờ",
-        description=(
-            "Chỉ cần **document_id** — supplier suy ra từ khóa ngoại `supplier`.\n\n"
-            "- URL `{id}` = **document id** (`documents[].id` hoặc `GET /api/supplier-documents/`)\n"
-            "- Body: `{ \"status\": \"approved\" }` hoặc `\"rejected\"`\n\n"
-            "Ví dụ: `POST /api/supplier-documents/5/verify/`"
-        ),
-        request=VerifySupplierDocumentSerializer,
-        responses={200: SupplierDocumentListSerializer},
-        examples=[
-            OpenApiExample(
-                "Duyệt giấy tờ",
-                value={"status": "approved"},
-                request_only=True,
-            )
-        ],
-    )
-    @action(detail=True, methods=["post"])
-    def verify(self, request, pk=None):
-        document = self.get_object()
-        serializer = VerifySupplierDocumentSerializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
-        document = _apply_document_verification(
-            document,
-            request.user,
-            serializer.validated_data["status"],
-        )
-        return Response(
-            SupplierDocumentListSerializer(
-                document,
-                context={"request": request},
-            ).data
-        )

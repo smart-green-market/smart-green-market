@@ -1,12 +1,13 @@
 import DataTable from "react-data-table-component";
 import { tableStyles, paginationVi } from "../../common/tableStyles";
+import { formatDateTime } from "../../common/formatDateTime";
 
 // ── Status config ─────────────────────────────────────────────────────────────
 const STATUS_CONFIG = {
     active:  { label: "ĐANG HOẠT ĐỘNG", bg: "bg-green-200",   text: "text-green-800"  },
-    rejected:  { label: "TỪ CHỐI",      bg: "bg-red-200",    text: "text-red-700"   },
+    rejected:  { label: "TỪ CHỐI",      bg: "bg-red-200",    text: "text-red-800"   },
     pending: { label: "CHỜ DUYỆT",        bg: "bg-amber-200",  text: "text-amber-800" },
-    inactive: { label: "KHÓA",        bg: "bg-blue-200",  text: "text-blue-800" },
+    inactive: { label: "KHÓA",        bg: "bg-gray-200",  text: "text-gray-800" },
 };
 
 // ── Column definitions ────────────────────────────────────────────────────────
@@ -24,11 +25,23 @@ const buildColumns = (onView) => [
         ),
     },
     {
+        name: "THỜI GIAN",
+        selector: (row) => row.created_at,
+        sortable: true,
+        center: true,
+        width: '250px',
+        cell: (row) => (
+            <span className="font-bold text-sm font-semibold font-['Geist',sans-serif]">
+                {formatDateTime(row.created_at)}
+            </span>
+        ),
+    },
+    {
         name: "Trạng thái",
         selector: (row) => row.status,
         sortable: true,
         center: true,
-        grow: 2,
+        grow: 1,
         cell: (row) => {
             const st = STATUS_CONFIG[row.status] ?? STATUS_CONFIG.pending;
             return (

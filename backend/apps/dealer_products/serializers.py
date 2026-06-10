@@ -1,0 +1,265 @@
+"""Serializer sản phẩm đại lý, ảnh và tồn kho."""
+
+from rest_framework import serializers
+
+from apps.dealers.models import DealerProfileStatus
+from apps.supplier_products.models import SupplierProduct, SupplierProductStatus
+from common.approval_nested import ApprovalDealerNestedSerializer
+from common.openapi_enums import schema_choice_field
+from common.validators import require_rejection_reason
+
+from .models import (
+    DealerInventoryBatch,
+    DealerInventoryBatchStatus,
+    DealerInventoryTransaction,
+    DealerInventoryTransactionType,
+    DealerInventoryWastage,
+    DealerProduct,
+    DealerProductImage,
+    DealerProductStatus,
+)
+
+
+class DealerProductImageSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = DealerProductImage
+        fields = [
+            "id",
+            "dealer_product",
+            "image_url",
+            "is_thumbnail",
+            "sort_order",
+            "created_at",
+        ]
+        read_only_fields = ["created_at"]
+        extra_kwargs = {
+            "dealer_product": {"help_text": "ID sản phẩm đại lý"},
+            "image_url": {"help_text": "URL ảnh (https://...)"},
+            "is_thumbnail": {"help_text": "true = ảnh đại diện"},
+            "sort_order": {"help_text": "Thứ tự hiển thị"},
+        }
+
+
+class DealerProductReadSerializer(serializers.ModelSerializer):
+    images = DealerProductImageSerializer(many=True, read_only=True)
+    status = schema_choice_field(choices=DealerProductStatus.choices, read_only=True)
+    supplier_product_name = serializers.CharField(
+        source="supplier_product.name",
+        read_only=True,
+        help_text="Tên sản phẩm NCC gốc",
+    )
+    supplier_product_unit = serializers.CharField(
+        source="supplier_product.unit",
+        read_only=True,
+        help_text="Đơn vị sản phẩm gốc",
+    )
+
+    class Meta:
+        model = DealerProduct
+        fields = [
+            "id",
+            "dealer_profile",
+            "supplier_product",
+            "supplier_product_name",
+            "supplier_product_unit",
+            "title",
+            "description",
+            "retail_price",
+            "thumbnail",
+            "status",
+            "created_at",
+            "updated_at",
+            "images",
+        ]
+        extra_kwargs = {
+            "id": {"help_text": "ID sản phẩm đại lý"},
+            "dealer_profile": {"help_text": "ID hồ sơ đại lý"},
+            "supplier_product": {"help_text": "ID sản phẩm NCC gốc"},
+            "title": {"help_text": "Tên hiển thị bán lẻ"},
+            "description": {"help_text": "Mô tả bán lẻ"},
+            "retail_price": {"help_text": "Giá bán lẻ (VND)"},
+            "thumbnail": {"help_text": "URL ảnh đại diện (tùy chọn)"},
+        }
+
+
+class DealerProductListSerializer(DealerProductReadSerializer):
+    dealer = ApprovalDealerNestedSerializer(source="dealer_profile", read_only=True)
+
+    class Meta(DealerProductReadSerializer.Meta):
+        fields = DealerProductReadSerializer.Meta.fields + ["dealer"]
+
+
+class DealerProductSerializer(serializers.ModelSerializer):
+    images = DealerProductImageSerializer(many=True, read_only=True)
+    status = schema_choice_field(choices=DealerProductStatus.choices, read_only=True)
+
+    class Meta:
+        model = DealerProduct
+        fields = "__all__"
+        read_only_fields = [
+            "dealer_profile",
+            "status",
+            "created_at",
+            "updated_at",
+        ]
+        extra_kwargs = {
+            "supplier_product": {"help_text": "ID sản phẩm NCC (phải active)"},
+            "title": {"help_text": "Tên hiển thị bán lẻ"},
+            "description": {"help_text": "Mô tả", "required": False},
+            "retail_price": {"help_text": "Giá bán lẻ (VND)"},
+            "thumbnail": {"help_text": "URL ảnh đại diện", "required": False},
+        }
+
+    def validate_supplier_product(self, product):
+        if product.status != SupplierProductStatus.ACTIVE:
+            raise serializers.ValidationError(
+                "Sản phẩm NCC chưa active, không thể đăng bán."
+            )
+        return product
+
+    def validate(self, attrs):
+        request = self.context.get("request")
+        if request and request.user.is_authenticated:
+            profile = getattr(request.user, "dealer_profile", None)
+            if not profile:
+                raise serializers.ValidationError("Bạn cần có hồ sơ đại lý.")
+            if profile.status != DealerProfileStatus.ACTIVE:
+                raise serializers.ValidationError(
+                    "Hồ sơ đại lý chưa active, không thể tạo/sửa sản phẩm."
+                )
+        return attrs
+
+    def create(self, validated_data):
+        request = self.context["request"]
+        profile = request.user.dealer_profile
+        supplier_product = validated_data["supplier_product"]
+        if DealerProduct.objects.filter(
+            dealer_profile=profile,
+            supplier_product=supplier_product,
+        ).exists():
+            raise serializers.ValidationError(
+                {"supplier_product": "Sản phẩm NCC này đã được đăng bán."}
+            )
+        validated_data["dealer_profile"] = profile
+        validated_data.setdefault("status", DealerProductStatus.PENDING)
+        return super().create(validated_data)
+
+
+class VerifyDealerProductSerializer(serializers.Serializer):
+    status = schema_choice_field(
+        choices=[
+            DealerProductStatus.ACTIVE,
+            DealerProductStatus.REJECTED,
+            DealerProductStatus.INACTIVE,
+        ],
+    )
+    rejection_reason = serializers.CharField(
+        required=False,
+        allow_blank=True,
+        help_text="Bắt buộc khi status=rejected hoặc inactive",
+    )
+
+    def validate(self, attrs):
+        return require_rejection_reason(
+            attrs,
+            "status",
+            "rejection_reason",
+            {
+                DealerProductStatus.REJECTED,
+                DealerProductStatus.INACTIVE,
+            },
+        )
+
+
+class DealerInventoryBatchSerializer(serializers.ModelSerializer):
+    status = schema_choice_field(
+        choices=DealerInventoryBatchStatus.choices,
+        read_only=True,
+    )
+    dealer_product_title = serializers.CharField(
+        source="dealer_product.title",
+        read_only=True,
+    )
+    order_code = serializers.CharField(
+        source="purchase_order_item.purchase_order.order_code",
+        read_only=True,
+        allow_null=True,
+    )
+
+    class Meta:
+        model = DealerInventoryBatch
+        fields = [
+            "id",
+            "dealer_product",
+            "dealer_product_title",
+            "purchase_order_item",
+            "order_code",
+            "batch_number",
+            "quantity",
+            "remaining_quantity",
+            "import_price",
+            "import_date",
+            "expiry_date",
+            "status",
+            "created_at",
+            "updated_at",
+        ]
+        read_only_fields = fields
+
+
+class DealerInventoryTransactionSerializer(serializers.ModelSerializer):
+    type = schema_choice_field(
+        choices=DealerInventoryTransactionType.choices,
+        read_only=True,
+    )
+    batch_number = serializers.CharField(source="batch.batch_number", read_only=True)
+    created_by_username = serializers.CharField(
+        source="created_by.username",
+        read_only=True,
+        allow_null=True,
+    )
+
+    class Meta:
+        model = DealerInventoryTransaction
+        fields = [
+            "id",
+            "batch",
+            "batch_number",
+            "type",
+            "quantity_before",
+            "quantity_change",
+            "quantity_after",
+            "reason",
+            "created_by",
+            "created_by_username",
+            "created_at",
+        ]
+        read_only_fields = fields
+
+
+class DealerInventoryWastageSerializer(serializers.ModelSerializer):
+    created_by_username = serializers.CharField(
+        source="created_by.username",
+        read_only=True,
+        allow_null=True,
+    )
+
+    class Meta:
+        model = DealerInventoryWastage
+        fields = [
+            "id",
+            "batch",
+            "quantity",
+            "reason",
+            "note",
+            "created_by",
+            "created_by_username",
+            "created_at",
+        ]
+        read_only_fields = ["created_by", "created_at"]
+
+
+class RecordWastageSerializer(serializers.Serializer):
+    quantity = serializers.IntegerField(min_value=1, help_text="Số lượng hao hụt")
+    reason = serializers.CharField(max_length=255, help_text="Lý do hao hụt")
+    note = serializers.CharField(required=False, allow_blank=True, default="")

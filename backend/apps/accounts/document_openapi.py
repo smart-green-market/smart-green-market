@@ -1,13 +1,14 @@
-"""OpenAPI schema cho upload file (Swagger UI hiển thị nút chọn file)."""
+"""OpenAPI schema cho upload giấy tờ tài khoản."""
 
-from rest_framework import serializers
 from drf_spectacular.utils import inline_serializer
+from rest_framework import serializers
 
 from common.openapi_enums import schema_choice_field
-from apps.suppliers.models import SupplierDocumentType
 
-SupplierDocumentBulkUploadForm = inline_serializer(
-    name="SupplierDocumentBulkUploadForm",
+from .models import AccountDocumentType
+
+AccountDocumentBulkUploadForm = inline_serializer(
+    name="AccountDocumentBulkUploadForm",
     fields={
         "business_license": serializers.FileField(
             help_text="Giấy phép kinh doanh (PDF, JPG, PNG)",
@@ -21,11 +22,11 @@ SupplierDocumentBulkUploadForm = inline_serializer(
     },
 )
 
-SupplierDocumentReplaceForm = inline_serializer(
-    name="SupplierDocumentReplaceForm",
+AccountDocumentReplaceForm = inline_serializer(
+    name="AccountDocumentReplaceForm",
     fields={
         "document_type": schema_choice_field(
-            choices=SupplierDocumentType.choices,
+            choices=AccountDocumentType.choices,
             required=False,
         ),
         "file_url": serializers.FileField(

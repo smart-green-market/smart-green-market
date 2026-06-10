@@ -1,3 +1,5 @@
+"""API ViewSet quản lý thông báo hệ thống."""
+
 from django.db.models import Case, IntegerField, Value, When
 from django.utils import timezone
 from drf_spectacular.utils import extend_schema, extend_schema_view
@@ -23,9 +25,10 @@ from .models import Notification, NotificationReceipt
 from .serializers import NotificationSerializer
 
 
-def serialize_notification_receipt(receipt):
+def serialize_notification_receipt(receipt, purchase_orders_by_id=None):
+    """Chuyển biên nhận thông báo sang dict cho API."""
     notification = receipt.notification
-    return {
+    data = {
         "receipt_id": receipt.id,
         "id": notification.id,
         "title": notification.title,
@@ -37,11 +40,40 @@ def serialize_notification_receipt(receipt):
         "reference_id": notification.reference_id,
         "read_at": receipt.read_at,
         "created_at": notification.created_at,
+        "reference_status": None,
+        "reference_order_code": None,
     }
+    if notification.reference_type == "purchase_order" and notification.reference_id:
+        order = None
+        if purchase_orders_by_id is not None:
+            order = purchase_orders_by_id.get(notification.reference_id)
+        if order is not None:
+            data["reference_status"] = order.status
+            data["reference_order_code"] = order.order_code
+    return data
 
 
 def serialize_notification_receipts(receipts):
-    return [serialize_notification_receipt(r) for r in receipts]
+    """Chuyển danh sách biên nhận thông báo sang list dict."""
+    po_ids = [
+        r.notification.reference_id
+        for r in receipts
+        if r.notification.reference_type == "purchase_order" and r.notification.reference_id
+    ]
+    purchase_orders_by_id = {}
+    if po_ids:
+        from apps.purchase_orders.models import PurchaseOrder
+
+        purchase_orders_by_id = {
+            o.id: o
+            for o in PurchaseOrder.objects.filter(id__in=po_ids).only(
+                "id", "status", "order_code"
+            )
+        }
+    return [
+        serialize_notification_receipt(r, purchase_orders_by_id)
+        for r in receipts
+    ]
 
 
 @extend_schema_view(
@@ -71,10 +103,13 @@ def serialize_notification_receipts(receipts):
     destroy=extend_schema(tags=["Notifications"], summary="Xóa thông báo"),
 )
 class NotificationViewSet(viewsets.ModelViewSet):
+    """ViewSet quản lý thông báo và đánh dấu đã đọc."""
+
     queryset = Notification.objects.all().order_by("-created_at")
     serializer_class = NotificationSerializer
 
     def get_queryset(self):
+        """Admin xem toàn bộ; action `my` dùng queryset riêng."""
         if self.action == "my":
             return self.queryset
         if self.request.user.role == AccountRole.ADMIN:
@@ -82,6 +117,7 @@ class NotificationViewSet(viewsets.ModelViewSet):
         return Notification.objects.none()
 
     def get_permissions(self):
+        """Chỉ Admin được CRUD thông báo toàn hệ thống."""
         if self.action in ("list", "retrieve", "create", "update", "partial_update", "destroy"):
             return [IsAdmin()]
         return super().get_permissions()
@@ -102,6 +138,7 @@ class NotificationViewSet(viewsets.ModelViewSet):
     )
     @action(detail=False, methods=["get"])
     def my(self, request):
+        """Trả về thông báo của user hiện tại kèm số chưa đọc."""
         receipts = (
             NotificationReceipt.objects.filter(account=request.user)
             .select_related("notification")
@@ -137,6 +174,7 @@ class NotificationViewSet(viewsets.ModelViewSet):
     )
     @action(detail=True, methods=["post"])
     def mark_read(self, request, pk=None):
+        """Đánh dấu một thông báo đã đọc cho user hiện tại."""
         updated = NotificationReceipt.objects.filter(
             notification_id=pk,
             account=request.user,
@@ -155,6 +193,7 @@ class NotificationViewSet(viewsets.ModelViewSet):
     )
     @action(detail=False, methods=["post"])
     def mark_all_read(self, request):
+        """Đánh dấu tất cả thông báo chưa đọc của user hiện tại."""
         NotificationReceipt.objects.filter(
             account=request.user,
             read_at__isnull=True,

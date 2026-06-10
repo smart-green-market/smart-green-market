@@ -1,0 +1,284 @@
+"""API quản lý hồ sơ đại lý và luồng duyệt."""
+
+from django.db.models import Prefetch
+from django.utils import timezone
+from drf_spectacular.utils import OpenApiExample, extend_schema, extend_schema_view
+from rest_framework import viewsets
+from rest_framework.decorators import action
+from rest_framework.exceptions import ValidationError
+from rest_framework.response import Response
+
+from apps.accounts.document_serializers import AccountDocumentListSerializer
+from apps.accounts.models import AccountDocument, AccountDocumentStatus, AccountDocumentType, AccountStatus
+from apps.dealer_products.models import DealerProduct
+from common.notification_messages import dealer_verification_updated
+from common.notifications import notify_account, notify_admins
+from common.openapi import (
+    PAGINATION_QUERY_HELP,
+    SupplierAccountStatusSerializer,
+    VerifyDealerSerializer,
+    paginated_response_schema,
+)
+from common.verify_openapi import (
+    DEALER_VERIFY_APPROVE,
+    DEALER_VERIFY_REJECT,
+    VERIFY_REJECT_HELP,
+)
+from common.pagination import paginate_queryset
+from common.permission import IsAdmin, IsAdminOrDealer, IsDealer
+from common.querysets import ORDER_DOCUMENT, ORDER_NEWEST, _apply_order, filter_admin_or_dealer_account
+
+from .models import DealerProfile, DealerProfileStatus
+from .serializers import (
+    DealerProfileDetailSerializer,
+    DealerProfileListSerializer,
+    DealerProfileSerializer,
+)
+
+REQUIRED_DOCUMENT_TYPES = [choice[0] for choice in AccountDocumentType.choices]
+
+DEALER_CREATE_EXAMPLE = OpenApiExample(
+    "Tạo hồ sơ đại lý (Bước 2 onboarding)",
+    value={
+        "store_name": "Cua hang Rau Sach ABC",
+        "store_address": "456 Duong Y, Quan Z, TP.HCM",
+        "description": "Dai ly phan phoi rau cu huu co",
+    },
+    request_only=True,
+)
+
+
+def _validate_dealer_ready_for_approval(dealer):
+    docs = {doc.document_type: doc for doc in dealer.account.documents.all()}
+    missing = [t for t in REQUIRED_DOCUMENT_TYPES if t not in docs]
+    if missing:
+        raise ValidationError({
+            "detail": f"Đại lý chưa upload đủ giấy tờ: {', '.join(missing)}",
+        })
+    not_approved = [
+        t for t in REQUIRED_DOCUMENT_TYPES
+        if docs[t].status != AccountDocumentStatus.APPROVED
+    ]
+    if not_approved:
+        raise ValidationError({
+            "detail": f"Còn giấy tờ chưa được duyệt: {', '.join(not_approved)}",
+        })
+
+
+@extend_schema_view(
+    list=extend_schema(
+        tags=["Dealers"],
+        summary="Danh sách đại lý",
+        description="Admin xem tất cả. Dealer chỉ thấy hồ sơ của mình." + PAGINATION_QUERY_HELP,
+        responses={200: paginated_response_schema(DealerProfileListSerializer, "PaginatedDealer")},
+    ),
+    retrieve=extend_schema(
+        tags=["Dealers"],
+        summary="Chi tiết đại lý (Admin review)",
+        description=(
+            "**Luồng duyệt Admin:**\n"
+            "1. `GET /api/dealers/{id}/`\n"
+            "2. Duyệt giấy tờ: `POST /api/account-documents/{document_id}/verify/`\n"
+            "3. `POST /api/dealers/{id}/verify/`\n\n"
+            "Trả về: `account`, `documents`, `products`."
+        ),
+        responses={200: DealerProfileDetailSerializer},
+    ),
+    create=extend_schema(
+        tags=["Dealers"],
+        summary="Tạo hồ sơ đại lý",
+        description=(
+            "**Bước 2 onboarding** — sau `POST /api/register/` với `role=dealer`.\n\n"
+            "Mỗi account chỉ tạo **1** hồ sơ. `status` mặc định `pending`."
+        ),
+        request=DealerProfileSerializer,
+        responses={201: DealerProfileSerializer},
+        examples=[DEALER_CREATE_EXAMPLE],
+    ),
+    update=extend_schema(tags=["Dealers"], summary="Cập nhật toàn bộ hồ sơ"),
+    partial_update=extend_schema(tags=["Dealers"], summary="Cập nhật một phần hồ sơ"),
+    destroy=extend_schema(tags=["Dealers"], summary="Xóa hồ sơ đại lý"),
+)
+class DealerProfileViewSet(viewsets.ModelViewSet):
+    """ViewSet CRUD hồ sơ đại lý."""
+
+    queryset = DealerProfile.objects.select_related("account")
+    serializer_class = DealerProfileSerializer
+
+    def get_serializer_class(self):
+        if self.action == "retrieve":
+            return DealerProfileDetailSerializer
+        if self.action == "list":
+            return DealerProfileListSerializer
+        return DealerProfileSerializer
+
+    def get_permissions(self):
+        if self.action in ("verify", "account_status"):
+            return [IsAdmin()]
+        if self.action in ("create", "update", "partial_update", "destroy"):
+            return [IsDealer()]
+        return [IsAdminOrDealer()]
+
+    def get_queryset(self):
+        qs = self.queryset
+        if self.action in ("retrieve", "verify"):
+            qs = qs.select_related("account", "verified_by").prefetch_related(
+                Prefetch(
+                    "account__documents",
+                    queryset=AccountDocument.objects.select_related("verified_by"),
+                ),
+                Prefetch(
+                    "products",
+                    queryset=DealerProduct.objects.select_related("supplier_product")
+                    .prefetch_related("images")
+                    .order_by("-updated_at", "-created_at", "-id"),
+                ),
+            )
+        return filter_admin_or_dealer_account(
+            qs,
+            self.request.user,
+            account_lookup="account",
+            ordering=ORDER_NEWEST,
+            pending_field="status",
+            pending_values=DealerProfileStatus.PENDING,
+        )
+
+    def perform_create(self, serializer):
+        dealer = serializer.save()
+        notify_admins(
+            title="[Đại lý] Có hồ sơ mới chờ duyệt",
+            content=f"Đại lý {dealer.store_name} cần được duyệt.",
+            reference_type="dealer",
+            reference_id=dealer.id,
+            created_by=self.request.user,
+        )
+
+    @extend_schema(
+        tags=["Dealers"],
+        summary="Admin duyệt đại lý",
+        description=(
+            "Sau khi duyệt đủ 3 giấy tờ `approved`.\n"
+            "- `active`: kích hoạt hồ sơ + tài khoản\n"
+            "- `rejected`: từ chối (bắt buộc `rejection_reason`)"
+            + VERIFY_REJECT_HELP
+        ),
+        request=VerifyDealerSerializer,
+        responses={200: DealerProfileDetailSerializer},
+        examples=[DEALER_VERIFY_APPROVE, DEALER_VERIFY_REJECT],
+    )
+    @action(detail=True, methods=["post"])
+    def verify(self, request, pk=None):
+        dealer = self.get_object()
+        serializer = VerifyDealerSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        new_status = serializer.validated_data["status"]
+        rejection_reason = serializer.validated_data.get("rejection_reason", "")
+
+        if new_status == DealerProfileStatus.ACTIVE:
+            _validate_dealer_ready_for_approval(dealer)
+
+        dealer.status = new_status
+        dealer.rejection_reason = rejection_reason
+        dealer.verified_by = request.user
+        dealer.verified_at = timezone.now()
+        dealer.save(
+            update_fields=[
+                "status",
+                "rejection_reason",
+                "verified_by",
+                "verified_at",
+                "updated_at",
+            ]
+        )
+
+        if new_status == DealerProfileStatus.ACTIVE:
+            account = dealer.account
+            if account.status == AccountStatus.PENDING:
+                account.status = AccountStatus.ACTIVE
+                account.save(update_fields=["status", "updated_at"])
+        elif new_status == DealerProfileStatus.REJECTED:
+            dealer.account.status = AccountStatus.PENDING
+            dealer.account.save(update_fields=["status", "updated_at"])
+
+        title, content, notif_type = dealer_verification_updated(dealer)
+        if rejection_reason:
+            content = f"{content} Ghi chú: {rejection_reason}"
+        notify_account(
+            account=dealer.account,
+            title=title,
+            content=content,
+            reference_type="dealer",
+            reference_id=dealer.id,
+            created_by=request.user,
+            notif_type=notif_type,
+        )
+        return Response(
+            DealerProfileDetailSerializer(dealer, context={"request": request}).data
+        )
+
+    @extend_schema(
+        tags=["Dealers"],
+        summary="Admin quản lý trạng thái tài khoản đại lý",
+        request=SupplierAccountStatusSerializer,
+        responses={200: DealerProfileDetailSerializer},
+    )
+    @action(detail=True, methods=["post"], url_path="account-status")
+    def account_status(self, request, pk=None):
+        dealer = self.get_object()
+        serializer = SupplierAccountStatusSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        new_status = serializer.validated_data["status"]
+        reason = serializer.validated_data.get("reason", "")
+
+        dealer.account.status = new_status
+        dealer.account.save(update_fields=["status", "updated_at"])
+
+        status_labels = {
+            "active": "Kích hoạt",
+            "inactive": "Tạm khóa",
+            "banned": "Vô hiệu hóa",
+        }
+        notify_account(
+            account=dealer.account,
+            title=f"[Tài khoản] {status_labels.get(new_status, new_status)}",
+            content=(
+                f"Tài khoản {dealer.store_name} "
+                f"đã được {status_labels.get(new_status, new_status).lower()}."
+                + (f" Lý do: {reason}" if reason else "")
+            ),
+            reference_type="dealer",
+            reference_id=dealer.id,
+            created_by=request.user,
+            notif_type="warning" if new_status != "active" else "success",
+        )
+        return Response(
+            DealerProfileDetailSerializer(dealer, context={"request": request}).data
+        )
+
+    @extend_schema(
+        tags=["Dealers"],
+        summary="Danh sách giấy tờ theo đại lý",
+        responses={
+            200: paginated_response_schema(
+                AccountDocumentListSerializer,
+                "PaginatedDealerAccountDocument",
+            )
+        },
+    )
+    @action(detail=True, methods=["get"], url_path="documents")
+    def documents(self, request, pk=None):
+        dealer = self.get_object()
+        documents = _apply_order(
+            dealer.account.documents.select_related("account", "verified_by"),
+            ORDER_DOCUMENT,
+            pending_field="status",
+        )
+
+        def serialize(page):
+            return AccountDocumentListSerializer(
+                page,
+                many=True,
+                context={"request": request},
+            ).data
+
+        return paginate_queryset(self, request, documents, serialize)

@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { X } from "lucide-react";
 import ConfirmModal from "../../common/ConfirmModal";
+import RejectModal from "../../common/RejectModal";
 import DateField from "../../common/DateField";
 import InfoField from "../../common/InfoField";
 
@@ -13,6 +14,7 @@ export default function SupplierViewModal({
     loading,
 }) {
     const [confirmConfig, setConfirmConfig] = useState(null);
+    const [rejectConfig, setRejectConfig] = useState(null);
 
     if (!isOpen || !supplier) {
         return null;
@@ -27,6 +29,18 @@ export default function SupplierViewModal({
     // ─────────────────────────────────────────
     // XỬ LÝ CONFIRM MODAL
     // ─────────────────────────────────────────
+    const openReject = ({ title, message, action }) => {
+        setRejectConfig({ title, message, action });
+    };
+
+    const handleRejectConfirm = async (reason) => {
+        if (rejectConfig?.action) {
+            await rejectConfig.action(reason);
+        }
+        setRejectConfig(null);
+        onClose();
+    };
+
     const openConfirm = ({ title, message, confirmText, variant, action }) => {
         setConfirmConfig({ title, message, confirmText, variant, action });
     };
@@ -55,7 +69,7 @@ export default function SupplierViewModal({
                         <button
                             disabled={loading}
                             onClick={onClose}
-                            className="p-2 rounded-full hover:bg-neutral-100"
+                            className="cursor-pointer p-2 rounded-full hover:bg-neutral-100"
                         >
                             <X className="w-5 h-5" />
                         </button>
@@ -107,21 +121,19 @@ export default function SupplierViewModal({
                                         variant: "success",
                                         action: () => onApprove(supplier),
                                     })}
-                                    className="px-6 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-white font-semibold"
+                                    className="cursor-pointer px-6 py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-white font-semibold"
                                 >
                                     Duyệt
                                 </button>
 
                                 <button
                                     disabled={loading}
-                                    onClick={() => openConfirm({
+                                    onClick={() => openReject({
                                         title: "Từ chối nhà cung cấp",
                                         message: `Bạn có chắc chắn muốn từ chối "${supplier.company_name || supplier.full_name}"?`,
-                                        confirmText: "Từ chối",
-                                        variant: "danger",
-                                        action: () => onReject(supplier),
+                                        action: (reason) => onReject(supplier, reason),
                                     })}
-                                    className="px-6 py-2.5 rounded-xl bg-red-500 hover:bg-red-400 text-white font-semibold"
+                                    className="cursor-pointer px-6 py-2.5 rounded-xl bg-red-500 hover:bg-red-400 text-white font-semibold"
                                 >
                                     Từ chối
                                 </button>
@@ -132,14 +144,12 @@ export default function SupplierViewModal({
                         {isApproved && (
                             <button
                                 disabled={loading}
-                                onClick={() => openConfirm({
+                                onClick={() => openReject({
                                     title: "Hủy duyệt / Từ chối",
                                     message: `Bạn muốn chuyển trạng thái của "${supplier.company_name || supplier.full_name}" thành Từ chối?`,
-                                    confirmText: "Từ chối",
-                                    variant: "danger",
-                                    action: () => onReject(supplier), // Gọi chính xác hàm Từ Chối lên trang cha
+                                    action: (reason) => onReject(supplier, reason),
                                 })}
-                                className="px-6 py-2.5 rounded-xl bg-red-500 hover:bg-red-400 text-white font-semibold"
+                                className="cursor-pointer px-6 py-2.5 rounded-xl bg-red-500 hover:bg-red-400 text-white font-semibold"
                             >
                                 Từ chối
                             </button>
@@ -156,7 +166,7 @@ export default function SupplierViewModal({
                                         variant: "success",
                                         action: () => onApprove(supplier),
                                     })}
-                                    className="px-6 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-white font-semibold"
+                                    className="cursor-pointer px-6 py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-white font-semibold"
                                 >
                                     Duyệt
                                 </button>
@@ -176,6 +186,15 @@ export default function SupplierViewModal({
                 confirmText={confirmConfig?.confirmText}
                 cancelText="Hủy"
                 variant={confirmConfig?.variant}
+            />
+
+            <RejectModal
+                isOpen={rejectConfig !== null}
+                onClose={() => setRejectConfig(null)}
+                onConfirm={handleRejectConfirm}
+                title={rejectConfig?.title}
+                message={rejectConfig?.message}
+                loading={loading}
             />
         </>
     );

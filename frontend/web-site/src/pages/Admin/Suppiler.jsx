@@ -209,23 +209,23 @@ export default function SupplierPage() {
 // ─────────────────────────────────────────
 // REJECT (TỪ CHỐI NHÀ CUNG CẤP)
 // ─────────────────────────────────────────
-const handleReject = async (supplier) => {
+const handleReject = async (supplier, rejectionReason) => {
     console.log("Từ chối supplier ID:", supplier?.id);
     try {
         setActionLoading(true);
-        setError(""); // Clear lỗi cũ nếu có
+        setError("");
 
-        // Đảm bảo payload nằm gọn gàng, đồng bộ chính xác key-value
         await supplierService.verify(supplier.id, {
-            verification_status: "rejected"
+            verification_status: "rejected",
+            rejection_reason: rejectionReason,
         });
 
         setViewRow(null);
         await fetchSuppliers();
     } catch (error) {
-        setError(
-            handleApiError(error, "Không thể từ chối nhà cung cấp")
-        );
+        const msg = handleApiError(error, "Không thể từ chối nhà cung cấp");
+        setError(msg);
+        throw new Error(msg);
     } finally {
         setActionLoading(false);
     }

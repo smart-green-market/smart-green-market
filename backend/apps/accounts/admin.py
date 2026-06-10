@@ -1,8 +1,10 @@
 from django.contrib import admin
 
-# Register your models here.
-from django.contrib.auth.admin import UserAdmin
+from .models import AccountDocument
 
-from .models import Account
 
-admin.site.register(Account, UserAdmin)
+@admin.register(AccountDocument)
+class AccountDocumentAdmin(admin.ModelAdmin):
+    list_display = ("id", "account", "document_type", "status", "created_at")
+    list_filter = ("status", "document_type")
+    search_fields = ("account__username", "account__email")

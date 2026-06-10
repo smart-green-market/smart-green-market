@@ -2,6 +2,7 @@ import { useState } from "react";
 import { X } from "lucide-react";
 
 import ConfirmModal from "../../common/ConfirmModal";
+import RejectModal from "../../common/RejectModal";
 import DateField from "../../common/DateField";
 import InfoField from "../../common/InfoField";
 
@@ -24,6 +25,7 @@ export default function DocumentViewModal({
 }) {
     const [confirmType, setConfirmType] =
         useState(null);
+    const [showRejectModal, setShowRejectModal] = useState(false);
 
     if (!isOpen || !document) return null;
 
@@ -37,9 +39,8 @@ export default function DocumentViewModal({
         onClose();
     };
 
-    const handleReject = async () => {
-        await onReject(document);
-
+    const handleReject = async (reason) => {
+        await onReject(document, reason);
         onClose();
     };
 
@@ -119,12 +120,8 @@ export default function DocumentViewModal({
                         <div className="px-6 py-4 border-t border-neutral-200 flex justify-end gap-3 shrink-0">
 
                             <button
-                                onClick={() =>
-                                    setConfirmType(
-                                        "reject"
-                                    )
-                                }
-                                className="cursor-pointer px-6 py-2.5 rounded-xl bg-red-500 hover:bg-red-400 text-white font-semibold transition-colors"
+                                onClick={() => setShowRejectModal(true)}
+                                className="cursor-pointer px-6 py-2.5 rounded-xl bg-red-500 hover:bg-red-400 text-white font-semibold"
                             >
                                 Từ chối
                             </button>
@@ -135,7 +132,7 @@ export default function DocumentViewModal({
                                         "approve"
                                     )
                                 }
-                                className="cursor-pointer px-6 py-2.5 rounded-xl bg-green-700 hover:bg-green-600 text-white font-semibold transition-colors"
+                                className="cursor-pointer px-6 py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-white font-semibold"
                             >
                                 Duyệt
                             </button>
@@ -144,12 +141,8 @@ export default function DocumentViewModal({
                     {isApprove && (
                         <div className="px-6 py-4 border-t border-neutral-200 flex justify-end gap-3 shrink-0">
                             <button
-                                onClick={() =>
-                                    setConfirmType(
-                                        "reject"
-                                    )
-                                }
-                                className="cursor-pointer px-6 py-2.5 rounded-xl bg-red-500 hover:bg-red-400 text-white font-semibold transition-colors"
+                                onClick={() => setShowRejectModal(true)}
+                                className="cursor-pointer px-6 py-2.5 rounded-xl bg-red-500 hover:bg-red-400 text-white font-semibold"
                             >
                                 Từ chối
                             </button>
@@ -163,7 +156,7 @@ export default function DocumentViewModal({
                                         "approve"
                                     )
                                 }
-                                className="cursor-pointer px-6 py-2.5 rounded-xl bg-green-700 hover:bg-green-600 text-white font-semibold transition-colors"
+                                className="cursor-pointer px-6 py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-white font-semibold"
                             >
                                 Duyệt
                             </button>
@@ -188,20 +181,12 @@ export default function DocumentViewModal({
                 variant="success"
             />
 
-            {/* REJECT */}
-            <ConfirmModal
-                isOpen={
-                    confirmType === "reject"
-                }
-                onClose={() =>
-                    setConfirmType(null)
-                }
+            <RejectModal
+                isOpen={showRejectModal}
+                onClose={() => setShowRejectModal(false)}
                 onConfirm={handleReject}
                 title="Từ chối giấy tờ"
-                message={`Bạn có chắc chắn muốn từ chối giấy tờ này không?`}
-                confirmText="Từ chối"
-                cancelText="Hủy"
-                variant="danger"
+                message="Bạn có chắc chắn muốn từ chối giấy tờ này không?"
             />
         </>
     );

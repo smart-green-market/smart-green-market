@@ -1,144 +1,101 @@
 import { useState } from "react";
-import { X, AlertTriangle, Info } from "lucide-react";
-import { toast } from "sonner";
+import { X } from "lucide-react";
+import { getFeedbackVariant } from "./feedbackVariants";
+import { appToast } from "./toast";
 
 export default function ConfirmModal({
-  isOpen,
-  onClose,
-  onConfirm,
-  title,
-  message,
-  confirmText = "Xác nhận",
-  cancelText = "Hủy",
-  variant = "warning", // warning, info, danger
+    isOpen,
+    onClose,
+    onConfirm,
+    title,
+    message,
+    confirmText = "Xác nhận",
+    cancelText = "Hủy",
+    variant = "warning",
+    successMessage,
+    errorMessage,
+    showToast = true,
+    loading: externalLoading = false,
 }) {
-  const [loading, setLoading] = useState(false);
+    const [internalLoading, setInternalLoading] = useState(false);
+    const loading = externalLoading || internalLoading;
+    const style = getFeedbackVariant(variant);
+    const Icon = style.Icon;
 
-  if (!isOpen) return null;
+    if (!isOpen) return null;
 
-  const variantStyles = {
-  warning: {
-  icon: ( <AlertTriangle className="w-6 h-6 text-amber-500" />
-  ),
-      confirmBtn:
-          "bg-amber-500 hover:bg-amber-600",
+    const handleConfirm = async () => {
+        try {
+            setInternalLoading(true);
+            await onConfirm?.();
 
-      toastType: "warning",
+            if (showToast) {
+                appToast[variant === "danger" ? "danger" : variant](
+                    successMessage || style.defaultSuccessMessage,
+                );
+            }
 
-      successMessage: `${confirmText} dữ liệu thành công`,
+            onClose?.();
+        } catch (error) {
+            console.error(error);
 
-      errorMessage: "Không thể cập nhật dữ liệu",
-  },
+            if (showToast) {
+                appToast.danger(errorMessage || style.defaultErrorMessage);
+            }
+        } finally {
+            setInternalLoading(false);
+        }
+    };
 
-  info: {
-      icon: (
-          <Info className="w-6 h-6 text-blue-500" />
-      ),
+    return (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+            <div
+                className={`mx-4 w-full max-w-md overflow-hidden rounded-xl border bg-white shadow-xl ${style.panelClass}`}
+            >
+                <div className="flex items-center justify-between border-b border-gray-200 px-6 py-4">
+                    <div className="flex items-center gap-3">
+                        <div
+                            className={`flex h-10 w-10 items-center justify-center rounded-full ${style.iconWrapClass}`}
+                        >
+                            <Icon className={`h-5 w-5 ${style.iconClass}`} />
+                        </div>
+                        <h3 className="text-lg font-semibold text-gray-900">{title}</h3>
+                    </div>
 
-      confirmBtn:
-          "bg-blue-500 hover:bg-blue-600",
+                    <button
+                        type="button"
+                        onClick={onClose}
+                        disabled={loading}
+                        className="cursor-pointer text-gray-400 transition-colors hover:text-gray-600 disabled:opacity-50"
+                    >
+                        <X size={20} />
+                    </button>
+                </div>
 
-      toastType: "success",
+                <div className="px-6 py-4">
+                    <div className="text-gray-600">{message}</div>
+                </div>
 
-      successMessage: `${confirmText} dữ liệu thành công`,
+                <div className="flex gap-3 border-t border-neutral-200 bg-neutral-50 px-6 py-4">
+                    <button
+                        type="button"
+                        onClick={onClose}
+                        disabled={loading}
+                        className="flex-1 cursor-pointer rounded-xl border border-neutral-300 px-4 py-2.5 font-medium text-neutral-700 transition-colors hover:bg-neutral-100 disabled:opacity-50"
+                    >
+                        {cancelText}
+                    </button>
 
-      errorMessage: "Không thể thêm dữ liệu",
-  },
-
-  danger: {
-      icon: (
-          <AlertTriangle className="w-6 h-6 text-red-500" />
-      ),
-
-      confirmBtn:
-          "bg-red-500 hover:bg-red-600",
-
-      toastType: "error",
-
-      successMessage: `${confirmText} dữ liệu thành công`,
-
-      errorMessage: "Không thể xóa dữ liệu",
-  },
-};
-
-const style =
-variantStyles[variant] ||
-variantStyles.warning;
-
-  const handleConfirm = async () => {
-  try {
-  setLoading(true);
-      await onConfirm();
-
-      // dynamic toast
-      if (style.toastType === "success") {
-          toast.success(style.successMessage);
-      }
-
-      else if (style.toastType === "warning") {
-          toast.warning(style.successMessage);
-      }
-
-      else if (style.toastType === "error") {
-          toast.error(style.successMessage);
-      }
-
-      onClose();
-
-  } catch (error) {
-      console.error(error);
-
-      toast.error(style.errorMessage);
-
-  } finally {
-      setLoading(false);
-  }
-
-  };
-
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-      <div className="bg-white rounded-xl shadow-xl w-full max-w-md mx-4 overflow-hidden">
-        {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200">
-          <div className="flex items-center gap-3">
-            {style.icon}
-            <h3 className="text-lg font-semibold text-gray-900">{title}</h3>
-          </div>
-          <button
-            onClick={onClose}
-            className="cursor-pointer text-gray-400 hover:text-gray-600 transition-colors"
-          >
-            <X size={20} />
-          </button>
-        </div>
-
-        {/* Body */}
-        <div className="px-6 py-4">
-          <p className="text-gray-600">{message}</p>
-        </div>
-
-        {/* Footer */}
-            <div className="flex gap-3 px-6 py-4 bg-neutral-50 border-t border-neutral-200">
-                <button
-                    onClick={onClose}
-                    disabled={loading}
-                    className="cursor-pointer flex-1 px-4 py-2.5 border border-neutral-300 rounded-xl text-neutral-700 font-medium hover:bg-neutral-100 transition-colors disabled:opacity-50"
-                >
-                    {cancelText}
-                </button>
-
-                <button
-                    onClick={handleConfirm}
-                    disabled={loading}
-                    className={`cursor-pointer flex-1 px-4 py-2.5 text-white rounded-xl font-medium transition-all focus:outline-none focus:ring-4 disabled:opacity-50 ${style.confirmBtn}`}
-                >
-                    {loading
-                        ? "Đang xử lý..."
-                        : confirmText}
-                </button>
+                    <button
+                        type="button"
+                        onClick={handleConfirm}
+                        disabled={loading}
+                        className={`flex-1 cursor-pointer rounded-xl px-4 py-2.5 font-medium text-white transition-all focus:outline-none focus:ring-4 disabled:opacity-50 ${style.confirmBtnClass}`}
+                    >
+                        {loading ? "Đang xử lý..." : confirmText}
+                    </button>
+                </div>
             </div>
         </div>
-    </div>
-  );
+    );
 }
