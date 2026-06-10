@@ -1,15 +1,28 @@
 import DataTable from "react-data-table-component";
 import { tableStyles, paginationVi } from "../../common/tableStyles";
+import { formatDateTime } from "../../common/formatDateTime";
 
 // ── Status config ─────────────────────────────────────────────────────────────
 const STATUS_CONFIG = {
     approved:  { label: "ĐÃ DUYỆT", bg: "bg-green-200",   text: "text-green-800"  },
-    rejected:  { label: "TỪ CHỐI",        bg: "bg-red-200",     text: "text-red-700"   },
-    pending: { label: "CHỜ DUYỆT",        bg: "bg-amber-200",  text: "text-amber-700" },
+    rejected:  { label: "TỪ CHỐI",        bg: "bg-red-200",     text: "text-red-800"   },
+    pending: { label: "CHỜ DUYỆT",        bg: "bg-amber-200",  text: "text-amber-800" },
 };
 
 // ── Column definitions ────────────────────────────────────────────────────────
 const buildColumns = (onView) => [
+    {
+        name: "Hình ảnh",
+        width: "110px",
+        center: true,
+        cell: (row) => (
+        <img
+            src={row.images?.[0]?.image_url}
+            alt={row.code}
+            className="w-12 h-12 rounded-lg border border-stone-300 object-cover"
+        />
+        ),
+    },
     {
         name: "Tên chứng chỉ",
         selector: (row) => row.name,
@@ -35,12 +48,23 @@ const buildColumns = (onView) => [
         ),
     },
     {
+        name: "THỜI GIAN",
+        selector: (row) => row.createdAt,
+        sortable: true,
+        center: true,
+        width: '150px',
+        cell: (row) => (
+            <span className="font-bold text-sm font-semibold font-['Geist',sans-serif]">
+                {formatDateTime(row.createdAt)}
+            </span>
+        ),
+    },
+    {
         name: "Trạng thái",
         selector: (row) => row.status,
         sortable: true,
         center: true,
-        
-        grow: 1,
+        width: '200px',
         cell: (row) => {
             const st = STATUS_CONFIG[row.status] ?? STATUS_CONFIG.pending;
             return (
@@ -52,7 +76,7 @@ const buildColumns = (onView) => [
     },
     {
     name: "Thao tác",
-    width: "250px",
+    width: "200px",
     center: true,
     cell: (row) => (
       <div className="flex items-center gap-1 pr-2">

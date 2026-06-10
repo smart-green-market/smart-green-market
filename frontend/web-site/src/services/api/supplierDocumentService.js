@@ -54,10 +54,15 @@ export const supplierDocumentService = {
   // ]
 
   // --- ADMIN
-  verify: (id, status) => {
+  verify: (id, payload) => {
     const formData = new FormData();
+    const status = typeof payload === "string" ? payload : payload.status;
 
     formData.append("status", status);
+
+    if (typeof payload === "object" && payload.rejection_reason) {
+      formData.append("rejection_reason", payload.rejection_reason);
+    }
 
     return axiosClient
       .post(`/supplier-documents/${id}/verify/`, formData, {
@@ -70,6 +75,7 @@ export const supplierDocumentService = {
 
   //   {
   //     "status": "approved / rejected",
+  //     "rejection_reason": "string"
   //     }
 };
 

@@ -1,4 +1,8 @@
-import { X, Bell, CalendarDays } from "lucide-react";
+import { useState } from "react";
+import { X, Bell, ExternalLink } from "lucide-react";
+import DateField from "../../common/DateField";
+import NotificationReferenceModal from "./NotificationReferenceModal";
+import { isSupportedReferenceType } from "./notificationReferenceHelpers";
 
 const TYPE = {
     info: {
@@ -6,19 +10,16 @@ const TYPE = {
         bg: "bg-blue-100",
         text: "text-blue-700",
     },
-
     warning: {
         label: "CẢNH BÁO",
         bg: "bg-amber-100",
         text: "text-amber-700",
     },
-
     success: {
         label: "THÀNH CÔNG",
         bg: "bg-green-100",
         text: "text-green-700",
     },
-
     error: {
         label: "THẤT BẠI",
         bg: "bg-red-100",
@@ -28,19 +29,19 @@ const TYPE = {
 
 const TYPE_REF = {
     supplier_document: {
-        label: "GIẤY TỜ",
+        label: "GIẤY TỜ - NHÀ CUNG CẤP",
     },
-
+    supplier_product: {
+        label: "SẢN PHẨM - NHÀ CUNG CẤP",
+    },
     supplier: {
         label: "NHÀ CUNG CẤP",
     },
-
     category: {
-        label: "DANH MỤC",
+        label: "DANH MỤC - NHÀ CUNG CẤP",
     },
-
     certification: {
-        label: "CHỨNG CHỈ",
+        label: "CHỨNG CHỈ - NHÀ CUNG CẤP",
     },
 };
 
@@ -50,43 +51,34 @@ export default function NotificationViewModal({
     notification,
     loading,
 }) {
+    const [referenceModalOpen, setReferenceModalOpen] = useState(false);
 
-    if (!isOpen || !notification)
-        return null;
+    if (!isOpen || !notification) return null;
 
-    const typeConfig =
-        TYPE[notification.type] ??
-        TYPE.info;
+    const typeConfig = TYPE[notification.type] ?? TYPE.info;
+    const refConfig = TYPE_REF[notification.referenceType] ?? { label: "KHÁC" };
+    const canViewReference =
+        notification.referenceId != null &&
+        isSupportedReferenceType(notification.referenceType);
 
-    const refConfig =
-        TYPE_REF[
-            notification.referenceType
-        ] ?? {
-            label: "KHÁC",
-        };
+    const handleClose = () => {
+        setReferenceModalOpen(false);
+        onClose();
+    };
 
     return (
         <>
-            {/* OVERLAY */}
-            <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-[2px] flex items-center justify-center p-4">
-
-                {/* MODAL */}
-                <div className="w-full max-w-[896px] max-h-[90vh] bg-white rounded-lg shadow-xl border border-neutral-200 overflow-hidden flex flex-col">
-
-                    {/* HEADER */}
-                    <div className="px-8 py-4 border-b border-neutral-200 flex items-center justify-between shrink-0">
-
+            <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 backdrop-blur-[2px]">
+                <div className="flex max-h-[90vh] w-full max-w-[896px] flex-col overflow-hidden rounded-lg border border-neutral-200 bg-white shadow-xl">
+                    <div className="flex shrink-0 items-center justify-between border-b border-neutral-200 px-8 py-4">
                         <div className="flex items-center gap-3">
-
-                            <div className="w-10 h-10 rounded-full bg-stone-100 flex items-center justify-center">
-                                <Bell className="w-5 h-5 text-zinc-700" />
+                            <div className="flex h-10 w-10 items-center justify-center rounded-full bg-stone-100">
+                                <Bell className="h-5 w-5 text-zinc-700" />
                             </div>
-
                             <div>
                                 <h2 className="text-xl font-semibold text-zinc-900">
                                     Chi tiết thông báo
                                 </h2>
-
                                 <p className="text-sm text-neutral-500">
                                     Xem nội dung thông báo hệ thống
                                 </p>
@@ -94,139 +86,85 @@ export default function NotificationViewModal({
                         </div>
 
                         <button
+                            type="button"
                             disabled={loading}
-                            onClick={onClose}
-                            className="cursor-pointer p-2 rounded-full hover:bg-neutral-100 transition-colors"
+                            onClick={handleClose}
+                            className="cursor-pointer rounded-full p-2 transition-colors hover:bg-neutral-100"
                         >
-                            <X className="w-5 h-5 text-zinc-900" />
+                            <X className="h-5 w-5 text-zinc-900" />
                         </button>
                     </div>
 
-                    {/* BODY */}
-                    <div className="flex-1 overflow-y-auto px-8 pt-8 pb-7 flex flex-col gap-6 scrollbar-thin scrollbar-thumb-neutral-300 scrollbar-track-transparent">
+                    <div className="flex flex-1 flex-col gap-6 overflow-y-auto px-8 pb-7 pt-8 scrollbar-thin scrollbar-thumb-neutral-300 scrollbar-track-transparent">
+                        <InfoField label="Tiêu đề" value={notification.title} />
 
-                        {/* TITLE */}
-                        <InfoField
-                            label="Tiêu đề"
-                            value={
-                                notification.title
-                            }
-                        />
-
-                        {/* TYPE */}
                         <div className="grid grid-cols-2 gap-6">
-
                             <BadgeField
                                 label="Loại thông báo"
-                                value={
-                                    typeConfig.label
-                                }
-                                bg={
-                                    typeConfig.bg
-                                }
-                                text={
-                                    typeConfig.text
-                                }
+                                value={typeConfig.label}
+                                bg={typeConfig.bg}
+                                text={typeConfig.text}
                             />
-
                             <BadgeField
-                                label="Đối tượng tham chiếu"
-                                value={
-                                    refConfig.label
-                                }
+                                label="Đối tượng"
+                                value={refConfig.label}
                                 bg="bg-stone-100"
                                 text="text-zinc-700"
                             />
                         </div>
 
-                        {/* REFERENCE */}
-                        <div className="grid grid-cols-2 gap-6">
-
-                            <InfoField
-                                label="Reference Type"
-                                value={
-                                    notification.referenceType
-                                }
-                                mono
-                            />
-
-                            <InfoField
-                                label="Reference ID"
-                                value={
-                                    notification.referenceId
-                                }
-                                mono
-                            />
-                        </div>
-                                <TextAreaField 
-                                    label="Nội dung"
-                            value={
-                                notification.content
-                            }
-                                />
-                        {/* CREATED */}
                         <DateField
                             label="Ngày tạo thông báo"
-                            value={
-                                notification.createdAt
-                            }
+                            value={notification.createdAt}
                         />
 
-                        {/* CONTENT */}
-                        <TextAreaField
-                            label="Nội dung"
-                            value={
-                                notification.content
-                            }
-                        />
+                        <TextAreaField label="Nội dung" value={notification.content} />
                     </div>
 
-                    {/* FOOTER */}
-                    <div className="px-8 py-5 border-t border-neutral-200 flex justify-end bg-white shrink-0">
+                    <div className="flex shrink-0 justify-end gap-3 border-t border-neutral-200 bg-white px-8 py-5">
+                        {canViewReference && (
+                            <button
+                                type="button"
+                                disabled={loading}
+                                onClick={() => setReferenceModalOpen(true)}
+                                className="inline-flex cursor-pointer items-center gap-2 rounded-lg bg-teal-800 px-6 py-2.5 text-base font-semibold text-white transition-colors hover:bg-teal-900 disabled:opacity-60"
+                            >
+                                <ExternalLink className="h-4 w-4" />
+                                Xem chi tiết
+                            </button>
+                        )}
 
                         <button
+                            type="button"
                             disabled={loading}
-                            onClick={onClose}
-                            className="cursor-pointer px-6 py-2.5 rounded-lg bg-zinc-900 hover:bg-zinc-800 text-white text-base font-semibold transition-colors"
+                            onClick={handleClose}
+                            className="cursor-pointer rounded-lg bg-zinc-900 px-6 py-2.5 text-base font-semibold text-white transition-colors hover:bg-zinc-800"
                         >
                             Đóng
                         </button>
                     </div>
                 </div>
             </div>
+
+            <NotificationReferenceModal
+                isOpen={referenceModalOpen}
+                onClose={() => setReferenceModalOpen(false)}
+                referenceType={notification.referenceType}
+                referenceId={notification.referenceId}
+            />
         </>
     );
 }
 
-function InfoField({
-    label,
-    value,
-    mono,
-    serif,
-}) {
+function InfoField({ label, value, mono, serif }) {
     return (
         <div className="flex flex-col gap-2">
-
-            <label className="text-neutral-700 text-base">
-                {label}
-            </label>
-
-            <div className="px-4 py-2.5 rounded-lg border border-neutral-200 bg-stone-100">
-
+            <label className="text-base text-neutral-700">{label}</label>
+            <div className="rounded-lg border border-neutral-200 bg-stone-100 px-4 py-2.5">
                 <span
-                    className={`
-                        text-zinc-900 text-base
-                        ${
-                            mono
-                                ? "font-mono"
-                                : ""
-                        }
-                        ${
-                            serif
-                                ? "font-serif"
-                                : ""
-                        }
-                    `}
+                    className={`text-base text-zinc-900 ${mono ? "font-mono" : ""} ${
+                        serif ? "font-serif" : ""
+                    }`}
                 >
                     {value || "-"}
                 </span>
@@ -235,27 +173,13 @@ function InfoField({
     );
 }
 
-function BadgeField({
-    label,
-    value,
-    bg,
-    text,
-}) {
+function BadgeField({ label, value, bg, text }) {
     return (
         <div className="flex flex-col gap-2">
-
-            <label className="text-neutral-700 text-base">
-                {label}
-            </label>
-
-            <div className="px-4 py-3 rounded-lg border border-neutral-200">
-
+            <label className="text-base text-neutral-700">{label}</label>
+            <div className="rounded-lg border border-neutral-200 px-4 py-3">
                 <span
-                    className={`
-                        inline-flex items-center px-3 py-1 rounded-full text-sm font-bold uppercase tracking-wide
-                        ${bg}
-                        ${text}
-                    `}
+                    className={`inline-flex items-center rounded-full px-3 py-1 text-sm font-bold uppercase tracking-wide ${bg} ${text}`}
                 >
                     {value}
                 </span>
@@ -264,56 +188,12 @@ function BadgeField({
     );
 }
 
-function DateField({
-    label,
-    value,
-    danger,
-}) {
+function TextAreaField({ label, value }) {
     return (
         <div className="flex flex-col gap-2">
-
-            <label className="text-neutral-700 text-base">
-                {label}
-            </label>
-
-            <div className="px-4 py-2.5 rounded-lg border border-neutral-200 flex items-center gap-2">
-
-                <CalendarDays
-                    className={`w-4 h-4 ${
-                        danger
-                            ? "text-red-700"
-                            : "text-neutral-700"
-                    }`}
-                />
-
-                <span
-                    className={`text-base ${
-                        danger
-                            ? "text-red-700 font-bold"
-                            : "text-zinc-900"
-                    }`}
-                >
-                    {value || "-"}
-                </span>
-            </div>
-        </div>
-    );
-}
-
-function TextAreaField({
-    label,
-    value,
-}) {
-    return (
-        <div className="flex flex-col gap-2">
-
-            <label className="text-neutral-700 text-base">
-                {label}
-            </label>
-
-            <div className="min-h-28 px-4 py-3 rounded-lg border border-neutral-200 bg-white">
-
-                <p className="text-zinc-900 text-base whitespace-pre-line leading-relaxed">
+            <label className="text-base text-neutral-700">{label}</label>
+            <div className="min-h-28 rounded-lg border border-neutral-200 bg-white px-4 py-3">
+                <p className="whitespace-pre-line text-base leading-relaxed text-zinc-900">
                     {value || "-"}
                 </p>
             </div>

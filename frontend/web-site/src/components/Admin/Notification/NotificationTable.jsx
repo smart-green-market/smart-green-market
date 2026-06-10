@@ -1,10 +1,30 @@
 import DataTable from "react-data-table-component";
 import { tableStyles, paginationVi } from "../../common/tableStyles";
+import { formatDateTime } from "../../common/formatDateTime";
 
 const STATUS_CONFIG = {
     read:  { label: "ĐÃ ĐỌC", bg: "bg-green-200",   text: "text-green-800"  },
-    unread:  { label: "CHƯA ĐỌC",        bg: "bg-red-200",     text: "text-red-700"   },
+    unread:  { label: "CHƯA ĐỌC",        bg: "bg-gray-200",     text: "text-gray-800"   },
 };
+const getSupplierName = async (supplierId) => {
+    const response = await supplierService.getSupplierById(supplierId);
+    return response.data.name;
+}
+
+const getCategoryName = async (categoryId) => {
+    const response = await categoryService.getCategoryById(categoryId);
+    return response.data.name;
+}
+
+const getCertificationName = async (certificationId) => {
+    const response = await certificationService.getCertificationById(certificationId);
+    return response.data.name;
+}
+
+const getProductName = async (productId) => {
+    const response = await productService.getProductById(productId);
+    return response.data.name;
+}
 const TYPE = {
     info: {label: "THÔNG BÁO"},
     warning: {label: "CẢNH BÁO"},
@@ -12,10 +32,11 @@ const TYPE = {
     error: {label: "THẤT BẠI"},
 }
 const TYPE_REF = {
-    supplier_document: {label: "GIẤY TỜ"},
+    supplier_document: {label: "GIẤY TỜ - NHÀ CUNG CẤP"},
     supplier: {label: "NHÀ CUNG CẤP"},
-    category: {label: "DANH MỤC"},
-    certification: {label: "CHỨNG CHỈ"},
+    category: {label: "DANH MỤC - NHÀ CUNG CẤP"},
+    certification: {label: "CHỨNG CHỈ - NHÀ CUNG CẤP"},
+    supplier_product: {label: "SẢN PHẨM - NHÀ CUNG CẤP"},
 }
 // ── Column definitions ────────────────────────────────────────────────────────
 const buildColumns = (onView) => [
@@ -23,7 +44,8 @@ const buildColumns = (onView) => [
         name: "THÔNG BÁO",
         selector: (row) => row.type,
         sortable: true,
-        width: '200px',
+        center: true,
+        width: '150px',
         cell: (row) => {
             const st = TYPE[row.type] || {
                 label: row.type || "KHÔNG XÁC ĐỊNH",
@@ -40,7 +62,7 @@ const buildColumns = (onView) => [
         name: "TIÊU ĐỀ",
         selector: (row) => row.title,
         sortable: true,
-        grow: 3,
+        grow: 2,
         cell: (row) => (
             <span className="font-bold text-sm font-semibold font-['Geist',sans-serif]">
                 {row.title}
@@ -52,7 +74,7 @@ const buildColumns = (onView) => [
         selector: (row) => row.referenceType,
         sortable: true,
         center: true,
-        
+        width: '250px',
         grow: 1,
         cell: (row) => {
             const st = TYPE_REF[row.referenceType] || {
@@ -67,16 +89,27 @@ const buildColumns = (onView) => [
         },
     },
     {
+        name: "THỜI GIAN",
+        selector: (row) => row.createdAt,
+        sortable: true,
+        center: true,
+        width: '150px',
+        cell: (row) => (
+            <span className="font-bold text-sm font-semibold font-['Geist',sans-serif]">
+                {formatDateTime(row.createdAt)}
+            </span>
+        ),
+    },
+    {
         name: "Trạng thái",
         selector: (row) => row.readAt,
         sortable: true,
         center: true,
-        
-        grow: 1,
+        width: '150px',
         cell: (row) => {
             const st = row.readAt ? STATUS_CONFIG.read : STATUS_CONFIG.unread;
             return (
-                <span className={`px-2.5 py-1 rounded-full text-sm font-semibold font-['Geist',sans-serif] uppercase tracking-wide`}>
+                <span className={`px-2.5 py-1 rounded-full text-sm font-semibold font-['Geist',sans-serif] uppercase tracking-wide ${st.bg} ${st.text}`}>
                     {st.label}
                 </span>
             );
@@ -84,7 +117,7 @@ const buildColumns = (onView) => [
     },
     {
     name: "Thao tác",
-    width: "250px",
+    width: "150px",
     center: true,
     cell: (row) => (
       <div className="flex items-center gap-1 pr-2">

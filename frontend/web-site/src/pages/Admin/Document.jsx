@@ -61,7 +61,7 @@ export default function DocumentPage() {
                             verified_at:
                                 document.verified_at,
 
-                            created_at:
+                            createdAt:
                                 document.created_at,
 
                             supplier: {
@@ -183,27 +183,25 @@ export default function DocumentPage() {
     };
 
     // ── REJECT ─────────────────────────────────────────
-    const handleReject = async (
-        document
-    ) => {
+    const handleReject = async (document, rejectionReason) => {
         try {
             setActionLoading(true);
 
-            await supplierDocumentService.verify(
-                document.id,
-                "rejected"
-            );
+            await supplierDocumentService.verify(document.id, {
+                status: "rejected",
+                rejection_reason: rejectionReason,
+            });
 
             setViewRow(null);
 
             await fetchDocuments();
         } catch (error) {
-            console.error(
-                handleApiError(
-                    error,
-                    "Không thể từ chối giấy tờ"
-                )
+            const msg = handleApiError(
+                error,
+                "Không thể từ chối giấy tờ"
             );
+            console.error(msg);
+            throw new Error(msg);
         } finally {
             setActionLoading(false);
         }

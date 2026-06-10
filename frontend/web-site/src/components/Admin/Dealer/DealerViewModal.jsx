@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { X } from "lucide-react";
 import ConfirmModal from "../../common/ConfirmModal";
+import RejectModal from "../../common/RejectModal";
 
 export default function DealerViewModal({
     isOpen,
@@ -14,6 +15,7 @@ export default function DealerViewModal({
     loading,
 }) {
     const [confirmConfig, setConfirmConfig] = useState(null);
+    const [rejectConfig, setRejectConfig] = useState(null);
 
     if (!isOpen || !dealer) return null;
 
@@ -24,6 +26,18 @@ export default function DealerViewModal({
     const isInactive = dealer.verify === "inactive";
 
     const isBanned = dealer.verify === "banned";
+
+    const openReject = ({ title, message, action }) => {
+        setRejectConfig({ title, message, action });
+    };
+
+    const handleRejectConfirm = async (reason) => {
+        if (rejectConfig?.action) {
+            await rejectConfig.action(reason);
+        }
+        setRejectConfig(null);
+        onClose();
+    };
 
     const openConfirm = ({
         title,
@@ -209,18 +223,11 @@ export default function DealerViewModal({
                                 <button
                                     disabled={loading}
                                     onClick={() =>
-                                        openConfirm({
-                                            title:
-                                                "Từ chối nhà cung cấp",
+                                        openReject({
+                                            title: "Từ chối đại lý",
                                             message: `Bạn có chắc chắn muốn từ chối "${dealer.full_name}" không?`,
-                                            confirmText:
-                                                "Từ chối",
-                                            variant:
-                                                "danger",
-                                            action: () =>
-                                                onReject(
-                                                    dealer
-                                                ),
+                                            action: (reason) =>
+                                                onReject(dealer, reason),
                                         })
                                     }
                                     className="px-6 py-2.5 bg-red-500 hover:bg-red-400 text-white rounded-lg text-sm font-semibold"
@@ -342,6 +349,15 @@ export default function DealerViewModal({
                 }
                 cancelText="Hủy"
                 variant={confirmConfig?.variant}
+            />
+
+            <RejectModal
+                isOpen={rejectConfig !== null}
+                onClose={() => setRejectConfig(null)}
+                onConfirm={handleRejectConfirm}
+                title={rejectConfig?.title}
+                message={rejectConfig?.message}
+                loading={loading}
             />
         </>
     );

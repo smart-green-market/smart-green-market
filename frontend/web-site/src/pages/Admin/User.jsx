@@ -120,26 +120,24 @@ export default function UserPage() {
     };
 
     // ── REJECT ───────────────────────────────────────────
-    const handleReject = async (user) => {
+    const handleReject = async (user, rejectionReason) => {
         try {
             setActionLoading(true);
 
-            await userService.verify(
-                user.id,
-                {
-                    status: "rejected",
-                }
-            );
+            await userService.verify(user.id, {
+                status: "rejected",
+                rejection_reason: rejectionReason,
+            });
 
             setViewRow(null);
             await fetchUser();
         } catch (error) {
-            console.error(
-                handleApiError(
-                    error,
-                    "Không thể từ chối người dùng"
-                )
+            const msg = handleApiError(
+                error,
+                "Không thể từ chối người dùng"
             );
+            console.error(msg);
+            throw new Error(msg);
         } finally {
             setActionLoading(false);
         }

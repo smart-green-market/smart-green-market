@@ -3,6 +3,7 @@ import { useState } from "react";
 import { X } from "lucide-react";
 
 import ConfirmModal from "../../common/ConfirmModal";
+import RejectModal from "../../common/RejectModal";
 import DateField from "../../common/DateField";
 import InfoField from "../../common/InfoField";
 
@@ -17,6 +18,7 @@ export default function CategoryViewModal({
     loading,
 }) {
     const [confirmConfig, setConfirmConfig] = useState(null);
+    const [rejectConfig, setRejectConfig] = useState(null);
 
     if (!isOpen || !category) return null;
 
@@ -27,6 +29,18 @@ export default function CategoryViewModal({
     const isInactive = category.status === "inactive";
 
     const isRejected = category.status === "rejected";
+
+    const openReject = ({ title, message, action }) => {
+        setRejectConfig({ title, message, action });
+    };
+
+    const handleRejectConfirm = async (reason) => {
+        if (rejectConfig?.action) {
+            await rejectConfig.action(reason);
+        }
+        setRejectConfig(null);
+        onClose();
+    };
 
     // ── OPEN CONFIRM ─────────────────────
     const openConfirm = ({
@@ -130,35 +144,21 @@ export default function CategoryViewModal({
                                             }
                                         )
                                     }
-                                    className="px-6 py-2.5 bg-green-600 hover:bg-green-500 text-white rounded-xl font-semibold transition-colors"
+                                    className="cursor-pointer px-6 py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-white font-semibold"
                                 >
                                     Duyệt
                                 </button>
 
                                 <button
                                     onClick={() =>
-                                        openConfirm(
-                                            {
-                                                title:
-                                                    "Từ chối danh mục",
-
-                                                message: `Bạn có chắc chắn muốn từ chối "${category.name}" không?`,
-
-                                                confirmText:
-                                                    "Từ chối",
-
-                                                variant:
-                                                    "danger",
-
-                                                action:
-                                                    () =>
-                                                        onReject(
-                                                            category
-                                                        ),
-                                            }
-                                        )
+                                        openReject({
+                                            title: "Từ chối danh mục",
+                                            message: `Bạn có chắc chắn muốn từ chối "${category.name}" không?`,
+                                            action: (reason) =>
+                                                onReject(category, reason),
+                                        })
                                     }
-                                    className="px-6 py-2.5 bg-red-500 hover:bg-red-400 text-white rounded-xl font-semibold transition-colors"
+                                    className="cursor-pointer px-6 py-2.5 rounded-xl bg-red-500 hover:bg-red-400 text-white font-semibold"
                                 >
                                     Từ chối
                                 </button>
@@ -190,7 +190,7 @@ export default function CategoryViewModal({
                                         }
                                     )
                                 }
-                                className="px-6 py-2.5 bg-amber-500 hover:bg-amber-400 text-white rounded-xl font-semibold transition-colors"
+                                className="cursor-pointer px-6 py-2.5 rounded-xl bg-gray-500 hover:bg-gray-400 text-white font-semibold"
                             >
                                 Khóa
                             </button>
@@ -221,7 +221,7 @@ export default function CategoryViewModal({
                                         }
                                     )
                                 }
-                                className="px-6 py-2.5 bg-green-600 hover:bg-green-500 text-white rounded-xl font-semibold transition-colors"
+                                className="cursor-pointer px-6 py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-white font-semibold"
                             >
                                 Mở khóa
                             </button>
@@ -251,7 +251,7 @@ export default function CategoryViewModal({
                                         }
                                     )
                                 }
-                                className="px-6 py-2.5 bg-amber-600 hover:bg-amber-500 text-white rounded-xl font-semibold transition-colors"
+                                className="cursor-pointer px-6 py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-white font-semibold"
                             >
                                 Duyệt
                             </button>
@@ -287,6 +287,15 @@ export default function CategoryViewModal({
                 variant={
                     confirmConfig?.variant
                 }
+            />
+
+            <RejectModal
+                isOpen={rejectConfig !== null}
+                onClose={() => setRejectConfig(null)}
+                onConfirm={handleRejectConfirm}
+                title={rejectConfig?.title}
+                message={rejectConfig?.message}
+                loading={loading}
             />
         </>
     );

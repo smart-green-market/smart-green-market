@@ -1,22 +1,36 @@
 import DataTable from "react-data-table-component";
 import { tableStyles, paginationVi } from "../../common/tableStyles";
+import { formatDateTime } from "../../common/formatDateTime";
 
 // ── Status config ─────────────────────────────────────────────────────────────
 const STATUS_CONFIG = {
     active:  { label: "ĐANG HOẠT ĐỘNG", bg: "bg-green-200",   text: "text-green-800"  },
-    inactive: { label: "TẠM NGƯNG",      bg: "bg-blue-200",   text: "text-blue-800"  },
-    rejected:  { label: "TỪ CHỐI",      bg: "bg-red-200",    text: "text-red-700"   },
+    inactive: { label: "TẠM NGƯNG",      bg: "bg-gray-200",   text: "text-gray-800"  },
+    rejected:  { label: "TỪ CHỐI",      bg: "bg-red-200",    text: "text-red-800"   },
     pending: { label: "CHỜ DUYỆT",        bg: "bg-amber-200",  text: "text-amber-800" },
 };
 
 // ── Column definitions ────────────────────────────────────────────────────────
 const buildColumns = (onView) => [
+    
+    {
+        name: "Hình ảnh",
+        width: "110px",
+        center: true,
+        cell: (row) => (
+        <img
+            src={row.image}
+            alt={row.id}
+            className="w-12 h-12 rounded-lg border border-stone-300 object-cover"
+        />
+        ),
+    },
     {
         id: 1,
         name: "TÊN SẢN PHẨM",
         selector: (row) => row.name,
         sortable: true,
-        width: "200px",
+        width: "150px",
 
         cell: (row) => (
             <span className="text-sm font-semibold font-['Geist',sans-serif]">
@@ -50,7 +64,18 @@ const buildColumns = (onView) => [
             </span>
         ),
     },
-
+    {
+        name: "THỜI GIAN",
+        selector: (row) => row.created_at,
+        sortable: true,
+        center: true,
+        width: '150px',
+        cell: (row) => (
+            <span className="font-bold text-sm font-semibold font-['Geist',sans-serif]">
+                {formatDateTime(row.created_at)}
+            </span>
+        ),
+    },
     {
         name: "Trạng thái",
         selector: (row) => row.status,
@@ -71,7 +96,7 @@ const buildColumns = (onView) => [
 
     {
         name: "Thao tác",
-        width: "250px",
+        width: "150px",
         center: true,
 
         cell: (row) => (
