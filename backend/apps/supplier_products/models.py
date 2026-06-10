@@ -1,8 +1,12 @@
+"""Model sản phẩm nhà cung cấp, ảnh và quy trình canh tác."""
+
 from django.conf import settings
 from django.db import models
 
 
 class SupplierProductStatus(models.TextChoices):
+    """Các trạng thái duyệt và hoạt động của sản phẩm."""
+
     PENDING = "pending", "Pending"
     ACTIVE = "active", "Active"
     INACTIVE = "inactive", "Inactive"
@@ -11,6 +15,8 @@ class SupplierProductStatus(models.TextChoices):
 
 
 class SupplierProduct(models.Model):
+    """Sản phẩm nông sản do nhà cung cấp đăng bán."""
+
     supplier = models.ForeignKey(
         "suppliers.Supplier",
         on_delete=models.CASCADE,
@@ -24,6 +30,20 @@ class SupplierProduct(models.Model):
     name = models.CharField(max_length=255)
     slug = models.SlugField(max_length=255)
     unit = models.CharField(max_length=50)
+    wholesale_price = models.DecimalField(
+        max_digits=12,
+        decimal_places=2,
+        null=True,
+        blank=True,
+        help_text="Giá bán sỉ cho đại lý (snapshot vào phiếu nhập khi tạo đơn)",
+    )
+    daily_production_capacity = models.DecimalField(
+        max_digits=12,
+        decimal_places=2,
+        null=True,
+        blank=True,
+        help_text="Năng lực sản xuất trung bình mỗi ngày (cùng đơn vị với unit)",
+    )
     description = models.TextField(blank=True, null=True)
 
     storage_duration_days = models.IntegerField(blank=True, null=True)
@@ -51,6 +71,8 @@ class SupplierProduct(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
+        """Cấu hình bảng, ràng buộc slug duy nhất theo nhà cung cấp."""
+
         db_table = "supplier_products"
         verbose_name = "Supplier Product"
         verbose_name_plural = "Supplier Products"
@@ -63,9 +85,12 @@ class SupplierProduct(models.Model):
         ]
 
     def __str__(self):
+        """Trả về tên sản phẩm."""
         return self.name
     
 class SupplierProductImage(models.Model):
+    """Ảnh minh họa sản phẩm, có thể đặt làm ảnh đại diện."""
+
     supplier_product = models.ForeignKey(
         SupplierProduct,
         on_delete=models.CASCADE,
@@ -77,10 +102,14 @@ class SupplierProductImage(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
+        """Cấu hình bảng và thứ tự hiển thị ảnh."""
+
         db_table = "supplier_product_images"
         ordering = ["sort_order", "id"]
         
 class CultivationProcess(models.Model):
+    """Một bước trong quy trình canh tác của sản phẩm."""
+
     supplier_product = models.ForeignKey(
         SupplierProduct,
         on_delete=models.CASCADE,
@@ -92,6 +121,8 @@ class CultivationProcess(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
+        """Cấu hình bảng và ràng buộc thứ tự bước duy nhất theo sản phẩm."""
+
         db_table = "cultivation_processes"
         ordering = ["step_order", "id"]
         constraints = [
@@ -102,4 +133,5 @@ class CultivationProcess(models.Model):
         ]
 
     def __str__(self):
+        """Trả về mô tả ngắn bước quy trình canh tác."""
         return f"{self.supplier_product.name} - Bước {self.step_order}: {self.process_name}"

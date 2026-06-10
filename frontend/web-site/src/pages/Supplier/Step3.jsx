@@ -1,5 +1,5 @@
 import React, { useRef, useState } from "react";
-import { supplierDocumentService } from "../../services/api/supplierdocumentService";
+import { supplierDocumentService } from "../../services/api/supplierDocumentService";
 
 const DOC_TYPES = [
   {

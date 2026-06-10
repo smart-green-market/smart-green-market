@@ -1,8 +1,12 @@
+"""Model chứng nhận chất lượng, ảnh scan và audit log."""
+
 from django.conf import settings
 from django.db import models
 
 
 class CertificationStatus(models.TextChoices):
+    """Các trạng thái duyệt và vòng đời của chứng nhận."""
+
     PENDING = "pending", "Chờ duyệt"
     APPROVED = "approved", "Đã duyệt"
     REJECTED = "rejected", "Từ chối"
@@ -11,6 +15,8 @@ class CertificationStatus(models.TextChoices):
 
 
 class CertificationAuditAction(models.TextChoices):
+    """Các hành động ghi nhận trong lịch sử audit chứng nhận."""
+
     SUBMITTED = "submitted", "Nộp mới"
     APPROVED = "approved", "Duyệt"
     REJECTED = "rejected", "Từ chối"
@@ -19,6 +25,8 @@ class CertificationAuditAction(models.TextChoices):
 
 
 class Certification(models.Model):
+    """Chứng nhận chất lượng/organic do nhà cung cấp đăng ký."""
+
     supplier = models.ForeignKey(
         "suppliers.Supplier",
         on_delete=models.CASCADE,
@@ -62,16 +70,21 @@ class Certification(models.Model):
     deleted_at = models.DateTimeField(null=True, blank=True)
 
     class Meta:
+        """Cấu hình bảng và thứ tự mặc định."""
+
         db_table = "certifications"
         ordering = ["-created_at"]
 
     @property
     def is_expired(self):
+        """Kiểm tra chứng nhận đã quá ngày hết hạn chưa."""
         from django.utils import timezone
         return self.expiry_date < timezone.localdate()
 
 
 class CertificationImage(models.Model):
+    """Ảnh scan giấy chứng nhận."""
+
     certification = models.ForeignKey(
         Certification,
         on_delete=models.CASCADE,
@@ -82,11 +95,15 @@ class CertificationImage(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
+        """Cấu hình bảng và thứ tự hiển thị ảnh."""
+
         db_table = "certification_images"
         ordering = ["sort_order", "id"]
 
 
 class CertificationAuditLog(models.Model):
+    """Lịch sử duyệt, từ chối, thu hồi và hết hạn chứng nhận."""
+
     certification = models.ForeignKey(
         Certification,
         on_delete=models.CASCADE,
@@ -103,11 +120,15 @@ class CertificationAuditLog(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
+        """Cấu hình bảng audit log."""
+
         db_table = "certification_audit_logs"
         ordering = ["-created_at"]
 
 
 class SupplierProductCertification(models.Model):
+    """Liên kết giữa sản phẩm và chứng nhận chất lượng."""
+
     supplier_product = models.ForeignKey(
         "supplier_products.SupplierProduct",
         on_delete=models.CASCADE,
@@ -121,4 +142,6 @@ class SupplierProductCertification(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
+        """Cấu hình bảng liên kết sản phẩm–chứng nhận."""
+
         db_table = "supplier_product_certifications"

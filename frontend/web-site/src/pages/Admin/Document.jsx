@@ -65,15 +65,13 @@ export default function DocumentPage() {
                                 document.created_at,
 
                             supplier: {
-                                id: document.supplier?.id,
+                                id: document.account?.id,
                                 company_name:
-                                    document.supplier?.company_name,
-                                tax_code:
-                                    document.supplier?.tax_code,
+                                    document.account?.profile_name
+                                    || document.account?.full_name
+                                    || document.account?.username,
                                 phone:
-                                    document.supplier?.phone,
-                                address:
-                                    document.supplier?.address,
+                                    document.account?.phone,
                             },
 
                             verified_by:
@@ -130,8 +128,14 @@ export default function DocumentPage() {
                     created_at:
                         detail.created_at,
 
-                    supplier:
-                        detail.supplier,
+                    supplier: {
+                        id: detail.account?.id,
+                        company_name:
+                            detail.account?.profile_name
+                            || detail.account?.full_name
+                            || detail.account?.username,
+                        phone: detail.account?.phone,
+                    },
 
                     verified_by:
                         detail.verified_by,

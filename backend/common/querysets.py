@@ -1,3 +1,5 @@
+"""Helper lọc và sắp xếp queryset theo vai trò người dùng."""
+
 from django.db.models import Case, IntegerField, Value, When
 
 from apps.accounts.models import AccountRole
@@ -14,10 +16,12 @@ ORDER_CULTIVATION = ("step_order", "id")
 
 
 def is_admin(user):
+    """Kiểm tra user có role admin hay không."""
     return user.role == AccountRole.ADMIN
 
 
 def is_supplier_or_dealer(user):
+    """Kiểm tra user có role supplier hoặc dealer."""
     return user.role in (AccountRole.SUPPLIER, AccountRole.DEALER)
 
 
@@ -37,6 +41,7 @@ def order_pending_first(queryset, status_field, ordering, pending_values=PENDING
 
 
 def _apply_order(queryset, ordering, pending_field=None, pending_values=PENDING_STATUS):
+    """Áp dụng ordering; ưu tiên bản ghi pending nếu có pending_field."""
     if pending_field:
         return order_pending_first(queryset, pending_field, ordering, pending_values)
     return queryset.order_by(*ordering)
@@ -59,6 +64,24 @@ def filter_admin_or_created_by(
     return _apply_order(filtered, ordering, pending_field, pending_values)
 
 
+def filter_admin_or_dealer_account(
+    qs,
+    user,
+    account_lookup="account",
+    ordering=ORDER_NEWEST,
+    pending_field=None,
+    pending_values=PENDING_STATUS,
+):
+    """Admin: tất cả. Dealer: chỉ dữ liệu thuộc tài khoản đại lý."""
+    if is_admin(user):
+        filtered = qs
+    elif user.role == AccountRole.DEALER:
+        filtered = qs.filter(**{account_lookup: user})
+    else:
+        return qs.none()
+    return _apply_order(filtered, ordering, pending_field, pending_values)
+
+
 def filter_admin_or_supplier_account(
     qs,
     user,
@@ -74,4 +97,25 @@ def filter_admin_or_supplier_account(
         filtered = qs.filter(**{account_lookup: user})
     else:
         return qs.none()
+    return _apply_order(filtered, ordering, pending_field, pending_values)
+
+
+PO_PENDING_STATUSES = (
+    "pending_supplier_confirmation",
+    "deposit_pending_verification",
+    "final_payment_pending_verification",
+)
+
+
+def filter_purchase_orders(qs, user, ordering=ORDER_NEWEST, pending_field="status"):
+    """Admin: tất cả. Supplier: đơn của NCC. Dealer: đơn của đại lý."""
+    if is_admin(user):
+        filtered = qs
+    elif user.role == AccountRole.SUPPLIER:
+        filtered = qs.filter(supplier__account=user)
+    elif user.role == AccountRole.DEALER:
+        filtered = qs.filter(dealer__account=user)
+    else:
+        return qs.none()
+    pending_values = PO_PENDING_STATUSES if pending_field else None
     return _apply_order(filtered, ordering, pending_field, pending_values)

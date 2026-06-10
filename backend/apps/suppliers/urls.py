@@ -1,8 +1,8 @@
 from rest_framework.routers import DefaultRouter
-from .views import SupplierViewSet, SupplierDocumentViewSet
+
+from .views import SupplierViewSet
 
 router = DefaultRouter()
 router.register("suppliers", SupplierViewSet)
-router.register("supplier-documents", SupplierDocumentViewSet)
 
 urlpatterns = router.urls

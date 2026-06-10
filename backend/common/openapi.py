@@ -4,6 +4,7 @@ from drf_spectacular.utils import inline_serializer
 from rest_framework import serializers
 
 from .openapi_enums import schema_choice_field
+from .validators import require_rejection_reason
 
 PAGINATION_QUERY_HELP = (
     "\n\n**Phân trang (load more):** `?page=1&page_size=20` "
@@ -12,6 +13,7 @@ PAGINATION_QUERY_HELP = (
 
 
 def paginated_response_schema(item_serializer, name="PaginatedList"):
+    """Tạo inline serializer mô tả response phân trang load-more cho Swagger."""
     return inline_serializer(
         name=name,
         fields={
@@ -47,7 +49,7 @@ class RegisterResponseSerializer(serializers.Serializer):
 
 
 class TokenPairResponseSerializer(serializers.Serializer):
-    access = serializers.CharField(help_text="JWT access token (thời hạn 30 phút)")
+    access = serializers.CharField(help_text="JWT access token (thời hạn 2 giờ)")
     refresh = serializers.CharField(help_text="JWT refresh token (thời hạn 7 ngày)")
 
 
@@ -64,6 +66,20 @@ class LoginRequestSerializer(serializers.Serializer):
     password = serializers.CharField(help_text="Mật khẩu", style={"input_type": "password"})
 
 
+class VerifyDealerSerializer(serializers.Serializer):
+    status = schema_choice_field(
+        choices=["active", "rejected"],
+    )
+    rejection_reason = serializers.CharField(
+        required=False,
+        allow_blank=True,
+        help_text="Bắt buộc khi status=rejected",
+    )
+
+    def validate(self, attrs):
+        return require_rejection_reason(attrs, "status", "rejection_reason", {"rejected"})
+
+
 class VerifySupplierSerializer(serializers.Serializer):
     verification_status = schema_choice_field(
         choices=["pending", "approved", "rejected"],
@@ -71,8 +87,16 @@ class VerifySupplierSerializer(serializers.Serializer):
     rejection_reason = serializers.CharField(
         required=False,
         allow_blank=True,
-        help_text="Lý do từ chối / yêu cầu bổ sung hồ sơ",
+        help_text="Bắt buộc khi verification_status=rejected",
     )
+
+    def validate(self, attrs):
+        return require_rejection_reason(
+            attrs,
+            "verification_status",
+            "rejection_reason",
+            {"rejected"},
+        )
 
 
 class SupplierAccountStatusSerializer(serializers.Serializer):
@@ -86,25 +110,52 @@ class SupplierAccountStatusSerializer(serializers.Serializer):
     )
 
 
+_REFERENCE_TYPE_CHOICES = [
+    "account_document",
+    "purchase_order",
+    "supplier_document",
+    "supplier",
+    "dealer",
+    "category",
+    "certification",
+    "supplier_product",
+    "dealer_product",
+]
+
+
 class MyNotificationItemSerializer(serializers.Serializer):
-    receipt_id = serializers.IntegerField(help_text="ID bản ghi nhận thông báo")
-    id = serializers.IntegerField(help_text="ID thông báo")
-    title = serializers.CharField(help_text="Tiêu đề")
+    receipt_id = serializers.IntegerField(help_text="ID bản ghi nhận thông báo (NotificationReceipt)")
+    id = serializers.IntegerField(help_text="ID thông báo (Notification)")
+    title = serializers.CharField(help_text="Tiêu đề thông báo")
     content = serializers.CharField(help_text="Nội dung chi tiết")
     type = schema_choice_field(
         choices=["info", "warning", "success", "error"],
     )
     type_label = serializers.CharField(help_text="Tên loại thông báo (tiếng Việt)")
-    reference_type = serializers.CharField(
+    reference_type = schema_choice_field(
+        choices=_REFERENCE_TYPE_CHOICES,
         allow_null=True,
-        help_text="Mã nhóm đối tượng liên quan",
+        required=False,
     )
     reference_type_label = serializers.CharField(
         help_text="Tên nhóm đối tượng (tiếng Việt)",
     )
     reference_id = serializers.IntegerField(
         allow_null=True,
-        help_text="ID đối tượng liên quan",
+        help_text="ID đối tượng liên quan (vd. purchase_order id)",
+    )
+    reference_status = serializers.CharField(
+        allow_null=True,
+        required=False,
+        help_text=(
+            "Trạng thái phiếu nhập hiện tại — chỉ có khi reference_type=purchase_order "
+            "(vd. confirmed, shipping, completed)"
+        ),
+    )
+    reference_order_code = serializers.CharField(
+        allow_null=True,
+        required=False,
+        help_text="Mã phiếu nhập — chỉ có khi reference_type=purchase_order",
     )
     read_at = serializers.DateTimeField(
         allow_null=True,
@@ -114,6 +165,7 @@ class MyNotificationItemSerializer(serializers.Serializer):
 
 
 def my_notification_list_response_schema():
+    """Tạo schema response danh sách thông báo cá nhân (có unread_count và phân trang)."""
     return inline_serializer(
         name="MyNotificationListResponse",
         fields={
@@ -144,9 +196,63 @@ def my_notification_list_response_schema():
 
 
 class MarkReadResponseSerializer(serializers.Serializer):
-    message = serializers.CharField()
-    notification_id = serializers.IntegerField()
+    message = serializers.CharField(help_text="Thông báo kết quả")
+    notification_id = serializers.IntegerField(
+        help_text="ID thông báo vừa đánh dấu đọc (null khi mark_all_read)",
+        allow_null=True,
+        required=False,
+    )
     updated = serializers.IntegerField(help_text="Số bản ghi được cập nhật")
+
+
+SystemConfigResponseSerializer = inline_serializer(
+    name="SystemConfigResponse",
+    fields={
+        "max_upload_image_size_mb": serializers.IntegerField(
+            help_text="Dung lượng ảnh tối đa (MB)",
+        ),
+        "allowed_image_types": serializers.ListField(
+            child=serializers.CharField(),
+            help_text="Phần mở rộng ảnh cho phép (vd. .jpg, .png)",
+        ),
+        "max_categories_per_supplier": serializers.IntegerField(
+            help_text="Số danh mục tối đa mỗi supplier/dealer",
+        ),
+        "max_products_per_supplier": serializers.IntegerField(
+            help_text="Số sản phẩm tối đa mỗi NCC",
+        ),
+        "max_images_per_product": serializers.IntegerField(
+            help_text="Số ảnh tối đa mỗi sản phẩm",
+        ),
+        "max_images_per_certification": serializers.IntegerField(
+            help_text="Số ảnh tối đa mỗi chứng nhận",
+        ),
+        "max_login_attempts": serializers.IntegerField(
+            help_text="Số lần đăng nhập sai tối đa trước khi khóa",
+        ),
+        "login_lockout_minutes": serializers.IntegerField(
+            help_text="Thời gian khóa tài khoản (phút) sau khi vượt max_login_attempts",
+        ),
+        "min_order_amount": serializers.IntegerField(
+            help_text="Tổng tiền đơn tối thiểu (VND)",
+        ),
+        "max_order_amount": serializers.IntegerField(
+            help_text="Tổng tiền đơn tối đa (VND)",
+        ),
+        "min_deposit_percent": serializers.IntegerField(
+            help_text="Tỷ lệ cọc tối thiểu (%)",
+        ),
+        "max_deposit_percent": serializers.IntegerField(
+            help_text="Tỷ lệ cọc tối đa (%)",
+        ),
+        "min_delivery_lead_days": serializers.IntegerField(
+            help_text="Số ngày tối thiểu trước thời gian giao mong muốn",
+        ),
+        "default_deposit_percent": serializers.IntegerField(
+            help_text="Tỷ lệ cọc mặc định (%) khi NCC xác nhận phiếu nhập",
+        ),
+    },
+)
 
 
 AvatarUploadForm = inline_serializer(

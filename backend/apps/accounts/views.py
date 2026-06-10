@@ -1,3 +1,5 @@
+"""API xác thực và quản lý tài khoản người dùng."""
+
 from django.contrib.auth import get_user_model
 
 from drf_spectacular.utils import extend_schema, extend_schema_view, OpenApiExample
@@ -135,13 +137,14 @@ REGISTER_EXAMPLE = OpenApiExample(
 )
 
 class RegisterView(APIView):
+    """Endpoint đăng ký tài khoản mới và trả JWT ngay sau khi tạo."""
 
     permission_classes = [AllowAny]
 
 
 
     def post(self, request):
-
+        """Xử lý yêu cầu đăng ký, tạo tài khoản và trả cặp token JWT."""
         serializer = RegisterSerializer(data=request.data)
 
         serializer.is_valid(raise_exception=True)
@@ -190,7 +193,7 @@ class RegisterView(APIView):
 
             "- `supplier_profile`: hồ sơ NCC + `documents[]` (null nếu chưa có)\n\n"
 
-            "Access token hết hạn sau **30 phút**. Dùng `/api/refresh/` để lấy access mới."
+            "Access token hết hạn sau **2 giờ**. Dùng `/api/refresh/` để lấy access mới."
 
         ),
 
@@ -219,6 +222,7 @@ class RegisterView(APIView):
 )
 
 class LoginView(TokenObtainPairView):
+    """Endpoint đăng nhập bằng username và mật khẩu, trả JWT kèm thông tin user."""
 
     serializer_class = CustomTokenObtainPairSerializer
 
@@ -255,6 +259,7 @@ class LoginView(TokenObtainPairView):
 )
 
 class RefreshView(TokenRefreshView):
+    """Endpoint làm mới access token từ refresh token hợp lệ."""
 
     pass
 
@@ -283,14 +288,15 @@ class RefreshView(TokenRefreshView):
 )
 
 class VerifyView(TokenVerifyView):
+    """Endpoint kiểm tra access hoặc refresh token còn hợp lệ hay không."""
 
     pass
 
 
 
 
-
 class LogoutView(APIView):
+    """Endpoint đăng xuất bằng cách blacklist refresh token."""
 
 
 
@@ -300,7 +306,7 @@ class LogoutView(APIView):
 
         summary="Đăng xuất",
 
-        description="Blacklist refresh token. Access token hiện tại vẫn hết hạn tự nhiên sau 30 phút.",
+        description="Blacklist refresh token. Access token hiện tại vẫn hết hạn tự nhiên sau 2 giờ.",
 
         request=LogoutSerializer,
 
@@ -309,7 +315,7 @@ class LogoutView(APIView):
     )
 
     def post(self, request):
-
+        """Blacklist refresh token được gửi lên để kết thúc phiên đăng nhập."""
         serializer = LogoutSerializer(data=request.data)
 
         serializer.is_valid(raise_exception=True)
@@ -379,11 +385,12 @@ class LogoutView(APIView):
 )
 
 class ProfileView(APIView):
+    """Endpoint xem và cập nhật thông tin cá nhân của user đang đăng nhập."""
 
 
 
     def get(self, request):
-
+        """Lấy profile đầy đủ của user hiện tại."""
         serializer = ProfileSerializer(request.user, context={"request": request})
 
         return Response(serializer.data)
@@ -391,7 +398,7 @@ class ProfileView(APIView):
 
 
     def put(self, request):
-
+        """Cập nhật một phần thông tin profile của user hiện tại."""
         serializer = ProfileSerializer(
 
             request.user,
@@ -432,11 +439,12 @@ class ProfileView(APIView):
 )
 
 class ChangePasswordView(APIView):
+    """Endpoint đổi mật khẩu cho user đã đăng nhập."""
 
 
 
     def post(self, request):
-
+        """Xác thực mật khẩu cũ và lưu mật khẩu mới cho user hiện tại."""
         serializer = ChangePasswordSerializer(data=request.data)
 
         serializer.is_valid(raise_exception=True)
@@ -492,10 +500,13 @@ class ChangePasswordView(APIView):
     ),
 )
 class AvatarView(APIView):
+    """Endpoint upload hoặc xóa ảnh đại diện của user đang đăng nhập."""
+
     permission_classes = [IsAuthenticated]
     parser_classes = [MultiPartParser, FormParser]
 
     def post(self, request):
+        """Upload ảnh đại diện mới, thay thế file cũ nếu đã tồn tại."""
         serializer = AvatarUploadSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         user = request.user
@@ -509,6 +520,7 @@ class AvatarView(APIView):
         )
 
     def delete(self, request):
+        """Xóa ảnh đại diện hiện tại của user đang đăng nhập."""
         user = request.user
         if user.avatar:
             user.avatar.delete(save=False)
@@ -518,4 +530,3 @@ class AvatarView(APIView):
             ProfileSerializer(user, context={"request": request}).data,
             status=status.HTTP_200_OK,
         )
-

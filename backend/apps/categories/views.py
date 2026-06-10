@@ -1,3 +1,5 @@
+"""API ViewSet quản lý danh mục sản phẩm nông sản."""
+
 from django.utils import timezone
 from drf_spectacular.utils import extend_schema, extend_schema_view
 from rest_framework import viewsets
@@ -8,6 +10,12 @@ from rest_framework.response import Response
 from common.notification_messages import admin_new_category, category_reviewed
 from common.notifications import notify_account, notify_admins
 from common.openapi import PAGINATION_QUERY_HELP, paginated_response_schema
+from common.verify_openapi import (
+    CATEGORY_VERIFY_APPROVE,
+    CATEGORY_VERIFY_INACTIVE,
+    CATEGORY_VERIFY_REJECT,
+    VERIFY_REJECT_HELP,
+)
 from common.permission import IsActive, IsAdmin
 from common.querysets import filter_admin_or_created_by, ORDER_CATEGORY
 from .models import Category, CategoryStatus
@@ -51,6 +59,8 @@ from .serializers import (
     destroy=extend_schema(tags=["Categories"], summary="Xóa danh mục"),
 )
 class CategoryViewSet(viewsets.ModelViewSet):
+    """ViewSet CRUD và duyệt danh mục sản phẩm."""
+
     permission_classes = [IsActive]
     queryset = Category.objects.select_related(
         "created_by",
@@ -60,16 +70,19 @@ class CategoryViewSet(viewsets.ModelViewSet):
     serializer_class = CategorySerializer
 
     def get_serializer_class(self):
+        """Trả về serializer phù hợp theo action hiện tại."""
         if self.action in ("list", "retrieve", "verify", "lock", "unlock"):
             return CategoryListSerializer
         return CategorySerializer
 
     def get_permissions(self):
+        """Chỉ Admin được duyệt, khóa/mở khóa và sắp xếp danh mục."""
         if self.action in ("verify", "reorder", "lock", "unlock"):
             return [IsAdmin()]
         return [IsActive()]
 
     def get_queryset(self):
+        """Lọc danh mục theo quyền Admin hoặc người tạo."""
         return filter_admin_or_created_by(
             self.queryset,
             self.request.user,
@@ -78,6 +91,7 @@ class CategoryViewSet(viewsets.ModelViewSet):
         )
 
     def _ensure_can_edit(self, category):
+        """Kiểm tra quyền sửa danh mục — chỉ Admin hoặc người tạo."""
         user = self.request.user
         if user.role == "admin":
             return
@@ -85,6 +99,7 @@ class CategoryViewSet(viewsets.ModelViewSet):
             raise PermissionDenied("Bạn chỉ được sửa danh mục do mình tạo.")
 
     def perform_create(self, serializer):
+        """Lưu danh mục mới và gửi thông báo cho Admin."""
         category = serializer.save()
         title, content = admin_new_category(category, self.request.user.username)
         notify_admins(
@@ -96,6 +111,7 @@ class CategoryViewSet(viewsets.ModelViewSet):
         )
 
     def perform_update(self, serializer):
+        """Cập nhật danh mục; sửa danh mục đã duyệt sẽ chuyển về chờ duyệt."""
         category = self.instance
         self._ensure_can_edit(category)
         was_active = category.status == CategoryStatus.ACTIVE
@@ -129,11 +145,23 @@ class CategoryViewSet(viewsets.ModelViewSet):
     @extend_schema(
         tags=["Categories"],
         summary="Admin duyệt / từ chối / khóa danh mục",
+        description=(
+            "- `active`: duyệt danh mục\n"
+            "- `rejected` / `inactive`: từ chối hoặc khóa "
+            "(bắt buộc `rejection_reason`)"
+            + VERIFY_REJECT_HELP
+        ),
         request=VerifyCategorySerializer,
         responses={200: CategoryListSerializer},
+        examples=[
+            CATEGORY_VERIFY_APPROVE,
+            CATEGORY_VERIFY_REJECT,
+            CATEGORY_VERIFY_INACTIVE,
+        ],
     )
     @action(detail=True, methods=["post"])
     def verify(self, request, pk=None):
+        """Admin duyệt, từ chối hoặc khóa danh mục và thông báo người tạo."""
         category = self.get_object()
         serializer = VerifyCategorySerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
@@ -164,6 +192,7 @@ class CategoryViewSet(viewsets.ModelViewSet):
     )
     @action(detail=True, methods=["post"])
     def lock(self, request, pk=None):
+        """Admin khóa danh mục vi phạm quy định."""
         category = self.get_object()
         category.status = CategoryStatus.INACTIVE
         category.verified_by = request.user
@@ -187,6 +216,7 @@ class CategoryViewSet(viewsets.ModelViewSet):
     )
     @action(detail=True, methods=["post"])
     def unlock(self, request, pk=None):
+        """Admin mở khóa danh mục đang ở trạng thái inactive."""
         category = self.get_object()
         if category.status != CategoryStatus.INACTIVE:
             raise ValidationError({"detail": "Danh mục không ở trạng thái khóa."})
@@ -213,6 +243,7 @@ class CategoryViewSet(viewsets.ModelViewSet):
     )
     @action(detail=False, methods=["post"])
     def reorder(self, request):
+        """Admin cập nhật thứ tự hiển thị nhiều danh mục cùng lúc."""
         serializer = CategoryReorderSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         for item in serializer.validated_data["items"]:

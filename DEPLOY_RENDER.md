@@ -8,7 +8,7 @@ Hướng dẫn deploy backend Django lên [Render](https://render.com) — free 
 
 - Tài khoản [Render](https://render.com) (đăng nhập bằng GitHub)
 - Code đã push lên **GitHub** (Render kết nối repo)
-- Python **3.12** (đã cấu hình trong `render.yaml`)
+- Python **3.13.7** (đã cấu hình trong `render.yaml` và `backend/.python-version`)
 
 ---
 
@@ -75,7 +75,7 @@ git push origin main
 
 | Key | Value |
 |-----|--------|
-| `PYTHON_VERSION` | `3.12.0` |
+| `PYTHON_VERSION` | `3.13.7` |
 | `SECRET_KEY` | (Generate hoặc chuỗi random dài) |
 | `DEBUG` | `False` |
 | `DATABASE_URL` | Paste Internal Database URL từ PostgreSQL |
