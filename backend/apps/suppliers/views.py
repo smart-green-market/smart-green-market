@@ -1,6 +1,6 @@
 """API quản lý nhà cung cấp và luồng duyệt hồ sơ."""
 
-from django.db.models import Count, Prefetch, Q
+from django.db.models import Count, Prefetch, Q, Sum
 from django.utils import timezone
 from drf_spectacular.utils import OpenApiExample, OpenApiResponse, extend_schema, extend_schema_view
 from rest_framework import viewsets
@@ -16,6 +16,7 @@ from apps.accounts.models import (
     AccountRole,
     AccountStatus,
 )
+from apps.certifications.models import Certification, CertificationStatus
 from apps.supplier_products.models import SupplierProduct, SupplierProductStatus
 from apps.supplier_products.serializer import SupplierProductListSerializer
 from common.notification_messages import supplier_verification_updated
@@ -49,13 +50,25 @@ from common.querysets import (
     filter_suppliers_for_dealer,
 )
 
+DEALER_CATALOG_CERTIFICATIONS_PREFETCH = Prefetch(
+    "certifications",
+    queryset=Certification.objects.filter(
+        status=CertificationStatus.APPROVED,
+        deleted_at__isnull=True,
+    )
+    .prefetch_related("images")
+    .order_by("-issue_date", "-id"),
+)
+
 from .models import Supplier, SupplierVerificationStatus
 from .openapi import (
+    SUPPLIER_CATALOG_DETAIL_EXAMPLE,
     SUPPLIER_CATALOG_LIST_EXAMPLE,
     SUPPLIER_PRODUCTS_BY_SUPPLIER_EXAMPLE,
     SUPPLIER_PRODUCTS_CATALOG_HELP,
 )
 from .serializers import (
+    SupplierCatalogDetailSerializer,
     SupplierCatalogSerializer,
     SupplierDetailSerializer,
     SupplierListSerializer,
@@ -105,7 +118,7 @@ def _validate_supplier_ready_for_approval(supplier):
         summary="Danh sách nhà cung cấp",
         description=(
             "Admin: tất cả NCC. Supplier: hồ sơ của mình.\n"
-            "Dealer: catalog NCC đã duyệt — sau đó `GET /api/suppliers/{id}/products/` để chọn SP."
+            "Dealer: catalog NCC đã duyệt. Chi tiết `GET /api/suppliers/{id}/` kèm `products[]`."
             + PAGINATION_QUERY_HELP
         ),
         responses={
@@ -115,16 +128,23 @@ def _validate_supplier_ready_for_approval(supplier):
     ),
     retrieve=extend_schema(
         tags=["Suppliers"],
-        summary="Chi tiết nhà cung cấp (Admin review)",
+        summary="Chi tiết nhà cung cấp",
         description=(
-            "**Luồng duyệt Admin:**\n"
-            "1. Mở chi tiết supplier (`GET /api/suppliers/{supplier_id}/`)\n"
-            "2. Xem `documents[]` — lấy `documents[].id` từng giấy tờ\n"
-            "3. Duyệt từng giấy tờ: `POST /api/account-documents/{document_id}/verify/`\n"
-            "4. Khi đủ 3 giấy tờ approved → duyệt supplier: `POST /api/suppliers/{supplier_id}/verify/`\n\n"
-            "Trả về: `account`, `documents`, `certifications`, `products`."
+            "**Dealer (xem NCC trước khi đặt hàng):** trả đủ thông tin công ty, "
+            "`contact` (họ tên, email, SĐT), `certifications[]` đã duyệt, "
+            "chỉ số quy mô (`active_product_count`, `total_daily_production_capacity`). "
+            "Không trả TK ngân hàng / giấy tờ nội bộ.\n"
+            "Chọn SP: `GET /api/suppliers/{id}/products/`.\n\n"
+            "**Admin (duyệt hồ sơ):**\n"
+            "1. `GET /api/suppliers/{supplier_id}/`\n"
+            "2. Duyệt `documents[]` → `POST /api/account-documents/{document_id}/verify/`\n"
+            "3. `POST /api/suppliers/{supplier_id}/verify/`\n\n"
+            "Admin/Supplier: trả `account`, `documents`, `certifications`, `products`."
         ),
-        responses={200: SupplierDetailSerializer},
+        responses={
+            200: SupplierDetailSerializer,
+        },
+        examples=[SUPPLIER_CATALOG_DETAIL_EXAMPLE],
     ),
     create=extend_schema(
         tags=["Suppliers"],
@@ -168,9 +188,11 @@ class SupplierViewSet(viewsets.ModelViewSet):
         if (
             self.request.user.is_authenticated
             and self.request.user.role == AccountRole.DEALER
-            and self.action in ("list", "retrieve")
         ):
-            return SupplierCatalogSerializer
+            if self.action == "retrieve":
+                return SupplierCatalogDetailSerializer
+            if self.action == "list":
+                return SupplierCatalogSerializer
         if self.action == "retrieve":
             return SupplierDetailSerializer
         if self.action == "list":
@@ -196,12 +218,33 @@ class SupplierViewSet(viewsets.ModelViewSet):
         if user.role == AccountRole.DEALER:
             if self.action in ("list", "retrieve", "products"):
                 qs = filter_suppliers_for_dealer(qs)
+                if self.action == "retrieve":
+                    qs = qs.select_related("account").prefetch_related(
+                        DEALER_CATALOG_CERTIFICATIONS_PREFETCH,
+                    )
                 if self.action in ("list", "retrieve"):
                     qs = qs.annotate(
                         active_product_count=Count(
                             "products",
                             filter=Q(products__status=SupplierProductStatus.ACTIVE),
-                        )
+                        ),
+                    )
+                if self.action == "retrieve":
+                    qs = qs.annotate(
+                        approved_certification_count=Count(
+                            "certifications",
+                            filter=Q(
+                                certifications__status=CertificationStatus.APPROVED,
+                                certifications__deleted_at__isnull=True,
+                            ),
+                        ),
+                        total_daily_production_capacity=Sum(
+                            "products__daily_production_capacity",
+                            filter=Q(
+                                products__status=SupplierProductStatus.ACTIVE,
+                                products__wholesale_price__isnull=False,
+                            ),
+                        ),
                     )
                 return qs
             return qs.none()

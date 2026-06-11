@@ -9,6 +9,52 @@ SUPPLIER_PRODUCTS_CATALOG_HELP = (
     "**Dùng `id` trong `results[].id` làm `supplier_product_id` khi `POST /api/purchase-orders/`.**"
 )
 
+SUPPLIER_CATALOG_DETAIL_EXAMPLE = OpenApiExample(
+    "Chi tiết NCC (dealer — liên hệ, chứng nhận, quy mô)",
+    value={
+        "id": 14,
+        "company_name": "Cong ty Nong San ABC",
+        "tax_code": "0123456789",
+        "phone": "0901234567",
+        "address": "123 Duong X, Ha Noi",
+        "description": "Trang trai 5ha, chuyen rau cu huu co phuc vu dai ly Ha Noi",
+        "active_product_count": 12,
+        "approved_certification_count": 2,
+        "total_daily_production_capacity": "850.00",
+        "created_at": "2026-06-01T09:00:00Z",
+        "contact": {
+            "id": 8,
+            "username": "ncc_abc",
+            "full_name": "Nguyen Van A",
+            "email": "contact@nongsanabc.vn",
+            "phone": "0901234567",
+            "avatar_url": "https://example.com/media/avatars/ncc.jpg",
+        },
+        "certifications": [
+            {
+                "id": 3,
+                "name": "VietGAP",
+                "certificate_code": "VG-2024-001",
+                "issued_by": "Bo NNPTNT",
+                "issue_date": "2024-01-15",
+                "expiry_date": "2027-01-15",
+                "description": "Chung nhan VietGAP vung trong",
+                "is_expired": False,
+                "images": [
+                    {
+                        "id": 1,
+                        "certification": 3,
+                        "image_url": "https://example.com/media/cert/vietgap.jpg",
+                        "sort_order": 0,
+                        "created_at": "2026-05-01T10:00:00Z",
+                    }
+                ],
+            }
+        ],
+    },
+    response_only=True,
+)
+
 SUPPLIER_CATALOG_LIST_EXAMPLE = OpenApiExample(
     "Catalog NCC cho dealer (bước 1 đặt hàng)",
     value={

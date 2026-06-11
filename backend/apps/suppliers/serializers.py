@@ -7,6 +7,7 @@ from rest_framework import serializers
 from apps.accounts.document_serializers import AccountDocumentReadSerializer
 from apps.accounts.models import AccountRole, AccountStatus
 from apps.certifications.serializers import CertificationReadSerializer
+from apps.certifications.serializers import CertificationCatalogSerializer
 from apps.supplier_products.serializer import SupplierProductReadSerializer
 from common.approval_nested import ApprovalSupplierNestedSerializer
 from common.avatar import build_avatar_url
@@ -123,6 +124,34 @@ class SupplierSerializer(serializers.ModelSerializer):
         return super().create(validated_data)
 
 
+class SupplierContactSerializer(serializers.ModelSerializer):
+    """Người liên hệ đại diện NCC — từ tài khoản gắn hồ sơ."""
+
+    avatar_url = serializers.SerializerMethodField(
+        help_text="Ảnh đại diện người liên hệ",
+    )
+
+    class Meta:
+        model = Account
+        fields = [
+            "id",
+            "username",
+            "full_name",
+            "email",
+            "phone",
+            "avatar_url",
+        ]
+        extra_kwargs = {
+            "full_name": {"help_text": "Họ tên người liên hệ"},
+            "email": {"help_text": "Email liên hệ"},
+            "phone": {"help_text": "SĐT người liên hệ"},
+        }
+
+    @extend_schema_field(serializers.URLField(allow_null=True))
+    def get_avatar_url(self, obj):
+        return build_avatar_url(obj, self.context.get("request"))
+
+
 class SupplierCatalogSerializer(serializers.ModelSerializer):
     """NCC catalog cho đại lý — không trả thông tin tài khoản ngân hàng."""
 
@@ -149,9 +178,45 @@ class SupplierCatalogSerializer(serializers.ModelSerializer):
             "tax_code": {"help_text": "Mã số thuế"},
             "phone": {"help_text": "Hotline liên hệ"},
             "address": {"help_text": "Địa chỉ trụ sở / kho"},
-            "description": {"help_text": "Giới thiệu ngắn"},
+            "description": {
+                "help_text": "Giới thiệu / quy mô hoạt động (NCC tự mô tả)",
+            },
             "created_at": {"help_text": "Thời điểm NCC tham gia hệ thống"},
         }
+
+
+class SupplierCatalogDetailSerializer(SupplierCatalogSerializer):
+    """Chi tiết NCC cho dealer — liên hệ, chứng nhận, chỉ số quy mô (không có SP/tk ngân hàng)."""
+
+    contact = SupplierContactSerializer(
+        source="account",
+        read_only=True,
+        help_text="Người liên hệ: họ tên, email, SĐT",
+    )
+    certifications = CertificationCatalogSerializer(
+        many=True,
+        read_only=True,
+        help_text="Chứng nhận đã duyệt (VietGAP, hữu cơ...)",
+    )
+    approved_certification_count = serializers.IntegerField(
+        read_only=True,
+        help_text="Số chứng nhận đã duyệt",
+    )
+    total_daily_production_capacity = serializers.DecimalField(
+        max_digits=14,
+        decimal_places=2,
+        read_only=True,
+        allow_null=True,
+        help_text="Tổng năng lực sản xuất TB/ngày (cộng SP active, cùng đơn vị từng SP)",
+    )
+
+    class Meta(SupplierCatalogSerializer.Meta):
+        fields = SupplierCatalogSerializer.Meta.fields + [
+            "contact",
+            "certifications",
+            "approved_certification_count",
+            "total_daily_production_capacity",
+        ]
 
 
 class SupplierListSerializer(serializers.ModelSerializer):
