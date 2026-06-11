@@ -123,6 +123,37 @@ class SupplierSerializer(serializers.ModelSerializer):
         return super().create(validated_data)
 
 
+class SupplierCatalogSerializer(serializers.ModelSerializer):
+    """NCC catalog cho đại lý — không trả thông tin tài khoản ngân hàng."""
+
+    active_product_count = serializers.IntegerField(
+        read_only=True,
+        help_text="Số sản phẩm đang active của NCC",
+    )
+
+    class Meta:
+        model = Supplier
+        fields = [
+            "id",
+            "company_name",
+            "tax_code",
+            "phone",
+            "address",
+            "description",
+            "active_product_count",
+            "created_at",
+        ]
+        extra_kwargs = {
+            "id": {"help_text": "ID hồ sơ NCC — dùng khi tạo phiếu nhập"},
+            "company_name": {"help_text": "Tên công ty / trang trại"},
+            "tax_code": {"help_text": "Mã số thuế"},
+            "phone": {"help_text": "Hotline liên hệ"},
+            "address": {"help_text": "Địa chỉ trụ sở / kho"},
+            "description": {"help_text": "Giới thiệu ngắn"},
+            "created_at": {"help_text": "Thời điểm NCC tham gia hệ thống"},
+        }
+
+
 class SupplierListSerializer(serializers.ModelSerializer):
     """Nhà cung cấp kèm tài khoản — dùng cho danh sách chờ duyệt."""
 

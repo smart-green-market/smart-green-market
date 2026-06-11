@@ -162,6 +162,13 @@ SPECTACULAR_SETTINGS = {
         "1. `GET /api/dealers/{id}/` — xem hồ sơ + `documents[]`\n"
         "2. Duyệt giấy tờ từng file\n"
         "3. `POST /api/dealers/{id}/verify/` với `{ \"status\": \"active\" }`\n\n"
+        "## Luồng đại lý tạo phiếu nhập\n"
+        "1. `GET /api/suppliers/` — danh sách NCC đã duyệt (dealer catalog)\n"
+        "2. `GET /api/suppliers/{supplier_id}/products/` — SP active của NCC đã chọn\n"
+        "3. `GET /api/purchase-order-config/` — min/max tiền đơn, % cọc, ngày giao\n"
+        "4. `POST /api/purchase-orders/` — gửi phiếu nhập\n"
+        "5. NCC `POST .../confirm/` → dealer `GET .../payment-qr/?payment_type=deposit` → "
+        "`POST .../submit-deposit/`\n\n"
         "## Vai trò (role)\n"
         "| Role | Mô tả |\n"
         "|------|-------|\n"
@@ -200,7 +207,9 @@ SPECTACULAR_SETTINGS = {
             "name": "Suppliers",
             "description": (
                 "Quản lý hồ sơ nhà cung cấp. Supplier tạo profile sau khi đăng ký. "
-                "Admin duyệt qua action `verify`."
+                "Admin duyệt qua action `verify`. "
+                "**Dealer:** `GET /api/suppliers/` (catalog NCC) → "
+                "`GET /api/suppliers/{id}/products/` (chọn SP đặt hàng)."
             ),
         },
         {
@@ -286,8 +295,10 @@ SPECTACULAR_SETTINGS = {
         {
             "name": "Purchase Orders",
             "description": (
-                "Phiếu nhập hàng đại lý → NCC. Luồng: tạo đơn → NCC xác nhận → cọc → "
-                "chuẩn bị → giao hàng → thanh toán cuối → hoàn tất. "
+                "Phiếu nhập hàng đại lý → NCC. Trước khi tạo đơn: "
+                "`GET /api/suppliers/{id}/products/` để lấy `supplier_product_id`. "
+                "Luồng: tạo đơn → NCC xác nhận → cọc → chuẩn bị → giao hàng → "
+                "thanh toán cuối → hoàn tất. "
                 "VietQR: `GET /api/purchase-orders/{id}/payment-qr/`."
             ),
         },
