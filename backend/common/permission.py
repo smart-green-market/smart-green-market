@@ -58,15 +58,14 @@ class IsDealer(BaseRolePermission):
 
     role = AccountRole.DEALER
 
-
 class IsAdminOrDealer(BasePermission):
     """Cho phép admin hoặc dealer."""
 
     def has_permission(self, request, view):
         return (
             request.user.is_authenticated
-            and request.user.role in (AccountRole.ADMIN, AccountRole.DEALER)
-        )
+            and request.user.role in (AccountRole.ADMIN, AccountRole.DEALER))
+
 
 class IsBuyer(BaseRolePermission):
     """Chỉ cho phép tài khoản buyer."""

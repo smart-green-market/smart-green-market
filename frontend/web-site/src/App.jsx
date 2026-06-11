@@ -19,8 +19,23 @@ import RegisterPage from "./pages/Supplier/RegisterPage";
 import SupplierLoginPage from "./pages/Supplier/SupplierLogin";
 import SupplierProtectedRoute from "./contexts/supplierProtectedRoute";
 
+
+import DealerLayout from "./layouts/DealerLayout";
+import DealerProtectedRoute from "./contexts/dealerProtectedRoute";
 import {
-  AdminLoginPage,
+    DealerLoginPage,
+    DealerDashboardPage,
+    DealerInventoryPage,
+    DealerSupplierPage,
+    DealerCategoryPage,
+    DealerSalesOrderPage,
+    DealerPurchaseOrderPage,
+    DealerSupplierDetailPage,
+    DealerCategoryDetail,
+} from "./pages/Dealer";
+
+import {
+  AdminLoginPage,   
   SettingPage,
   SupplierPage,
   CategoryPage,
@@ -78,6 +93,25 @@ export default function App() {
                             <Route path="tat-ca-thong-bao" element={<NotificationPage />} />
                         </Route>
                     </Route>
+
+                    {/* Phân hệ Đại lý (Dealer) */}
+                    <Route path="/dai-ly/login" element={<DealerLoginPage />} />
+                    <Route element={<DealerProtectedRoute />}>
+                        <Route path="/dai-ly" element={<DealerLayout />}>
+                            <Route index element={<DealerDashboardPage />} />
+                            <Route path="nha-cung-cap" element={<DealerSupplierPage />} />
+                            <Route path="danh-muc" element={<DealerCategoryPage />} />
+                            <Route path="kho-hang" element={<DealerInventoryPage />} />
+                            <Route path="ban-hang" element={<DealerSalesOrderPage />} />
+                            <Route path="nhap-hang" element={<DealerPurchaseOrderPage />} />
+                            <Route path="nha-cung-cap/:id" element={<DealerSupplierDetailPage />} />
+                            <Route path="danh-muc/:id" element={<DealerCategoryDetail />} />
+                        </Route>
+                    </Route>
+                   
+
+
+
                 </Routes>
             </AuthProvider>
         </BrowserRouter>

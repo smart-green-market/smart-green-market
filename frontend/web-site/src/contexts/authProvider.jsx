@@ -44,11 +44,24 @@ export function AuthProvider({ children }) {
             const me = response.account;
 
             // KIỂM TRA QUYỀN TRUY CẬP ĐỘNG
+            // if (me.role !== expectedRole) {
+            //     localStorage.removeItem("access_token");
+            //     return {
+            //         success: false,
+            //         message: `Tài khoản này không có quyền đăng nhập vào khu vực ${expectedRole === "supplier" ? "Nhà cung cấp" : "Quản trị"}`,
+            //     };
+            // }
+
+            // Sửa lỗi đăng nhập vào khu vực không đúng
             if (me.role !== expectedRole) {
                 localStorage.removeItem("access_token");
+                let roleName = "Quản trị";
+               if (expectedRole === "supplier") roleName = "Nhà cung cấp";                          
+               if (expectedRole === "dealer") roleName = "Đại lý";
                 return {
                     success: false,
-                    message: `Tài khoản này không có quyền đăng nhập vào khu vực ${expectedRole === "supplier" ? "Nhà cung cấp" : "Quản trị"}`,
+                  message: `Tài khoản này không có quyền đăng nhập vào khu vực ${expectedRole === "supplier" ? "Nhà cung cấp" : "Quản trị"}`,
+                   message: `Tài khoản này không có quyền đăng nhập vào khu vực ${roleName}`,
                 };
             }
 
@@ -60,6 +73,8 @@ export function AuthProvider({ children }) {
                 navigate("/quan-tri");
             } else if (me.role === "supplier") {
                 navigate("/nha-cung-cap");
+            } else if (me.role === "dealer") {
+                navigate("/dai-ly");
             } else {
                 navigate("/"); // Mặc định cho User bình thường
             }
@@ -102,6 +117,8 @@ export function AuthProvider({ children }) {
                 navigate("/nha-cung-cap/login");
             } else if (currentRole === "admin") {
                 navigate("/admin/login");
+            }else if (currentRole === "dealer") {
+                navigate("/dai-ly/login");
             } else {
                 navigate("/");
             }

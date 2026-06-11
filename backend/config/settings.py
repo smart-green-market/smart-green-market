@@ -103,7 +103,8 @@ INSTALLED_APPS = [
     "apps.dealer_products",
     "apps.purchase_orders",
     "apps.certifications",
-    "apps.notifications",
+    "apps.notifications",   
+    "apps.supplier_inventory",
 ]
 
 if CLOUDINARY_URL:

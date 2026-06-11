@@ -28,8 +28,11 @@ axiosClient.interceptors.response.use(
 
   async (error) => {
     const originalRequest = error.config;
+    
+    // Nếu là API đăng nhập thì không thực hiện refresh token hay redirect tự động
+    const isLoginRequest = originalRequest?.url?.endsWith("/login/");
 
-    if (error.response?.status === 401 && !originalRequest._retry) {
+    if (error.response?.status === 401 && !isLoginRequest && !originalRequest?._retry) {
       originalRequest._retry = true;
 
       try {
@@ -50,10 +53,19 @@ axiosClient.interceptors.response.use(
         return axiosClient(originalRequest);
       } catch (refreshError) {
         localStorage.removeItem("access_token");
-
         localStorage.removeItem("user");
 
-        window.location.href = "/admin/login";
+        // Điều hướng thông minh về trang đăng nhập tương ứng
+        const pathname = window.location.pathname;
+        if (pathname.startsWith("/quan-tri") || pathname.startsWith("/admin")) {
+          window.location.href = "/admin/login";
+        } else if (pathname.startsWith("/dai-ly")) {
+          window.location.href = "/dai-ly/login";
+        } else if (pathname.startsWith("/nha-cung-cap")) {
+          window.location.href = "/nha-cung-cap/login";
+        } else {
+          window.location.href = "/";
+        }
 
         return Promise.reject(refreshError);
       }
