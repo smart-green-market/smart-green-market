@@ -165,7 +165,7 @@ class CategoryViewSet(viewsets.ModelViewSet):
 
     def perform_update(self, serializer):
         """Cập nhật danh mục; sửa danh mục đã duyệt sẽ chuyển về chờ duyệt."""
-        category = self.instance
+        category = serializer.instance
         self._ensure_can_edit(category)
         was_active = category.status == CategoryStatus.ACTIVE
         category = serializer.save()
