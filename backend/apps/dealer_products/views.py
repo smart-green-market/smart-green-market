@@ -80,6 +80,7 @@ class DealerProductViewSet(viewsets.ModelViewSet):
         "dealer_profile",
         "dealer_profile__account",
         "supplier_product",
+        "category",
     ).prefetch_related("images")
     serializer_class = DealerProductSerializer
 

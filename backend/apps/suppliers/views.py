@@ -17,6 +17,8 @@ from apps.accounts.models import (
     AccountStatus,
 )
 from apps.certifications.models import Certification, CertificationStatus
+from apps.categories.models import Category, CategoryStatus
+from apps.categories.serializers import SupplierCatalogCategorySerializer
 from apps.supplier_products.models import SupplierProduct, SupplierProductStatus
 from apps.supplier_products.serializer import SupplierProductListSerializer
 from common.notification_messages import supplier_verification_updated
@@ -64,6 +66,7 @@ from .models import Supplier, SupplierVerificationStatus
 from .openapi import (
     SUPPLIER_CATALOG_DETAIL_EXAMPLE,
     SUPPLIER_CATALOG_LIST_EXAMPLE,
+    SUPPLIER_CATEGORIES_BY_SUPPLIER_EXAMPLE,
     SUPPLIER_PRODUCTS_BY_SUPPLIER_EXAMPLE,
     SUPPLIER_PRODUCTS_CATALOG_HELP,
 )
@@ -109,7 +112,18 @@ def _validate_supplier_ready_for_approval(supplier):
     if not_approved:
         raise ValidationError({
             "detail": f"Còn giấy tờ chưa được duyệt: {', '.join(not_approved)}",
-        })
+        }        )
+
+
+def _supplier_catalog_product_q(supplier, *, dealer_catalog=False):
+    """Bộ lọc SP NCC theo ngữ cảnh catalog đại lý hoặc admin."""
+    base = Q(supplier_products__supplier=supplier)
+    if dealer_catalog:
+        base &= Q(
+            supplier_products__status=SupplierProductStatus.ACTIVE,
+            supplier_products__wholesale_price__isnull=False,
+        )
+    return base
 
 
 @extend_schema_view(
@@ -208,6 +222,8 @@ class SupplierViewSet(viewsets.ModelViewSet):
             return [IsAdminOrSupplierProfile()]
         if self.action == "products":
             return [IsAdminOrDealer()]
+        if self.action == "categories":
+            return [IsAdminOrDealer()]
         if self.action in ("list", "retrieve"):
             return [IsAdminOrSupplier()]
         return [IsAdminOrSupplier()]
@@ -216,7 +232,7 @@ class SupplierViewSet(viewsets.ModelViewSet):
         user = self.request.user
         qs = self.queryset
         if user.role == AccountRole.DEALER:
-            if self.action in ("list", "retrieve", "products"):
+            if self.action in ("list", "retrieve", "products", "categories"):
                 qs = filter_suppliers_for_dealer(qs)
                 if self.action == "retrieve":
                     qs = qs.select_related("account").prefetch_related(
@@ -249,6 +265,8 @@ class SupplierViewSet(viewsets.ModelViewSet):
                 return qs
             return qs.none()
         if self.action == "products" and user.role == AccountRole.ADMIN:
+            return qs
+        if self.action == "categories" and user.role == AccountRole.ADMIN:
             return qs
         if self.action in ["retrieve", "verify"]:
             qs = qs.select_related("account").prefetch_related(
@@ -392,6 +410,7 @@ class SupplierViewSet(viewsets.ModelViewSet):
             "2. **`GET /api/suppliers/{supplier_id}/products/`** (endpoint này)\n"
             "3. `POST /api/purchase-orders/` — `supplier_id` + `items[].supplier_product_id`\n\n"
             "Path `{id}` = **supplier_id** (cùng id từ bước 1).\n"
+            "Query `category` (tùy chọn): lọc theo ID danh mục NCC.\n"
             "Admin: xem mọi SP của NCC (mọi trạng thái)."
             + SUPPLIER_PRODUCTS_CATALOG_HELP
             + PAGINATION_QUERY_HELP
@@ -430,6 +449,10 @@ class SupplierViewSet(viewsets.ModelViewSet):
                 *ORDER_UPDATED
             )
 
+        category_id = request.query_params.get("category")
+        if category_id:
+            products_qs = products_qs.filter(category_id=category_id)
+
         def serialize(page):
             return SupplierProductListSerializer(
                 page,
@@ -438,6 +461,63 @@ class SupplierViewSet(viewsets.ModelViewSet):
             ).data
 
         return paginate_queryset(self, request, products_qs, serialize)
+
+    @extend_schema(
+        tags=["Suppliers"],
+        summary="Danh sách danh mục theo nhà cung cấp",
+        description=(
+            "**Dealer — lọc catalog trước khi xem sản phẩm:**\n"
+            "1. `GET /api/suppliers/` → lấy `id` NCC\n"
+            "2. **`GET /api/suppliers/{supplier_id}/categories/`** (endpoint này)\n"
+            "3. `GET /api/suppliers/{supplier_id}/products/?category={id}` (lọc SP theo danh mục)\n"
+            "4. `POST /api/purchase-orders/`\n\n"
+            "Chỉ trả danh mục `active` có ít nhất một SP đủ điều kiện đặt hàng "
+            "(dealer: SP `active` + có `wholesale_price`)."
+            + PAGINATION_QUERY_HELP
+        ),
+        responses={
+            200: paginated_response_schema(
+                SupplierCatalogCategorySerializer,
+                "PaginatedSupplierCategoriesBySupplier",
+            ),
+            401: OpenApiResponse(description="Chưa đăng nhập hoặc token hết hạn"),
+            403: OpenApiResponse(description="Tài khoản không phải dealer/admin"),
+            404: OpenApiResponse(
+                description="NCC không tồn tại hoặc dealer không được xem (chưa approved)"
+            ),
+        },
+        examples=[SUPPLIER_CATEGORIES_BY_SUPPLIER_EXAMPLE],
+    )
+    @action(detail=True, methods=["get"], url_path="categories")
+    def categories(self, request, pk=None):
+        supplier = self.get_object()
+        dealer_catalog = request.user.role == AccountRole.DEALER
+        product_q = _supplier_catalog_product_q(
+            supplier,
+            dealer_catalog=dealer_catalog,
+        )
+        count_filter = Q(supplier_products__supplier=supplier)
+        if dealer_catalog:
+            count_filter &= Q(
+                supplier_products__status=SupplierProductStatus.ACTIVE,
+                supplier_products__wholesale_price__isnull=False,
+            )
+        categories_qs = (
+            Category.objects.filter(status=CategoryStatus.ACTIVE)
+            .filter(product_q)
+            .distinct()
+            .annotate(product_count=Count("supplier_products", filter=count_filter))
+            .order_by("sort_order", "name")
+        )
+
+        def serialize(page):
+            return SupplierCatalogCategorySerializer(
+                page,
+                many=True,
+                context={"request": request},
+            ).data
+
+        return paginate_queryset(self, request, categories_qs, serialize)
 
     @extend_schema(
         tags=["Suppliers"],

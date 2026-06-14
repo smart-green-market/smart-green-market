@@ -72,6 +72,37 @@ class CategoryListSerializer(CategoryReadSerializer):
         fields = CategoryReadSerializer.Meta.fields + ["created_by", "product_count"]
 
 
+class DealerStoreCategorySerializer(CategoryReadSerializer):
+    """Danh mục cửa đại lý — dùng cho buyer xem catalog."""
+
+    product_count = serializers.IntegerField(
+        read_only=True,
+        help_text="Số sản phẩm đang bán trong danh mục",
+    )
+
+    class Meta(CategoryReadSerializer.Meta):
+        fields = CategoryReadSerializer.Meta.fields + ["product_count"]
+
+
+class SupplierCatalogCategorySerializer(serializers.ModelSerializer):
+    """Danh mục NCC — dealer xem trước khi chọn sản phẩm đặt hàng."""
+
+    product_count = serializers.IntegerField(
+        read_only=True,
+        help_text="Số sản phẩm active có giá sỉ trong danh mục",
+    )
+
+    class Meta:
+        model = Category
+        fields = ["id", "name", "description", "sort_order", "product_count"]
+        extra_kwargs = {
+            "id": {"help_text": "ID danh mục"},
+            "name": {"help_text": "Tên danh mục"},
+            "description": {"help_text": "Mô tả ngắn"},
+            "sort_order": {"help_text": "Thứ tự hiển thị"},
+        }
+
+
 class CategoryDetailSerializer(CategoryListSerializer):
     """Chi tiết danh mục kèm danh sách sản phẩm thuộc danh mục."""
 
@@ -91,11 +122,11 @@ class CategoryDetailSerializer(CategoryListSerializer):
         if user.role == AccountRole.DEALER:
             products = (
                 DealerProduct.objects.filter(
-                    supplier_product__category=obj,
+                    category=obj,
                     dealer_profile__account=user,
                 )
                 .exclude(status=DealerProductStatus.DELETED)
-                .select_related("supplier_product")
+                .select_related("supplier_product", "category")
                 .prefetch_related("images")
                 .order_by("-updated_at", "-id")
             )
@@ -114,6 +145,21 @@ class CategoryDetailSerializer(CategoryListSerializer):
                 .order_by("-updated_at", "-id")
             )
             return SupplierProductReadSerializer(
+                products, many=True, context=self.context
+            ).data
+
+        if (
+            obj.created_by_id
+            and getattr(obj.created_by, "role", None) == AccountRole.DEALER
+        ):
+            products = (
+                DealerProduct.objects.filter(category=obj)
+                .exclude(status=DealerProductStatus.DELETED)
+                .select_related("supplier_product", "category", "dealer_profile")
+                .prefetch_related("images")
+                .order_by("-updated_at", "-id")
+            )
+            return DealerProductReadSerializer(
                 products, many=True, context=self.context
             ).data
 
@@ -172,7 +218,7 @@ class CategorySerializer(serializers.ModelSerializer):
             count = Category.objects.filter(created_by=request.user).count()
             if count >= MAX_CATEGORIES_PER_SUPPLIER:
                 raise serializers.ValidationError(
-                    f"Mỗi nhà cung cấp tối đa {MAX_CATEGORIES_PER_SUPPLIER} danh mục."
+                    f"Mỗi tài khoản tối đa {MAX_CATEGORIES_PER_SUPPLIER} danh mục."
                 )
         return attrs
 

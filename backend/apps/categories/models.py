@@ -14,7 +14,7 @@ class CategoryStatus(models.TextChoices):
 
 
 class Category(models.Model):
-    """Danh mục sản phẩm do Supplier/Dealer tạo, Admin duyệt."""
+    """Danh mục sản phẩm — NCC gắn SupplierProduct; đại lý gắn DealerProduct."""
 
     name = models.CharField(max_length=255)
     description = models.TextField(blank=True, null=True)

@@ -45,6 +45,14 @@ class DealerProduct(models.Model):
         on_delete=models.PROTECT,
         related_name="dealer_products",
     )
+    category = models.ForeignKey(
+        "categories.Category",
+        on_delete=models.PROTECT,
+        related_name="dealer_store_products",
+        null=True,
+        blank=True,
+        help_text="Danh mục bán lẻ do đại lý tạo và quản lý",
+    )
 
     retail_price = models.DecimalField(max_digits=12, decimal_places=2)
     title = models.CharField(max_length=255)

@@ -3,8 +3,9 @@
 from rest_framework import serializers
 
 from apps.dealers.models import DealerProfileStatus
+from apps.categories.models import CategoryStatus
 from apps.supplier_products.models import SupplierProduct, SupplierProductStatus
-from common.approval_nested import ApprovalDealerNestedSerializer
+from common.approval_nested import ApprovalCategoryNestedSerializer, ApprovalDealerNestedSerializer
 from common.openapi_enums import schema_choice_field
 from common.validators import require_rejection_reason
 
@@ -43,6 +44,7 @@ class DealerProductImageSerializer(serializers.ModelSerializer):
 class DealerProductReadSerializer(serializers.ModelSerializer):
     images = DealerProductImageSerializer(many=True, read_only=True)
     status = schema_choice_field(choices=DealerProductStatus.choices, read_only=True)
+    category = ApprovalCategoryNestedSerializer(read_only=True)
     supplier_product_name = serializers.CharField(
         source="supplier_product.name",
         read_only=True,
@@ -60,6 +62,7 @@ class DealerProductReadSerializer(serializers.ModelSerializer):
             "id",
             "dealer_profile",
             "supplier_product",
+            "category",
             "supplier_product_name",
             "supplier_product_unit",
             "title",
@@ -75,6 +78,7 @@ class DealerProductReadSerializer(serializers.ModelSerializer):
             "id": {"help_text": "ID sản phẩm đại lý"},
             "dealer_profile": {"help_text": "ID hồ sơ đại lý"},
             "supplier_product": {"help_text": "ID sản phẩm NCC gốc"},
+            "category": {"help_text": "ID danh mục bán lẻ của đại lý (phải active)"},
             "title": {"help_text": "Tên hiển thị bán lẻ"},
             "description": {"help_text": "Mô tả bán lẻ"},
             "retail_price": {"help_text": "Giá bán lẻ (VND)"},
@@ -104,6 +108,7 @@ class DealerProductSerializer(serializers.ModelSerializer):
         ]
         extra_kwargs = {
             "supplier_product": {"help_text": "ID sản phẩm NCC (phải active)"},
+            "category": {"help_text": "ID danh mục bán lẻ do đại lý tạo (phải active)"},
             "title": {"help_text": "Tên hiển thị bán lẻ"},
             "description": {"help_text": "Mô tả", "required": False},
             "retail_price": {"help_text": "Giá bán lẻ (VND)"},
@@ -117,6 +122,19 @@ class DealerProductSerializer(serializers.ModelSerializer):
             )
         return product
 
+    def validate_category(self, category):
+        if category.status != CategoryStatus.ACTIVE:
+            raise serializers.ValidationError(
+                "Danh mục chưa được duyệt, không thể gắn vào sản phẩm."
+            )
+        request = self.context.get("request")
+        if request and request.user.is_authenticated:
+            if category.created_by_id != request.user.id:
+                raise serializers.ValidationError(
+                    "Chỉ được gắn danh mục do mình tạo."
+                )
+        return category
+
     def validate(self, attrs):
         request = self.context.get("request")
         if request and request.user.is_authenticated:
@@ -127,6 +145,10 @@ class DealerProductSerializer(serializers.ModelSerializer):
                 raise serializers.ValidationError(
                     "Hồ sơ đại lý chưa active, không thể tạo/sửa sản phẩm."
                 )
+        if self.instance is None and not attrs.get("category"):
+            raise serializers.ValidationError(
+                {"category": "Bắt buộc chọn danh mục bán lẻ."}
+            )
         return attrs
 
     def create(self, validated_data):

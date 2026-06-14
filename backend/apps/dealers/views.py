@@ -1,6 +1,6 @@
 """API quản lý hồ sơ đại lý và luồng duyệt."""
 
-from django.db.models import Prefetch
+from django.db.models import Count, Prefetch, Q
 from django.utils import timezone
 from drf_spectacular.utils import OpenApiExample, extend_schema, extend_schema_view
 from rest_framework import viewsets
@@ -10,7 +10,10 @@ from rest_framework.response import Response
 
 from apps.accounts.document_serializers import AccountDocumentListSerializer
 from apps.accounts.models import AccountDocument, AccountDocumentStatus, AccountDocumentType, AccountStatus
-from apps.dealer_products.models import DealerProduct
+from apps.categories.models import Category, CategoryStatus
+from apps.categories.serializers import DealerStoreCategorySerializer
+from apps.dealer_products.models import DealerProduct, DealerProductStatus
+from apps.dealer_products.serializers import DealerProductReadSerializer
 from common.notification_messages import dealer_verification_updated
 from common.notifications import notify_account, notify_admins
 from common.openapi import (
@@ -25,7 +28,7 @@ from common.verify_openapi import (
     VERIFY_REJECT_HELP,
 )
 from common.pagination import paginate_queryset
-from common.permission import IsAdmin, IsAdminOrDealer, IsDealer
+from common.permission import IsActive, IsAdmin, IsAdminOrDealer, IsDealer
 from common.querysets import ORDER_DOCUMENT, ORDER_NEWEST, _apply_order, filter_admin_or_dealer_account
 
 from .models import DealerProfile, DealerProfileStatus
@@ -46,6 +49,14 @@ DEALER_CREATE_EXAMPLE = OpenApiExample(
     },
     request_only=True,
 )
+
+
+def _active_dealer_catalog_qs():
+    """Đại lý đã duyệt — buyer/dealer khác xem catalog cửa hàng."""
+    return DealerProfile.objects.filter(
+        status=DealerProfileStatus.ACTIVE,
+        account__status=AccountStatus.ACTIVE,
+    )
 
 
 def _validate_dealer_ready_for_approval(dealer):
@@ -117,10 +128,14 @@ class DealerProfileViewSet(viewsets.ModelViewSet):
             return [IsAdmin()]
         if self.action in ("create", "update", "partial_update", "destroy"):
             return [IsDealer()]
+        if self.action in ("categories", "products"):
+            return [IsActive()]
         return [IsAdminOrDealer()]
 
     def get_queryset(self):
         qs = self.queryset
+        if self.action in ("categories", "products"):
+            return _active_dealer_catalog_qs()
         if self.action in ("retrieve", "verify"):
             qs = qs.select_related("account", "verified_by").prefetch_related(
                 Prefetch(
@@ -129,7 +144,10 @@ class DealerProfileViewSet(viewsets.ModelViewSet):
                 ),
                 Prefetch(
                     "products",
-                    queryset=DealerProduct.objects.select_related("supplier_product")
+                    queryset=DealerProduct.objects.select_related(
+                        "supplier_product",
+                        "category",
+                    )
                     .prefetch_related("images")
                     .order_by("-updated_at", "-created_at", "-id"),
                 ),
@@ -282,3 +300,89 @@ class DealerProfileViewSet(viewsets.ModelViewSet):
             ).data
 
         return paginate_queryset(self, request, documents, serialize)
+
+    @extend_schema(
+        tags=["Dealers"],
+        summary="Danh mục cửa hàng đại lý (buyer catalog)",
+        description=(
+            "Buyer/dealer xem danh mục bán lẻ của cửa hàng đã duyệt. "
+            "Chỉ trả danh mục `active` có ít nhất một sản phẩm đại lý `active`."
+        ),
+        responses={
+            200: paginated_response_schema(
+                DealerStoreCategorySerializer,
+                "PaginatedDealerStoreCategory",
+            )
+        },
+    )
+    @action(detail=True, methods=["get"], url_path="categories")
+    def categories(self, request, pk=None):
+        dealer = self.get_object()
+        categories_qs = (
+            Category.objects.filter(
+                created_by=dealer.account,
+                status=CategoryStatus.ACTIVE,
+                dealer_store_products__dealer_profile=dealer,
+                dealer_store_products__status=DealerProductStatus.ACTIVE,
+            )
+            .distinct()
+            .annotate(
+                product_count=Count(
+                    "dealer_store_products",
+                    filter=Q(
+                        dealer_store_products__dealer_profile=dealer,
+                        dealer_store_products__status=DealerProductStatus.ACTIVE,
+                    ),
+                )
+            )
+            .order_by("sort_order", "name")
+        )
+
+        def serialize(page):
+            return DealerStoreCategorySerializer(
+                page,
+                many=True,
+                context={"request": request},
+            ).data
+
+        return paginate_queryset(self, request, categories_qs, serialize)
+
+    @extend_schema(
+        tags=["Dealers"],
+        summary="Sản phẩm bán lẻ của cửa hàng đại lý",
+        description=(
+            "Buyer xem sản phẩm đang bán của đại lý. "
+            "Lọc theo `category` (query param, ID danh mục cửa hàng)."
+            + PAGINATION_QUERY_HELP
+        ),
+        responses={
+            200: paginated_response_schema(
+                DealerProductReadSerializer,
+                "PaginatedDealerStoreProduct",
+            )
+        },
+    )
+    @action(detail=True, methods=["get"], url_path="products")
+    def products(self, request, pk=None):
+        dealer = self.get_object()
+        products_qs = (
+            DealerProduct.objects.filter(
+                dealer_profile=dealer,
+                status=DealerProductStatus.ACTIVE,
+            )
+            .select_related("supplier_product", "category")
+            .prefetch_related("images")
+            .order_by("-updated_at", "-created_at", "-id")
+        )
+        category_id = request.query_params.get("category")
+        if category_id:
+            products_qs = products_qs.filter(category_id=category_id)
+
+        def serialize(page):
+            return DealerProductReadSerializer(
+                page,
+                many=True,
+                context={"request": request},
+            ).data
+
+        return paginate_queryset(self, request, products_qs, serialize)

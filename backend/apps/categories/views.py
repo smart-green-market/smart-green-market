@@ -1,6 +1,6 @@
 """API ViewSet quản lý danh mục sản phẩm nông sản."""
 
-from django.db.models import Count, Q
+from django.db.models import Count, F, Q
 from django.utils import timezone
 from drf_spectacular.utils import extend_schema, extend_schema_view
 from rest_framework import viewsets
@@ -32,18 +32,19 @@ from .serializers import (
 )
 
 
+def _dealer_product_count_filter(user):
+    return Q(dealer_store_products__dealer_profile__account=user) & ~Q(
+        dealer_store_products__status=DealerProductStatus.DELETED
+    )
+
+
 def _annotate_category_product_count(qs, user):
     """Đếm sản phẩm thuộc danh mục theo vai trò người dùng."""
     if user.role == AccountRole.DEALER:
         return qs.annotate(
             product_count=Count(
-                "supplier_products__dealer_products",
-                filter=Q(
-                    supplier_products__dealer_products__dealer_profile__account=user,
-                )
-                & ~Q(
-                    supplier_products__dealer_products__status=DealerProductStatus.DELETED
-                ),
+                "dealer_store_products",
+                filter=_dealer_product_count_filter(user),
                 distinct=True,
             )
         )
@@ -62,12 +63,17 @@ def _annotate_category_product_count(qs, user):
         )
 
     return qs.annotate(
-        product_count=Count(
+        _dealer_product_count=Count(
+            "dealer_store_products",
+            filter=~Q(dealer_store_products__status=DealerProductStatus.DELETED),
+            distinct=True,
+        ),
+        _supplier_product_count=Count(
             "supplier_products",
             filter=~Q(supplier_products__status=SupplierProductStatus.DELETED),
             distinct=True,
-        )
-    )
+        ),
+    ).annotate(product_count=F("_dealer_product_count") + F("_supplier_product_count"))
 
 
 @extend_schema_view(
@@ -94,7 +100,8 @@ def _annotate_category_product_count(qs, user):
         tags=["Categories"],
         summary="Tạo danh mục",
         description=(
-            "Supplier tạo danh mục → `status=pending`, chờ Admin duyệt. "
+            "Supplier/Dealer tạo danh mục → `status=pending`, chờ Admin duyệt. "
+            "Đại lý gắn danh mục khi tạo `DealerProduct`. "
             f"Tối đa theo cấu hình hệ thống (xem /api/system-config/)."
         ),
     ),
@@ -236,7 +243,9 @@ class CategoryViewSet(viewsets.ModelViewSet):
             created_by=request.user,
             notif_type=notif_type,
         )
-        return Response(CategoryListSerializer(category).data)
+        return Response(
+            CategoryListSerializer(category, context={"request": request}).data
+        )
 
     @extend_schema(
         tags=["Categories"],
@@ -260,7 +269,9 @@ class CategoryViewSet(viewsets.ModelViewSet):
             created_by=request.user,
             notif_type="warning",
         )
-        return Response(CategoryListSerializer(category).data)
+        return Response(
+            CategoryListSerializer(category, context={"request": request}).data
+        )
 
     @extend_schema(
         tags=["Categories"],
@@ -286,7 +297,9 @@ class CategoryViewSet(viewsets.ModelViewSet):
             created_by=request.user,
             notif_type="success",
         )
-        return Response(CategoryListSerializer(category).data)
+        return Response(
+            CategoryListSerializer(category, context={"request": request}).data
+        )
 
     @extend_schema(
         tags=["Categories"],

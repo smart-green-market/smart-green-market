@@ -134,3 +134,32 @@ SUPPLIER_PRODUCTS_BY_SUPPLIER_EXAMPLE = OpenApiExample(
     },
     response_only=True,
 )
+
+SUPPLIER_CATEGORIES_BY_SUPPLIER_EXAMPLE = OpenApiExample(
+    "Danh mục SP của NCC (dealer lọc trước khi xem sản phẩm)",
+    value={
+        "count": 2,
+        "next": None,
+        "previous": None,
+        "page": 1,
+        "page_size": 20,
+        "has_more": False,
+        "results": [
+            {
+                "id": 2,
+                "name": "Rau củ",
+                "description": "Rau củ tươi",
+                "sort_order": 1,
+                "product_count": 5,
+            },
+            {
+                "id": 3,
+                "name": "Trái cây",
+                "description": "",
+                "sort_order": 2,
+                "product_count": 3,
+            },
+        ],
+    },
+    response_only=True,
+)
