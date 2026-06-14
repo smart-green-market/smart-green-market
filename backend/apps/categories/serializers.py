@@ -2,7 +2,15 @@
 
 from rest_framework import serializers
 
+from apps.accounts.models import AccountRole
 from apps.categories.models import Category, CategoryStatus
+from apps.dealer_products.models import DealerProduct, DealerProductStatus
+from apps.dealer_products.serializers import DealerProductReadSerializer
+from apps.supplier_products.models import SupplierProduct, SupplierProductStatus
+from apps.supplier_products.serializer import (
+    SupplierProductListSerializer,
+    SupplierProductReadSerializer,
+)
 from common.approval_nested import ApprovalAccountNestedSerializer
 from common.openapi_enums import schema_choice_field
 from common.business_rules import MAX_CATEGORIES_PER_SUPPLIER
@@ -53,11 +61,72 @@ class CategoryListSerializer(CategoryReadSerializer):
     """Danh mục kèm người tạo — dùng cho danh sách chờ duyệt."""
 
     created_by = ApprovalAccountNestedSerializer(read_only=True)
+    product_count = serializers.IntegerField(
+        read_only=True,
+        help_text="Số sản phẩm thuộc danh mục của tài khoản hiện tại (đại lý/NCC)",
+    )
 
     class Meta(CategoryReadSerializer.Meta):
         """Mở rộng trường thêm thông tin người tạo."""
 
-        fields = CategoryReadSerializer.Meta.fields + ["created_by"]
+        fields = CategoryReadSerializer.Meta.fields + ["created_by", "product_count"]
+
+
+class CategoryDetailSerializer(CategoryListSerializer):
+    """Chi tiết danh mục kèm danh sách sản phẩm thuộc danh mục."""
+
+    products = serializers.SerializerMethodField(
+        help_text="Sản phẩm thuộc danh mục của tài khoản hiện tại",
+    )
+
+    class Meta(CategoryListSerializer.Meta):
+        fields = CategoryListSerializer.Meta.fields + ["products"]
+
+    def get_products(self, obj):
+        request = self.context.get("request")
+        if not request or not request.user.is_authenticated:
+            return []
+
+        user = request.user
+        if user.role == AccountRole.DEALER:
+            products = (
+                DealerProduct.objects.filter(
+                    supplier_product__category=obj,
+                    dealer_profile__account=user,
+                )
+                .exclude(status=DealerProductStatus.DELETED)
+                .select_related("supplier_product")
+                .prefetch_related("images")
+                .order_by("-updated_at", "-id")
+            )
+            return DealerProductReadSerializer(
+                products, many=True, context=self.context
+            ).data
+
+        if user.role == AccountRole.SUPPLIER:
+            profile = getattr(user, "supplier_profile", None)
+            if not profile:
+                return []
+            products = (
+                SupplierProduct.objects.filter(category=obj, supplier=profile)
+                .exclude(status=SupplierProductStatus.DELETED)
+                .prefetch_related("images")
+                .order_by("-updated_at", "-id")
+            )
+            return SupplierProductReadSerializer(
+                products, many=True, context=self.context
+            ).data
+
+        products = (
+            SupplierProduct.objects.filter(category=obj)
+            .exclude(status=SupplierProductStatus.DELETED)
+            .select_related("supplier", "category")
+            .prefetch_related("images")
+            .order_by("-updated_at", "-id")
+        )
+        return SupplierProductListSerializer(
+            products, many=True, context=self.context
+        ).data
 
 
 class CategorySerializer(serializers.ModelSerializer):

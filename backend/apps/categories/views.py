@@ -1,5 +1,6 @@
 """API ViewSet quản lý danh mục sản phẩm nông sản."""
 
+from django.db.models import Count, Q
 from django.utils import timezone
 from drf_spectacular.utils import extend_schema, extend_schema_view
 from rest_framework import viewsets
@@ -7,6 +8,9 @@ from rest_framework.decorators import action
 from rest_framework.exceptions import PermissionDenied, ValidationError
 from rest_framework.response import Response
 
+from apps.accounts.models import AccountRole
+from apps.dealer_products.models import DealerProductStatus
+from apps.supplier_products.models import SupplierProductStatus
 from common.notification_messages import admin_new_category, category_reviewed
 from common.notifications import notify_account, notify_admins
 from common.openapi import PAGINATION_QUERY_HELP, paginated_response_schema
@@ -20,6 +24,7 @@ from common.permission import IsActive, IsAdmin
 from common.querysets import filter_admin_or_created_by, ORDER_CATEGORY
 from .models import Category, CategoryStatus
 from .serializers import (
+    CategoryDetailSerializer,
     CategoryListSerializer,
     CategoryReorderSerializer,
     CategorySerializer,
@@ -27,12 +32,51 @@ from .serializers import (
 )
 
 
+def _annotate_category_product_count(qs, user):
+    """Đếm sản phẩm thuộc danh mục theo vai trò người dùng."""
+    if user.role == AccountRole.DEALER:
+        return qs.annotate(
+            product_count=Count(
+                "supplier_products__dealer_products",
+                filter=Q(
+                    supplier_products__dealer_products__dealer_profile__account=user,
+                )
+                & ~Q(
+                    supplier_products__dealer_products__status=DealerProductStatus.DELETED
+                ),
+                distinct=True,
+            )
+        )
+
+    if user.role == AccountRole.SUPPLIER:
+        profile = getattr(user, "supplier_profile", None)
+        if not profile:
+            return qs.annotate(product_count=Count("id", filter=Q(pk__in=[])))
+        return qs.annotate(
+            product_count=Count(
+                "supplier_products",
+                filter=Q(supplier_products__supplier=profile)
+                & ~Q(supplier_products__status=SupplierProductStatus.DELETED),
+                distinct=True,
+            )
+        )
+
+    return qs.annotate(
+        product_count=Count(
+            "supplier_products",
+            filter=~Q(supplier_products__status=SupplierProductStatus.DELETED),
+            distinct=True,
+        )
+    )
+
+
 @extend_schema_view(
     list=extend_schema(
         tags=["Categories"],
         summary="Danh sách danh mục",
         description=(
-            "Admin xem tất cả. Supplier/Dealer chỉ thấy danh mục do mình tạo."
+            "Admin xem tất cả. Supplier/Dealer chỉ thấy danh mục do mình tạo. "
+            "Mỗi danh mục kèm `product_count` — số sản phẩm thuộc danh mục của tài khoản hiện tại."
             + PAGINATION_QUERY_HELP
         ),
         responses={200: paginated_response_schema(CategoryListSerializer, "PaginatedCategory")},
@@ -40,7 +84,11 @@ from .serializers import (
     retrieve=extend_schema(
         tags=["Categories"],
         summary="Chi tiết danh mục",
-        responses={200: CategoryListSerializer},
+        description=(
+            "Trả thêm `product_count` và `products[]` — sản phẩm thuộc danh mục "
+            "của đại lý/NCC đang đăng nhập."
+        ),
+        responses={200: CategoryDetailSerializer},
     ),
     create=extend_schema(
         tags=["Categories"],
@@ -71,7 +119,9 @@ class CategoryViewSet(viewsets.ModelViewSet):
 
     def get_serializer_class(self):
         """Trả về serializer phù hợp theo action hiện tại."""
-        if self.action in ("list", "retrieve", "verify", "lock", "unlock"):
+        if self.action == "retrieve":
+            return CategoryDetailSerializer
+        if self.action in ("list", "verify", "lock", "unlock"):
             return CategoryListSerializer
         return CategorySerializer
 
@@ -83,12 +133,15 @@ class CategoryViewSet(viewsets.ModelViewSet):
 
     def get_queryset(self):
         """Lọc danh mục theo quyền Admin hoặc người tạo."""
-        return filter_admin_or_created_by(
+        qs = filter_admin_or_created_by(
             self.queryset,
             self.request.user,
             ordering=ORDER_CATEGORY,
             pending_field="status",
         )
+        if self.action in ("list", "retrieve", "verify", "lock", "unlock"):
+            qs = _annotate_category_product_count(qs, self.request.user)
+        return qs
 
     def _ensure_can_edit(self, category):
         """Kiểm tra quyền sửa danh mục — chỉ Admin hoặc người tạo."""
