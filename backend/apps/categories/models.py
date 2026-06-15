@@ -13,11 +13,23 @@ class CategoryStatus(models.TextChoices):
     REJECTED = "rejected", "Từ chối"
 
 
+class CategoryScope(models.TextChoices):
+    """Phạm vi danh mục: hệ thống (mọi người dùng) hoặc riêng (NCC/đại lý)."""
+
+    SYSTEM = "system", "Hệ thống"
+    CUSTOM = "custom", "Riêng"
+
+
 class Category(models.Model):
-    """Danh mục sản phẩm do Supplier/Dealer tạo, Admin duyệt."""
+    """Danh mục sản phẩm — hệ thống hoặc riêng; gắn SupplierProduct / DealerProduct."""
 
     name = models.CharField(max_length=255)
     description = models.TextField(blank=True, null=True)
+    scope = models.CharField(
+        max_length=20,
+        choices=CategoryScope.choices,
+        default=CategoryScope.CUSTOM,
+    )
     status = models.CharField(
         max_length=20,
         choices=CategoryStatus.choices,

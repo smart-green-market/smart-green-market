@@ -175,12 +175,12 @@ export default function DocumentPage() {
 
             await fetchDocuments();
         } catch (error) {
-            console.error(
-                handleApiError(
-                    error,
-                    "Không thể duyệt giấy tờ"
-                )
+            const msg = handleApiError(
+                error,
+                "Không thể duyệt giấy tờ",
             );
+            console.error(msg);
+            throw new Error(msg);
         } finally {
             setActionLoading(false);
         }

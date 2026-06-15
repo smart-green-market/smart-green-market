@@ -1,5 +1,6 @@
 """API ViewSet quản lý danh mục sản phẩm nông sản."""
 
+from django.db.models import Count, F, Q
 from django.utils import timezone
 from drf_spectacular.utils import extend_schema, extend_schema_view
 from rest_framework import viewsets
@@ -7,6 +8,9 @@ from rest_framework.decorators import action
 from rest_framework.exceptions import PermissionDenied, ValidationError
 from rest_framework.response import Response
 
+from apps.accounts.models import AccountRole
+from apps.dealer_products.models import DealerProductStatus
+from apps.supplier_products.models import SupplierProductStatus
 from common.notification_messages import admin_new_category, category_reviewed
 from common.notifications import notify_account, notify_admins
 from common.openapi import PAGINATION_QUERY_HELP, paginated_response_schema
@@ -17,9 +21,11 @@ from common.verify_openapi import (
     VERIFY_REJECT_HELP,
 )
 from common.permission import IsActive, IsAdmin
-from common.querysets import filter_admin_or_created_by, ORDER_CATEGORY
-from .models import Category, CategoryStatus
+from common.querysets import filter_categories_for_user, ORDER_CATEGORY
+from .models import Category, CategoryScope, CategoryStatus
+from .utils import user_can_manage_category
 from .serializers import (
+    CategoryDetailSerializer,
     CategoryListSerializer,
     CategoryReorderSerializer,
     CategorySerializer,
@@ -27,12 +33,58 @@ from .serializers import (
 )
 
 
+def _dealer_product_count_filter(user):
+    return Q(dealer_store_products__dealer_profile__account=user) & ~Q(
+        dealer_store_products__status=DealerProductStatus.DELETED
+    )
+
+
+def _annotate_category_product_count(qs, user):
+    """Đếm sản phẩm thuộc danh mục theo vai trò người dùng."""
+    if user.role == AccountRole.DEALER:
+        return qs.annotate(
+            product_count=Count(
+                "dealer_store_products",
+                filter=_dealer_product_count_filter(user),
+                distinct=True,
+            )
+        )
+
+    if user.role == AccountRole.SUPPLIER:
+        profile = getattr(user, "supplier_profile", None)
+        if not profile:
+            return qs.annotate(product_count=Count("id", filter=Q(pk__in=[])))
+        return qs.annotate(
+            product_count=Count(
+                "supplier_products",
+                filter=Q(supplier_products__supplier=profile)
+                & ~Q(supplier_products__status=SupplierProductStatus.DELETED),
+                distinct=True,
+            )
+        )
+
+    return qs.annotate(
+        _dealer_product_count=Count(
+            "dealer_store_products",
+            filter=~Q(dealer_store_products__status=DealerProductStatus.DELETED),
+            distinct=True,
+        ),
+        _supplier_product_count=Count(
+            "supplier_products",
+            filter=~Q(supplier_products__status=SupplierProductStatus.DELETED),
+            distinct=True,
+        ),
+    ).annotate(product_count=F("_dealer_product_count") + F("_supplier_product_count"))
+
+
 @extend_schema_view(
     list=extend_schema(
         tags=["Categories"],
         summary="Danh sách danh mục",
         description=(
-            "Admin xem tất cả. Supplier/Dealer chỉ thấy danh mục do mình tạo."
+            "Admin xem tất cả. Supplier/Dealer thấy **danh mục hệ thống** (`scope=system`, "
+            "`active`) và **danh mục riêng** do mình tạo. Buyer chỉ thấy danh mục hệ thống. "
+            "Mỗi danh mục kèm `product_count`."
             + PAGINATION_QUERY_HELP
         ),
         responses={200: paginated_response_schema(CategoryListSerializer, "PaginatedCategory")},
@@ -40,14 +92,19 @@ from .serializers import (
     retrieve=extend_schema(
         tags=["Categories"],
         summary="Chi tiết danh mục",
-        responses={200: CategoryListSerializer},
+        description=(
+            "Trả thêm `product_count` và `products[]` — sản phẩm thuộc danh mục "
+            "của đại lý/NCC đang đăng nhập."
+        ),
+        responses={200: CategoryDetailSerializer},
     ),
     create=extend_schema(
         tags=["Categories"],
         summary="Tạo danh mục",
         description=(
-            "Supplier tạo danh mục → `status=pending`, chờ Admin duyệt. "
-            f"Tối đa theo cấu hình hệ thống (xem /api/system-config/)."
+            "Admin tạo `scope=system` (active ngay) hoặc `custom`. "
+            "Supplier/Dealer tạo danh mục riêng (`custom`) → `status=pending`, chờ Admin duyệt. "
+            f"Tối đa danh mục riêng theo /api/system-config/."
         ),
     ),
     update=extend_schema(
@@ -71,7 +128,9 @@ class CategoryViewSet(viewsets.ModelViewSet):
 
     def get_serializer_class(self):
         """Trả về serializer phù hợp theo action hiện tại."""
-        if self.action in ("list", "retrieve", "verify", "lock", "unlock"):
+        if self.action == "retrieve":
+            return CategoryDetailSerializer
+        if self.action in ("list", "verify", "lock", "unlock"):
             return CategoryListSerializer
         return CategorySerializer
 
@@ -82,37 +141,43 @@ class CategoryViewSet(viewsets.ModelViewSet):
         return [IsActive()]
 
     def get_queryset(self):
-        """Lọc danh mục theo quyền Admin hoặc người tạo."""
-        return filter_admin_or_created_by(
+        """Lọc danh mục: hệ thống + riêng theo quyền."""
+        qs = filter_categories_for_user(
             self.queryset,
             self.request.user,
             ordering=ORDER_CATEGORY,
             pending_field="status",
         )
+        if self.action in ("list", "retrieve", "verify", "lock", "unlock"):
+            qs = _annotate_category_product_count(qs, self.request.user)
+        return qs
 
     def _ensure_can_edit(self, category):
-        """Kiểm tra quyền sửa danh mục — chỉ Admin hoặc người tạo."""
-        user = self.request.user
-        if user.role == "admin":
-            return
-        if category.created_by_id != user.id:
+        """Kiểm tra quyền sửa danh mục — admin hoặc người tạo danh mục riêng."""
+        if not user_can_manage_category(self.request.user, category):
+            if category.scope == CategoryScope.SYSTEM:
+                raise PermissionDenied("Chỉ admin được sửa danh mục hệ thống.")
             raise PermissionDenied("Bạn chỉ được sửa danh mục do mình tạo.")
 
     def perform_create(self, serializer):
-        """Lưu danh mục mới và gửi thông báo cho Admin."""
+        """Lưu danh mục mới; danh mục riêng chờ duyệt thì thông báo admin."""
         category = serializer.save()
-        title, content = admin_new_category(category, self.request.user.username)
-        notify_admins(
-            title=title,
-            content=content,
-            reference_type="category",
-            reference_id=category.id,
-            created_by=self.request.user,
-        )
+        if (
+            category.scope == CategoryScope.CUSTOM
+            and category.status == CategoryStatus.PENDING
+        ):
+            title, content = admin_new_category(category, self.request.user.username)
+            notify_admins(
+                title=title,
+                content=content,
+                reference_type="category",
+                reference_id=category.id,
+                created_by=self.request.user,
+            )
 
     def perform_update(self, serializer):
         """Cập nhật danh mục; sửa danh mục đã duyệt sẽ chuyển về chờ duyệt."""
-        category = self.instance
+        category = serializer.instance
         self._ensure_can_edit(category)
         was_active = category.status == CategoryStatus.ACTIVE
         category = serializer.save()
@@ -131,16 +196,19 @@ class CategoryViewSet(viewsets.ModelViewSet):
                     "updated_at",
                 ]
             )
-            title, content = admin_new_category(category, self.request.user.username)
-            notify_admins(
-                title=f"[Danh mục] Yêu cầu chỉnh sửa chờ duyệt",
-                content=(
-                    f"{content} Đây là yêu cầu chỉnh sửa danh mục đã được duyệt trước đó."
-                ),
-                reference_type="category",
-                reference_id=category.id,
-                created_by=self.request.user,
-            )
+            if category.scope == CategoryScope.CUSTOM:
+                title, content = admin_new_category(
+                    category, self.request.user.username
+                )
+                notify_admins(
+                    title=f"[Danh mục] Yêu cầu chỉnh sửa chờ duyệt",
+                    content=(
+                        f"{content} Đây là yêu cầu chỉnh sửa danh mục đã được duyệt trước đó."
+                    ),
+                    reference_type="category",
+                    reference_id=category.id,
+                    created_by=self.request.user,
+                )
 
     @extend_schema(
         tags=["Categories"],
@@ -174,16 +242,19 @@ class CategoryViewSet(viewsets.ModelViewSet):
         category.save()
 
         title, content, notif_type = category_reviewed(category)
-        notify_account(
-            account=category.created_by,
-            title=title,
-            content=content,
-            reference_type="category",
-            reference_id=category.id,
-            created_by=request.user,
-            notif_type=notif_type,
+        if category.created_by_id:
+            notify_account(
+                account=category.created_by,
+                title=title,
+                content=content,
+                reference_type="category",
+                reference_id=category.id,
+                created_by=request.user,
+                notif_type=notif_type,
+            )
+        return Response(
+            CategoryListSerializer(category, context={"request": request}).data
         )
-        return Response(CategoryListSerializer(category).data)
 
     @extend_schema(
         tags=["Categories"],
@@ -198,16 +269,19 @@ class CategoryViewSet(viewsets.ModelViewSet):
         category.verified_by = request.user
         category.verified_at = timezone.now()
         category.save()
-        notify_account(
-            account=category.created_by,
-            title=f"[Danh mục] \"{category.name}\" — Đã khóa",
-            content=f"Danh mục {category.name} đã bị khóa do vi phạm quy định.",
-            reference_type="category",
-            reference_id=category.id,
-            created_by=request.user,
-            notif_type="warning",
+        if category.created_by_id:
+            notify_account(
+                account=category.created_by,
+                title=f"[Danh mục] \"{category.name}\" — Đã khóa",
+                content=f"Danh mục {category.name} đã bị khóa do vi phạm quy định.",
+                reference_type="category",
+                reference_id=category.id,
+                created_by=request.user,
+                notif_type="warning",
+            )
+        return Response(
+            CategoryListSerializer(category, context={"request": request}).data
         )
-        return Response(CategoryListSerializer(category).data)
 
     @extend_schema(
         tags=["Categories"],
@@ -224,16 +298,19 @@ class CategoryViewSet(viewsets.ModelViewSet):
         category.verified_by = request.user
         category.verified_at = timezone.now()
         category.save()
-        notify_account(
-            account=category.created_by,
-            title=f"[Danh mục] \"{category.name}\" — Đã mở khóa",
-            content=f"Danh mục {category.name} đã được mở khóa và kích hoạt lại.",
-            reference_type="category",
-            reference_id=category.id,
-            created_by=request.user,
-            notif_type="success",
+        if category.created_by_id:
+            notify_account(
+                account=category.created_by,
+                title=f"[Danh mục] \"{category.name}\" — Đã mở khóa",
+                content=f"Danh mục {category.name} đã được mở khóa và kích hoạt lại.",
+                reference_type="category",
+                reference_id=category.id,
+                created_by=request.user,
+                notif_type="success",
+            )
+        return Response(
+            CategoryListSerializer(category, context={"request": request}).data
         )
-        return Response(CategoryListSerializer(category).data)
 
     @extend_schema(
         tags=["Categories"],

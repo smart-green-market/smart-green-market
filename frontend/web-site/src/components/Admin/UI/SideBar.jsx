@@ -1,4 +1,4 @@
-import { NavLink, useNavigate } from "react-router-dom";
+import { NavLink } from "react-router-dom";
 import { useAuth } from "../../../contexts/authProvider"
 import {
     LayoutDashboard,
@@ -11,7 +11,6 @@ import {
     LogOut,
     FileCheck,
     FileText,
-    Bell
 } from "lucide-react";
 
 const NAV_ITEMS = [

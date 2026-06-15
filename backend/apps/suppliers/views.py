@@ -1,16 +1,26 @@
 """API quản lý nhà cung cấp và luồng duyệt hồ sơ."""
 
-from django.db.models import Prefetch
+from django.db.models import Count, Prefetch, Q, Sum
 from django.utils import timezone
-from drf_spectacular.utils import OpenApiExample, extend_schema, extend_schema_view
+from drf_spectacular.utils import OpenApiExample, OpenApiResponse, extend_schema, extend_schema_view
 from rest_framework import viewsets
 from rest_framework.decorators import action
 from rest_framework.exceptions import ValidationError
 from rest_framework.response import Response
 
 from apps.accounts.document_serializers import AccountDocumentListSerializer
-from apps.accounts.models import AccountDocument, AccountDocumentStatus, AccountDocumentType, AccountStatus
-from apps.supplier_products.models import SupplierProduct
+from apps.accounts.models import (
+    AccountDocument,
+    AccountDocumentStatus,
+    AccountDocumentType,
+    AccountRole,
+    AccountStatus,
+)
+from apps.certifications.models import Certification, CertificationStatus
+from apps.categories.models import Category, CategoryStatus
+from apps.categories.serializers import SupplierCatalogCategorySerializer
+from apps.supplier_products.models import SupplierProduct, SupplierProductStatus
+from apps.supplier_products.serializer import SupplierProductListSerializer
 from common.notification_messages import supplier_verification_updated
 from common.notifications import notify_account
 from common.openapi import (
@@ -25,11 +35,44 @@ from common.verify_openapi import (
     VERIFY_REJECT_HELP,
 )
 from common.pagination import paginate_queryset
-from common.permission import IsAdmin, IsAdminOrSupplier, IsSupplier
-from common.querysets import ORDER_DOCUMENT, ORDER_NEWEST, _apply_order, filter_admin_or_supplier_account
+from common.permission import (
+    IsAdmin,
+    IsAdminOrDealer,
+    IsAdminOrSupplier,
+    IsAdminOrSupplierProfile,
+    IsSupplier,
+)
+from common.querysets import (
+    ORDER_DOCUMENT,
+    ORDER_NEWEST,
+    ORDER_UPDATED,
+    _apply_order,
+    filter_admin_or_supplier_account,
+    filter_supplier_products_for_dealer,
+    filter_suppliers_for_dealer,
+)
+
+DEALER_CATALOG_CERTIFICATIONS_PREFETCH = Prefetch(
+    "certifications",
+    queryset=Certification.objects.filter(
+        status=CertificationStatus.APPROVED,
+        deleted_at__isnull=True,
+    )
+    .prefetch_related("images")
+    .order_by("-issue_date", "-id"),
+)
 
 from .models import Supplier, SupplierVerificationStatus
+from .openapi import (
+    SUPPLIER_CATALOG_DETAIL_EXAMPLE,
+    SUPPLIER_CATALOG_LIST_EXAMPLE,
+    SUPPLIER_CATEGORIES_BY_SUPPLIER_EXAMPLE,
+    SUPPLIER_PRODUCTS_BY_SUPPLIER_EXAMPLE,
+    SUPPLIER_PRODUCTS_CATALOG_HELP,
+)
 from .serializers import (
+    SupplierCatalogDetailSerializer,
+    SupplierCatalogSerializer,
     SupplierDetailSerializer,
     SupplierListSerializer,
     SupplierSerializer,
@@ -69,28 +112,53 @@ def _validate_supplier_ready_for_approval(supplier):
     if not_approved:
         raise ValidationError({
             "detail": f"Còn giấy tờ chưa được duyệt: {', '.join(not_approved)}",
-        })
+        }        )
+
+
+def _supplier_catalog_product_q(supplier, *, dealer_catalog=False):
+    """Bộ lọc SP NCC theo ngữ cảnh catalog đại lý hoặc admin."""
+    base = Q(supplier_products__supplier=supplier)
+    if dealer_catalog:
+        base &= Q(
+            supplier_products__status=SupplierProductStatus.ACTIVE,
+            supplier_products__wholesale_price__isnull=False,
+        )
+    return base
 
 
 @extend_schema_view(
     list=extend_schema(
         tags=["Suppliers"],
         summary="Danh sách nhà cung cấp",
-        description="Admin xem tất cả. Supplier/Dealer chỉ thấy hồ sơ của mình." + PAGINATION_QUERY_HELP,
-        responses={200: paginated_response_schema(SupplierListSerializer, "PaginatedSupplier")},
+        description=(
+            "Admin: tất cả NCC. Supplier: hồ sơ của mình.\n"
+            "Dealer: catalog NCC đã duyệt. Chi tiết `GET /api/suppliers/{id}/` kèm `products[]`."
+            + PAGINATION_QUERY_HELP
+        ),
+        responses={
+            200: paginated_response_schema(SupplierListSerializer, "PaginatedSupplier"),
+        },
+        examples=[SUPPLIER_CATALOG_LIST_EXAMPLE],
     ),
     retrieve=extend_schema(
         tags=["Suppliers"],
-        summary="Chi tiết nhà cung cấp (Admin review)",
+        summary="Chi tiết nhà cung cấp",
         description=(
-            "**Luồng duyệt Admin:**\n"
-            "1. Mở chi tiết supplier (`GET /api/suppliers/{supplier_id}/`)\n"
-            "2. Xem `documents[]` — lấy `documents[].id` từng giấy tờ\n"
-            "3. Duyệt từng giấy tờ: `POST /api/account-documents/{document_id}/verify/`\n"
-            "4. Khi đủ 3 giấy tờ approved → duyệt supplier: `POST /api/suppliers/{supplier_id}/verify/`\n\n"
-            "Trả về: `account`, `documents`, `certifications`, `products`."
+            "**Dealer (xem NCC trước khi đặt hàng):** trả đủ thông tin công ty, "
+            "`contact` (họ tên, email, SĐT), `certifications[]` đã duyệt, "
+            "chỉ số quy mô (`active_product_count`, `total_daily_production_capacity`). "
+            "Không trả TK ngân hàng / giấy tờ nội bộ.\n"
+            "Chọn SP: `GET /api/suppliers/{id}/products/`.\n\n"
+            "**Admin (duyệt hồ sơ):**\n"
+            "1. `GET /api/suppliers/{supplier_id}/`\n"
+            "2. Duyệt `documents[]` → `POST /api/account-documents/{document_id}/verify/`\n"
+            "3. `POST /api/suppliers/{supplier_id}/verify/`\n\n"
+            "Admin/Supplier: trả `account`, `documents`, `certifications`, `products`."
         ),
-        responses={200: SupplierDetailSerializer},
+        responses={
+            200: SupplierDetailSerializer,
+        },
+        examples=[SUPPLIER_CATALOG_DETAIL_EXAMPLE],
     ),
     create=extend_schema(
         tags=["Suppliers"],
@@ -131,6 +199,14 @@ class SupplierViewSet(viewsets.ModelViewSet):
     serializer_class = SupplierSerializer
 
     def get_serializer_class(self):
+        if (
+            self.request.user.is_authenticated
+            and self.request.user.role == AccountRole.DEALER
+        ):
+            if self.action == "retrieve":
+                return SupplierCatalogDetailSerializer
+            if self.action == "list":
+                return SupplierCatalogSerializer
         if self.action == "retrieve":
             return SupplierDetailSerializer
         if self.action == "list":
@@ -142,11 +218,56 @@ class SupplierViewSet(viewsets.ModelViewSet):
             return [IsAdmin()]
         if self.action in ["create", "update", "partial_update", "destroy"]:
             return [IsSupplier()]
+        if self.action == "documents":
+            return [IsAdminOrSupplierProfile()]
+        if self.action == "products":
+            return [IsAdminOrDealer()]
+        if self.action == "categories":
+            return [IsAdminOrDealer()]
+        if self.action in ("list", "retrieve"):
+            return [IsAdminOrSupplier()]
         return [IsAdminOrSupplier()]
 
     def get_queryset(self):
         user = self.request.user
         qs = self.queryset
+        if user.role == AccountRole.DEALER:
+            if self.action in ("list", "retrieve", "products", "categories"):
+                qs = filter_suppliers_for_dealer(qs)
+                if self.action == "retrieve":
+                    qs = qs.select_related("account").prefetch_related(
+                        DEALER_CATALOG_CERTIFICATIONS_PREFETCH,
+                    )
+                if self.action in ("list", "retrieve"):
+                    qs = qs.annotate(
+                        active_product_count=Count(
+                            "products",
+                            filter=Q(products__status=SupplierProductStatus.ACTIVE),
+                        ),
+                    )
+                if self.action == "retrieve":
+                    qs = qs.annotate(
+                        approved_certification_count=Count(
+                            "certifications",
+                            filter=Q(
+                                certifications__status=CertificationStatus.APPROVED,
+                                certifications__deleted_at__isnull=True,
+                            ),
+                        ),
+                        total_daily_production_capacity=Sum(
+                            "products__daily_production_capacity",
+                            filter=Q(
+                                products__status=SupplierProductStatus.ACTIVE,
+                                products__wholesale_price__isnull=False,
+                            ),
+                        ),
+                    )
+                return qs
+            return qs.none()
+        if self.action == "products" and user.role == AccountRole.ADMIN:
+            return qs
+        if self.action == "categories" and user.role == AccountRole.ADMIN:
+            return qs
         if self.action in ["retrieve", "verify"]:
             qs = qs.select_related("account").prefetch_related(
                 Prefetch(
@@ -279,6 +400,124 @@ class SupplierViewSet(viewsets.ModelViewSet):
             notif_type="warning" if new_status != "active" else "success",
         )
         return Response(SupplierDetailSerializer(supplier, context={"request": request}).data)
+
+    @extend_schema(
+        tags=["Suppliers"],
+        summary="Danh sách sản phẩm theo nhà cung cấp",
+        description=(
+            "**Dealer — catalog đặt hàng (phiếu nhập):**\n"
+            "1. `GET /api/suppliers/` → lấy `id` NCC (`verification_status=approved`)\n"
+            "2. **`GET /api/suppliers/{supplier_id}/products/`** (endpoint này)\n"
+            "3. `POST /api/purchase-orders/` — `supplier_id` + `items[].supplier_product_id`\n\n"
+            "Path `{id}` = **supplier_id** (cùng id từ bước 1).\n"
+            "Query `category` (tùy chọn): lọc theo ID danh mục NCC.\n"
+            "Admin: xem mọi SP của NCC (mọi trạng thái)."
+            + SUPPLIER_PRODUCTS_CATALOG_HELP
+            + PAGINATION_QUERY_HELP
+        ),
+        responses={
+            200: paginated_response_schema(
+                SupplierProductListSerializer,
+                "PaginatedSupplierProductsBySupplier",
+            ),
+            401: OpenApiResponse(description="Chưa đăng nhập hoặc token hết hạn"),
+            403: OpenApiResponse(description="Tài khoản không phải dealer/admin"),
+            404: OpenApiResponse(
+                description="NCC không tồn tại hoặc dealer không được xem (chưa approved)"
+            ),
+        },
+        examples=[SUPPLIER_PRODUCTS_BY_SUPPLIER_EXAMPLE],
+    )
+    @action(detail=True, methods=["get"])
+    def products(self, request, pk=None):
+        supplier = self.get_object()
+        products_qs = SupplierProduct.objects.select_related(
+            "supplier",
+            "supplier__account",
+            "category",
+            "verified_by",
+        ).prefetch_related("images")
+
+        if request.user.role == AccountRole.DEALER:
+            products_qs = filter_supplier_products_for_dealer(
+                products_qs,
+                supplier_id=supplier.id,
+                ordering=ORDER_UPDATED,
+            )
+        else:
+            products_qs = products_qs.filter(supplier_id=supplier.id).order_by(
+                *ORDER_UPDATED
+            )
+
+        category_id = request.query_params.get("category")
+        if category_id:
+            products_qs = products_qs.filter(category_id=category_id)
+
+        def serialize(page):
+            return SupplierProductListSerializer(
+                page,
+                many=True,
+                context={"request": request},
+            ).data
+
+        return paginate_queryset(self, request, products_qs, serialize)
+
+    @extend_schema(
+        tags=["Suppliers"],
+        summary="Danh sách danh mục theo nhà cung cấp",
+        description=(
+            "**Dealer — lọc catalog trước khi xem sản phẩm:**\n"
+            "1. `GET /api/suppliers/` → lấy `id` NCC\n"
+            "2. **`GET /api/suppliers/{supplier_id}/categories/`** (endpoint này)\n"
+            "3. `GET /api/suppliers/{supplier_id}/products/?category={id}` (lọc SP theo danh mục)\n"
+            "4. `POST /api/purchase-orders/`\n\n"
+            "Chỉ trả danh mục `active` có ít nhất một SP đủ điều kiện đặt hàng "
+            "(dealer: SP `active` + có `wholesale_price`)."
+            + PAGINATION_QUERY_HELP
+        ),
+        responses={
+            200: paginated_response_schema(
+                SupplierCatalogCategorySerializer,
+                "PaginatedSupplierCategoriesBySupplier",
+            ),
+            401: OpenApiResponse(description="Chưa đăng nhập hoặc token hết hạn"),
+            403: OpenApiResponse(description="Tài khoản không phải dealer/admin"),
+            404: OpenApiResponse(
+                description="NCC không tồn tại hoặc dealer không được xem (chưa approved)"
+            ),
+        },
+        examples=[SUPPLIER_CATEGORIES_BY_SUPPLIER_EXAMPLE],
+    )
+    @action(detail=True, methods=["get"], url_path="categories")
+    def categories(self, request, pk=None):
+        supplier = self.get_object()
+        dealer_catalog = request.user.role == AccountRole.DEALER
+        product_q = _supplier_catalog_product_q(
+            supplier,
+            dealer_catalog=dealer_catalog,
+        )
+        count_filter = Q(supplier_products__supplier=supplier)
+        if dealer_catalog:
+            count_filter &= Q(
+                supplier_products__status=SupplierProductStatus.ACTIVE,
+                supplier_products__wholesale_price__isnull=False,
+            )
+        categories_qs = (
+            Category.objects.filter(status=CategoryStatus.ACTIVE)
+            .filter(product_q)
+            .distinct()
+            .annotate(product_count=Count("supplier_products", filter=count_filter))
+            .order_by("sort_order", "name")
+        )
+
+        def serialize(page):
+            return SupplierCatalogCategorySerializer(
+                page,
+                many=True,
+                context={"request": request},
+            ).data
+
+        return paginate_queryset(self, request, categories_qs, serialize)
 
     @extend_schema(
         tags=["Suppliers"],

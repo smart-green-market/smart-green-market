@@ -51,6 +51,7 @@ export default function ProfileSidebar() {
             <NavLink
               key={item.key}
               to={item.to}
+              end={item.key === "profile"}
               className={({ isActive }) =>
                 `flex items-center gap-3 rounded-lg px-4 py-3 ${
                   isActive

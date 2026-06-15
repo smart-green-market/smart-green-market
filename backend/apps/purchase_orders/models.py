@@ -1,4 +1,16 @@
-"""Phiếu nhập hàng đại lý từ nhà cung cấp (thu hoạch theo đơn, không kho supplier)."""
+"""Phiếu nhập hàng đại lý từ nhà cung cấp (thu hoạch theo đơn, không kho supplier).
+
+=== CÁC BẢNG LIÊN QUAN ===
+- PurchaseOrder        : phiếu nhập (header đơn)
+- PurchaseOrderItem    : dòng sản phẩm (snapshot giá sỉ)
+- PurchaseOrderPayment : lần thanh toán cọc / cuối + biên lai
+- PurchaseOrderStatusHistory : audit log chuyển trạng thái
+
+=== LUỒNG TRẠNG THÁI (xem services.py) ===
+pending_supplier_confirmation → confirmed → deposit_pending_verification
+→ processing → shipping → delivered → final_payment_pending_verification → completed
+Nhánh từ chối: rejected | hủy: cancelled
+"""
 
 from django.conf import settings
 from django.db import models

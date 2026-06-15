@@ -1,8 +1,9 @@
 """Helper lọc và sắp xếp queryset theo vai trò người dùng."""
 
-from django.db.models import Case, IntegerField, Value, When
+from django.db.models import Case, IntegerField, Q, Value, When
 
 from apps.accounts.models import AccountRole
+from apps.categories.models import CategoryScope, CategoryStatus
 
 PENDING_STATUS = "pending"
 
@@ -64,6 +65,31 @@ def filter_admin_or_created_by(
     return _apply_order(filtered, ordering, pending_field, pending_values)
 
 
+def filter_categories_for_user(
+    qs,
+    user,
+    ordering=ORDER_CATEGORY,
+    pending_field=None,
+    pending_values=PENDING_STATUS,
+):
+    """Admin: tất cả. Supplier/Dealer: danh mục hệ thống active + danh mục riêng của mình."""
+    if is_admin(user):
+        filtered = qs
+    elif is_supplier_or_dealer(user):
+        filtered = qs.filter(
+            Q(scope=CategoryScope.SYSTEM, status=CategoryStatus.ACTIVE)
+            | Q(scope=CategoryScope.CUSTOM, created_by=user)
+        )
+    elif user.role == AccountRole.BUYER:
+        filtered = qs.filter(
+            scope=CategoryScope.SYSTEM,
+            status=CategoryStatus.ACTIVE,
+        )
+    else:
+        return qs.none()
+    return _apply_order(filtered, ordering, pending_field, pending_values)
+
+
 def filter_admin_or_dealer_account(
     qs,
     user,
@@ -90,14 +116,42 @@ def filter_admin_or_supplier_account(
     pending_field=None,
     pending_values=PENDING_STATUS,
 ):
-    """Admin: tất cả. Supplier/Dealer: chỉ dữ liệu thuộc tài khoản NCC của mình."""
+    """Admin: tất cả. Supplier: chỉ dữ liệu thuộc tài khoản NCC của mình."""
     if is_admin(user):
         filtered = qs
-    elif is_supplier_or_dealer(user):
+    elif user.role == AccountRole.SUPPLIER:
         filtered = qs.filter(**{account_lookup: user})
     else:
         return qs.none()
     return _apply_order(filtered, ordering, pending_field, pending_values)
+
+
+def filter_suppliers_for_dealer(qs, ordering=ORDER_NEWEST):
+    """Đại lý: chỉ NCC đã duyệt và tài khoản active (catalog đặt hàng)."""
+    from apps.accounts.models import AccountStatus
+    from apps.suppliers.models import SupplierVerificationStatus
+
+    return qs.filter(
+        verification_status=SupplierVerificationStatus.APPROVED,
+        account__status=AccountStatus.ACTIVE,
+    ).order_by(*ordering)
+
+
+def filter_supplier_products_for_dealer(qs, *, supplier_id=None, ordering=ORDER_UPDATED):
+    """Đại lý: sản phẩm active của NCC đã duyệt, có giá sỉ."""
+    from apps.accounts.models import AccountStatus
+    from apps.supplier_products.models import SupplierProductStatus
+    from apps.suppliers.models import SupplierVerificationStatus
+
+    filtered = qs.filter(
+        status=SupplierProductStatus.ACTIVE,
+        supplier__verification_status=SupplierVerificationStatus.APPROVED,
+        supplier__account__status=AccountStatus.ACTIVE,
+        wholesale_price__isnull=False,
+    )
+    if supplier_id:
+        filtered = filtered.filter(supplier_id=supplier_id)
+    return filtered.order_by(*ordering)
 
 
 PO_PENDING_STATUSES = (

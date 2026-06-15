@@ -8,6 +8,12 @@ import Toolbar from "../../components/Admin/UI/Toolbar";
 import Filter from "../../components/Admin/Notification/NotificationFilter";
 import NotificationTable from "../../components/Admin/Notification/NotificationTable";
 import NotificationViewModal from "../../components/Admin/Notification/NotificationViewModal";
+import { canManageNotificationActions } from "../../components/common/notificationRolePaths";
+import {
+    formatNotificationRow,
+    mergeNotificationDetail,
+} from "../../components/Admin/Notification/notificationFormatters";
+import { useAuth } from "../../contexts/authProvider";
 
 import {
     notificationService,
@@ -15,6 +21,8 @@ import {
 } from "../../services/api/notificationService";
 
 export default function NotificationPage() {
+    const { user } = useAuth();
+    const canManageActions = canManageNotificationActions(user?.role);
 
     // ── STATES ─────────────────────────────────────────
     const [data, setData] =
@@ -130,32 +138,27 @@ export default function NotificationPage() {
 
     // ── BẤM NÚT XEM CHI TIẾT ───────────────────────────
     const handleViewNotification = useCallback(async (row) => {
+        const fallbackDetail = formatNotificationRow(row);
+
         try {
             setLoading(true);
             const detail = await notificationService.getById(row.id);
-
-            const formattedDetail = {
-                id: detail.id,
-                type: detail.type,
-                typeLabel: detail.type_label,
-                title: detail.title,
-                content: detail.content,
-                referenceType: detail.reference_type,
-                referenceTypeLabel: detail.reference_type_label,
-                referenceId: detail.reference_id,
-                createdAt: detail.created_at,
-                createdBy: detail.created_by,
-                readAt: detail.read_at || row.readAt, // Lấy mốc từ detail hoặc fallback row hiện tại
-            };
+            const formattedDetail = mergeNotificationDetail(detail, fallbackDetail);
 
             setViewRow(formattedDetail);
 
-            // ĐÚNG YÊU CẦU: Nếu thông báo này CHƯA ĐỌC, tự động chạy hàm kích hoạt API mark_read luôn
             if (!formattedDetail.readAt) {
                 await handleMarkRead(row.id);
             }
         } catch (error) {
-            handleApiError(error, "Không thể tải chi tiết thông báo");
+            console.warn(
+                handleApiError(error, "Không thể tải chi tiết thông báo, dùng dữ liệu tóm tắt"),
+            );
+            setViewRow(fallbackDetail);
+
+            if (!fallbackDetail.readAt) {
+                await handleMarkRead(row.id);
+            }
         } finally {
             setLoading(false);
         }
@@ -218,10 +221,10 @@ export default function NotificationPage() {
                     setViewRow(null)
                 }
                 notification={viewRow}
-                onChange={() => viewRow && handleMarkRead(viewRow.id)}
                 loading={
                     actionLoading
                 }
+                canManageActions={canManageActions}
             />
         </div>
     );

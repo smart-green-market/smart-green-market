@@ -14,6 +14,7 @@ from common.business_rules import (
 from common.openapi_enums import schema_choice_field
 from common.validators import require_rejection_reason, validate_image_upload
 from apps.categories.models import CategoryStatus
+from apps.categories.utils import category_assignable_by_user
 from apps.suppliers.models import SupplierVerificationStatus
 from .models import SupplierProduct, SupplierProductImage, SupplierProductStatus
 
@@ -319,10 +320,12 @@ class SupplierProductSerializer(serializers.ModelSerializer):
         }
 
     def validate_category(self, category):
-        """Chỉ cho phép gắn danh mục đã được duyệt."""
-        if category.status != CategoryStatus.ACTIVE:
+        """Cho phép danh mục hệ thống hoặc danh mục riêng của NCC."""
+        request = self.context.get("request")
+        user = request.user if request and request.user.is_authenticated else None
+        if not user or not category_assignable_by_user(user, category):
             raise serializers.ValidationError(
-                "Danh mục chưa được duyệt, không thể gắn vào sản phẩm."
+                "Danh mục không hợp lệ hoặc chưa được duyệt."
             )
         return category
 

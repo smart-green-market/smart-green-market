@@ -128,7 +128,7 @@ export default function SupplierTable({ data, onView,}) {
                 customStyles={tableStyles}
                 noDataComponent={
                     <div className="py-6 text-sm text-neutral-500">
-                        Không tìm thấy nhà cung cấp.
+                        Không tìm thấy sản phẩm.
                     </div>
                 }
                 defaultSortFieldId={1}

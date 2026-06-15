@@ -204,6 +204,37 @@ class CertificationAuditLogSerializer(serializers.ModelSerializer):
         }
 
 
+class CertificationCatalogSerializer(serializers.ModelSerializer):
+    """Chứng nhận public cho dealer xem hồ sơ NCC — không lộ audit nội bộ."""
+
+    is_expired = serializers.BooleanField(read_only=True)
+    images = CertificationImageSerializer(many=True, read_only=True)
+
+    class Meta:
+        model = Certification
+        fields = [
+            "id",
+            "name",
+            "certificate_code",
+            "issued_by",
+            "issue_date",
+            "expiry_date",
+            "description",
+            "is_expired",
+            "images",
+        ]
+        extra_kwargs = {
+            "id": {"help_text": "ID chứng nhận"},
+            "name": {"help_text": "Tên chứng nhận (VietGAP, Organic...)"},
+            "certificate_code": {"help_text": "Mã số trên giấy chứng nhận"},
+            "issued_by": {"help_text": "Cơ quan cấp"},
+            "issue_date": {"help_text": "Ngày cấp"},
+            "expiry_date": {"help_text": "Ngày hết hạn"},
+            "description": {"help_text": "Mô tả chứng nhận"},
+            "is_expired": {"help_text": "true nếu đã quá hạn"},
+        }
+
+
 class CertificationReadSerializer(serializers.ModelSerializer):
     """Serializer đọc thông tin chứng nhận kèm ảnh."""
 

@@ -1,8 +1,9 @@
 """API ViewSet quản lý sản phẩm, ảnh sản phẩm và quy trình canh tác."""
 
 from django.utils import timezone
-from drf_spectacular.utils import extend_schema, extend_schema_view
+from drf_spectacular.utils import OpenApiParameter, extend_schema, extend_schema_view
 from rest_framework import status, viewsets
+from rest_framework.exceptions import ValidationError
 from rest_framework.decorators import action
 from rest_framework.parsers import FormParser, MultiPartParser
 from rest_framework.response import Response
@@ -14,12 +15,14 @@ from common.verify_openapi import (
     SUPPLIER_PRODUCT_VERIFY_REJECT,
     VERIFY_REJECT_HELP,
 )
-from common.permission import IsAdmin, IsActive
+from apps.accounts.models import AccountRole
+from common.permission import IsAdmin, IsActive, IsDealer, IsSupplier
 from common.querysets import (
     ORDER_CULTIVATION,
     ORDER_IMAGE,
     ORDER_UPDATED,
     filter_admin_or_supplier_account,
+    filter_supplier_products_for_dealer,
 )
 from .models import SupplierProduct, SupplierProductImage, CultivationProcess, SupplierProductStatus
 from .openapi import SupplierProductImageBulkUploadForm, SupplierProductImageReplaceForm
@@ -38,9 +41,21 @@ from .serializer import (
         tags=["Supplier Products"],
         summary="Danh sách sản phẩm",
         description=(
-            "Admin xem tất cả. Supplier/Dealer chỉ thấy sản phẩm của mình."
+            "Admin: tất cả. Supplier: sản phẩm của mình.\n"
+            "Dealer chọn SP để đặt hàng: ưu tiên "
+            "`GET /api/suppliers/{supplier_id}/products/` (theo từng NCC).\n"
+            "Endpoint này: catalog tổng hoặc lọc `?supplier_id=` (tùy chọn)."
             + PAGINATION_QUERY_HELP
         ),
+        parameters=[
+            OpenApiParameter(
+                name="supplier_id",
+                type=int,
+                location=OpenApiParameter.QUERY,
+                required=False,
+                description="Dealer: lọc sản phẩm theo NCC (ID từ GET /api/suppliers/)",
+            ),
+        ],
         responses={
             200: paginated_response_schema(
                 SupplierProductListSerializer,
@@ -77,16 +92,42 @@ class SupplierProductViewSet(viewsets.ModelViewSet):
         return SupplierProductSerializer
 
     def get_permissions(self):
-        """Chỉ Admin được duyệt sản phẩm."""
+        """Chỉ Admin được duyệt sản phẩm; dealer chỉ đọc catalog."""
         if self.action == "verify":
             return [IsAdmin()]
+        if (
+            self.request.user.is_authenticated
+            and self.request.user.role == AccountRole.DEALER
+        ):
+            if self.action in ("list", "retrieve"):
+                return [IsDealer(), IsActive()]
+            return [IsAdmin()]
+        if self.action in ("create", "update", "partial_update", "destroy"):
+            return [IsSupplier(), IsActive()]
         return [IsActive()]
 
     def get_queryset(self):
-        """Lọc sản phẩm theo quyền Admin hoặc nhà cung cấp."""
+        """Lọc sản phẩm theo quyền Admin, NCC hoặc catalog đại lý."""
+        user = self.request.user
+        if user.role == AccountRole.DEALER:
+            if self.action in ("list", "retrieve"):
+                supplier_id = self.request.query_params.get("supplier_id")
+                if supplier_id:
+                    try:
+                        supplier_id = int(supplier_id)
+                    except (TypeError, ValueError) as exc:
+                        raise ValidationError(
+                            {"supplier_id": "supplier_id phải là số nguyên."}
+                        ) from exc
+                return filter_supplier_products_for_dealer(
+                    self.queryset,
+                    supplier_id=supplier_id,
+                    ordering=ORDER_UPDATED,
+                )
+            return SupplierProduct.objects.none()
         return filter_admin_or_supplier_account(
             self.queryset,
-            self.request.user,
+            user,
             ordering=ORDER_UPDATED,
             pending_field="status",
         )

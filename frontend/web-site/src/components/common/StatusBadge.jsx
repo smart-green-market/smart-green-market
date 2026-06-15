@@ -12,6 +12,12 @@ export const STATUS_CONFIG = {
         text: "text-orange-700",
         dot: "bg-orange-500",
     },
+    banned: {
+        label: "Vô hiệu hóa",
+        bg: "bg-red-100",
+        text: "text-red-700",
+        dot: "bg-red-500",
+    },
     paused: {
         label: "Tạm ngưng",
         bg: "bg-orange-100",

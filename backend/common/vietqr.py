@@ -69,7 +69,7 @@ def build_supplier_payment_qr(
     transfer_content: str,
     template: str = DEFAULT_QR_TEMPLATE,
 ) -> dict:
-    """Trả metadata + URL QR từ thông tin ngân hàng supplier."""
+    """Trả metadata + URL QR VietQR — gọi từ get_payment_qr khi đại lý thanh toán cọc/cuối."""
     if not supplier.account_name.strip():
         raise ValidationError({"account_name": "Tên chủ tài khoản NCC chưa được cấu hình."})
 
