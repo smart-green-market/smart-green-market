@@ -19,5 +19,6 @@ update: (data) =>
   axiosClient.patch("/accounts/me/", data).then((res) => res.data),
 updateAvatar: (formData) =>
   axiosClient.patch("/accounts/me/", formData).then((res) => res.data),
+  updatePassword: (data) => axiosClient.post("/change-password/",data).then((res) => res.data),
 };
 

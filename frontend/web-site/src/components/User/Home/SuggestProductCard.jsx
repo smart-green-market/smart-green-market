@@ -1,33 +1,48 @@
-import { ShoppingCart } from "lucide-react";
+import { Link } from "react-router-dom";
+import AddToCartButton from "../Cart/AddToCartButton";
 
-export default function FavProductCard({ name = "Rau", price = "45.000đ", unit = "/kg", image }) {
-    return (
-        <div className="w-64 shrink-0 bg-white rounded-2xl shadow-sm border border-stone-100 flex flex-col overflow-hidden hover:shadow-md hover:-translate-y-1 transition-all duration-200 relative">
-            {/* Badge */}
-            {/* <span className="absolute top-3 left-3 z-10 px-2.5 py-0.5 bg-red-400 text-white text-[10px] font-bold uppercase tracking-wide rounded-full">
-                Yêu thích
-            </span> */}
-
+export default function SuggestProductCard({
+    id,
+    name = "Rau",
+    price = "45.000đ",
+    unit = "/kg",
+    image,
+    priceValue = 0,
+    unitKey = "kg",
+}) {
+    const content = (
+        <div className="mt-5 mb-5 relative flex w-64 shrink-0 flex-col overflow-hidden rounded-2xl border border-stone-100 bg-white shadow-sm transition-all duration-200 hover:-translate-y-1 hover:shadow-md">
             <div className="overflow-hidden">
                 <img
-                    src={image || "./public/images/rau.jpg"}
+                    src={image || "https://placehold.co/282x212"}
                     alt={name}
-                    className="w-full h-48 object-cover hover:scale-105 transition-transform duration-300"
+                    className="h-60 w-full object-cover transition-transform duration-300 hover:scale-105"
                 />
             </div>
 
-            <div className="p-4 flex flex-col gap-2">
-                <span className="text-zinc-800 text-sm font-medium line-clamp-2">{name}</span>
+            <div className="flex flex-col gap-2 p-4">
+                <span className="line-clamp-2 text-sm font-medium text-zinc-800">{name}</span>
                 <div className="flex items-center justify-between">
                     <div className="flex items-baseline gap-1">
-                        <span className="text-emerald-800 text-base font-bold">{price}</span>
-                        <span className="text-neutral-400 text-xs">{unit}</span>
+                        <span className="text-base font-bold text-emerald-800">{price}</span>
+                        <span className="text-xs text-neutral-400">{unit}</span>
                     </div>
-                    <button className="w-9 h-9 bg-emerald-900 hover:bg-emerald-700 text-white rounded-xl flex items-center justify-center transition-colors">
-                        <ShoppingCart className="w-4 h-4" />
-                    </button>
+                    <AddToCartButton
+                        product={{ id, name, priceValue, unit: unitKey, image }}
+                        className="flex h-9 w-9 items-center justify-center rounded-xl bg-emerald-900 text-white transition-colors hover:bg-emerald-700"
+                    />
                 </div>
             </div>
         </div>
     );
+
+    if (id) {
+        return (
+            <Link to={`/san-pham/${id}`} className="no-underline">
+                {content}
+            </Link>
+        );
+    }
+
+    return content;
 }

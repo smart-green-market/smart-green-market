@@ -4,8 +4,11 @@ import {
     ChevronsRight,
     ChevronLeft,
     ChevronRight,
+    Loader2,
 } from "lucide-react";
 import { categoryService } from "../../../services/api/categoryService";
+import { useDealerProducts } from "../../../hooks/useDealerProducts";
+import { normalizeUnitKey, toCardProduct } from "../../../utils/userProductUtils";
 import FilterProductCard from "./FilterProductCard";
 
 const PAGE_SIZE = 8;
@@ -20,25 +23,6 @@ const UNITS = [
     { value: "kg", label: "/kg" },
     { value: "bo", label: "/bó" },
     { value: "cay", label: "/cây" },
-];
-
-const PRODUCTS = [
-    { id: 1, brand: "GreenLand", name: "Rau muống sạch", price: 15000, priceLabel: "15.000 đ", unit: "bo", category_id: 1, rating: 4.8, sold: 120 },
-    { id: 2, brand: "GreenLand", name: "Cải xanh hữu cơ", price: 20000, priceLabel: "20.000 đ", unit: "bo", category_id: 1, rating: 4.6, sold: 85 },
-    { id: 3, brand: "FarmFresh", name: "Xà lách lô lô", price: 25000, priceLabel: "25.000 đ", unit: "kg", category_id: 1, rating: 4.7, sold: 64 },
-    { id: 4, brand: "Đà Lạt", name: "Cà chua bi", price: 35000, priceLabel: "35.000 đ", unit: "kg", category_id: 2, rating: 4.9, sold: 210 },
-    { id: 5, brand: "GreenLand", name: "Bắp cải trắng", price: 18000, priceLabel: "18.000 đ", unit: "kg", category_id: 1, rating: 4.5, sold: 45 },
-    { id: 6, brand: "FarmFresh", name: "Súp lơ xanh", price: 30000, priceLabel: "30.000 đ", unit: "cay", category_id: 1, rating: 4.4, sold: 32 },
-    { id: 7, brand: "Đà Lạt", name: "Dưa leo", price: 22000, priceLabel: "22.000 đ", unit: "kg", category_id: 2, rating: 4.6, sold: 98 },
-    { id: 8, brand: "FarmFresh", name: "Ớt chuông", price: 45000, priceLabel: "45.000 đ", unit: "kg", category_id: 2, rating: 4.8, sold: 56 },
-    { id: 9, brand: "GreenLand", name: "Khoai lang", price: 28000, priceLabel: "28.000 đ", unit: "kg", category_id: 3, rating: 4.7, sold: 73 },
-    { id: 10, brand: "FarmFresh", name: "Bí đao", price: 12000, priceLabel: "12.000 đ", unit: "kg", category_id: 3, rating: 4.3, sold: 41 },
-    { id: 11, brand: "Đà Lạt", name: "Cà rốt Đà Lạt", price: 32000, priceLabel: "32.000 đ", unit: "kg", category_id: 2, rating: 4.9, sold: 156 },
-    { id: 12, brand: "GreenLand", name: "Rau cải ngọt", price: 16000, priceLabel: "16.000 đ", unit: "bo", category_id: 1, rating: 4.5, sold: 67 },
-    { id: 13, brand: "FarmFresh", name: "Bầu squash", price: 19000, priceLabel: "19.000 đ", unit: "kg", category_id: 3, rating: 4.4, sold: 28 },
-    { id: 14, brand: "Đà Lạt", name: "Cải thìa baby", price: 24000, priceLabel: "24.000 đ", unit: "bo", category_id: 1, rating: 4.6, sold: 52 },
-    { id: 15, brand: "GreenLand", name: "Măng tây xanh", price: 55000, priceLabel: "55.000 đ", unit: "kg", category_id: 2, rating: 4.8, sold: 19 },
-    { id: 16, brand: "FarmFresh", name: "Đậu cove non", price: 38000, priceLabel: "38.000 đ", unit: "kg", category_id: 3, rating: 4.7, sold: 44 },
 ];
 
 function FilterSection({ title, children }) {
@@ -75,6 +59,9 @@ function parseInputPrice(value) {
 }
 
 export default function FilterProduct() {
+    const { products: dealerProducts, loading: loadingProducts } = useDealerProducts();
+    const catalog = useMemo(() => dealerProducts.map(toCardProduct), [dealerProducts]);
+
     const [categories, setCategories] = useState([]);
     const [loadingCategories, setLoadingCategories] = useState(true);
 
@@ -119,23 +106,24 @@ export default function FilterProduct() {
     };
 
     const filteredProducts = useMemo(() => {
-        return PRODUCTS.filter((product) => {
+        return catalog.filter((product) => {
             const matchCategory =
                 appliedCategories.length === 0 ||
                 appliedCategories.includes(String(product.category_id));
 
             const matchUnit =
-                appliedUnits.length === 0 || appliedUnits.includes(product.unit);
+                appliedUnits.length === 0 ||
+                appliedUnits.includes(product.unitKey ?? normalizeUnitKey(product.unit));
 
             const matchMin =
-                appliedMinPrice == null || product.price >= appliedMinPrice;
+                appliedMinPrice == null || product.priceValue >= appliedMinPrice;
 
             const matchMax =
-                appliedMaxPrice == null || product.price <= appliedMaxPrice;
+                appliedMaxPrice == null || product.priceValue <= appliedMaxPrice;
 
             return matchCategory && matchUnit && matchMin && matchMax;
         });
-    }, [appliedCategories, appliedUnits, appliedMinPrice, appliedMaxPrice]);
+    }, [catalog, appliedCategories, appliedUnits, appliedMinPrice, appliedMaxPrice]);
 
     const totalPages = Math.max(1, Math.ceil(filteredProducts.length / PAGE_SIZE));
 
@@ -254,7 +242,11 @@ export default function FilterProduct() {
                 </aside>
 
                 <div className="min-w-0 flex-1">
-                    {pageProducts.length === 0 ? (
+                    {loadingProducts ? (
+                        <div className="flex h-48 items-center justify-center rounded-lg border border-stone-200 bg-white">
+                            <Loader2 className="h-7 w-7 animate-spin text-emerald-700" />
+                        </div>
+                    ) : pageProducts.length === 0 ? (
                         <div className="rounded-lg border border-dashed border-stone-200 bg-white px-6 py-16 text-center text-sm text-neutral-500">
                             Không tìm thấy sản phẩm phù hợp với bộ lọc.
                         </div>
@@ -263,11 +255,13 @@ export default function FilterProduct() {
                             {pageProducts.map((product) => (
                                 <FilterProductCard
                                     key={product.id}
+                                    id={product.id}
                                     brand={product.brand}
                                     name={product.name}
-                                    price={product.priceLabel}
+                                    price={product.price}
                                     rating={product.rating}
                                     sold={product.sold}
+                                    image={product.image}
                                 />
                             ))}
                         </div>

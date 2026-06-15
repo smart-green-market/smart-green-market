@@ -3,7 +3,7 @@ import {
   X, Check, ChevronLeft, ChevronRight, ZoomIn,
   Package, Tag, Thermometer, ShieldCheck,
   Calendar, Hash, AlertCircle, CheckCircle,
-  XCircle, Loader2, Pencil, Save, Ban, Lock, LockOpen, ImageIcon,CircleDotDashed
+  XCircle, Loader2, Pencil, Save, Ban, Lock, LockOpen, ImageIcon, CircleDotDashed, Edit
 } from "lucide-react";
 import { productService } from "../../../services/api/productService";
 import UpdateProductImagesModal from "./UpdateProductImagesModal";
@@ -19,21 +19,22 @@ import {
 } from "./productSellingUtils";
 import { farmingProcessService } from "../../../services/api/cultivationService";
 import { parseCultivationList } from "../Cultivation/cultivationUtils";
-
+import CreateCultivationModal from "../Cultivation/CreateCultivationModal"
+import EditCultivationModal from "../Cultivation/EditCultivationModal";
 /* ─── Status helpers ─── */
 const STATUS_MAP = {
-  pending:  { label: "Chờ duyệt",   color: "bg-amber-100 text-amber-700 border-amber-200" },
-  approved: { label: "Đã duyệt",    color: "bg-emerald-100 text-emerald-700 border-emerald-200" },
-  rejected: { label: "Từ chối",     color: "bg-red-100 text-red-700 border-red-200" },
-  active:   { label: "Đang bán",    color: "bg-green-100 text-green-700 border-green-200" },
-  inactive: { label: "Ngừng bán",   color: "bg-zinc-100 text-zinc-500 border-zinc-200" },
+  pending: { label: "Chờ duyệt", color: "bg-amber-100 text-amber-700 border-amber-200" },
+  approved: { label: "Đã duyệt", color: "bg-emerald-100 text-emerald-700 border-emerald-200" },
+  rejected: { label: "Từ chối", color: "bg-red-100 text-red-700 border-red-200" },
+  active: { label: "Đang bán", color: "bg-green-100 text-green-700 border-green-200" },
+  inactive: { label: "Ngừng bán", color: "bg-zinc-100 text-zinc-500 border-zinc-200" },
 };
 
 const StatusBadge = ({ status }) => {
   const s = STATUS_MAP[status] ?? { label: status, color: "bg-zinc-100 text-zinc-500 border-zinc-200" };
   return (
     <span className={`inline-flex items-center gap-1.5 text-xs font-semibold px-2.5 py-1 rounded-full border ${s.color}`}>
-      {status === "pending"  && <Loader2 className="w-3 h-3 animate-spin" />}
+      {status === "pending" && <Loader2 className="w-3 h-3 animate-spin" />}
       {status === "approved" && <CheckCircle className="w-3 h-3" />}
       {status === "rejected" && <XCircle className="w-3 h-3" />}
       {s.label}
@@ -73,7 +74,7 @@ function LockedStatusField({ label, status }) {
 /* ─── Inline editable field ─── */
 function EditableField({ label, value, onSave, type = "text", options, suffix, multiline }) {
   const [editing, setEditing] = useState(false);
-  const [draft, setDraft]     = useState(value ?? "");
+  const [draft, setDraft] = useState(value ?? "");
   const ref = useRef(null);
 
   useEffect(() => { setDraft(value ?? ""); }, [value]);
@@ -144,7 +145,7 @@ function EditableField({ label, value, onSave, type = "text", options, suffix, m
 /* ─── Image gallery lightbox ─── */
 function ImageGallery({ images }) {
   const [active, setActive] = useState(0);
-  const [zoom,   setZoom]   = useState(false);
+  const [zoom, setZoom] = useState(false);
 
   useEffect(() => { setActive(0); }, [images]);
 
@@ -155,7 +156,7 @@ function ImageGallery({ images }) {
     </div>
   );
 
-  const thumb   = images.find(i => i.is_thumbnail) ?? images[0];
+  const thumb = images.find(i => i.is_thumbnail) ?? images[0];
   const current = images[active] ?? thumb;
 
   return (
@@ -205,13 +206,27 @@ function ImageGallery({ images }) {
 }
 
 /* ─── Section wrapper ─── */
-function Section({ icon, title, children }) {
+function Section({ icon, title, children, action }) {
   return (
-    <div className="border border-zinc-200 rounded-xl p-4">
-      <div className="flex items-center gap-2 mb-4 pb-3 border-b border-zinc-100">
-        {icon}
-        <span className="text-sm font-semibold text-zinc-800">{title}</span>
+    // <div className="border border-zinc-200 rounded-xl p-4">
+    //   <div className="flex items-center gap-2 mb-4 pb-3 border-b border-zinc-100">
+    //     {icon}
+    //     <span className="text-sm font-semibold text-zinc-800">{title}</span>
+    //   </div>
+    //   {children}
+    // </div>
+    <div className="bg-white rounded-xl p-4">
+      <div className="flex items-center justify-between mb-4">
+        <div className="flex items-center gap-2">
+          {icon}
+          <h2 className="font-semibold text-lg">
+            {title}
+          </h2>
+        </div>
+
+        {action}
       </div>
+
       {children}
     </div>
   );
@@ -239,13 +254,14 @@ export default function DetailProductModal({
   togglingSelling = false,
 }) {
   const [product, setProduct] = useState(initialProduct);
-  const [saving,  setSaving]  = useState(false);
-  const [saved,   setSaved]   = useState(false);
-  const [error,   setError]   = useState("");
+  const [saving, setSaving] = useState(false);
+  const [saved, setSaved] = useState(false);
+  const [error, setError] = useState("");
   const [showImageModal, setShowImageModal] = useState(false);
   const [cultivationSteps, setCultivationSteps] = useState([]);
   const [loadingCultivation, setLoadingCultivation] = useState(false);
-
+  const [createRow, setCreateRow] = useState(null);
+  const [editRow,setEditRow] = useState(null);
   useEffect(() => {
     setProduct(initialProduct);
     setSaved(false);
@@ -287,10 +303,20 @@ export default function DetailProductModal({
 
     fetchCultivation();
   }, [isOpen, product?.id]);
-
+  const fetchData = async () => {
+    try {
+      setLoading(true);
+      const res = await farmingProcessService.getAll();
+      setData(parseCultivationList(res));
+    } catch (err) {
+      console.error("Lỗi khi tải quy trình canh tác:", err);
+    } finally {
+      setLoading(false);
+    }
+  };
   if (!isOpen || !product) return null;
 
-  const field  = (key) => product[key] ?? "";
+  const field = (key) => product[key] ?? "";
   const update = (key, val) => setProduct(p => ({ ...p, [key]: val }));
 
   const buildUpdatePayload = () => {
@@ -412,11 +438,10 @@ export default function DetailProductModal({
 
           <div className="flex items-center gap-2 ml-4 flex-shrink-0">
             <button onClick={handleSave} disabled={saving}
-              className={`flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-sm font-semibold transition-all ${
-                saved
-                  ? "bg-green-100 text-green-700 border border-green-300"
-                  : "bg-green-700 hover:bg-green-800 text-white shadow-sm"
-              } disabled:opacity-60`}>
+              className={`flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-sm font-semibold transition-all ${saved
+                ? "bg-green-100 text-green-700 border border-green-300"
+                : "bg-green-700 hover:bg-green-800 text-white shadow-sm"
+                } disabled:opacity-60`}>
               {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : saved ? <Check className="w-4 h-4" /> : <Save className="w-4 h-4" />}
               {saving ? "Đang lưu…" : saved ? "Đã lưu!" : "Lưu thay đổi"}
             </button>
@@ -554,7 +579,19 @@ export default function DetailProductModal({
                   </div>
                 </div>
               </Section>
-              <Section icon={<CircleDotDashed className="w-4 h-4 text-green-700" />} title="Quy trình canh tác">
+
+              {/* Quy trình canh tác */}
+              <Section
+                icon={<CircleDotDashed className="w-4 h-4 text-green-700" />}
+                title="Quy trình canh tác"
+                action={
+                  <button
+                    onClick={() => setCreateRow({})}
+                    className="px-4 py-2 bg-emerald-800 text-white text-sm font-semibold rounded-lg hover:bg-emerald-700"
+                  >
+                    + Thêm quy trình mới
+                  </button>}
+              >
                 {loadingCultivation ? (
                   <div className="flex items-center gap-2 text-sm text-zinc-400">
                     <Loader2 className="w-4 h-4 animate-spin" />
@@ -575,6 +612,12 @@ export default function DetailProductModal({
                             {step.description || "—"}
                           </p>
                         </div>
+                        <button
+                          onClick={() => setEditRow(step)}
+                          className="ml-auto flex items-center justify-center w-8 h-8 rounded-md bg-gray-500 text-white hover:bg-gray-300 transition-colors"
+                        >
+                          <Edit size={16} />
+                        </button>
                       </div>
                     ))}
                   </div>
@@ -686,7 +729,19 @@ export default function DetailProductModal({
           onUpdate?.(updated);
         }}
       />
-
+      <CreateCultivationModal
+        isOpen={createRow !== null}
+        onClose={() => setCreateRow(null)}
+        onSuccess={fetchData}
+        productId={product.id}
+      />
+      <EditCultivationModal
+              isOpen={editRow !== null}
+              onClose={() => setEditRow(null)}
+              process={editRow}
+              onSuccess={fetchData}
+              productId={product.id}
+            />
       <style>{`
         @keyframes modalIn {
           from { opacity: 0; transform: scale(0.96) translateY(10px); }

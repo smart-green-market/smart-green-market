@@ -1,6 +1,7 @@
 import DataTable from "react-data-table-component";
 import { tableStyles, paginationVi } from "../../common/tableStyles";
 import { formatDateTime } from "../../common/formatDateTime";
+import { isNotificationUnread } from "./notificationFormatters";
 
 const STATUS_CONFIG = {
     read:  { label: "ĐÃ ĐỌC", bg: "bg-green-200",   text: "text-green-800"  },
@@ -8,21 +9,6 @@ const STATUS_CONFIG = {
 };
 const getSupplierName = async (supplierId) => {
     const response = await supplierService.getSupplierById(supplierId);
-    return response.data.name;
-}
-
-const getCategoryName = async (categoryId) => {
-    const response = await categoryService.getCategoryById(categoryId);
-    return response.data.name;
-}
-
-const getCertificationName = async (certificationId) => {
-    const response = await certificationService.getCertificationById(certificationId);
-    return response.data.name;
-}
-
-const getProductName = async (productId) => {
-    const response = await productService.getProductById(productId);
     return response.data.name;
 }
 const TYPE = {
@@ -40,7 +26,6 @@ const TYPE_REF = {
     supplier_product: {label: "SẢN PHẨM - NHÀ CUNG CẤP"},
     dealer_product:{label: "SẢN PHẨM - ĐẠI LÝ"},
     purchase_order:{label: "ĐƠN HÀNG - ĐẠI LÝ"},
-    
 }
 // ── Column definitions ────────────────────────────────────────────────────────
 const buildColumns = (onView) => [
@@ -111,7 +96,7 @@ const buildColumns = (onView) => [
         center: true,
         width: '150px',
         cell: (row) => {
-            const st = row.readAt ? STATUS_CONFIG.read : STATUS_CONFIG.unread;
+            const st = isNotificationUnread(row) ? STATUS_CONFIG.unread : STATUS_CONFIG.read;
             return (
                 <span className={`px-2.5 py-1 rounded-full text-sm font-semibold font-['Geist',sans-serif] uppercase tracking-wide ${st.bg} ${st.text}`}>
                     {st.label}
@@ -139,7 +124,7 @@ const buildColumns = (onView) => [
 ];
 const conditionalRowStyles = [
     {
-        when: (row) => !!row.readAt, // Đã đọc (read_at có dữ liệu)
+        when: (row) => !isNotificationUnread(row),
         style: {
             backgroundColor: "#f5f5f5", // Màu nền tối hơn (neutral-100/stone-100)
             color: "#737373",           // Chữ mờ đi chút
@@ -147,7 +132,7 @@ const conditionalRowStyles = [
         },
     },
     {
-        when: (row) => !row.readAt, // Chưa đọc (read_at null)
+        when: (row) => isNotificationUnread(row),
         style: {
             backgroundColor: "#ffffff", // Sáng lên
             fontWeight: "bold",
@@ -171,9 +156,9 @@ export default function NotificationTable({ data, search, statusFilter, onView }
 
         if (statusFilter && statusFilter !== "") {
             if (statusFilter === "read") {
-                matchFilter = !!row.readAt; // Có dữ liệu thời gian => Đã đọc
+                matchFilter = !isNotificationUnread(row);
             } else if (statusFilter === "unread") {
-                matchFilter = !row.readAt;  // null => Chưa đọc
+                matchFilter = isNotificationUnread(row);
             } else {
                 // Lọc theo các loại Group Type/Ref cũ của bạn
                 const typeGroup = ["info", "warning", "success", "error"];

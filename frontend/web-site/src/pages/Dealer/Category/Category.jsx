@@ -72,7 +72,6 @@ export default function DealerCategoryPage() {
 
     const handleCreateCategory = async (newCatData) => {
         try {
-            // Mapping the new category data to what the backend expects
             const dataToCreate = {
                 name: newCatData.name,
                 description: newCatData.description || "",

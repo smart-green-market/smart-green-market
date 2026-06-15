@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import SearchBar from "../../components/Admin/UI/SearchBar";
+import { AdminInitialLoadGate } from "../../components/Admin/UI/AdminFetchState";
 import Filter from "../../components/Admin/User/UserFilter";
 import UserTable from "../../components/Admin/User/UserTable";
 import UserViewModal from "../../components/Admin/User/UserViewModal";
@@ -7,6 +8,8 @@ import { userService, handleApiError} from "../../services/api/userService";
 
 export default function UserPage() {
     const [data, setData] = useState([]);
+    const [isFetching, setIsFetching] = useState(true);
+    const [loadError, setLoadError] = useState("");
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState("");
     const [search, setSearch] = useState("");
@@ -14,9 +17,14 @@ export default function UserPage() {
     const [viewRow, setViewRow] = useState(null);
     const [actionLoading, setActionLoading] = useState(false);
     const fetchUser = useCallback(
-        async () => {
+        async ({ initial = false } = {}) => {
             try {
-                setLoading(true);
+                if (initial) {
+                    setIsFetching(true);
+                    setLoadError("");
+                } else {
+                    setLoading(true);
+                }
 
                 const response =
                     await userService.getAll();
@@ -47,9 +55,17 @@ export default function UserPage() {
                         "Không thể tải danh sách người dùng"
                     );
 
-                setError(message);
+                if (initial) {
+                    setLoadError(message);
+                } else {
+                    setError(message);
+                }
             } finally {
-                setLoading(false);
+                if (initial) {
+                    setIsFetching(false);
+                } else {
+                    setLoading(false);
+                }
             }
         },
         []
@@ -91,7 +107,7 @@ export default function UserPage() {
                 setLoading(false);
             }
         }, []);
-    useEffect(() => { fetchUser(); }, [fetchUser]);
+    useEffect(() => { fetchUser({ initial: true }); }, [fetchUser]);
 
     // ── APPROVE ──────────────────────────────────────────
     const handleApprove = async (user) => {
@@ -223,6 +239,12 @@ export default function UserPage() {
     };
 
     return (
+        <AdminInitialLoadGate
+            isFetching={isFetching}
+            loadError={loadError}
+            onRetry={() => fetchUser({ initial: true })}
+            loadingMessage="Đang tải danh sách người dùng..."
+        >
         <div className="flex flex-col gap-6 px-8 pt-6 pb-10">
 
             {/* SEARCH */}
@@ -276,5 +298,6 @@ export default function UserPage() {
                 loading={actionLoading}
             />
         </div>
+        </AdminInitialLoadGate>
     );
 }

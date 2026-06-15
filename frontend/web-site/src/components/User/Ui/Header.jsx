@@ -1,8 +1,10 @@
 import { Search, ShoppingCart, Newspaper, User } from "lucide-react";
 import { Link } from "react-router-dom";
+import { useCart } from "../../../contexts/cartProvider";
 import CategoryDropdown from "../Home/CategoryDropdown";
 
 export default function Header() {
+    const { totalQuantity } = useCart();
     return (
         <header className="fixed top-0 left-0 right-0 z-50 bg-white/90 backdrop-blur-md border-b border-stone-200 shadow-sm">
             <div className="max-w-[1280px] mx-auto px-10 h-[72px] flex items-center justify-between gap-8">
@@ -40,9 +42,14 @@ export default function Header() {
                     </Link>
                     <Link
                         to="/gio-hang"
-                        className="hover:scale-110 p-2 rounded-full hover:bg-zinc-100 hover:text-green-600 transition-colors text-zinc-700"
+                        className="relative hover:scale-110 p-2 rounded-full hover:bg-zinc-100 hover:text-green-600 transition-colors text-zinc-700"
                     >
                         <ShoppingCart className="w-5 h-5" />
+                        {totalQuantity > 0 ? (
+                            <span className="absolute -right-0.5 -top-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-emerald-700 px-1 text-[10px] font-bold text-white">
+                                {totalQuantity > 99 ? "99+" : totalQuantity}
+                            </span>
+                        ) : null}
                     </Link>
                     <Link to="/tai-khoan/" className="hover:scale-110 p-2 rounded-full hover:bg-zinc-100 hover:text-green-600 transition-colors text-zinc-700">
                         <User className="w-5 h-5" />

@@ -30,7 +30,7 @@ export default function CategoryViewModal({
 
     const isInactive = category.status === "inactive";
 
-    const isRejected = category.status === "rejected";
+    //const isRejected = category.status === "rejected";
 
     const openReject = ({ title, message, action }) => {
         setRejectConfig({ title, message, action });
@@ -234,7 +234,7 @@ export default function CategoryViewModal({
                             </button>
                         )}
                         {/* REJECTED */}
-                        {isRejected && (
+                        {/* {isRejected && (
                             <button
                                 onClick={() =>
                                     openConfirm(
@@ -262,7 +262,7 @@ export default function CategoryViewModal({
                             >
                                 Duyệt
                             </button>
-                        )}
+                        )} */}
                     </div>
                     ) : null}
                 </div>

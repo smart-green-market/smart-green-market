@@ -1,6 +1,8 @@
+import { Link } from "react-router-dom";
 import { Heart } from "lucide-react";
 
 export default function FilterProductCard({
+    id,
     brand = "GreenMarket",
     name = "Sản phẩm",
     price = "0đ",
@@ -8,11 +10,11 @@ export default function FilterProductCard({
     sold = 0,
     image,
 }) {
-    return (
-        <article className="flex flex-col overflow-hidden rounded-lg border border-stone-200 bg-white shadow-sm transition-shadow hover:shadow-md">
+    const content = (
+        <article className="flex h-full flex-col overflow-hidden rounded-lg border border-stone-200 bg-white shadow-sm transition-shadow hover:shadow-md">
             <div className="aspect-[4/3] overflow-hidden bg-stone-100">
                 <img
-                    src={image || "./public/images/rau.jpg"}
+                    src={image || "https://placehold.co/400x300"}
                     alt={name}
                     className="h-full w-full object-cover transition-transform duration-300 hover:scale-105"
                 />
@@ -35,6 +37,7 @@ export default function FilterProductCard({
                     <span className="text-lg font-bold text-emerald-700">{price}</span>
                     <button
                         type="button"
+                        onClick={(e) => e.preventDefault()}
                         className="rounded-full p-2 text-neutral-400 transition-colors hover:bg-red-50 hover:text-red-500"
                         aria-label="Yêu thích"
                     >
@@ -44,4 +47,14 @@ export default function FilterProductCard({
             </div>
         </article>
     );
+
+    if (id) {
+        return (
+            <Link to={`/san-pham/${id}`} className="block h-full no-underline">
+                {content}
+            </Link>
+        );
+    }
+
+    return content;
 }

@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 
 import SearchBar from "../../components/Admin/UI/SearchBar";
+import { AdminInitialLoadGate } from "../../components/Admin/UI/AdminFetchState";
 import DealerFilter, {
     getDealerDisplayStatus,
 } from "../../components/Admin/Dealer/DealerFilter";
@@ -46,6 +47,8 @@ function formatDealerDetail(detail) {
 
 export default function DealerPage() {
     const [data, setData] = useState([]);
+    const [isFetching, setIsFetching] = useState(true);
+    const [loadError, setLoadError] = useState("");
     const [loading, setLoading] = useState(false);
     const [actionLoading, setActionLoading] = useState(false);
     const [error, setError] = useState("");
@@ -53,17 +56,31 @@ export default function DealerPage() {
     const [statusFilter, setStatusFilter] = useState("pending");
     const [viewRow, setViewRow] = useState(null);
 
-    const fetchDealers = useCallback(async () => {
+    const fetchDealers = useCallback(async ({ initial = false } = {}) => {
         try {
-            setLoading(true);
+            if (initial) {
+                setIsFetching(true);
+                setLoadError("");
+            } else {
+                setLoading(true);
+            }
             setError("");
 
             const response = await dealerService.getAll();
             setData(Array.isArray(response) ? response.map(formatDealerListItem) : []);
         } catch (err) {
-            setError(handleApiError(err, "Không thể tải danh sách đại lý"));
+            const message = handleApiError(err, "Không thể tải danh sách đại lý");
+            if (initial) {
+                setLoadError(message);
+            } else {
+                setError(message);
+            }
         } finally {
-            setLoading(false);
+            if (initial) {
+                setIsFetching(false);
+            } else {
+                setLoading(false);
+            }
         }
     }, []);
 
@@ -82,7 +99,7 @@ export default function DealerPage() {
     }, []);
 
     useEffect(() => {
-        fetchDealers();
+        fetchDealers({ initial: true });
     }, [fetchDealers]);
 
     const filteredData = useMemo(() => {
@@ -187,6 +204,12 @@ export default function DealerPage() {
     };
 
     return (
+        <AdminInitialLoadGate
+            isFetching={isFetching}
+            loadError={loadError}
+            onRetry={() => fetchDealers({ initial: true })}
+            loadingMessage="Đang tải danh sách đại lý..."
+        >
         <div className="flex flex-col gap-6 px-8 pb-10 pt-6">
             <SearchBar
                 value={search}
@@ -224,5 +247,6 @@ export default function DealerPage() {
                 loading={actionLoading}
             />
         </div>
+        </AdminInitialLoadGate>
     );
 }

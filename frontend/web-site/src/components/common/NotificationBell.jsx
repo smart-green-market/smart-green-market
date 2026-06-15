@@ -4,10 +4,14 @@ import { useNavigate } from "react-router-dom";
 import { notificationService, handleApiError } from "../../services/api/notificationService";
 import NotificationDropdown from "./NotificationDropdown";
 import NotificationViewModal from "../Admin/Notification/NotificationViewModal";
-import { getNotificationSeeAllPath, canManageNotificationActions } from "./notificationRolePaths";
+import { getNotificationSeeAllPath, canManageNotificationActions, canFetchNotificationDetail } from "./notificationRolePaths";
 import {
     formatNotificationRow,
     mergeNotificationDetail,
+    isNotificationUnread,
+    getMarkedReadState,
+    resolveMarkReadId,
+    matchesNotificationRecord,
 } from "../Admin/Notification/notificationFormatters";
 import { useAuth } from "../../contexts/authProvider";
 
@@ -30,22 +34,11 @@ export default function NotificationBell({ role: roleProp }) {
         try {
             const res = await notificationService.getAll(); // Giả định trả về mảng kết quả gốc
             // Tính toán số lượng chưa đọc dựa vào trường read_at === null
-            const unreadList = res.filter(item => !item.read_at);
+            const unreadList = res.filter((item) => isNotificationUnread(item));
             setUnreadCount(unreadList.length);
             
             // Map dữ liệu chuẩn hóa giống NotificationPage và giới hạn tối đa 5 phần tử
-            const formatted = res.slice(0, 5).map(item => ({
-                id: item.id,
-                type: item.type,
-                typeLabel: item.type_label,
-                title: item.title,
-                content: item.content,
-                referenceType: item.reference_type,
-                referenceTypeLabel: item.reference_type_label,
-                referenceId: item.reference_id,
-                createdAt: item.created_at,
-                readAt: item.read_at,
-            }));
+            const formatted = res.slice(0, 5).map((item) => formatNotificationRow(item));
             setNotifications(formatted);
         } catch (error) {
             console.error(handleApiError(error, "Không thể tải thông báo chuông"));
@@ -69,19 +62,27 @@ export default function NotificationBell({ role: roleProp }) {
     }, []);
 
     // Xử lý đánh dấu đã đọc khi xem
-    // Xử lý đánh dấu đã đọc khi xem
-    const handleMarkRead = useCallback(async (id) => {
+    const handleMarkRead = useCallback(async (markReadId, receiptId) => {
+        if (markReadId == null) return;
+
         try {
             setActionLoading(true);
-            // Gọi API cập nhật trạng thái đã đọc trên server
-            await notificationService.mark_read(id); 
-            
-            const nowIso = new Date().toISOString();
-            
-            // Cập nhật nhanh trạng thái tại local để giao diện phản hồi lập tức (Không đợi đóng modal)
-            setNotifications(prev => prev.map(item => item.id === id ? { ...item, readAt: nowIso } : item));
-            setUnreadCount(prev => Math.max(0, prev - 1));
-            setViewRow(prev => prev && prev.id === id ? { ...prev, readAt: nowIso } : prev);
+            const response = await notificationService.mark_read(markReadId);
+            const markedState = getMarkedReadState(response);
+
+            setNotifications((prev) =>
+                prev.map((item) =>
+                    matchesNotificationRecord(item, markReadId, receiptId)
+                        ? { ...item, ...markedState }
+                        : item,
+                ),
+            );
+            setUnreadCount((prev) => Math.max(0, prev - 1));
+            setViewRow((prev) =>
+                prev && matchesNotificationRecord(prev, markReadId, receiptId)
+                    ? { ...prev, ...markedState }
+                    : prev,
+            );
         } catch (error) {
             console.error(handleApiError(error, "Không thể đánh dấu đã đọc"));
         } finally {
@@ -92,26 +93,29 @@ export default function NotificationBell({ role: roleProp }) {
     // Xử lý khi nhấn vào từng item thông báo trong chuông
     const handleItemClick = useCallback(async (item) => {
         setIsOpenDropdown(false);
-        const fallbackDetail = formatNotificationRow(item);
+        const formattedDetail = formatNotificationRow(item);
+        const notificationId = resolveMarkReadId(formattedDetail);
 
-        try {
-            const detail = await notificationService.getById(item.id);
-            setViewRow(mergeNotificationDetail(detail, fallbackDetail));
+        setViewRow(formattedDetail);
 
-            if (!detail.read_at && !fallbackDetail.readAt) {
-                await handleMarkRead(item.id);
-            }
-        } catch (error) {
-            console.warn(
-                handleApiError(error, "Không thể tải chi tiết thông báo, dùng dữ liệu tóm tắt"),
-            );
-            setViewRow(fallbackDetail);
+        if (notificationId != null && isNotificationUnread(formattedDetail)) {
+            await handleMarkRead(notificationId, formattedDetail.receiptId);
+        }
 
-            if (!fallbackDetail.readAt) {
-                await handleMarkRead(item.id);
+        if (canFetchNotificationDetail(role) && notificationId != null) {
+            try {
+                const detail = await notificationService.getById(notificationId);
+                setViewRow((prev) => {
+                    if (!prev) return null;
+                    return mergeNotificationDetail(detail, prev);
+                });
+            } catch (error) {
+                console.warn(
+                    handleApiError(error, "Không thể tải chi tiết thông báo, dùng dữ liệu tóm tắt"),
+                );
             }
         }
-    }, [handleMarkRead]);
+    }, [handleMarkRead, role]);
 
     return (
         <div className="relative" ref={dropdownRef}>
@@ -123,7 +127,7 @@ export default function NotificationBell({ role: roleProp }) {
                 <Bell className="w-[18px] h-[18px]" />
                 {unreadCount > 0 && (
                     <span className="absolute -top-0.5 -right-0.5 min-w-[16px] h-4 px-1 flex items-center justify-center bg-red-600 text-white text-[10px] font-bold rounded-full border border-stone-50 animate-pulse">
-                        {unreadCount > 99 ? "99+" : unreadCount}
+                        {unreadCount > 9 ? "9+" : unreadCount}
                     </span>
                 )}
             </button>

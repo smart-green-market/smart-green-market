@@ -22,3 +22,7 @@ export function getNotificationSeeAllPath(role = "admin") {
 export function canManageNotificationActions(role = "admin") {
     return role === "admin";
 }
+
+export function canFetchNotificationDetail(role = "admin") {
+    return role === "admin";
+}

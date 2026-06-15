@@ -33,7 +33,7 @@ export default function DocumentViewModal({
 
     const isPending = document.status === "pending";
     const isApprove = document.status === "approved";
-    const isRejected = document.status === "rejected";
+    //const isRejected = document.status === "rejected";
 
     const handleApprove = async () => {
         await onApprove(document);
@@ -153,7 +153,7 @@ export default function DocumentViewModal({
                             </button>
                         </div>
                     )}
-                    {!readOnly && isRejected && (
+                    {/* {!readOnly && isRejected && (
                         <div className="px-6 py-4 border-t border-neutral-200 flex justify-end gap-3 shrink-0">
                             <button
                                 onClick={() =>
@@ -166,7 +166,7 @@ export default function DocumentViewModal({
                                 Duyệt
                             </button>
                         </div>
-                    )}
+                    )} */}
                 </div>
             </div>
 

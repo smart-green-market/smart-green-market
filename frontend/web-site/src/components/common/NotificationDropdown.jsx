@@ -1,4 +1,5 @@
 import { Calendar } from "lucide-react";
+import { isNotificationUnread } from "../Admin/Notification/notificationFormatters";
 
 export default function NotificationDropdown({ items, onItemClick, onSeeMore }) {
     // Hàm format định dạng thời gian ngắn gọn
@@ -30,13 +31,13 @@ export default function NotificationDropdown({ items, onItemClick, onSeeMore }) 
                             key={item.id}
                             onClick={() => onItemClick(item)}
                             className={`px-4 py-3 border-b border-neutral-50 last:border-0 cursor-pointer transition-all flex flex-col gap-1 hover:bg-neutral-50
-                                ${!item.readAt ? "bg-emerald-50/40" : "opacity-70"}`}
+                                ${isNotificationUnread(item) ? "bg-emerald-50/40" : "opacity-70"}`}
                         >
                             <div className="flex items-start justify-between gap-2">
-                                <h4 className={`text-xs line-clamp-1 font-['Geist',sans-serif] ${!item.readAt ? "font-bold text-neutral-900" : "font-normal text-neutral-600"}`}>
+                                <h4 className={`text-xs line-clamp-1 font-['Geist',sans-serif] ${isNotificationUnread(item) ? "font-bold text-neutral-900" : "font-normal text-neutral-600"}`}>
                                     {item.title}
                                 </h4>
-                                {!item.readAt && (
+                                {isNotificationUnread(item) && (
                                     <span className="w-2 h-2 mt-1 rounded-full bg-blue-600 shrink-0" />
                                 )}
                             </div>

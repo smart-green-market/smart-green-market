@@ -27,7 +27,7 @@ export default function SupplierViewModal({
     // ─────────────────────────────────────────
     const isPending = supplier.verification_status === "pending";
     const isApproved = supplier.verification_status === "approved";
-    const isRejected = supplier.verification_status === "rejected";
+    //const isRejected = supplier.verification_status === "rejected";
     // ─────────────────────────────────────────
     // XỬ LÝ CONFIRM MODAL
     // ─────────────────────────────────────────
@@ -162,7 +162,7 @@ export default function SupplierViewModal({
                             </button>
                         )}
 
-                        {isRejected && (
+                        {/* {isRejected && (
                             <>
                                 <button
                                     disabled={loading}
@@ -178,7 +178,7 @@ export default function SupplierViewModal({
                                     Duyệt
                                 </button>
                             </>
-                        )}
+                        )} */}
                     </div>
                     ) : null}
                 </div>

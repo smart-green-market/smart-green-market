@@ -31,7 +31,7 @@ export default function DealerViewModal({
     const isPending = displayStatus === "pending";
     const isActive = displayStatus === "active";
     const isInactive = displayStatus === "inactive";
-    const isRejected = displayStatus === "rejected";
+    //const isRejected = displayStatus === "rejected";
 
     const dealerName =
         dealer.account?.full_name || dealer.store_name || "đại lý này";
@@ -256,7 +256,7 @@ export default function DealerViewModal({
                             </button>
                         )}
 
-                        {isRejected && (
+                        {/* {isRejected && (
                             <>
                                 <button
                                     disabled={loading}
@@ -266,7 +266,7 @@ export default function DealerViewModal({
                                     Duyệt
                                 </button>
                             </>
-                        )}
+                        )} */}
                     </div>
                 </div>
             </div>

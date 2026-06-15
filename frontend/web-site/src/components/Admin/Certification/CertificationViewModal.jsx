@@ -21,17 +21,9 @@ export default function CertificationViewModal({
     if (!isOpen || !certification)
         return null;
 
-    const isPending =
-        certification.status ===
-        "pending";
-
-    const isActive =
-        certification.status ===
-        "approved";
-
-    const isRejected =
-        certification.status ===
-        "rejected";
+    const isPending = certification.status === "pending";
+    const isActive = certification.status === "approved";
+    //const isRejected = certification.status === "rejected";
 
     const openReject = ({ title, message, action }) => {
         setRejectConfig({ title, message, action });
@@ -226,7 +218,7 @@ export default function CertificationViewModal({
                         )}
 
                         {/* REJECTED */}
-                        {isRejected && (
+                        {/* {isRejected && (
                             <button
                                 onClick={() =>
                                     openConfirm(
@@ -250,7 +242,7 @@ export default function CertificationViewModal({
                             >
                                 Duyệt
                             </button>
-                        )}
+                        )} */}
                     </div>
                     ) : null}
                 </div>

@@ -43,9 +43,8 @@ export default function ProductViewModal({
     // ── Trạng thái ──────────────────────────────────────────────────────────
     const isPending = product.status === "pending";
     const isActive = product.status === "active";
-    const isInactive =
-        product.status === "inactive" || product.status === "paused";
-    const isRejected = product.status === "rejected";
+    const isInactive = product.status === "inactive" || product.status === "paused";
+    //const isRejected = product.status === "rejected";
 
     // ── Confirm ─────────────────────────────────────────────────────────────
     const openConfirm = (cfg) => setConfirmConfig(cfg);
@@ -265,8 +264,8 @@ export default function ProductViewModal({
                             </button>
                         )}
 
-                        {/* Inactive / Rejected → Kích hoạt lại */}
-                        {(isInactive || isRejected) && (
+                        {/* Inactive → Kích hoạt lại */}
+                        {(isInactive) && (
                             <button
                                 disabled={loading}
                                 onClick={() =>
