@@ -1,154 +1,130 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
+
 import SearchBar from "../../components/Admin/UI/SearchBar";
-import Filter from "../../components/Admin/Dealer/DealerFilter";
+import DealerFilter, {
+    getDealerDisplayStatus,
+} from "../../components/Admin/Dealer/DealerFilter";
 import DealerTable from "../../components/Admin/Dealer/DealerTable";
 import DealerViewModal from "../../components/Admin/Dealer/DealerViewModal";
-import { dealerService, handleApiError} from "../../services/api/dealerService";
+import { getDealerApprovalDocumentError } from "../../components/Admin/Dealer/dealerDocumentHelpers";
+import { appToast } from "../../components/common/toast";
+import { dealerService, handleApiError } from "../../services/api/dealerService";
+
+function formatDealerListItem(dealer) {
+    return {
+        id: dealer.id,
+        store_name: dealer.store_name,
+        store_address: dealer.store_address,
+        description: dealer.description,
+        status: dealer.status,
+        account_status: dealer.account?.status,
+        owner_name: dealer.account?.full_name,
+        phone: dealer.account?.phone,
+        email: dealer.account?.email,
+        created_at: dealer.created_at,
+        updated_at: dealer.updated_at,
+    };
+}
+
+function formatDealerDetail(detail) {
+    return {
+        id: detail.id,
+        store_name: detail.store_name,
+        store_address: detail.store_address,
+        description: detail.description,
+        status: detail.status,
+        rejection_reason: detail.rejection_reason,
+        verified_by: detail.verified_by_username || detail.verified_by,
+        verified_at: detail.verified_at,
+        created_at: detail.created_at,
+        updated_at: detail.updated_at,
+        account: detail.account || {},
+        documents: detail.documents || [],
+        products: detail.products || [],
+    };
+}
 
 export default function DealerPage() {
     const [data, setData] = useState([]);
     const [loading, setLoading] = useState(false);
+    const [actionLoading, setActionLoading] = useState(false);
     const [error, setError] = useState("");
     const [search, setSearch] = useState("");
     const [statusFilter, setStatusFilter] = useState("pending");
     const [viewRow, setViewRow] = useState(null);
-    const [actionLoading, setActionLoading] = useState(false);
-    const fetchDealer = useCallback(
-        async () => {
-            try {
-                setLoading(true);
 
-                const response =
-                    await dealerService.getAll();
-                const formattedData =
-                    response.map(
-                        (dealer) => ({
-                            id: dealer.id,
+    const fetchDealers = useCallback(async () => {
+        try {
+            setLoading(true);
+            setError("");
 
-                            name:
-                                dealer.dealer_name,
+            const response = await dealerService.getAll();
+            setData(Array.isArray(response) ? response.map(formatDealerListItem) : []);
+        } catch (err) {
+            setError(handleApiError(err, "Không thể tải danh sách đại lý"));
+        } finally {
+            setLoading(false);
+        }
+    }, []);
 
-                            address:
-                                dealer.address,
+    const handleViewDealer = useCallback(async (row) => {
+        try {
+            setActionLoading(true);
+            setError("");
 
-                            phone:
-                                dealer.phone,
+            const detail = await dealerService.getById(row.id);
+            setViewRow(formatDealerDetail(detail));
+        } catch (err) {
+            setError(handleApiError(err, "Không thể tải chi tiết đại lý"));
+        } finally {
+            setActionLoading(false);
+        }
+    }, []);
 
-                            verify:
-                                dealer.verification_status,
+    useEffect(() => {
+        fetchDealers();
+    }, [fetchDealers]);
 
-                            created_at:
-                                dealer.created_at,
+    const filteredData = useMemo(() => {
+        const keyword = search.toLowerCase();
 
-                            updated_at:
-                                dealer.updated_at,
-                        })
-                    );
+        return data.filter((row) => {
+            const matchKeyword =
+                (row.store_name ?? "").toLowerCase().includes(keyword) ||
+                (row.store_address ?? "").toLowerCase().includes(keyword) ||
+                (row.owner_name ?? "").toLowerCase().includes(keyword) ||
+                (row.phone ?? "").toLowerCase().includes(keyword) ||
+                (row.email ?? "").toLowerCase().includes(keyword);
 
-                setData(formattedData);
-            } catch (error) {
-                const message =
-                    handleApiError(
-                        error,
-                        "Không thể tải danh sách đại lý"
-                    );
+            const matchStatus = statusFilter
+                ? getDealerDisplayStatus(row) === statusFilter
+                : true;
 
-                setError(message);
-            } finally {
-                setLoading(false);
-            }
-        },
-        []
-    );
+            return matchKeyword && matchStatus;
+        });
+    }, [data, search, statusFilter]);
 
-    const handleViewDealer =
-        useCallback(async (row) => {
-            try {
-                setLoading(true);
-
-                const detail =
-                    await dealerService.getById(
-                        row.id
-                    );
-                const formattedDetail = {
-                    id: detail.id,
-
-                            name:
-                                detail.dealer_name,
-
-                            address:
-                                detail.address,
-
-                            phone:
-                                detail.phone,
-
-                            verify:
-                                detail.verification_status,
-
-                            created_at:
-                                detail.created_at,
-
-                            updated_at:
-                                detail.updated_at,
-                };
-
-                setViewRow(
-                    formattedDetail
-                );
-            } catch (error) {
-                handleApiError(
-                    error,
-                    "Không thể tải chi tiết đại lý"
-                );
-            } finally {
-                setLoading(false);
-            }
-        }, []);
-    useEffect(() => { fetchDealer(); }, [fetchDealer]);
-
-    // ── APPROVE ──────────────────────────────────────────
     const handleApprove = async (dealer) => {
         try {
             setActionLoading(true);
 
-            await dealerService.verify(
-                dealer.id,
-                {
-                    status: "active",
-                }
-            );
+            const detail = await dealerService.getById(dealer.id);
+            const docError = getDealerApprovalDocumentError(detail.documents);
 
+            if (docError) {
+                throw new Error(docError);
+            }
+
+            await dealerService.verify(dealer.id, { status: "active" });
             setViewRow(null);
-            await fetchDealer();
-        } catch (error) {
-            console.error(
-                handleApiError(
-                    error,
-                    "Không thể duyệt đại lý"
-                )
-            );
-        } finally {
-            setActionLoading(false);
-        }
-    };
-
-    // ── REJECT ───────────────────────────────────────────
-    const handleReject = async (dealer, rejectionReason) => {
-        try {
-            setActionLoading(true);
-
-            await dealerService.verify(dealer.id, {
-                status: "rejected",
-                rejection_reason: rejectionReason,
-            });
-
-            setViewRow(null);
-            await fetchDealer();
-        } catch (error) {
-            const msg = handleApiError(
-                error,
-                "Không thể từ chối đại lý"
-            );
+            await fetchDealers();
+        } catch (err) {
+            const msg = handleApiError(err, "Không thể duyệt đại lý");
+            if (msg.includes("giấy tờ")) {
+                appToast.warning(msg);
+            } else {
+                appToast.danger(msg);
+            }
             console.error(msg);
             throw new Error(msg);
         } finally {
@@ -156,136 +132,95 @@ export default function DealerPage() {
         }
     };
 
-    // ── LOCK ─────────────────────────────────────────────
+    const handleReject = async (dealer, rejectionReason) => {
+        try {
+            setActionLoading(true);
+            await dealerService.verify(dealer.id, {
+                status: "rejected",
+                rejection_reason: rejectionReason,
+            });
+            setViewRow(null);
+            await fetchDealers();
+        } catch (err) {
+            const msg = handleApiError(err, "Không thể từ chối đại lý");
+            console.error(msg);
+            throw new Error(msg);
+        } finally {
+            setActionLoading(false);
+        }
+    };
+
     const handleLock = async (dealer) => {
         try {
             setActionLoading(true);
-
-            await dealerService.status(
-                dealer.id,
-                {
-                    status: "inactive",
-                    reason: "Tạm khóa bởi admin",
-                }
-            );
+            await dealerService.statusUpdate(dealer.id, {
+                status: "inactive",
+                reason: "Tạm khóa bởi admin",
+            });
             setViewRow(null);
-            await fetchDealer();
-        } catch (error) {
-            console.error(
-                handleApiError(
-                    error,
-                    "Không thể khóa đại lý"
-                )
-            );
+            await fetchDealers();
+        } catch (err) {
+            const msg = handleApiError(err, "Không thể khóa đại lý");
+            console.error(msg);
+            throw new Error(msg);
         } finally {
             setActionLoading(false);
         }
     };
 
-    // ── ACTIVE ───────────────────────────────────────────
     const handleUnlock = async (dealer) => {
         try {
             setActionLoading(true);
-
-            await dealerService.status(
-                dealer.id,
-                {
-                    status: "active",
-                    reason: "Mở khóa",
-                }
-            );
+            await dealerService.statusUpdate(dealer.id, {
+                status: "active",
+                reason: "Mở khóa bởi admin",
+            });
             setViewRow(null);
-            await fetchDealer();
-        } catch (error) {
-            console.error(
-                handleApiError(
-                    error,
-                    "Không thể mở khóa đại lý"
-                )
-            );
-        } finally {
-            setActionLoading(false);
-        }
-    };
-
-    // ── BAN ──────────────────────────────────────────────
-    const handleBan = async (dealer) => {
-        try {
-            setActionLoading(true);
-
-            await dealerService.status(
-                dealer.id,
-                {
-                    status: "banned",
-                    reason: "Vi phạm chính sách",
-                }
-            );
-
-            setViewRow(null);
-            await fetchDealer();
-        } catch (error) {
-            console.error(
-                handleApiError(
-                    error,
-                    "Không thể vô hiệu hóa đại lý"
-                )
-            );
+            await fetchDealers();
+        } catch (err) {
+            const msg = handleApiError(err, "Không thể mở khóa đại lý");
+            console.error(msg);
+            throw new Error(msg);
         } finally {
             setActionLoading(false);
         }
     };
 
     return (
-        <div className="flex flex-col gap-6 px-8 pt-6 pb-10">
-
-            {/* SEARCH */}
+        <div className="flex flex-col gap-6 px-8 pb-10 pt-6">
             <SearchBar
                 value={search}
                 onChange={setSearch}
                 placeholder="Tìm kiếm đại lý..."
             />
 
-            {/* FILTER */}
             <div className="flex items-center gap-3">
-
-                <span className="text-xs font-semibold text-neutral-400 uppercase tracking-wide">
+                <span className="text-xs font-semibold uppercase tracking-wide text-neutral-400">
                     Lọc:
                 </span>
-
-                <Filter
-                    value={statusFilter}
-                    onChange={
-                        setStatusFilter
-                    }
-                />
+                <DealerFilter value={statusFilter} onChange={setStatusFilter} />
             </div>
 
-            {/* ERROR */}
-            {error && (
-                <div className="px-4 py-3 rounded-xl bg-red-100 text-red-700 text-sm">
+            {error ? (
+                <div className="rounded-xl bg-red-100 px-4 py-3 text-sm text-red-700">
                     {error}
                 </div>
-            )}
+            ) : null}
 
-            {/* TABLE */}
             <DealerTable
-                data={data}
+                data={filteredData}
                 loading={loading}
-                search={search}
-                statusFilter={statusFilter}
                 onView={handleViewDealer}
             />
 
-            {/* VIEW MODAL */}
             <DealerViewModal
                 isOpen={viewRow !== null}
-                onClose={() =>setViewRow(null)}
+                onClose={() => setViewRow(null)}
                 dealer={viewRow}
                 onApprove={handleApprove}
                 onReject={handleReject}
                 onLock={handleLock}
                 onUnlock={handleUnlock}
-                onBan={handleBan}
                 loading={actionLoading}
             />
         </div>

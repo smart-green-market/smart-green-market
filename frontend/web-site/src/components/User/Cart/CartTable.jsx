@@ -10,7 +10,7 @@ export default function CartTable({
   onRemove,
 }) {
   return (
-    <section className="overflow-hidden rounded-xl bg-white shadow-sm">
+    <section className="overflow-hidden rounded-xl border border-stone-200 bg-white shadow-sm">
       <div className="grid grid-cols-[40px_1.6fr_1fr_1fr_1fr] items-center gap-4 bg-zinc-100 px-6 py-4 text-sm uppercase tracking-wide text-neutral-700">
         <div>
           <input

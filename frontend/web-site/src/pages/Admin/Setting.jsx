@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { HardDrive, Shield, Loader2, AlertCircle, RefreshCw } from 'lucide-react';
+import { HardDrive, Shield, ShoppingCart, Loader2, AlertCircle, RefreshCw } from 'lucide-react';
 import { settingService, handleApiError } from '../../services/api/settingService';
 
 // ── Field hiển thị chỉ đọc ──────────────────────────────────────────────────
@@ -91,7 +91,7 @@ export default function SettingsAside() {
         {/* HEADER */}
         <div className="self-stretch flex items-center justify-between gap-3">
           <div>
-            <h1 className="text-zinc-900 text-2xl font-semibold leading-8">
+            <h1 className="text-zinc-900 text-2xl font-semibold leading-8 font-['Noto_Serif',serif]">
               Cấu hình hệ thống
             </h1>
             <p className="text-neutral-500 text-sm mt-1">
@@ -189,6 +189,53 @@ export default function SettingsAside() {
               value={config?.login_lockout_minutes}
               suffix="phút"
               hint="Thời gian khóa sau khi vượt số lần đăng nhập sai."
+            />
+          </div>
+        </div>
+        
+      {/* KHỐI 3: ĐƠN HÀNG & THANH TOÁN */}
+      <div className="self-stretch flex flex-col justify-start items-start gap-6">
+          <div className="self-stretch pb-4 border-b border-neutral-200 inline-flex justify-start items-center gap-3">
+            <ShoppingCart className="w-5 h-5 text-emerald-950" />
+            <h2 className="text-zinc-900 text-xl font-semibold font-serif leading-7">Đơn hàng &amp; Thanh toán</h2>
+          </div>
+
+          <div className="self-stretch grid grid-cols-1 md:grid-cols-2 gap-6">
+            <ReadField
+              label="Giá trị đơn hàng tối thiểu"
+              value={config?.min_order_amount}
+              suffix="VNĐ"
+              hint="Số tiền tối thiểu để đặt một đơn hàng."
+            />
+            <ReadField
+              label="Giá trị đơn hàng tối đa"
+              value={config?.max_order_amount}
+              suffix="VNĐ"
+              hint="Số tiền tối đa cho phép trên một đơn hàng."
+            />
+            <ReadField
+              label="Tỷ lệ đặt cọc tối thiểu"
+              value={config?.min_deposit_percent}
+              suffix="%"
+              hint="Phần trăm đặt cọc thấp nhất được phép."
+            />
+            <ReadField
+              label="Tỷ lệ đặt cọc tối đa"
+              value={config?.max_deposit_percent}
+              suffix="%"
+              hint="Phần trăm đặt cọc cao nhất được phép."
+            />
+            <ReadField
+              label="Tỷ lệ đặt cọc mặc định"
+              value={config?.default_deposit_percent}
+              suffix="%"
+              hint="Tỷ lệ đặt cọc áp dụng mặc định khi tạo đơn."
+            />
+            <ReadField
+              label="Số ngày giao hàng tối thiểu"
+              value={config?.min_delivery_lead_days}
+              suffix="ngày"
+              hint="Thời gian chờ giao hàng tối thiểu kể từ khi đặt đơn."
             />
           </div>
         </div>

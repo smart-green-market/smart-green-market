@@ -10,6 +10,9 @@ export default function CertificationViewModal({
     certification,
     onApprove,
     onReject,
+    loading,
+    readOnly = false,
+    closeOnAction = true,
 }) {
     const [confirmConfig, setConfirmConfig] =
         useState(null);
@@ -18,17 +21,9 @@ export default function CertificationViewModal({
     if (!isOpen || !certification)
         return null;
 
-    const isPending =
-        certification.status ===
-        "pending";
-
-    const isActive =
-        certification.status ===
-        "approved";
-
-    const isRejected =
-        certification.status ===
-        "rejected";
+    const isPending = certification.status === "pending";
+    const isActive = certification.status === "approved";
+    //const isRejected = certification.status === "rejected";
 
     const openReject = ({ title, message, action }) => {
         setRejectConfig({ title, message, action });
@@ -39,7 +34,9 @@ export default function CertificationViewModal({
             await rejectConfig.action(reason);
         }
         setRejectConfig(null);
-        onClose();
+        if (closeOnAction) {
+            onClose();
+        }
     };
 
     const openConfirm = ({
@@ -67,7 +64,9 @@ export default function CertificationViewModal({
             }
 
             setConfirmConfig(null);
-            onClose();
+            if (closeOnAction) {
+                onClose();
+            }
         };
 
     return (
@@ -155,6 +154,7 @@ export default function CertificationViewModal({
                     </div>
 
                     {/* Footer */}
+                    {!readOnly ? (
                     <div className="px-8 py-6 border-t border-neutral-200 flex justify-end gap-4 shrink-0 bg-white">
 
                         {/* PENDING */}
@@ -218,7 +218,7 @@ export default function CertificationViewModal({
                         )}
 
                         {/* REJECTED */}
-                        {isRejected && (
+                        {/* {isRejected && (
                             <button
                                 onClick={() =>
                                     openConfirm(
@@ -242,8 +242,9 @@ export default function CertificationViewModal({
                             >
                                 Duyệt
                             </button>
-                        )}
+                        )} */}
                     </div>
+                    ) : null}
                 </div>
             </div>
 
