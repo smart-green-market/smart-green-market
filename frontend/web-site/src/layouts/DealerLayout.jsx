@@ -1,8 +1,10 @@
 import { useState } from "react";
 import { Outlet } from "react-router-dom";
-import { Bell, Menu } from "lucide-react";
+import { Menu } from "lucide-react";
 import SideBar from "../components/Dealer/UI/SideBar";
 import Logo from "../components/Dealer/UI/Logo";
+import NotificationBell from "../components/common/NotificationBell";
+import AppToaster from "../components/common/AppToaster";
 
 export default function DealerLayout() {
     const [isSidebarOpen, setIsSidebarOpen] = useState(true);
@@ -25,10 +27,7 @@ export default function DealerLayout() {
 
                 {/* Right icons */}
                 <div className="flex items-center gap-3">
-                    <button className="relative p-2 rounded-full hover:bg-emerald-50 transition-colors text-emerald-700 cursor-pointer">
-                        <Bell className="w-[18px] h-[18px]" />
-                        <span className="absolute top-2 right-2 w-2 h-2 bg-emerald-600 rounded-full border-2 border-stone-50" />
-                    </button>
+                    <NotificationBell role="dealer" />
 
                     <div className="pl-4 border-l border-emerald-100 flex items-center gap-2">
                         <button className="w-8 h-8 rounded-full bg-emerald-800 hover:bg-emerald-900 flex items-center justify-center text-white text-xs font-bold font-['Geist',sans-serif] shadow-xs active:scale-95 transition-transform cursor-pointer">
@@ -47,6 +46,8 @@ export default function DealerLayout() {
             }`}>
                 <Outlet />
             </main>
+
+            <AppToaster />
         </div>
     );
 }

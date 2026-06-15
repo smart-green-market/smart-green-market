@@ -1,28 +1,26 @@
 import { BrowserRouter, Routes, Route } from "react-router-dom";
-
+import { AuthProvider } from "./contexts/authProvider";
+    //Protected Routes
+import AdminProtectedRoute from "./contexts/adminProtectedRoute";
+import SupplierProtectedRoute from "./contexts/supplierProtectedRoute";
+import DealerProtectedRoute from "./contexts/dealerProtectedRoute";
+    //Layouts
 import UserLayout from "./layouts/UserLayout";
 import AdminLayout from "./layouts/AdminLayout";
 import SupplierLayout from "./layouts/SupplierLayout";
 import UserProfileLayout from "./layouts/UserProfileLayout";
-
-import  {HomePage}  from "./pages/User/Home";
-import CartPage from "./pages/User/Cart";
-import OrderPage from "./pages/User/Order";
-import PaymentPage from "./pages/User/Payment";
-import OrderStatusPage from "./pages/user/OrderStatus";
-import UserProfilePage from "./pages/user/Profile/Profile";
-
-import InventorySupplierPage from "./pages/Supplier/Inventory";
-import ProductSupplierPage from "./pages/Supplier/Product";
-import CertificationSupplierPage from "./pages/Supplier/Vertification";
-import RegisterPage from "./pages/Supplier/RegisterPage";
-import SupplierLoginPage from "./pages/Supplier/SupplierLogin";
-import SupplierProtectedRoute from "./contexts/supplierProtectedRoute";
-
-
 import DealerLayout from "./layouts/DealerLayout";
-import DealerProtectedRoute from "./contexts/dealerProtectedRoute";
+    //User Pages
+import {HomePage, CartPage, OrderPage, PaymentPage, OrderStatusPage, UserProfilePage}  from "./pages/User";
+    //Supplier Pages
+import { OrderSupplierPage, ProductSupplierPage, CertificationSupplierPage, RegisterPage, SupplierLoginPage, SupplierInfoPage, CategorySupplierPage, CultivationSupplierPage } from "./pages/Supplier";
+    //Admin Pages
+import { AdminLoginPage, SettingPage, SupplierPage, CategoryPage, ProductPage, CertificationPage, DocumentPage, NotificationPage, DealerPage,} from "./pages/Admin";
+
+
+
 import {
+    RegisterDealerPage,
     DealerLoginPage,
     DealerDashboardPage,
     DealerInventoryPage,
@@ -30,29 +28,19 @@ import {
     DealerCategoryPage,
     DealerSalesOrderPage,
     DealerPurchaseOrderPage,
+    DealerCreatePurchaseOrderPage,
+    DealerPurchaseOrderDetailPage,
     DealerSupplierDetailPage,
     DealerCategoryDetail,
 } from "./pages/Dealer";
 
-import {
-  AdminLoginPage,   
-  SettingPage,
-  SupplierPage,
-  CategoryPage,
-  ProductPage,
-  CertificationPage,
-  DocumentPage,
-  NotificationPage,
-} from "./pages/Admin";
-
-import { AuthProvider } from "./contexts/authProvider";
-import AdminProtectedRoute from "./contexts/adminProtectedRoute";
 
 export default function App() {
     return (
         <BrowserRouter>
             <AuthProvider>
                 <Routes>
+                    {/* User */}
                     <Route path="/" element={<UserLayout />}>
                         <Route index element={<HomePage />} />
                         <Route path="trang-chu" element={<HomePage />} />
@@ -73,15 +61,20 @@ export default function App() {
                                 </div>
                             } />
                             <Route path="san-pham" element={<ProductSupplierPage />} />
-                            <Route path="ton-kho" element={<InventorySupplierPage/>} />
+                            <Route path="don-hang" element={<OrderSupplierPage/>} />
                             <Route path="chung-nhan" element={<CertificationSupplierPage />} />
+                            <Route path="thong-tin-ca-nhan" element={<SupplierInfoPage />} />
+                            <Route path="danh-muc" element={<CategorySupplierPage />} />
+                            <Route path="tat-ca-thong-bao" element={<NotificationPage />} />
+                            <Route path="canh-tac" element={<CultivationSupplierPage />} />
                         </Route>
                     </Route>
-                    <Route path="/nha-cung-cap/login" element={<SupplierLoginPage />} />
+                    <Route path="/nha-cung-cap/dang-nhap" element={<SupplierLoginPage />} />
                     <Route path="dang-ky-nha-cung-cap" element={<RegisterPage />} />
 
+
                     {/* Admin */}
-                    <Route path="/admin/login" element={<AdminLoginPage />} />
+                    <Route path="/quan-tri/dang-nhap" element={<AdminLoginPage />} />
                     <Route element={<AdminProtectedRoute />}>
                         <Route path="/quan-tri" element={<AdminLayout />}>
                             <Route path="cau-hinh" element={<SettingPage />} />
@@ -91,27 +84,29 @@ export default function App() {
                             <Route path="chung-chi" element={<CertificationPage />} />
                             <Route path="giay-to" element={<DocumentPage />} />
                             <Route path="tat-ca-thong-bao" element={<NotificationPage />} />
+                            <Route path="dai-ly" element={<DealerPage />} />
                         </Route>
                     </Route>
 
-                    {/* Phân hệ Đại lý (Dealer) */}
-                    <Route path="/dai-ly/login" element={<DealerLoginPage />} />
+                    {/* Dealer */}
                     <Route element={<DealerProtectedRoute />}>
                         <Route path="/dai-ly" element={<DealerLayout />}>
+                            <Route path="tat-ca-thong-bao" element={<NotificationPage />} />
                             <Route index element={<DealerDashboardPage />} />
                             <Route path="nha-cung-cap" element={<DealerSupplierPage />} />
                             <Route path="danh-muc" element={<DealerCategoryPage />} />
                             <Route path="kho-hang" element={<DealerInventoryPage />} />
                             <Route path="ban-hang" element={<DealerSalesOrderPage />} />
                             <Route path="nhap-hang" element={<DealerPurchaseOrderPage />} />
+                            <Route path="nhap-hang/tao-moi" element={<DealerCreatePurchaseOrderPage />} />
+                            <Route path="nhap-hang/tao-phieu-nhap" element={<DealerPurchaseOrderDetailPage />} />
+                            <Route path="nhap-hang/chi-tiet/:id" element={<DealerPurchaseOrderDetailPage />} />
                             <Route path="nha-cung-cap/:id" element={<DealerSupplierDetailPage />} />
                             <Route path="danh-muc/:id" element={<DealerCategoryDetail />} />
                         </Route>
                     </Route>
-                   
-
-
-
+                    <Route path="dai-ly/dang-nhap" element={<DealerLoginPage />} />
+                    <Route path="dai-ly/dang-ky" element={<RegisterDealerPage />} />
                 </Routes>
             </AuthProvider>
         </BrowserRouter>

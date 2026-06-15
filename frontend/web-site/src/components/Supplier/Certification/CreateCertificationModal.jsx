@@ -3,7 +3,13 @@ import {
   X, ShieldCheck, Hash, Building2, CalendarDays, FileText,
   CloudUpload, Trash2, CheckCircle, Loader2, Info, Save, ImageIcon,
 } from "lucide-react";
-import {certificationService} from "../../../services/api/CertificationService";
+import { certificationService } from "../../../services/api/CertificationService";
+import {
+  parseSupplierApiErrors,
+  validateCertificationForm,
+  errorsToSummary,
+  extractSupplierApiMessage,
+} from "../../../utils/supplierValidation";
 // ─────────────────────────────────────────────
 // Constants
 // ─────────────────────────────────────────────
@@ -126,6 +132,7 @@ export default function AddCertificationModal({ isOpen, onClose, onSuccess }) {
   const [saving, setSaving]   = useState(false);
   const [saved, setSaved]     = useState(false);
   const [error, setError]     = useState(null);
+  const [fieldErrors, setFieldErrors] = useState({});
 
   const fileRef = useRef(null);
 
@@ -150,7 +157,11 @@ export default function AddCertificationModal({ isOpen, onClose, onSuccess }) {
 
   if (!isOpen) return null;
 
-  const set = (k, v) => setForm((f) => ({ ...f, [k]: v }));
+  const set = (k, v) => {
+    setForm((f) => ({ ...f, [k]: v }));
+    if (fieldErrors[k]) setFieldErrors((e) => ({ ...e, [k]: "" }));
+    if (error) setError(null);
+  };
 
   // ── image handlers ──
   const handleImageFile = (f) => {
@@ -181,8 +192,17 @@ export default function AddCertificationModal({ isOpen, onClose, onSuccess }) {
 // ── submit ──
   const handleSubmit = async (e) => {
     e.preventDefault();
+    setError(null);
+
+    const errs = validateCertificationForm(form, { hasImage: !!imageFile });
+    if (Object.keys(errs).length) {
+      setFieldErrors(errs);
+      setError(errorsToSummary(errs));
+      return;
+    }
+    setFieldErrors({});
+
     setSaving(true);
-    
     try {
         const formData = new FormData();
         
@@ -214,17 +234,15 @@ export default function AddCertificationModal({ isOpen, onClose, onSuccess }) {
             onClose();
         }, 500); // Đợi nửa giây cho đẹp UI rồi mới đóng
 
-    } catch (error) {
-        console.error("CHI TIẾT LỖI HOÀN CHỈNH:", error);
-        if (error.response) {
-             console.error("Lỗi từ Backend (Data):", error.response.data);
-             alert("Lỗi Backend: " + JSON.stringify(error.response.data));
-        } else {
-             console.error("Lỗi Code hoặc Mạng:", error.message);
-             alert("Lỗi hệ thống: " + error.message);
-        }
+    } catch (err) {
+      console.error("Lỗi tạo chứng nhận:", err);
+      const parsed = parseSupplierApiErrors(err?.response?.data, {
+        fallback: "Tạo chứng nhận thất bại. Vui lòng kiểm tra lại thông tin.",
+      });
+      if (Object.keys(parsed.fieldErrors).length) setFieldErrors(parsed.fieldErrors);
+      setError(parsed.general || parsed.summary || extractSupplierApiMessage(err));
     } finally {
-        setSaving(false);
+      setSaving(false);
     }
   };
 

@@ -1,7 +1,6 @@
-import { Eye, Trash2 } from "lucide-react";
-import { tableStyles, paginationVi } from "../../common/tableStyles";
+import { supplierTableStyles, paginationVi } from "../UI/supplierTableStyles";
+import { SupplierActionButton, SupplierActionGroup } from "../UI/SupplierTableActions";
 import DataTable from "react-data-table-component";
-
 
 const STATUS_CONFIG = {
   pending: { label: "CHỜ DUYỆT", bg: "bg-amber-500/10", text: "text-amber-600" },
@@ -11,13 +10,12 @@ const STATUS_CONFIG = {
   revoked: { label: "THU HỒI", bg: "bg-rose-600/10", text: "text-rose-700" },
 };
 
-// ── Column definitions ────────────────────────────────────────────────────────
-const buildColumns = (onView, onDelete) => [
+const buildColumns = (onView) => [
   {
     name: "Mã chứng nhận",
     selector: (row) => row.certificate_code || row.code,
     sortable: true,
-    width: "180px",
+    minWidth: "150px",
     cell: (row) => (
       <span className="text-emerald-800 text-xs font-semibold font-mono">
         {row.certificate_code || row.code}
@@ -28,22 +26,22 @@ const buildColumns = (onView, onDelete) => [
     name: "Hình ảnh",
     width: "100px",
     cell: (row) => {
-      // Lấy ảnh đầu tiên trong mảng images (nếu có), không thì dùng default
-      const imgUrl = (row.images && row.images.length > 0) ? row.images[0].image_url : row.image;
+      const imgUrl =
+        row.images?.length > 0 ? row.images[0].image_url : row.image;
       return (
         <img
           src={imgUrl || "https://placehold.co/48x48"}
           alt={row.name}
-          className="w-12 h-12 rounded-lg border border-stone-300 object-cover"
+          className="w-14 h-14 rounded-lg border border-stone-300 object-cover"
         />
       );
-    }
+    },
   },
   {
     name: "Tên chứng nhận",
     selector: (row) => row.name,
     sortable: true,
-    width: "200px",
+    minWidth: "180px",
     grow: 2,
     cell: (row) => (
       <span className="text-emerald-950 text-sm font-semibold font-['Geist',sans-serif]">
@@ -55,20 +53,22 @@ const buildColumns = (onView, onDelete) => [
     name: "Nơi cấp",
     selector: (row) => row.issued_by,
     sortable: true,
-    width: "200px",
+    minWidth: "140px",
     cell: (row) => (
-      <span className="text-sm text-neutral-600">
-        {row.issued_by || "---"}
-      </span>
+      <span className="text-sm text-neutral-600">{row.issued_by || "—"}</span>
     ),
   },
   {
     name: "Thời hạn",
-    width: "150px",
+    minWidth: "140px",
     cell: (row) => (
       <div className="flex flex-col text-xs font-['Geist',sans-serif] gap-1">
-        <span className="text-neutral-600">Cấp: <strong>{row.issue_date || "---"}</strong></span>
-        <span className="text-red-600">Hết: <strong>{row.expiry_date || "---"}</strong></span>
+        <span className="text-neutral-600">
+          Cấp: <strong>{row.issue_date || "—"}</strong>
+        </span>
+        <span className="text-red-600">
+          Hết: <strong>{row.expiry_date || "—"}</strong>
+        </span>
       </div>
     ),
   },
@@ -76,66 +76,64 @@ const buildColumns = (onView, onDelete) => [
     name: "Trạng thái",
     selector: (row) => row.status,
     sortable: true,
-    width: "150px",
+    width: "130px",
     cell: (row) => {
-      const st = STATUS_CONFIG[row.status] ?? { label: row.status, bg: "bg-gray-100", text: "text-gray-600" };
+      const st = STATUS_CONFIG[row.status] ?? {
+        label: row.status,
+        bg: "bg-gray-100",
+        text: "text-gray-600",
+      };
       return (
-        <span className={`px-2 py-1 rounded-md text-[11px] font-bold tracking-wide ${st.bg} ${st.text}`}>
+        <span
+          className={`px-2 py-1 rounded-md text-[11px] font-bold tracking-wide ${st.bg} ${st.text}`}
+        >
           {st.label}
         </span>
       );
     },
   },
   {
-    name: "Hành động",
-    width: "100px",
+    name: "Thao tác",
+    minWidth: "120px",
+    right: true,
     cell: (row) => (
-      <div className="flex items-center gap-1">
-        <button
-          onClick={() => onView(row)}
-          title="Xem"
-          className="p-1.5 rounded-lg text-zinc-500 hover:text-emerald-700 hover:bg-emerald-50 transition-colors"
-        >
-          Xem chi tiết
-        </button>
-        {/* <button
-          onClick={() => onDelete(row)}
-          title="Xóa"
-          className="p-1.5 rounded-lg text-zinc-500 hover:text-red-600 hover:bg-red-50 transition-colors"
-        >
-          <Trash2 className="w-4 h-4" />
-        </button> */}
-      </div>
+      <SupplierActionGroup>
+        <SupplierActionButton label="Xem chi tiết" onClick={() => onView(row)} />
+      </SupplierActionGroup>
     ),
     ignoreRowClick: true,
   },
 ];
 
-export default function CertificationTable({ data, search, statusFilter, onView, onDelete }) {
+export default function CertificationTable({ data, search, statusFilter, onView }) {
   const filtered = data.filter((row) => {
     const searchStr = (search || "").toLowerCase();
     const matchName = (row?.name || "").toLowerCase().includes(searchStr);
-    const matchCode = (row?.certificate_code || row?.code || "").toLowerCase().includes(searchStr);
+    const matchCode = (row?.certificate_code || row?.code || "")
+      .toLowerCase()
+      .includes(searchStr);
     const matchStatus = statusFilter ? row.status === statusFilter : true;
-    
+
     return (matchName || matchCode) && matchStatus;
   });
 
   return (
     <div className="w-full rounded-xl border border-neutral-200 overflow-hidden">
       <DataTable
-        columns={buildColumns(onView, onDelete)}
+        columns={buildColumns(onView)}
         data={filtered}
         pagination
         paginationPerPage={6}
         paginationRowsPerPageOptions={[6, 12, 20]}
         paginationComponentOptions={paginationVi}
-        customStyles={tableStyles}
+        customStyles={supplierTableStyles}
         noDataComponent={
-          <div className="p-8 text-neutral-400 text-sm font-['Geist',sans-serif]">
+          <div className="py-16 text-sm text-neutral-400 font-['Geist']">
             Không có chứng nhận nào phù hợp.
           </div>
         }
+        highlightOnHover
+        responsive
       />
     </div>
   );

@@ -40,7 +40,7 @@ export default function SuggestProduct() {
                 {/* Nút Chevron Left - bên trái */}
                 <button
                     onClick={() => scroll("left")}
-                    className="absolute left-0 top-1/2 -translate-y-1/2 -translate-x-5 z-10 w-12 h-12 rounded-full bg-white shadow-lg border border-stone-200 hover:bg-emerald-50 hover:border-emerald-300 flex items-center justify-center text-zinc-600 transition-all opacity-0 group-hover:opacity-100"
+                    className="cursor-pointer absolute left-0 top-1/2 -translate-y-1/2 -translate-x-5 z-10 w-12 h-12 rounded-full bg-white shadow-lg border border-stone-200 hover:bg-emerald-50 hover:border-emerald-300 flex items-center justify-center text-zinc-600 transition-all opacity-0 group-hover:opacity-100"
                     style={{ left: '-20px' }}
                 >
                     <ChevronLeft className="w-6 h-6" />
@@ -59,7 +59,7 @@ export default function SuggestProduct() {
                 {/* Nút Chevron Right - bên phải */}
                 <button
                     onClick={() => scroll("right")}
-                    className="absolute right-0 top-1/2 -translate-y-1/2 translate-x-5 z-10 w-12 h-12 rounded-full bg-white shadow-lg border border-stone-200 hover:bg-emerald-50 hover:border-emerald-300 flex items-center justify-center text-zinc-600 transition-all opacity-0 group-hover:opacity-100"
+                    className="cursor-pointer absolute right-0 top-1/2 -translate-y-1/2 translate-x-5 z-10 w-12 h-12 rounded-full bg-white shadow-lg border border-stone-200 hover:bg-emerald-50 hover:border-emerald-300 flex items-center justify-center text-zinc-600 transition-all opacity-0 group-hover:opacity-100"
                     style={{ right: '-20px' }}
                 >
                     <ChevronRight className="w-6 h-6" />

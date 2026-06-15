@@ -12,6 +12,8 @@ export default function SupplierViewModal({
     onApprove,
     onReject,
     loading,
+    readOnly = false,
+    closeOnAction = true,
 }) {
     const [confirmConfig, setConfirmConfig] = useState(null);
     const [rejectConfig, setRejectConfig] = useState(null);
@@ -38,7 +40,9 @@ export default function SupplierViewModal({
             await rejectConfig.action(reason);
         }
         setRejectConfig(null);
-        onClose();
+        if (closeOnAction) {
+            onClose();
+        }
     };
 
     const openConfirm = ({ title, message, confirmText, variant, action }) => {
@@ -50,7 +54,9 @@ export default function SupplierViewModal({
             await confirmConfig.action();
         }
         setConfirmConfig(null);
-        onClose();
+        if (closeOnAction) {
+            onClose();
+        }
     };
 
     return (
@@ -107,6 +113,7 @@ export default function SupplierViewModal({
                     </div>
 
                     {/* FOOTER: CHỈ GIỮ LẠI DUYỆT VÀ TỪ CHỐI */}
+                    {!readOnly ? (
                     <div className="px-6 py-4 border-t border-neutral-200 flex justify-center gap-3 flex-wrap">
                         
                         {/* 1. KHI ĐANG CHỜ DUYỆT (PENDING): Hiện cả 2 nút Duyệt & Từ chối */}
@@ -173,6 +180,7 @@ export default function SupplierViewModal({
                             </>
                         )}
                     </div>
+                    ) : null}
                 </div>
             </div>
 

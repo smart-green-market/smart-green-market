@@ -17,6 +17,10 @@ axiosClient.interceptors.request.use(
       config.headers.Authorization = `Bearer ${token}`;
     }
 
+    if (config.data instanceof FormData) {
+      delete config.headers["Content-Type"];
+    }
+
     return config;
   },
   (error) => Promise.reject(error),
@@ -28,11 +32,15 @@ axiosClient.interceptors.response.use(
 
   async (error) => {
     const originalRequest = error.config;
-    
-    // Nếu là API đăng nhập thì không thực hiện refresh token hay redirect tự động
-    const isLoginRequest = originalRequest?.url?.endsWith("/login/");
 
-    if (error.response?.status === 401 && !isLoginRequest && !originalRequest?._retry) {
+    // Nếu là API đăng nhập thì không thực hiện refresh token hay redirect tự động
+    const isLoginRequest = originalRequest?.url?.endsWith("/dang-nhap/");
+
+    if (
+      error.response?.status === 401 &&
+      !isLoginRequest &&
+      !originalRequest?._retry
+    ) {
       originalRequest._retry = true;
 
       try {
@@ -57,12 +65,12 @@ axiosClient.interceptors.response.use(
 
         // Điều hướng thông minh về trang đăng nhập tương ứng
         const pathname = window.location.pathname;
-        if (pathname.startsWith("/quan-tri") || pathname.startsWith("/admin")) {
-          window.location.href = "/admin/login";
+        if (pathname.startsWith("/quan-tri")) {
+          window.location.href = "/quan-tri/login";
         } else if (pathname.startsWith("/dai-ly")) {
-          window.location.href = "/dai-ly/login";
+          window.location.href = "/dai-ly/dang-nhap";
         } else if (pathname.startsWith("/nha-cung-cap")) {
-          window.location.href = "/nha-cung-cap/login";
+          window.location.href = "/nha-cung-cap/dang-nhap";
         } else {
           window.location.href = "/";
         }

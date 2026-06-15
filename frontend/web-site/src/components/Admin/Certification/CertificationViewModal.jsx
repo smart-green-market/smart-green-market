@@ -10,6 +10,9 @@ export default function CertificationViewModal({
     certification,
     onApprove,
     onReject,
+    loading,
+    readOnly = false,
+    closeOnAction = true,
 }) {
     const [confirmConfig, setConfirmConfig] =
         useState(null);
@@ -39,7 +42,9 @@ export default function CertificationViewModal({
             await rejectConfig.action(reason);
         }
         setRejectConfig(null);
-        onClose();
+        if (closeOnAction) {
+            onClose();
+        }
     };
 
     const openConfirm = ({
@@ -67,7 +72,9 @@ export default function CertificationViewModal({
             }
 
             setConfirmConfig(null);
-            onClose();
+            if (closeOnAction) {
+                onClose();
+            }
         };
 
     return (
@@ -155,6 +162,7 @@ export default function CertificationViewModal({
                     </div>
 
                     {/* Footer */}
+                    {!readOnly ? (
                     <div className="px-8 py-6 border-t border-neutral-200 flex justify-end gap-4 shrink-0 bg-white">
 
                         {/* PENDING */}
@@ -244,6 +252,7 @@ export default function CertificationViewModal({
                             </button>
                         )}
                     </div>
+                    ) : null}
                 </div>
             </div>
 

@@ -32,11 +32,15 @@ const TYPE = {
     error: {label: "THẤT BẠI"},
 }
 const TYPE_REF = {
-    supplier_document: {label: "GIẤY TỜ - NHÀ CUNG CẤP"},
+    account_document: {label: "GIẤY TỜ - NHÀ CUNG CẤP"},
     supplier: {label: "NHÀ CUNG CẤP"},
+    dealer: {label: "ĐẠI LÝ"},
     category: {label: "DANH MỤC - NHÀ CUNG CẤP"},
     certification: {label: "CHỨNG CHỈ - NHÀ CUNG CẤP"},
     supplier_product: {label: "SẢN PHẨM - NHÀ CUNG CẤP"},
+    dealer_product:{label: "SẢN PHẨM - ĐẠI LÝ"},
+    purchase_order:{label: "ĐƠN HÀNG - ĐẠI LÝ"},
+    
 }
 // ── Column definitions ────────────────────────────────────────────────────────
 const buildColumns = (onView) => [

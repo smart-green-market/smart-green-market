@@ -1,10 +1,11 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import CategoryViewModal from "../Category/CategoryViewModal";
 import ProductViewModal from "../Product/ProductViewModal";
 import SupplierViewModal from "../Suppiler/SupplierViewModal";
 import DocumentViewModal from "../Document/DocumentViewModal";
 import CertificationViewModal from "../Certification/CertificationViewModal";
 import { fetchNotificationReference } from "./notificationReferenceHelpers";
+import { createNotificationReferenceActions } from "./notificationReferenceActions";
 
 const noop = async () => {};
 
@@ -13,16 +14,20 @@ export default function NotificationReferenceModal({
     onClose,
     referenceType,
     referenceId,
+    canManageActions = false,
 }) {
     const [reference, setReference] = useState(null);
     const [loading, setLoading] = useState(false);
+    const [actionLoading, setActionLoading] = useState(false);
     const [error, setError] = useState("");
 
-    const loadReference = useCallback(async () => {
+    const loadReference = useCallback(async (silent = false) => {
         if (!isOpen || referenceId == null || !referenceType) return;
 
         try {
-            setLoading(true);
+            if (!silent) {
+                setLoading(true);
+            }
             setError("");
             const result = await fetchNotificationReference(referenceType, referenceId);
             setReference(result);
@@ -30,7 +35,9 @@ export default function NotificationReferenceModal({
             setReference(null);
             setError(err.message || "Không thể tải chi tiết đối tượng.");
         } finally {
-            setLoading(false);
+            if (!silent) {
+                setLoading(false);
+            }
         }
     }, [isOpen, referenceId, referenceType]);
 
@@ -43,6 +50,7 @@ export default function NotificationReferenceModal({
         setReference(null);
         setError("");
         setLoading(false);
+        setActionLoading(false);
     }, [isOpen, loadReference]);
 
     const handleClose = () => {
@@ -50,6 +58,22 @@ export default function NotificationReferenceModal({
         setError("");
         onClose();
     };
+
+    const actionHandlers = useMemo(() => {
+        if (!canManageActions) {
+            return {};
+        }
+
+        return createNotificationReferenceActions(
+            referenceType,
+            () => loadReference(true),
+            setActionLoading,
+        );
+    }, [canManageActions, referenceType, loadReference]);
+
+    const readOnly = !canManageActions;
+    const closeOnAction = false;
+    const modalLoading = actionLoading;
 
     if (!isOpen) return null;
 
@@ -90,62 +114,61 @@ export default function NotificationReferenceModal({
 
     if (!reference) return null;
 
+    const sharedProps = {
+        isOpen: true,
+        onClose: handleClose,
+        readOnly,
+        closeOnAction,
+        loading: modalLoading,
+    };
+
     switch (reference.type) {
         case "category":
             return (
                 <CategoryViewModal
-                    isOpen
-                    onClose={handleClose}
+                    {...sharedProps}
                     category={reference.data}
-                    onApprove={noop}
-                    onReject={noop}
-                    onLock={noop}
-                    onUnlock={noop}
-                    loading={false}
+                    onApprove={actionHandlers.onApprove ?? noop}
+                    onReject={actionHandlers.onReject ?? noop}
+                    onLock={actionHandlers.onLock ?? noop}
+                    onUnlock={actionHandlers.onUnlock ?? noop}
                 />
             );
         case "supplier_product":
             return (
                 <ProductViewModal
-                    isOpen
-                    onClose={handleClose}
+                    {...sharedProps}
                     product={reference.data}
-                    onApprove={noop}
-                    onReject={noop}
-                    onPause={noop}
-                    loading={false}
+                    onApprove={actionHandlers.onApprove ?? noop}
+                    onReject={actionHandlers.onReject ?? noop}
+                    onPause={actionHandlers.onPause ?? noop}
                 />
             );
         case "supplier":
             return (
                 <SupplierViewModal
-                    isOpen
-                    onClose={handleClose}
+                    {...sharedProps}
                     supplier={reference.data}
-                    onApprove={noop}
-                    onReject={noop}
-                    loading={false}
+                    onApprove={actionHandlers.onApprove ?? noop}
+                    onReject={actionHandlers.onReject ?? noop}
                 />
             );
-        case "supplier_document":
+        case "account_document":
             return (
                 <DocumentViewModal
-                    isOpen
-                    onClose={handleClose}
+                    {...sharedProps}
                     document={reference.data}
-                    onApprove={noop}
-                    onReject={noop}
+                    onApprove={actionHandlers.onApprove ?? noop}
+                    onReject={actionHandlers.onReject ?? noop}
                 />
             );
         case "certification":
             return (
                 <CertificationViewModal
-                    isOpen
-                    onClose={handleClose}
+                    {...sharedProps}
                     certification={reference.data}
-                    onApprove={noop}
-                    onReject={noop}
-                    loading={false}
+                    onApprove={actionHandlers.onApprove ?? noop}
+                    onReject={actionHandlers.onReject ?? noop}
                 />
             );
         default:

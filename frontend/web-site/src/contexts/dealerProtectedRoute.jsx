@@ -15,7 +15,7 @@ export default function DealerProtectedRoute() {
 
     // 2. Nếu chưa đăng nhập HOẶC không phải quyền dealer -> Đẩy về trang đăng nhập dealer
     if (!user || user.role !== "dealer") {
-        return <Navigate to="/dai-ly/login" replace />;
+        return <Navigate to="/dai-ly/dang-nhap" replace />;
     }
 
     // 3. Nếu đúng quyền -> Cho phép truy cập

@@ -16,7 +16,7 @@ export default function StepDone() {
         <br />
         trong vòng <strong className="text-[#141b2b]">1–3 ngày làm việc</strong>.
       </p>
-      <NavLink to="/" className="max-w-[280px] w-full py-4 bg-[#006c49] hover:bg-[#005038] text-white rounded-xl text-[15px] font-bold flex items-center justify-center gap-2 transition-all hover:-translate-y-0.5">
+      <NavLink to="/nha-cung-cap" className="max-w-[280px] w-full py-4 bg-[#006c49] hover:bg-[#005038] text-white rounded-xl text-[15px] font-bold flex items-center justify-center gap-2 transition-all hover:-translate-y-0.5">
         <button className="max-w-[280px] w-full py-4 bg-[#006c49] hover:bg-[#005038] text-white rounded-xl text-[15px] font-bold flex items-center justify-center gap-2 transition-all hover:-translate-y-0.5">
           Đến trang chính →
         </button>

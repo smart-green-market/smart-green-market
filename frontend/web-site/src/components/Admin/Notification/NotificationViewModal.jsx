@@ -50,6 +50,7 @@ export default function NotificationViewModal({
     onClose,
     notification,
     loading,
+    canManageActions = false,
 }) {
     const [referenceModalOpen, setReferenceModalOpen] = useState(false);
 
@@ -151,6 +152,7 @@ export default function NotificationViewModal({
                 onClose={() => setReferenceModalOpen(false)}
                 referenceType={notification.referenceType}
                 referenceId={notification.referenceId}
+                canManageActions={canManageActions}
             />
         </>
     );

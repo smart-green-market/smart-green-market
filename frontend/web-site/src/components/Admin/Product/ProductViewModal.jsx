@@ -32,6 +32,8 @@ export default function ProductViewModal({
     onPause,
     loading = false,
     error = "",
+    readOnly = false,
+    closeOnAction = true,
 }) {
     const [confirmConfig, setConfirmConfig] = useState(null);
     const [rejectConfig, setRejectConfig] = useState(null);
@@ -55,7 +57,9 @@ export default function ProductViewModal({
             await rejectConfig.action(reason);
         }
         setRejectConfig(null);
-        onClose();
+        if (closeOnAction) {
+            onClose();
+        }
     };
 
     const handleConfirm = async () => {
@@ -63,7 +67,9 @@ export default function ProductViewModal({
             await confirmConfig.action();
         }
         setConfirmConfig(null);
-        onClose();
+        if (closeOnAction) {
+            onClose();
+        }
     };
 
     const tempValue =
@@ -202,6 +208,7 @@ export default function ProductViewModal({
                     </div>
 
                     {/* FOOTER */}
+                    {!readOnly ? (
                     <div className="px-6 py-4 border-t border-neutral-200 flex items-center justify-end gap-3 shrink-0 bg-stone-50">
                         {/* Pending → Duyệt / Từ chối */}
                         {isPending && (
@@ -277,6 +284,7 @@ export default function ProductViewModal({
                             </button>
                         )}
                     </div>
+                    ) : null}
                 </div>
             </div>
 

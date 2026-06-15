@@ -35,16 +35,16 @@ export default function Header() {
                 {/* Icons */}
                 <div className="flex items-center gap-2 shrink-0">
                     <Link to="/theo-doi-don-hang"
-                        className="p-2 rounded-full hover:bg-zinc-100 hover:text-green-600 transition-colors text-zinc-700">
+                        className="hover:scale-110 p-2 rounded-full hover:bg-zinc-100 hover:text-green-600 transition-colors text-zinc-700">
                         <Newspaper className="w-5 h-5" />
                     </Link>
                     <Link
                         to="/gio-hang"
-                        className="p-2 rounded-full hover:bg-zinc-100 hover:text-green-600 transition-colors text-zinc-700"
+                        className="hover:scale-110 p-2 rounded-full hover:bg-zinc-100 hover:text-green-600 transition-colors text-zinc-700"
                     >
                         <ShoppingCart className="w-5 h-5" />
                     </Link>
-                    <Link to="/tai-khoan/" className="p-2 rounded-full hover:bg-zinc-100 hover:text-green-600 transition-colors text-zinc-700">
+                    <Link to="/tai-khoan/" className="hover:scale-110 p-2 rounded-full hover:bg-zinc-100 hover:text-green-600 transition-colors text-zinc-700">
                         <User className="w-5 h-5" />
                     </Link>
                 </div>

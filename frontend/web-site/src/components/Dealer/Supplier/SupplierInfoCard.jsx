@@ -1,189 +1,157 @@
-import { User, Phone, Mail, Star, Award, Calendar, MapPin } from "lucide-react";
+import { User, Phone, Mail, Award, MapPin, Building2, BarChart3, Hash } from "lucide-react";
 
-export default function SupplierInfoCard({ supplier, id }) {
-  const getStatusBadge = (status) => {
-    switch (status) {
-      case "Đang hợp tác":
-        return (
-          <span className="px-3 py-1 rounded-full text-xs font-bold bg-emerald-50 text-emerald-700 border border-emerald-200/50 flex items-center gap-1.5 w-fit">
-            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
-            Đang hợp tác
-          </span>
-        );
-      case "Chưa hợp tác":
-        return (
-          <span className="px-3 py-1 rounded-full text-xs font-bold bg-amber-50 text-amber-700 border border-amber-200/50 flex items-center gap-1.5 w-fit">
-            <span className="w-1.5 h-1.5 rounded-full bg-amber-500"></span>
-            Chưa hợp tác
-          </span>
-        );
-      case "Ngừng hợp tác":
-      default:
-        return (
-          <span className="px-3 py-1 rounded-full text-xs font-bold bg-red-50 text-red-700 border border-red-200/50 flex items-center gap-1.5 w-fit">
-            <span className="w-1.5 h-1.5 rounded-full bg-red-500"></span>
-            Ngừng hợp tác
-          </span>
-        );
-    }
-  };
+export default function SupplierInfoCard({ supplier }) {
+  const hasCertifications = supplier.certifications?.length > 0;
+  const hasDescription = !!supplier.description;
+
+  const initials = (supplier.company_name || "")
+    .split(" ")
+    .slice(-2)
+    .map((w) => w[0])
+    .join("")
+    .toUpperCase() || "NCC";
 
   return (
-    <div className="bg-white rounded-2xl border border-neutral-100 shadow-sm p-6 mb-8 relative overflow-hidden font-['Geist',sans-serif]">
-      {/* Decorative background circle */}
-      <div className="absolute top-0 right-0 w-32 h-32 bg-emerald-500/5 rounded-full blur-2xl pointer-events-none"></div>
+    <div className="bg-white rounded-2xl border border-neutral-100 shadow-sm mb-8 overflow-hidden font-['Geist',sans-serif]">
+      {/* ── Gradient Banner ── */}
+      <div className="relative h-36 bg-gradient-to-br from-emerald-600 via-emerald-500 to-teal-500 overflow-hidden">
+        {/* Decorative circles */}
+        <div className="absolute -top-10 -right-10 w-40 h-40 bg-white/10 rounded-full" />
+        <div className="absolute top-16 -right-6 w-24 h-24 bg-white/5 rounded-full" />
+        <div className="absolute -bottom-8 left-20 w-32 h-32 bg-white/5 rounded-full" />
+        <div className="absolute top-4 left-6 w-16 h-16 bg-white/5 rounded-full" />
+      </div>
 
-      <div className="flex flex-col lg:flex-row gap-6 justify-between items-start">
-        <div className="flex gap-4 items-start">
-          {/* Avatar */}
-          {supplier.avatar ? (
+      {/* ── Avatar + Company Name (overlapping banner) ── */}
+      <div className="px-6 -mt-12 relative z-10">
+        <div className="flex items-end gap-5">
+          {supplier.avatarUrl ? (
             <img
-              src={supplier.avatar}
-              alt={supplier.name}
-              className="w-14 h-14 rounded-xl object-cover shadow-md shadow-emerald-500/10 border border-neutral-100"
+              src={supplier.avatarUrl}
+              alt={supplier.company_name}
+              className="w-24 h-24 rounded-2xl object-cover border-4 border-white shadow-lg shadow-emerald-500/15"
             />
           ) : (
-            <div
-              className={`w-14 h-14 rounded-xl ${supplier.avatarColor} text-white flex items-center justify-center font-extrabold text-lg shadow-md shadow-emerald-500/10`}
-            >
-              {supplier.name
-                .split(" ")
-                .slice(-2)
-                .map((w) => w[0])
-                .join("")
-                .toUpperCase()}
+            <div className={`w-24 h-24 rounded-2xl bg-gradient-to-br from-emerald-500 to-teal-600 text-white flex items-center justify-center font-black text-2xl border-4 border-white shadow-lg shadow-emerald-500/15`}>
+              {initials}
             </div>
           )}
-          <div className="space-y-1.5">
-            <div className="flex flex-wrap items-center gap-3">
-              <h1 className="text-xl font-extrabold text-emerald-950 tracking-tight">
-                {supplier.name}
-              </h1>
-              {getStatusBadge(supplier.status)}
-            </div>
-            <p className="text-xs text-neutral-400 font-medium">
-              Mã đối tác:{" "}
-              <span className="font-bold text-neutral-600">NCC-00{id}</span>
-            </p>
-            {/* Rating stars */}
-            <div className="flex items-center gap-1 text-amber-500">
-              {[...Array(5)].map((_, i) => (
-                <Star
-                  key={i}
-                  className={`w-3.5 h-3.5 ${
-                    i < Math.floor(supplier.rating)
-                      ? "fill-amber-500"
-                      : "text-neutral-200"
-                  }`}
-                />
-              ))}
-              <span className="text-xs font-bold text-neutral-600 ml-1">
-                {supplier.rating.toFixed(1)}
-              </span>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Divider */}
-      <div className="my-6 border-t border-neutral-100"></div>
-
-      {/* Contact Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        <div className="space-y-1">
-          <span className="text-[10px] uppercase font-bold text-neutral-400 tracking-wider">
-            Người liên hệ
-          </span>
-          <div className="flex items-center gap-2 text-xs font-bold text-neutral-700">
-            <User className="w-3.5 h-3.5 text-neutral-400" />
-            {supplier.contact}
-          </div>
-        </div>
-
-        <div className="space-y-1">
-          <span className="text-[10px] uppercase font-bold text-neutral-400 tracking-wider">
-            Số điện thoại
-          </span>
-          <a
-            href={`tel:${supplier.phone}`}
-            className="flex items-center gap-2 text-xs font-bold text-emerald-700 hover:underline"
-          >
-            <Phone className="w-3.5 h-3.5 text-neutral-400" />
-            {supplier.phone}
-          </a>
-        </div>
-
-        <div className="space-y-1">
-          <span className="text-[10px] uppercase font-bold text-neutral-400 tracking-wider">
-            Thư điện tử
-          </span>
-          <a
-            href={`mailto:${supplier.email}`}
-            className="flex items-center gap-2 text-xs font-bold text-emerald-700 hover:underline"
-          >
-            <Mail className="w-3.5 h-3.5 text-neutral-400" />
-            {supplier.email}
-          </a>
-        </div>
-      </div>
-
-      {/* Intro & Certifications */}
-      <div className="mt-6 pt-6 border-t border-neutral-100 grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <div className="lg:col-span-2 space-y-4">
-          <div className="space-y-2">
-            <h3 className="text-xs font-bold text-neutral-500">
-              Giới thiệu nhà cung cấp
-            </h3>
-            <p className="text-xs text-neutral-600 leading-relaxed font-medium">
-              {supplier.description}
-            </p>
-          </div>
-          <div className="space-y-2">
-            <h3 className="text-xs font-bold text-neutral-500">
-              Địa chỉ kho bãi
-            </h3>
-            <div className="flex gap-2.5 items-start text-xs font-semibold text-neutral-700">
-              <MapPin className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
-              <span>{supplier.address}</span>
-            </div>
-          </div>
-        </div>
-        <div className="space-y-4">
-          <div>
-            <h3 className="text-xs font-bold text-neutral-500 mb-2">
-              Chứng nhận chất lượng
-            </h3>
-            <div className="flex flex-wrap gap-1.5">
-              {supplier.certifications.map((cert) => (
-                <span
-                  key={cert}
-                  className="px-2 py-1 bg-emerald-50 text-emerald-700 rounded-lg text-[10px] font-bold border border-emerald-100 flex items-center gap-1"
-                >
-                  <Award className="w-3 h-3" />
-                  {cert}
+          <div className="pb-2">
+            <h1 className="text-2xl md:text-3xl font-black text-emerald-950 tracking-tight leading-tight">
+              {supplier.company_name}
+            </h1>
+            {supplier.scale && (
+              <div className="flex items-center gap-1.5 mt-1.5">
+                <BarChart3 className="w-3.5 h-3.5 text-emerald-600" />
+                <span className="text-xs font-bold text-emerald-700 bg-emerald-50 px-2.5 py-0.5 rounded-full">
+                  {supplier.scale}
                 </span>
-              ))}
-            </div>
+              </div>
+            )}
           </div>
+        </div>
+      </div>
 
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-1">
-              <span className="text-[10px] uppercase font-bold text-neutral-400 tracking-wider block">
-                Quy mô
-              </span>
-              <span className="text-xs font-bold text-neutral-700 leading-tight block">
-                {supplier.scale}
-              </span>
+      {/* ── Contact Info Pills ── */}
+      <div className="px-6 mt-6">
+        <div className="flex flex-wrap gap-3">
+          {supplier.contactName && supplier.contactName !== "—" && (
+            <div className="flex items-center gap-2 px-4 py-2.5 bg-neutral-50 rounded-xl border border-neutral-100 hover:bg-neutral-100/80 transition-colors">
+              <div className="w-8 h-8 rounded-lg bg-blue-50 flex items-center justify-center shrink-0">
+                <User className="w-4 h-4 text-blue-600" />
+              </div>
+              <div>
+                <p className="text-[10px] uppercase font-bold text-neutral-400 tracking-wider leading-none">Người liên hệ</p>
+                <p className="text-sm font-semibold text-neutral-800 mt-0.5">{supplier.contactName}</p>
+              </div>
             </div>
-            <div className="space-y-1">
-              <span className="text-[10px] uppercase font-bold text-neutral-400 tracking-wider block">
-                Ngày tham gia
-              </span>
-              <span className="text-xs font-bold text-neutral-700 leading-tight block flex items-center gap-1">
-                <Calendar className="w-3.5 h-3.5 text-neutral-400" />
-                {supplier.joinedDate}
-              </span>
+          )}
+
+          {supplier.phone && supplier.phone !== "—" && (
+            <a href={`tel:${supplier.phone}`} className="flex items-center gap-2 px-4 py-2.5 bg-neutral-50 rounded-xl border border-neutral-100 hover:bg-emerald-50 hover:border-emerald-200 transition-all group cursor-pointer">
+              <div className="w-8 h-8 rounded-lg bg-emerald-50 flex items-center justify-center shrink-0 group-hover:bg-emerald-100 transition-colors">
+                <Phone className="w-4 h-4 text-emerald-600" />
+              </div>
+              <div>
+                <p className="text-[10px] uppercase font-bold text-neutral-400 tracking-wider leading-none">Điện thoại</p>
+                <p className="text-sm font-semibold text-emerald-700 mt-0.5">{supplier.phone}</p>
+              </div>
+            </a>
+          )}
+
+          {supplier.email && supplier.email !== "—" && (
+            <a href={`mailto:${supplier.email}`} className="flex items-center gap-2 px-4 py-2.5 bg-neutral-50 rounded-xl border border-neutral-100 hover:bg-emerald-50 hover:border-emerald-200 transition-all group cursor-pointer">
+              <div className="w-8 h-8 rounded-lg bg-violet-50 flex items-center justify-center shrink-0 group-hover:bg-violet-100 transition-colors">
+                <Mail className="w-4 h-4 text-violet-600" />
+              </div>
+              <div>
+                <p className="text-[10px] uppercase font-bold text-neutral-400 tracking-wider leading-none">Email</p>
+                <p className="text-sm font-semibold text-violet-700 mt-0.5">{supplier.email}</p>
+              </div>
+            </a>
+          )}
+
+          {supplier.taxCode && (
+            <div className="flex items-center gap-2 px-4 py-2.5 bg-neutral-50 rounded-xl border border-neutral-100">
+              <div className="w-8 h-8 rounded-lg bg-amber-50 flex items-center justify-center shrink-0">
+                <Hash className="w-4 h-4 text-amber-600" />
+              </div>
+              <div>
+                <p className="text-[10px] uppercase font-bold text-neutral-400 tracking-wider leading-none">Mã số thuế</p>
+                <p className="text-sm font-bold text-neutral-800 font-mono mt-0.5">{supplier.taxCode}</p>
+              </div>
             </div>
+          )}
+        </div>
+      </div>
+
+      {/* ── Description + Address + Certifications ── */}
+      <div className="px-6 mt-6 pb-6">
+        <div className="border-t border-neutral-100 pt-6">
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            {/* Left: Description + Address */}
+            <div className="lg:col-span-2 space-y-5">
+              {hasDescription && (
+                <div className="bg-neutral-50/70 rounded-xl p-5 border border-neutral-100/50">
+                  <div className="flex items-center gap-2 mb-2.5">
+                    <Building2 className="w-4 h-4 text-emerald-600" />
+                    <h3 className="text-xs font-bold text-emerald-950 uppercase tracking-wider">Giới thiệu</h3>
+                  </div>
+                  <p className="text-sm text-neutral-600 leading-relaxed font-medium">{supplier.description}</p>
+                </div>
+              )}
+
+              <div className="bg-neutral-50/70 rounded-xl p-5 border border-neutral-100/50">
+                <div className="flex items-center gap-2 mb-2.5">
+                  <MapPin className="w-4 h-4 text-emerald-600" />
+                  <h3 className="text-xs font-bold text-emerald-950 uppercase tracking-wider">Địa chỉ</h3>
+                </div>
+                <p className="text-sm font-semibold text-neutral-700">{supplier.address}</p>
+              </div>
+            </div>
+
+            {/* Right: Certifications */}
+            {hasCertifications && (
+              <div className="space-y-3">
+                <div className="flex items-center gap-2">
+                  <Award className="w-4 h-4 text-emerald-600" />
+                  <h3 className="text-xs font-bold text-emerald-950 uppercase tracking-wider">Chứng nhận</h3>
+                </div>
+                <div className="flex flex-col gap-2.5">
+                  {supplier.certifications.map((cert) => (
+                    <div
+                      key={cert}
+                      className="flex items-center gap-3 px-4 py-3 bg-gradient-to-r from-emerald-50 to-teal-50/50 rounded-xl border border-emerald-100/80 hover:shadow-sm hover:border-emerald-200 transition-all"
+                    >
+                      <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center shrink-0 shadow-sm">
+                        <Award className="w-4 h-4 text-white" />
+                      </div>
+                      <span className="text-sm font-bold text-emerald-800">{cert}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
         </div>
       </div>

@@ -15,4 +15,9 @@ export const accountService = {
 //   "phone": "0901234567",
 //   "role": "supplier"
 // }
+update: (data) =>
+  axiosClient.patch("/accounts/me/", data).then((res) => res.data),
+updateAvatar: (formData) =>
+  axiosClient.patch("/accounts/me/", formData).then((res) => res.data),
 };
+

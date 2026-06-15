@@ -8,8 +8,6 @@ const OPTIONS = [
     { label: "THẤT BẠI",        value: "error" },
     { label: "GIẤY TỜ",        value: "supplier_document" },
     { label: "CHỨNG CHỈ",        value: "certification" },
-    { label: "DANH MỤC",        value: "category" },
-    { label: "NHÀ CUNG CẤP",        value: "supplier" },
 ];
 
 export default function Filter({ value, onChange }) {

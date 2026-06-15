@@ -21,7 +21,7 @@ export default function InventoryHistoryTable({ data }) {
       sortable: true,
       width: "140px",
       cell: (row) => {
-        const isImport = row.type === "Nhập kho";
+        const isImport = row.isImport;
         return (
           <span
             className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold ${
@@ -62,7 +62,7 @@ export default function InventoryHistoryTable({ data }) {
       sortable: true,
       width: "110px",
       cell: (row) => {
-        const isImport = row.type === "Nhập kho";
+        const isImport = row.isImport;
         return (
           <span
             className={`font-bold text-xs ${isImport ? "text-emerald-700" : "text-amber-750"}`}

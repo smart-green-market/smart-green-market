@@ -22,6 +22,8 @@ export default function DocumentViewModal({
     document,
     onApprove,
     onReject,
+    readOnly = false,
+    closeOnAction = true,
 }) {
     const [confirmType, setConfirmType] =
         useState(null);
@@ -35,13 +37,16 @@ export default function DocumentViewModal({
 
     const handleApprove = async () => {
         await onApprove(document);
-
-        onClose();
+        if (closeOnAction) {
+            onClose();
+        }
     };
 
     const handleReject = async (reason) => {
         await onReject(document, reason);
-        onClose();
+        if (closeOnAction) {
+            onClose();
+        }
     };
 
     return (
@@ -116,7 +121,7 @@ export default function DocumentViewModal({
                     </div>
 
                     {/* FOOTER */}
-                    {isPending && (
+                    {!readOnly && isPending && (
                         <div className="px-6 py-4 border-t border-neutral-200 flex justify-end gap-3 shrink-0">
 
                             <button
@@ -138,7 +143,7 @@ export default function DocumentViewModal({
                             </button>
                         </div>
                     )}
-                    {isApprove && (
+                    {!readOnly && isApprove && (
                         <div className="px-6 py-4 border-t border-neutral-200 flex justify-end gap-3 shrink-0">
                             <button
                                 onClick={() => setShowRejectModal(true)}
@@ -148,7 +153,7 @@ export default function DocumentViewModal({
                             </button>
                         </div>
                     )}
-                    {isRejected && (
+                    {!readOnly && isRejected && (
                         <div className="px-6 py-4 border-t border-neutral-200 flex justify-end gap-3 shrink-0">
                             <button
                                 onClick={() =>
