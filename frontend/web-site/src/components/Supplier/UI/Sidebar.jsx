@@ -8,15 +8,17 @@ import {
     Tag,
     Package,
     LogOut,
+    Tractor
 } from "lucide-react";
-
+import { useAuth } from "../../../contexts/authProvider"
 const NAV_ITEMS = [
     { label: "Trang chủ",            icon: LayoutDashboard, to: "/nha-cung-cap",              end: true },
-    { label: "Quản lý cấu hình",     icon: Settings,        to: "/nha-cung-cap/cau-hinh" },
+    { label: "Quản lý thông tin cá nhân",     icon: Settings,        to: "/nha-cung-cap/thong-tin-ca-nhan" },
+    { label: "Quản lý danh mục",   icon: Tag, to: "/nha-cung-cap/danh-muc" },
     { label: "Quản lý sản phẩm", icon: Store,           to: "/nha-cung-cap/san-pham" },
-    { label: "Quản lý tồn kho",    icon: Package,         to: "/nha-cung-cap/ton-kho" },
+    // { label: "Quy trình canh tác",   icon: Tractor, to: "/nha-cung-cap/canh-tac" },
     { label: "Quản lý chứng nhận", icon: ShieldCheck,     to: "/nha-cung-cap/chung-nhan" },
-    { label: "Quản lý đơn hàng",   icon: ShoppingCart, to: "/nha-cung-cap/don-hang" },
+    { label: "Quản lý đơn hàng",    icon: Package,         to: "/nha-cung-cap/don-hang" },
     
 ];
 
@@ -24,10 +26,10 @@ export default function SideBar() {
     const navigate = useNavigate();
 
     // Thay bằng useAuth() nếu có AuthProvider
-    const handleLogout = () => {
-        navigate("/");
-    };
-
+    const { logout } = useAuth();
+        const handleLogout = async () => {
+            await logout();
+        };
     return (
         <aside className="fixed left-0 top-16 bottom-0 w-64 bg-stone-50 border-r border-neutral-200 flex flex-col z-40">
             {/* Nav items */}

@@ -1,31 +1,24 @@
 import { useState, useEffect } from "react";
 import Filter from "../../components/Admin/UI/Filter";
-import ProductTable from "../../components/Supplier/Product/ProductTable";
+import CategoryTable from "../../components/Supplier/Category/CategoryTable";
+import AddCategoryModal from "../../components/Supplier/Category/CreateCategoryModal";
+import { categoryService } from "../../services/api/categoryService";
 import DeleteConfirmModal from "../../components/common/DeleteConfirmModal";
-import ConfirmModal from "../../components/common/ConfirmModal";
-import CreateProductModal from "../../components/Supplier/Product/CreateProductModal";
-import DetailProductModal from "../../components/Supplier/Product/DetailProductModal";
-import { productService } from "../../services/api/productService";
 import SupplierPageHeader, { SUPPLIER_PAGE_CLASS } from "../../components/Supplier/UI/SupplierPageHeader";
-import { extractApiError } from "../../utils/extractApiError";
 
-export default function ProductSupplierPage() {
+export default function CategorySupplierPage() {
   const [data,         setData]         = useState([]);
   const [search,       setSearch]       = useState("");
   const [statusFilter, setStatusFilter] = useState("");
 
   // Modal states
   const [deleteRow,       setDeleteRow]       = useState(null); // row | null
-  const [createRow,       setCreateRow]       = useState(null); // row | null
-  const [detailRow,       setDetailRow]       = useState(null); // row | null
   const [showAddCategory, setShowAddCategory] = useState(false);
-  const [toggleTarget,    setToggleTarget]    = useState(null); // { row, action: 'lock' | 'unlock' }
-  const [togglingId,      setTogglingId]      = useState(null);
 
   /* ── Fetch ── */
   const fetchProducts = async () => {
     try {
-      const response    = await productService.getAll();
+      const response    = await categoryService.getAll();
       const productList = Array.isArray(response) ? response : (response?.results || []);
       setData(productList);
     } catch (error) {
@@ -42,7 +35,7 @@ export default function ProductSupplierPage() {
     if (!deleteRow) return;
     try {
       setDeleting(true);
-      await productService.deleteProduct(deleteRow.id);
+      await categoryService.delete(deleteRow.id);
       setData(prev => prev.filter(row => row.id !== deleteRow.id));
       setDeleteRow(null);
     } catch (error) {
@@ -50,39 +43,6 @@ export default function ProductSupplierPage() {
       alert("Xoá sản phẩm thất bại. Vui lòng thử lại!");
     } finally {
       setDeleting(false);
-    }
-  };
-
-  /* ── Khóa / mở khóa bán hàng ── */
-  const applySellingStatus = (row, updated) => {
-    setData((prev) =>
-      prev.map((item) => (item.id === row.id ? { ...item, ...updated } : item))
-    );
-    setDetailRow((prev) =>
-      prev?.id === row.id ? { ...prev, ...updated } : prev
-    );
-  };
-
-  const handleToggleSelling = async () => {
-    if (!toggleTarget) return;
-
-    const { row, action } = toggleTarget;
-
-    try {
-      setTogglingId(row.id);
-      const updated =
-        action === "lock"
-          ? await productService.lockSelling(row.id)
-          : await productService.unlockSelling(row.id);
-
-      applySellingStatus(row, updated);
-      setToggleTarget(null);
-    } catch (error) {
-      console.error("Lỗi khi cập nhật trạng thái bán hàng:", error);
-      alert(extractApiError(error, "Cập nhật trạng thái bán hàng thất bại. Vui lòng thử lại!"));
-      throw error;
-    } finally {
-      setTogglingId(null);
     }
   };
 
@@ -107,8 +67,8 @@ export default function ProductSupplierPage() {
   return (
     <div className={SUPPLIER_PAGE_CLASS}>
       <SupplierPageHeader
-        title="Quản lý sản phẩm"
-        description="Theo dõi và quản lý các sản phẩm đã và đang niêm yết trên hệ thống"
+        title="Quản lý danh mục"
+        description="Theo dõi và quản lý các danh mục sản phẩm đã và đang niêm yết trên hệ thống"
       />
 
       {/* Toolbar */}
@@ -116,20 +76,21 @@ export default function ProductSupplierPage() {
         <input
           value={search}
           onChange={e => setSearch(e.target.value)}
-          placeholder="Tìm kiếm sản phẩm..."
+          placeholder="Tìm kiếm danh mục"
           className="px-4 py-2 border border-neutral-200 rounded-lg text-sm w-72 outline-none focus:border-emerald-600"
         />
 
         {/* Action buttons */}
         <div className="flex items-center gap-2">
           <button
-            onClick={() => setCreateRow({})}
-            className="flex items-center gap-1.5 px-4 py-2 bg-emerald-800 text-white text-sm font-semibold rounded-lg hover:bg-emerald-700 transition-colors"
+            onClick={() => setShowAddCategory(true)}
+            className="flex items-center gap-1.5 px-4 py-2 border border-emerald-700 text-emerald-700 text-sm font-semibold rounded-lg hover:bg-emerald-50 transition-colors"
           >
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A2 2 0 013 12V7a2 2 0 012-2z" />
             </svg>
-            Thêm sản phẩm
+            Thêm danh mục
           </button>
         </div>
       </div>
@@ -143,31 +104,12 @@ export default function ProductSupplierPage() {
       </div>
 
       {/* Data table */}
-      <ProductTable
+      <CategoryTable
         data={data}
         search={search}
         statusFilter={statusFilter}
         onView={row => setDetailRow(row)}
         onDelete={row => setDeleteRow(row)}
-        onLockSelling={row => setToggleTarget({ row, action: "lock" })}
-        onUnlockSelling={row => setToggleTarget({ row, action: "unlock" })}
-        togglingId={togglingId}
-      />
-
-      <ConfirmModal
-        isOpen={toggleTarget !== null}
-        onClose={() => !togglingId && setToggleTarget(null)}
-        onConfirm={handleToggleSelling}
-        title={toggleTarget?.action === "lock" ? "Khóa bán hàng" : "Mở khóa bán hàng"}
-        message={
-          toggleTarget?.action === "lock"
-            ? `Bạn có chắc muốn tạm ngừng bán "${toggleTarget?.row?.name}"? Đại lý sẽ không thể đặt sản phẩm này.`
-            : `Bạn có chắc muốn mở lại bán "${toggleTarget?.row?.name}"?`
-        }
-        confirmText={toggleTarget?.action === "lock" ? "Khóa bán" : "Mở khóa"}
-        variant={toggleTarget?.action === "lock" ? "warning" : "success"}
-        loading={Boolean(togglingId)}
-        showToast={false}
       />
 
       {/* ── Modals ── */}
@@ -179,25 +121,13 @@ export default function ProductSupplierPage() {
         itemType="sản phẩm"
         loading={deleting}
       />
-
-      <CreateProductModal
-        isOpen={createRow !== null}
-        onClose={() => setCreateRow(null)}
-        onSuccess={() => {
-          setCreateRow(null);
-          fetchProducts();
-        }}
-      />
-
+{/* 
       <DetailProductModal
         isOpen={detailRow !== null}
         onClose={() => setDetailRow(null)}
         product={detailRow}
         onUpdate={handleUpdate}
-        onLockSelling={row => setToggleTarget({ row, action: "lock" })}
-        onUnlockSelling={row => setToggleTarget({ row, action: "unlock" })}
-        togglingSelling={Boolean(togglingId && detailRow?.id === togglingId)}
-      />
+      /> */}
 
       {showAddCategory && (
         <AddCategoryModal

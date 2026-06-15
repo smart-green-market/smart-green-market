@@ -1,5 +1,19 @@
-import React, { useRef, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { supplierDocumentService } from "../../services/api/supplierdocumentService";
+import { extractSupplierApiMessage } from "../../utils/supplierValidation";
+
+function extractDocumentApiMessage(error, fallback = "Có lỗi khi tải lên giấy tờ.") {
+  const status = error?.response?.status;
+  const data = error?.response?.data;
+
+  if (typeof data === "string" && (data.includes("<!doctype html>") || data.includes("Not Found"))) {
+    return status === 404
+      ? "Không tìm thấy API upload giấy tờ. Vui lòng thử lại sau."
+      : fallback;
+  }
+
+  return extractSupplierApiMessage(error, fallback);
+}
 
 const DOC_TYPES = [
   {
@@ -42,6 +56,15 @@ export default function Step3({ onNext, onBack }) {
   const handleSubmit = async () => {
   try {
     setError("");
+
+    const missingDocs = DOC_TYPES.filter((doc) => !selectedFiles[doc.key]);
+    if (missingDocs.length > 0) {
+      setError(
+        `Giấy tờ: Thiếu ${missingDocs.map((doc) => doc.name).join(", ")}. Vui lòng chọn đủ tất cả giấy tờ bắt buộc.`
+      );
+      return;
+    }
+
     setLoading(true);
 
     await supplierDocumentService.upload(selectedFiles);
@@ -49,9 +72,7 @@ export default function Step3({ onNext, onBack }) {
     onNext();
   } catch (err) {
     console.error("Upload lỗi DATA:", err.response?.data);
-    setError(
-      JSON.stringify(err.response?.data) || "Có lỗi khi tải lên giấy tờ."
-    );
+    setError(extractDocumentApiMessage(err, "Tải lên giấy tờ thất bại. Vui lòng kiểm tra lại tệp và thử lại."));
   } finally {
     setLoading(false);
   }
@@ -117,6 +138,22 @@ export default function Step3({ onNext, onBack }) {
 
 function DocCard({ doc, selectedFile, onSelect }) {
   const inputRef = useRef(null);
+  const isImage = selectedFile?.type?.startsWith("image/");
+  const [previewUrl, setPreviewUrl] = useState("");
+
+  useEffect(() => {
+    if (!isImage || !selectedFile) {
+      setPreviewUrl("");
+      return;
+    }
+
+    const objectUrl = URL.createObjectURL(selectedFile);
+    setPreviewUrl(objectUrl);
+
+    return () => {
+      URL.revokeObjectURL(objectUrl);
+    };
+  }, [isImage, selectedFile]);
 
   return (
     <div
@@ -130,6 +167,21 @@ function DocCard({ doc, selectedFile, onSelect }) {
         <div className="text-[11.5px] text-[#7a8f7e] truncate">
           {selectedFile ? selectedFile.name : doc.desc}
         </div>
+        {selectedFile && (
+          <div className="mt-2">
+            {isImage && previewUrl ? (
+              <img
+                src={previewUrl}
+                alt={doc.name}
+                className="h-24 w-24 rounded-lg object-cover border border-emerald-200"
+              />
+            ) : (
+              <div className="text-[11px] text-[#5a6a5e]">
+                Đã chọn file: <span className="font-semibold">{selectedFile.name}</span>
+              </div>
+            )}
+          </div>
+        )}
       </div>
 
       {selectedFile ? (

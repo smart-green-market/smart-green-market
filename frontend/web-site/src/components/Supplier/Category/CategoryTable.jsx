@@ -3,34 +3,23 @@ import { SupplierActionButton, SupplierActionGroup } from "../UI/SupplierTableAc
 import DataTable from "react-data-table-component";
 
 const STATUS_CONFIG = {
-  active: { label: "ĐANG HOẠT ĐỘNG", bg: "bg-teal-800/10", text: "text-teal-800" },
-  paused: { label: "TẠM NGƯNG", bg: "bg-red-700/10", text: "text-red-700" },
-  pending: { label: "ĐĂNG KÝ", bg: "bg-amber-500/10", text: "text-amber-500" },
+  active: { label: "Hoạt động", bg: "bg-emerald-100", text: "text-emerald-700" },
+  pending: { label: "Chờ duyệt", bg: "bg-yellow-100", text: "text-yellow-700" },
+  rejected: { label: "Từ chối", bg: "bg-red-100", text: "text-red-600" },
 };
 
 const buildColumns = (onView, onDelete) => [
   {
-    name: "Mã lô",
-    selector: (row) => row.code,
+    name: "ID",
+    selector: (row) => row.id,
     sortable: true,
-    width: "100px",
+    width: "70px",
     cell: (row) => (
-      <span className="text-emerald-800 text-xs font-semibold font-mono">{row.code}</span>
+      <span className="text-emerald-800 text-xs font-semibold font-mono">{row.id}</span>
     ),
   },
   {
-    name: "Hình ảnh",
-    width: "100px",
-    cell: (row) => (
-      <img
-        src={row.image || "https://placehold.co/48x48"}
-        alt={row.name}
-        className="w-14 h-14 rounded-lg border border-stone-300 object-cover"
-      />
-    ),
-  },
-  {
-    name: "Tên sản phẩm",
+    name: "Tên danh mục",
     selector: (row) => row.name,
     sortable: true,
     minWidth: "160px",
@@ -42,46 +31,47 @@ const buildColumns = (onView, onDelete) => [
     ),
   },
   {
-    name: "Giá bán",
-    selector: (row) => row.price,
-    sortable: true,
-    width: "120px",
+    name: "Mô tả",
+    selector: (row) => row.description,
+    minWidth: "200px",
+    grow: 3,
     cell: (row) => (
-      <span className="text-emerald-950 text-sm font-semibold font-['Geist',sans-serif]">
-        {Number(row.price).toLocaleString("vi-VN")} VNĐ
+      <span className="text-zinc-500 text-sm font-['Geist',sans-serif] line-clamp-2">
+        {row.description || "—"}
       </span>
     ),
   },
   {
-    name: "Tồn kho",
-    selector: (row) => row.inventory,
+    name: "Thứ tự",
+    selector: (row) => row.sort_order,
     sortable: true,
-    width: "100px",
+    width: "90px",
+    center: true,
     cell: (row) => (
       <span className="text-emerald-950 text-sm font-semibold font-['Geist',sans-serif]">
-        {row.inventory} {row.unit}
+        {row.sort_order}
       </span>
     ),
   },
   {
-    name: "Ngày nhập",
-    selector: (row) => row.createdAt,
+    name: "Xác minh bởi",
+    selector: (row) => row.verified_by_username,
+    sortable: true,
+    minWidth: "130px",
+    cell: (row) => (
+      <span className="text-emerald-950 text-sm font-['Geist',sans-serif]">
+        {row.verified_by_username || "—"}
+      </span>
+    ),
+  },
+  {
+    name: "Ngày tạo",
+    selector: (row) => row.created_at,
     sortable: true,
     width: "120px",
     cell: (row) => (
       <span className="text-emerald-950 text-sm font-['Geist',sans-serif]">
-        {row.createdAt ? new Date(row.createdAt).toLocaleDateString("vi-VN") : "—"}
-      </span>
-    ),
-  },
-  {
-    name: "Ngày hết hạn",
-    selector: (row) => row.expiryAt,
-    sortable: true,
-    width: "120px",
-    cell: (row) => (
-      <span className="text-emerald-950 text-sm font-['Geist',sans-serif]">
-        {row.expiryAt ? new Date(row.expiryAt).toLocaleDateString("vi-VN") : "—"}
+        {new Date(row.created_at).toLocaleDateString("vi-VN")}
       </span>
     ),
   },
@@ -89,7 +79,7 @@ const buildColumns = (onView, onDelete) => [
     name: "Trạng thái",
     selector: (row) => row.status,
     sortable: true,
-    width: "140px",
+    width: "130px",
     cell: (row) => {
       const st = STATUS_CONFIG[row.status] ?? STATUS_CONFIG.pending;
       return (
@@ -115,7 +105,7 @@ const buildColumns = (onView, onDelete) => [
   },
 ];
 
-export default function InventoryTable({ data, search, statusFilter, onView, onDelete }) {
+export default function CategoryTable({ data, search, statusFilter, onView, onDelete }) {
   const filtered = data.filter((row) => {
     const matchName = row.name.toLowerCase().includes((search ?? "").toLowerCase());
     const matchStatus = statusFilter ? row.status === statusFilter : true;
@@ -134,7 +124,7 @@ export default function InventoryTable({ data, search, statusFilter, onView, onD
         customStyles={supplierTableStyles}
         noDataComponent={
           <div className="py-16 text-sm text-neutral-400 font-['Geist']">
-            Không tìm thấy sản phẩm phù hợp.
+            Không tìm thấy danh mục phù hợp.
           </div>
         }
         highlightOnHover
