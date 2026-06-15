@@ -13,15 +13,14 @@ import {
 } from "./cultivationUtils";
 import { errorsToSummary } from "../../../utils/supplierValidation";
 
-export default function EditCultivationModal({ isOpen, onClose, process, onSuccess }) {
+export default function EditCultivationModal({ isOpen, onClose, process, onSuccess, productId }) {
   const [form, setForm] = useState({});
   const [original, setOriginal] = useState({});
   const [errors, setErrors] = useState({});
   const [apiError, setApiError] = useState("");
   const [loading, setLoading] = useState(false);
   const [productsLoading, setProductsLoading] = useState(false);
-  const [products, setProducts] = useState([]);
-  const [activeProductIds, setActiveProductIds] = useState([]);
+  const [products, setProducts] = useState(null);
 
   useEffect(() => {
     if (isOpen && process) {
@@ -44,16 +43,9 @@ export default function EditCultivationModal({ isOpen, onClose, process, onSucce
     async function fetchProducts() {
       try {
         setProductsLoading(true);
-        const res = await productService.getAll();
-        const allProducts = parseProductList(res);
-        const activeProducts = getActiveProducts(allProducts);
-        const selectable = mergeCurrentProduct(
-          activeProducts,
-          allProducts,
-          process.supplier_product
-        );
-        setProducts(selectable);
-        setActiveProductIds(activeProducts.map((p) => p.id));
+        const res = await productService.getById(productId);
+        setProducts(res)
+        setProductsLoading(true)
       } catch (err) {
         console.error("Lỗi khi tải danh sách sản phẩm:", err);
         setApiError("Không thể tải danh sách sản phẩm. Vui lòng thử lại!");
@@ -75,7 +67,7 @@ export default function EditCultivationModal({ isOpen, onClose, process, onSucce
   const handleSubmit = async () => {
     setApiError("");
     const errs = validateCultivationForm(form, {
-      activeProductIds,
+      productId,
       originalProductId: original.supplier_product,
     });
     if (Object.keys(errs).length) {
@@ -110,7 +102,7 @@ export default function EditCultivationModal({ isOpen, onClose, process, onSucce
 
   if (!isOpen || !process) return null;
 
-  const currentProduct = products.find((p) => p.id === Number(form.supplier_product));
+  const currentProduct = products;
   const isCurrentInactive = currentProduct && currentProduct.status !== "active";
 
   return (
@@ -148,27 +140,10 @@ export default function EditCultivationModal({ isOpen, onClose, process, onSucce
             </div>
           )}
 
-          <Field label="Sản phẩm" required error={errors.supplier_product}>
-            <select
-              value={form.supplier_product}
-              onChange={set("supplier_product")}
-              disabled={productsLoading}
-              className={inputCls(errors.supplier_product)}
-            >
-              <option value="">
-                {productsLoading ? "Đang tải sản phẩm..." : "— Chọn sản phẩm —"}
-              </option>
-              {products.map((p) => (
-                <option
-                  key={p.id}
-                  value={p.id}
-                  disabled={p.status !== "active" && String(p.id) !== original.supplier_product}
-                >
-                  {p.name}
-                  {p.status !== "active" ? " (không còn bán)" : ""}
-                </option>
-              ))}
-            </select>
+          <Field label="Sản phẩm">
+            <p className="text-sm text-neutral-800 font-medium">
+              {productsLoading ? "Đang loading..." : products?.name}
+            </p>
           </Field>
 
           <div className="grid grid-cols-3 gap-4">

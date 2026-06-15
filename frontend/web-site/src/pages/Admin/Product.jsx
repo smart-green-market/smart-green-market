@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 
 import SearchBar from "../../components/Admin/UI/SearchBar";
+import { AdminInitialLoadGate } from "../../components/Admin/UI/AdminFetchState";
 import Filter from "../../components/Admin/Product/ProductFilter";
 import ProductTable from "../../components/Admin/Product/ProductTable";
 import ProductViewModal from "../../components/Admin/Product/ProductViewModal";
@@ -33,6 +34,8 @@ const formatProduct = (p) => ({
 export default function ProductPage() {
   // ─── State ────────────────────────────────────────────────────────────────
   const [data,          setData]          = useState([]);
+  const [isFetching,    setIsFetching]    = useState(true);
+  const [loadError,       setLoadError]     = useState("");
   const [loading,       setLoading]       = useState(false);
   const [actionLoading, setActionLoading] = useState(false);
   const [error,         setError]         = useState("");
@@ -44,23 +47,37 @@ export default function ProductPage() {
   const [viewRow,       setViewRow]       = useState(null);
 
   // ─── Fetch all ────────────────────────────────────────────────────────────
-  const fetchProducts = useCallback(async () => {
+  const fetchProducts = useCallback(async ({ initial = false } = {}) => {
     try {
-      setLoading(true);
+      if (initial) {
+        setIsFetching(true);
+        setLoadError("");
+      } else {
+        setLoading(true);
+      }
       setError("");
       const response = await productService.getAll();
       // API có thể trả về { results: [...] } hoặc []
       const list = Array.isArray(response) ? response : response.results ?? [];
       setData(list.map(formatProduct));
     } catch (err) {
-      setError(handleApiError(err, "Không thể tải danh sách sản phẩm"));
+      const message = handleApiError(err, "Không thể tải danh sách sản phẩm");
+      if (initial) {
+        setLoadError(message);
+      } else {
+        setError(message);
+      }
     } finally {
-      setLoading(false);
+      if (initial) {
+        setIsFetching(false);
+      } else {
+        setLoading(false);
+      }
     }
   }, []);
 
   useEffect(() => {
-    fetchProducts();
+    fetchProducts({ initial: true });
   }, [fetchProducts]);
 
   // ─── Fetch detail (mở modal) ─────────────────────────────────────────────
@@ -158,6 +175,12 @@ export default function ProductPage() {
     }, [data, search, statusFilter]);
   // ─── Render ───────────────────────────────────────────────────────────────
   return (
+    <AdminInitialLoadGate
+      isFetching={isFetching}
+      loadError={loadError}
+      onRetry={() => fetchProducts({ initial: true })}
+      loadingMessage="Đang tải danh sách sản phẩm..."
+    >
     <div className="flex flex-col gap-6 px-8 pt-6 pb-10">
       {/* SEARCH */}
       <SearchBar
@@ -200,5 +223,6 @@ export default function ProductPage() {
         error={modalError}
       />
     </div>
+    </AdminInitialLoadGate>
   );
 }

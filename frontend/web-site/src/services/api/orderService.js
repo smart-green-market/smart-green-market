@@ -13,7 +13,8 @@ export function unwrapApiData(payload) {
     (nested.id != null ||
       nested.order_code != null ||
       nested.results != null ||
-      nested.items != null)
+      nested.items != null ||
+      nested.payments != null)
   ) {
     return nested;
   }
@@ -71,11 +72,20 @@ export function parseOrderDetail(response) {
   let raw = unwrapApiData(response);
 
   // Response phân trang (GET /purchase-orders/) — không phải detail 1 đơn
-  if (raw?.results && Array.isArray(raw.results) && raw.order_code == null && raw.id == null) {
+  if (
+    raw?.results &&
+    Array.isArray(raw.results) &&
+    raw.order_code == null &&
+    raw.id == null
+  ) {
     const withItems = raw.results.find(
       (o) => o?.order_code != null && extractOrderItems(o).length > 0,
     );
-    raw = withItems ?? raw.results.find((o) => o?.order_code != null) ?? raw.results[0] ?? raw;
+    raw =
+      withItems ??
+      raw.results.find((o) => o?.order_code != null) ??
+      raw.results[0] ??
+      raw;
   }
 
   if (!raw) return null;
@@ -83,9 +93,60 @@ export function parseOrderDetail(response) {
   return {
     ...raw,
     items: extractOrderItems(raw).map(normalizeOrderItem),
-    payments: raw.payments ?? [],
+    payments: Array.isArray(raw.payments) ? raw.payments : [],
     status_histories: raw.status_histories ?? [],
   };
+}
+
+/** Thanh toán đang chờ NCC xác minh (cọc / thanh toán cuối) */
+export function findPendingPayment(payments, paymentType) {
+  if (!Array.isArray(payments)) return null;
+  return (
+    payments.find(
+      (p) => p.payment_type === paymentType && p.status === "pending",
+    ) ?? payments.find((p) => p.payment_type === paymentType)
+  );
+}
+
+export function mergeOrderDetail(prev, detail) {
+  const full = parseOrderDetail(detail);
+  if (!full) return prev ?? null;
+  return {
+    ...full,
+    items: full.items?.length ? full.items : (prev?.items ?? []),
+    payments: Array.isArray(full.payments)
+      ? full.payments
+      : (prev?.payments ?? []),
+  };
+}
+
+const PAYMENT_TYPE_ORDER = { deposit: 0, final_payment: 1 };
+
+export function sortPaymentsForDisplay(payments) {
+  if (!Array.isArray(payments)) return [];
+  return [...payments].sort(
+    (a, b) =>
+      (PAYMENT_TYPE_ORDER[a.payment_type] ?? 9) -
+        (PAYMENT_TYPE_ORDER[b.payment_type] ?? 9) ||
+      new Date(b.created_at ?? 0) - new Date(a.created_at ?? 0),
+  );
+}
+
+export function canVerifyPayment(orderStatus, payment) {
+  if (!payment || payment.status !== "pending") return false;
+  if (
+    orderStatus === "deposit_pending_verification" &&
+    payment.payment_type === "deposit"
+  ) {
+    return true;
+  }
+  if (
+    orderStatus === "final_payment_pending_verification" &&
+    payment.payment_type === "final_payment"
+  ) {
+    return true;
+  }
+  return false;
 }
 
 /**
@@ -127,5 +188,28 @@ export const orderService = {
   rejectOrder: async (id, data) => {
     const res = await axiosClient.post(`/purchase-orders/${id}/reject/`, data);
     return parseOrderDetail(res.data);
+  },
+
+  verifyPayment: async (
+    orderId,
+    { payment_id, status, rejection_reason = "" },
+  ) => {
+    const body = { payment_id, status };
+    if (status === "rejected") {
+      body.rejection_reason = rejection_reason;
+    }
+    const res = await axiosClient.post(
+      `/purchase-orders/${orderId}/verify-payment/`,
+      body,
+    );
+    return res.data;
+  },
+  // orderService.js — fix confirmShipping
+  confirmShipping: async (orderId, data) => {
+    const res = await axiosClient.post(
+      `/purchase-orders/${orderId}/ship/`,
+      data,
+    );
+    return res.data;
   },
 };

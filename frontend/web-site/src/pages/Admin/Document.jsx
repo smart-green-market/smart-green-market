@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 
 import Toolbar from "../../components/Admin/UI/Toolbar";
+import { AdminInitialLoadGate } from "../../components/Admin/UI/AdminFetchState";
 import Filter from "../../components/Admin/Document/DocumentFilter";
 import DocumentTable from "../../components/Admin/Document/DocumentTable";
 import DocumentViewModal from "../../components/Admin/Document/DocumentViewModal";
@@ -13,6 +14,12 @@ import {
 export default function DocumentPage() {
     // ── STATES ─────────────────────────────────────────────
     const [data, setData] = useState([]);
+
+    const [isFetching, setIsFetching] =
+        useState(true);
+
+    const [loadError, setLoadError] =
+        useState("");
 
     const [loading, setLoading] =
         useState(false);
@@ -36,9 +43,14 @@ export default function DocumentPage() {
 
     // ── FETCH ALL DOCUMENTS ─────────────────────────────
     const fetchDocuments = useCallback(
-        async () => {
+        async ({ initial = false } = {}) => {
             try {
-                setLoading(true);
+                if (initial) {
+                    setIsFetching(true);
+                    setLoadError("");
+                } else {
+                    setLoading(true);
+                }
 
                 const response =
                     await accountDocumentService.getAll();
@@ -87,9 +99,17 @@ export default function DocumentPage() {
                         "Không thể tải danh sách giấy tờ"
                     );
 
-                setError(message);
+                if (initial) {
+                    setLoadError(message);
+                } else {
+                    setError(message);
+                }
             } finally {
-                setLoading(false);
+                if (initial) {
+                    setIsFetching(false);
+                } else {
+                    setLoading(false);
+                }
             }
         },
         []
@@ -156,7 +176,7 @@ export default function DocumentPage() {
 
     // ── INITIAL FETCH ──────────────────────────────────
     useEffect(() => {
-        fetchDocuments();
+        fetchDocuments({ initial: true });
     }, [fetchDocuments]);
 
     // ── APPROVE ────────────────────────────────────────
@@ -212,6 +232,12 @@ export default function DocumentPage() {
     };
 
     return (
+        <AdminInitialLoadGate
+            isFetching={isFetching}
+            loadError={loadError}
+            onRetry={() => fetchDocuments({ initial: true })}
+            loadingMessage="Đang tải danh sách giấy tờ..."
+        >
         <div className="flex flex-col gap-6 px-8 pt-6 pb-10">
 
             {/* TOOLBAR */}
@@ -276,5 +302,6 @@ export default function DocumentPage() {
                 }
             />
         </div>
+        </AdminInitialLoadGate>
     );
 }
