@@ -1,9 +1,8 @@
 import { Outlet } from "react-router-dom";
-import { Bell } from "lucide-react";
+import NotificationBell from "../components/common/NotificationBell";
 import AppToaster from "../components/common/AppToaster";
 import SideBar from "../components/Supplier/UI/SideBar";
 import Logo from "../components/Supplier/UI/Logo";
-
 export default function SupplierLayout() {
     return (
         <div className="min-h-screen bg-neutral-50">
@@ -14,10 +13,7 @@ export default function SupplierLayout() {
 
                 {/* Right icons */}
                 <div className="flex items-center gap-3">
-                    <button className="relative p-2 rounded-full hover:bg-neutral-100 transition-colors text-neutral-600">
-                        <Bell className="w-[18px] h-[18px]" />
-                        <span className="absolute top-2 right-2 w-2 h-2 bg-teal-700 rounded-full border-2 border-stone-50" />
-                    </button>
+                <NotificationBell role="supplier" />
 
                     <div className="pl-4 border-l border-neutral-200 flex items-center gap-2">
                         <div className="w-8 h-8 rounded-full bg-emerald-800 flex items-center justify-center text-white text-xs font-bold font-['Geist',sans-serif]">

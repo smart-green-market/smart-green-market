@@ -1,10 +1,12 @@
 import DataTable from "react-data-table-component";
 import { tableStyles, paginationVi } from "../../common/tableStyles";
+import { formatDateTime } from "../../common/formatDateTime";
+import { getDealerDisplayStatus } from "./DealerFilter";
 
 // ── Status config ─────────────────────────────────────────────────────────────
 const STATUS_CONFIG = {
     active:  { label: "ĐANG HOẠT ĐỘNG", bg: "bg-green-200",   text: "text-green-800"  },
-    rejected:  { label: "TẠM NGƯNG",      bg: "bg-red-200",    text: "text-red-800"   },
+    rejected:  { label: "TỪ CHỐI",      bg: "bg-red-200",    text: "text-red-800"   },
     pending: { label: "CHỜ DUYỆT",        bg: "bg-amber-200",  text: "text-amber-800" },
     inactive: { label: "KHÓA",        bg: "bg-gray-200",  text: "text-gray-800" },
 };
@@ -14,26 +16,26 @@ const buildColumns = (onView) => [
     {
         id: 1,
         name: "ĐẠI LÝ",
-        selector: (row) => row.name,
+        selector: (row) => row.store_name,
         sortable: true,
         grow: 2,
 
         cell: (row) => (
             <span className="text-sm font-semibold font-['Geist',sans-serif]">
-                {row.name}
+                {row.store_name}
             </span>
         ),
     },
 
     {
         name: "ĐỊA CHỈ",
-        selector: (row) => row.address,
+        selector: (row) => row.store_address,
         sortable: true,
         grow: 2,
 
         cell: (row) => (
             <span className="text-sm font-semibold font-['Geist',sans-serif]">
-                {row.address}
+                {row.store_address}
             </span>
         ),
     },
@@ -52,14 +54,27 @@ const buildColumns = (onView) => [
     },
 
     {
+        name: "THỜI GIAN",
+        selector: (row) => row.created_at,
+        sortable: true,
+        center: true,
+        width: '150px',
+        cell: (row) => (
+            <span className="font-bold text-sm font-semibold font-['Geist',sans-serif]">
+                {formatDateTime(row.created_at)}
+            </span>
+        ),
+    },
+    {
         name: "Trạng thái",
         selector: (row) => row.verify,
         sortable: true,
+        center: true,
         width: "200px",
 
         cell: (row) => {
-            const st =
-                STATUS_CONFIG[row.verify] ?? STATUS_CONFIG.pending;
+            const displayStatus = getDealerDisplayStatus(row);
+            const st = STATUS_CONFIG[displayStatus] ?? STATUS_CONFIG.pending;
             return (
                 <span className={`px-2.5 py-1 rounded-full text-sm font-semibold font-['Geist',sans-serif] uppercase tracking-wide ${st.bg} ${st.text}`}>
                     {st.label}
@@ -70,7 +85,7 @@ const buildColumns = (onView) => [
 
     {
         name: "Thao tác",
-        width: "250px",
+        width: "150px",
         center: true,
 
         cell: (row) => (
@@ -89,38 +104,13 @@ const buildColumns = (onView) => [
     },
 ];
 
-export default function DealerTable({ data, search, statusFilter, onView,}) {
-    const filtered = data.filter((row) => {
-        const keyword = (search ?? "").toLowerCase();
-
-        const matchName =
-            (row.name ?? "")
-                .toLowerCase()
-                .includes(keyword) ||
-
-            (row.address ?? "")
-                .toLowerCase()
-                .includes(keyword) ||
-
-            (row.phone ?? "")
-                .toLowerCase()
-                .includes(keyword) ||
-
-            (row.verify ?? "")
-                .toLowerCase()
-                .includes(keyword);
-        const matchStatus = statusFilter
-            ? row.verify === statusFilter
-            : true;
-
-        return matchName && matchStatus;
-    });
-
+export default function DealerTable({ data, onView, loading = false }) {
     return (
         <div className="w-full rounded-xl border border-neutral-200 overflow-hidden">
             <DataTable
                 columns={buildColumns(onView)}
-                data={filtered}
+                data={data}
+                progressPending={loading}
                 pagination
                 paginationPerPage={10}
                 paginationComponentOptions={paginationVi}

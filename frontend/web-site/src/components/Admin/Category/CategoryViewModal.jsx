@@ -16,6 +16,8 @@ export default function CategoryViewModal({
     onLock,
     onUnlock,
     loading,
+    readOnly = false,
+    closeOnAction = true,
 }) {
     const [confirmConfig, setConfirmConfig] = useState(null);
     const [rejectConfig, setRejectConfig] = useState(null);
@@ -28,7 +30,7 @@ export default function CategoryViewModal({
 
     const isInactive = category.status === "inactive";
 
-    const isRejected = category.status === "rejected";
+    //const isRejected = category.status === "rejected";
 
     const openReject = ({ title, message, action }) => {
         setRejectConfig({ title, message, action });
@@ -39,7 +41,9 @@ export default function CategoryViewModal({
             await rejectConfig.action(reason);
         }
         setRejectConfig(null);
-        onClose();
+        if (closeOnAction) {
+            onClose();
+        }
     };
 
     // ── OPEN CONFIRM ─────────────────────
@@ -66,7 +70,9 @@ export default function CategoryViewModal({
                 await confirmConfig.action();
             }
             setConfirmConfig(null);
-            onClose();
+            if (closeOnAction) {
+                onClose();
+            }
         };
 
     return (
@@ -116,6 +122,7 @@ export default function CategoryViewModal({
                     </div>
 
                     {/* FOOTER */}
+                    {!readOnly ? (
                     <div className="px-6 py-4 border-t border-neutral-200 flex justify-center gap-3 flex-wrap">
 
                         {/* PENDING */}
@@ -227,7 +234,7 @@ export default function CategoryViewModal({
                             </button>
                         )}
                         {/* REJECTED */}
-                        {isRejected && (
+                        {/* {isRejected && (
                             <button
                                 onClick={() =>
                                     openConfirm(
@@ -255,8 +262,9 @@ export default function CategoryViewModal({
                             >
                                 Duyệt
                             </button>
-                        )}
+                        )} */}
                     </div>
+                    ) : null}
                 </div>
             </div>
 
