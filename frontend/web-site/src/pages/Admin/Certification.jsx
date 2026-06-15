@@ -164,7 +164,7 @@ export default function CertificationPage() {
 
     // ── REJECT ─────────────────────────────────────────
     const handleReject =
-        async (certification, customReason) => {
+        async (certification, rejectionReason) => {
 
             try {
                 setActionLoading(true);
@@ -173,7 +173,7 @@ export default function CertificationPage() {
                     certification.id,
                     {
                         status: "rejected",
-                        rejection_reason: customReason || "Không đạt yêu cầu hệ thống",
+                        rejection_reason: rejectionReason,
                     }
                 );
 
@@ -181,12 +181,12 @@ export default function CertificationPage() {
                 await fetchCertifications();
 
             } catch (error) {
-                console.error(
-                    handleApiError(
-                        error,
-                        "Không thể từ chối chứng chỉ"
-                    )
+                const msg = handleApiError(
+                    error,
+                    "Không thể từ chối chứng chỉ"
                 );
+                console.error(msg);
+                throw new Error(msg);
             } finally {
                 setActionLoading(false);
             }

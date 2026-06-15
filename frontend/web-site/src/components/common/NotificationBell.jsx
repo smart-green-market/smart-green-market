@@ -4,8 +4,22 @@ import { useNavigate } from "react-router-dom";
 import { notificationService, handleApiError } from "../../services/api/notificationService";
 import NotificationDropdown from "./NotificationDropdown";
 import NotificationViewModal from "../Admin/Notification/NotificationViewModal";
+import { getNotificationSeeAllPath, canManageNotificationActions, canFetchNotificationDetail } from "./notificationRolePaths";
+import {
+    formatNotificationRow,
+    mergeNotificationDetail,
+    isNotificationUnread,
+    getMarkedReadState,
+    resolveMarkReadId,
+    matchesNotificationRecord,
+} from "../Admin/Notification/notificationFormatters";
+import { useAuth } from "../../contexts/authProvider";
 
-export default function NotificationBell() {
+export default function NotificationBell({ role: roleProp }) {
+    const { user } = useAuth();
+    const role = roleProp ?? user?.role ?? "admin";
+    const seeAllPath = getNotificationSeeAllPath(role);
+    const canManageActions = canManageNotificationActions(role);
     const [unreadCount, setUnreadCount] = useState(0);
     const [notifications, setNotifications] = useState([]);
     const [isOpenDropdown, setIsOpenDropdown] = useState(false);
@@ -20,22 +34,11 @@ export default function NotificationBell() {
         try {
             const res = await notificationService.getAll(); // Giả định trả về mảng kết quả gốc
             // Tính toán số lượng chưa đọc dựa vào trường read_at === null
-            const unreadList = res.filter(item => !item.read_at);
+            const unreadList = res.filter((item) => isNotificationUnread(item));
             setUnreadCount(unreadList.length);
             
             // Map dữ liệu chuẩn hóa giống NotificationPage và giới hạn tối đa 5 phần tử
-            const formatted = res.slice(0, 5).map(item => ({
-                id: item.id,
-                type: item.type,
-                typeLabel: item.type_label,
-                title: item.title,
-                content: item.content,
-                referenceType: item.reference_type,
-                referenceTypeLabel: item.reference_type_label,
-                referenceId: item.reference_id,
-                createdAt: item.created_at,
-                readAt: item.read_at,
-            }));
+            const formatted = res.slice(0, 5).map((item) => formatNotificationRow(item));
             setNotifications(formatted);
         } catch (error) {
             console.error(handleApiError(error, "Không thể tải thông báo chuông"));
@@ -60,18 +63,27 @@ export default function NotificationBell() {
 
     // Xử lý đánh dấu đã đọc khi xem
     // Xử lý đánh dấu đã đọc khi xem
-    const handleMarkRead = useCallback(async (id) => {
+    const handleMarkRead = useCallback(async (markReadId, receiptId) => {
+        if (markReadId == null) return;
+
         try {
             setActionLoading(true);
-            // Gọi API cập nhật trạng thái đã đọc trên server
-            await notificationService.mark_read(id); 
-            
-            const nowIso = new Date().toISOString();
-            
-            // Cập nhật nhanh trạng thái tại local để giao diện phản hồi lập tức (Không đợi đóng modal)
-            setNotifications(prev => prev.map(item => item.id === id ? { ...item, readAt: nowIso } : item));
-            setUnreadCount(prev => Math.max(0, prev - 1));
-            setViewRow(prev => prev && prev.id === id ? { ...prev, readAt: nowIso } : prev);
+            const response = await notificationService.mark_read(markReadId);
+            const markedState = getMarkedReadState(response);
+
+            setNotifications((prev) =>
+                prev.map((item) =>
+                    matchesNotificationRecord(item, markReadId, receiptId)
+                        ? { ...item, ...markedState }
+                        : item,
+                ),
+            );
+            setUnreadCount((prev) => Math.max(0, prev - 1));
+            setViewRow((prev) =>
+                prev && matchesNotificationRecord(prev, markReadId, receiptId)
+                    ? { ...prev, ...markedState }
+                    : prev,
+            );
         } catch (error) {
             console.error(handleApiError(error, "Không thể đánh dấu đã đọc"));
         } finally {
@@ -82,36 +94,36 @@ export default function NotificationBell() {
     // Xử lý khi nhấn vào từng item thông báo trong chuông
     const handleItemClick = useCallback(async (item) => {
         setIsOpenDropdown(false);
-        try {
-            const detail = await notificationService.getById(item.id);
-            const formattedDetail = {
-                id: detail.id,
-                type: detail.type,
-                typeLabel: detail.type_label,
-                title: detail.title,
-                content: detail.content,
-                referenceType: detail.reference_type,
-                referenceTypeLabel: detail.reference_type_label,
-                referenceId: detail.reference_id,
-                createdAt: detail.created_at,
-                readAt: detail.read_at || item.readAt,
-            };
-            setViewRow(formattedDetail);
+        const formattedDetail = formatNotificationRow(item);
+        const notificationId = resolveMarkReadId(formattedDetail);
 
-            if (!formattedDetail.readAt) {
-                await handleMarkRead(item.id);
-            }
-        } catch (error) {
-            console.error(handleApiError(error));
+        setViewRow(formattedDetail);
+
+        if (notificationId != null && isNotificationUnread(formattedDetail)) {
+            await handleMarkRead(notificationId, formattedDetail.receiptId);
         }
-    }, [handleMarkRead]);
+
+        if (canFetchNotificationDetail(role) && notificationId != null) {
+            try {
+                const detail = await notificationService.getById(notificationId);
+                setViewRow((prev) => {
+                    if (!prev) return null;
+                    return mergeNotificationDetail(detail, prev);
+                });
+            } catch (error) {
+                console.warn(
+                    handleApiError(error, "Không thể tải chi tiết thông báo, dùng dữ liệu tóm tắt"),
+                );
+            }
+        }
+    }, [handleMarkRead, role]);
 
     return (
         <div className="relative" ref={dropdownRef}>
             {/* Nút Chuông */}
             <button 
                 onClick={() => setIsOpenDropdown(!isOpenDropdown)}
-                className="cursor-pointer relative p-2 rounded-full hover:bg-neutral-100 transition-colors text-neutral-600"
+                className="hover:scale-105 cursor-pointer relative p-2 rounded-full hover:bg-neutral-100 transition-colors text-neutral-600"
             >
                 <Bell className="w-[18px] h-[18px]" />
                 {unreadCount > 0 && (
@@ -128,7 +140,7 @@ export default function NotificationBell() {
                     onItemClick={handleItemClick}
                     onSeeMore={() => {
                         setIsOpenDropdown(false);
-                        navigate("/quan-tri/tat-ca-thong-bao");
+                        navigate(seeAllPath);
                     }}
                 />
             )}
@@ -139,8 +151,8 @@ export default function NotificationBell() {
                     fetchBellData();     
                 }}
                 notification={viewRow}
-                onChange={() => viewRow && handleMarkRead(viewRow.id)}
                 loading={actionLoading}
+                canManageActions={canManageActions}
             />
         </div>
     );

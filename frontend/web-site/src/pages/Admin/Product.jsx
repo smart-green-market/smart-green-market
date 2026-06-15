@@ -95,19 +95,20 @@ export default function ProductPage() {
   }, [fetchProducts]);
 
   // ─── Reject (pending → paused/rejected) ──────────────────────────────────
-  const handleReject = useCallback(async (product) => {
+  const handleReject = useCallback(async (product, rejectionReason) => {
     try {
       setActionLoading(true);
       setModalError("");
       await productService.verify(product.id, {
         status: "rejected",
-        rejection_reason: "",
+        rejection_reason: rejectionReason,
       });
       setViewRow(null);
       await fetchProducts();
     } catch (err) {
       const msg = handleApiError(err, "Không thể từ chối sản phẩm");
       setModalError(msg);
+      throw new Error(msg);
     } finally {
       setActionLoading(false);
     }

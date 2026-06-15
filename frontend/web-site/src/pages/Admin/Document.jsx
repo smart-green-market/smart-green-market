@@ -6,9 +6,9 @@ import DocumentTable from "../../components/Admin/Document/DocumentTable";
 import DocumentViewModal from "../../components/Admin/Document/DocumentViewModal";
 
 import {
-    supplierDocumentService,
+    accountDocumentService,
     handleApiError,
-} from "../../services/api/supplierDocumentService";
+} from "../../services/api/accountDocumentService";
 
 export default function DocumentPage() {
     // ── STATES ─────────────────────────────────────────────
@@ -41,7 +41,7 @@ export default function DocumentPage() {
                 setLoading(true);
 
                 const response =
-                    await supplierDocumentService.getAll();
+                    await accountDocumentService.getAll();
 
                 // normalize data cho table
                 const formattedData =
@@ -61,19 +61,17 @@ export default function DocumentPage() {
                             verified_at:
                                 document.verified_at,
 
-                            created_at:
+                            createdAt:
                                 document.created_at,
 
                             supplier: {
-                                id: document.supplier?.id,
+                                id: document.account?.id,
                                 company_name:
-                                    document.supplier?.company_name,
-                                tax_code:
-                                    document.supplier?.tax_code,
+                                    document.account?.profile_name
+                                    || document.account?.full_name
+                                    || document.account?.username,
                                 phone:
-                                    document.supplier?.phone,
-                                address:
-                                    document.supplier?.address,
+                                    document.account?.phone,
                             },
 
                             verified_by:
@@ -104,7 +102,7 @@ export default function DocumentPage() {
                 setLoading(true);
 
                 const detail =
-                    await supplierDocumentService.getById(
+                    await accountDocumentService.getById(
                         row.id
                     );
 
@@ -130,8 +128,14 @@ export default function DocumentPage() {
                     created_at:
                         detail.created_at,
 
-                    supplier:
-                        detail.supplier,
+                    supplier: {
+                        id: detail.account?.id,
+                        company_name:
+                            detail.account?.profile_name
+                            || detail.account?.full_name
+                            || detail.account?.username,
+                        phone: detail.account?.phone,
+                    },
 
                     verified_by:
                         detail.verified_by,
@@ -162,7 +166,7 @@ export default function DocumentPage() {
         try {
             setActionLoading(true);
 
-            await supplierDocumentService.verify(
+            await accountDocumentService.verify(
                 document.id,
                 "approved"
             );
@@ -171,39 +175,37 @@ export default function DocumentPage() {
 
             await fetchDocuments();
         } catch (error) {
-            console.error(
-                handleApiError(
-                    error,
-                    "Không thể duyệt giấy tờ"
-                )
+            const msg = handleApiError(
+                error,
+                "Không thể duyệt giấy tờ",
             );
+            console.error(msg);
+            throw new Error(msg);
         } finally {
             setActionLoading(false);
         }
     };
 
     // ── REJECT ─────────────────────────────────────────
-    const handleReject = async (
-        document
-    ) => {
+    const handleReject = async (document, rejectionReason) => {
         try {
             setActionLoading(true);
 
-            await supplierDocumentService.verify(
-                document.id,
-                "rejected"
-            );
+            await accountDocumentService.verify(document.id, {
+                status: "rejected",
+                rejection_reason: rejectionReason,
+            });
 
             setViewRow(null);
 
             await fetchDocuments();
         } catch (error) {
-            console.error(
-                handleApiError(
-                    error,
-                    "Không thể từ chối giấy tờ"
-                )
+            const msg = handleApiError(
+                error,
+                "Không thể từ chối giấy tờ"
             );
+            console.error(msg);
+            throw new Error(msg);
         } finally {
             setActionLoading(false);
         }

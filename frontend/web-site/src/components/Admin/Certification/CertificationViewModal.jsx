@@ -2,6 +2,7 @@ import { useState } from "react";
 import { X, CalendarDays } from "lucide-react";
 
 import ConfirmModal from "../../common/ConfirmModal";
+import RejectModal from "../../common/RejectModal";
 
 export default function CertificationViewModal({
     isOpen,
@@ -9,24 +10,34 @@ export default function CertificationViewModal({
     certification,
     onApprove,
     onReject,
+    loading,
+    readOnly = false,
+    closeOnAction = true,
 }) {
     const [confirmConfig, setConfirmConfig] =
         useState(null);
+    const [rejectConfig, setRejectConfig] = useState(null);
 
     if (!isOpen || !certification)
         return null;
 
-    const isPending =
-        certification.status ===
-        "pending";
+    const isPending = certification.status === "pending";
+    const isActive = certification.status === "approved";
+    //const isRejected = certification.status === "rejected";
 
-    const isActive =
-        certification.status ===
-        "active";
+    const openReject = ({ title, message, action }) => {
+        setRejectConfig({ title, message, action });
+    };
 
-    const isRejected =
-        certification.status ===
-        "rejected";
+    const handleRejectConfirm = async (reason) => {
+        if (rejectConfig?.action) {
+            await rejectConfig.action(reason);
+        }
+        setRejectConfig(null);
+        if (closeOnAction) {
+            onClose();
+        }
+    };
 
     const openConfirm = ({
         title,
@@ -53,7 +64,9 @@ export default function CertificationViewModal({
             }
 
             setConfirmConfig(null);
-            onClose();
+            if (closeOnAction) {
+                onClose();
+            }
         };
 
     return (
@@ -141,6 +154,7 @@ export default function CertificationViewModal({
                     </div>
 
                     {/* Footer */}
+                    {!readOnly ? (
                     <div className="px-8 py-6 border-t border-neutral-200 flex justify-end gap-4 shrink-0 bg-white">
 
                         {/* PENDING */}
@@ -148,24 +162,14 @@ export default function CertificationViewModal({
                             <>
                                 <button
                                     onClick={() =>
-                                        openConfirm(
-                                            {
-                                                title:
-                                                    "Từ chối chứng chỉ",
-                                                message: `Bạn có chắc chắn muốn xóa chứng chỉ "${certification.name}" không?`,
-                                                confirmText:
-                                                    "Xóa",
-                                                variant:
-                                                    "danger",
-                                                action:
-                                                    () =>
-                                                        onReject(
-                                                            certification
-                                                        ),
-                                            }
-                                        )
+                                        openReject({
+                                            title: "Từ chối chứng chỉ",
+                                            message: `Bạn có chắc chắn muốn từ chối chứng chỉ "${certification.name}" không?`,
+                                            action: (reason) =>
+                                                onReject(certification, reason),
+                                        })
                                     }
-                                    className="cursor-pointer px-6 py-2.5 bg-red-700 hover:bg-red-600 text-white text-base font-bold rounded-lg transition-colors"
+                                    className="cursor-pointer px-6 py-2.5 rounded-xl bg-red-500 hover:bg-red-400 text-white font-semibold"
                                 >
                                     Từ chối
                                 </button>
@@ -180,7 +184,7 @@ export default function CertificationViewModal({
                                                 confirmText:
                                                     "Duyệt",
                                                 variant:
-                                                    "warning",
+                                                    "success",
                                                 action:
                                                     () =>
                                                         onApprove(
@@ -189,7 +193,7 @@ export default function CertificationViewModal({
                                             }
                                         )
                                     }
-                                    className="cursor-pointer px-8 py-2.5 bg-green-700 hover:bg-green-600 text-white text-base font-bold rounded-lg transition-colors shadow-sm"
+                                    className="cursor-pointer px-6 py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-white font-semibold"
                                 >
                                     Duyệt
                                 </button>
@@ -200,31 +204,21 @@ export default function CertificationViewModal({
                         {isActive && (
                             <button
                                 onClick={() =>
-                                    openConfirm(
-                                        {
-                                            title:
-                                                "Từ chối chứng chỉ",
-                                            message: `Bạn có chắc chắn muốn từ chối chứng chỉ "${certification.name}" không?`,
-                                            confirmText:
-                                                "Từ chối",
-                                            variant:
-                                                "danger",
-                                            action:
-                                                () =>
-                                                    onReject(
-                                                        certification
-                                                    ),
-                                        }
-                                    )
+                                    openReject({
+                                        title: "Từ chối chứng chỉ",
+                                        message: `Bạn có chắc chắn muốn từ chối chứng chỉ "${certification.name}" không?`,
+                                        action: (reason) =>
+                                            onReject(certification, reason),
+                                    })
                                 }
-                                className="cursor-pointer px-6 py-2.5 bg-red-700 hover:bg-red-600 text-white text-base font-bold rounded-lg transition-colors"
+                                className="cursor-pointer px-6 py-2.5 rounded-xl bg-red-500 hover:bg-red-400 text-white font-semibold"
                             >
                                 Từ chối
                             </button>
                         )}
 
                         {/* REJECTED */}
-                        {isRejected && (
+                        {/* {isRejected && (
                             <button
                                 onClick={() =>
                                     openConfirm(
@@ -235,7 +229,7 @@ export default function CertificationViewModal({
                                             confirmText:
                                                 "Duyệt",
                                             variant:
-                                                "warning",
+                                                "success",
                                             action:
                                                 () =>
                                                     onApprove(
@@ -244,12 +238,13 @@ export default function CertificationViewModal({
                                         }
                                     )
                                 }
-                                className="cursor-pointer px-8 py-2.5 bg-green-700 hover:bg-green-600 text-white text-base font-bold rounded-lg transition-colors shadow-sm"
+                                className="cursor-pointer px-6 py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-white font-semibold"
                             >
                                 Duyệt
                             </button>
-                        )}
+                        )} */}
                     </div>
+                    ) : null}
                 </div>
             </div>
 
@@ -280,6 +275,14 @@ export default function CertificationViewModal({
                 variant={
                     confirmConfig?.variant
                 }
+            />
+
+            <RejectModal
+                isOpen={rejectConfig !== null}
+                onClose={() => setRejectConfig(null)}
+                onConfirm={handleRejectConfirm}
+                title={rejectConfig?.title}
+                message={rejectConfig?.message}
             />
         </>
     );

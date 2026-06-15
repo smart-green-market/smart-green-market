@@ -1,7 +1,7 @@
 export default function InfoField({ label, value }) {
     return (
-        <div className="flex flex-col gap-1">
-            <label className="text-xs font-semibold uppercase tracking-wide text-neutral-500">
+        <div className="flex flex-col gap-2">
+            <label className="text-neutral-700 text-base">
                 {label}
             </label>
 

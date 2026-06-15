@@ -1,5 +1,6 @@
 import DataTable from "react-data-table-component";
 import { tableStyles, paginationVi } from "../../common/tableStyles";
+import { formatDateTime } from "../../common/formatDateTime";
 
 // ── Status config ─────────────────────────────────────────────────────────────
 const STATUS_CONFIG = {
@@ -49,7 +50,18 @@ const buildColumns = (onView) => [
             </span>
         ),
     },
-
+    {
+        name: "THỜI GIAN",
+        selector: (row) => row.created_at,
+        sortable: true,
+        center: true,
+        width: '150px',
+        cell: (row) => (
+            <span className="font-bold text-sm font-semibold font-['Geist',sans-serif]">
+                {formatDateTime(row.created_at)}
+            </span>
+        ),
+    },
     {
         name: "Trạng thái",
         selector: (row) => row.verification_status,
@@ -70,7 +82,7 @@ const buildColumns = (onView) => [
 
     {
         name: "Thao tác",
-        width: "250px",
+        width: "150px",
         center: true,
 
         cell: (row) => (

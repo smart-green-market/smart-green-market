@@ -1,82 +1,66 @@
 import axiosClient from "./axiosClient";
 
+const DOCUMENTS_BASE = "/account-documents/";
+
 export const supplierDocumentService = {
   // --- ADMIN + SUPPLIER
   getAll: () =>
-    axiosClient.get("/supplier-documents/").then((res) => res.data.results),
-
-  // [
-  //   {
-  //     "id": 0,
-  //     "file_url": "string",
-  //     "document_type": "business_license",
-  //     "status": "pending",
-  //     "verified_at": "2026-06-07T07:45:49.745Z",
-  //     "created_at": "2026-06-07T07:45:49.745Z",
-  //     "supplier": 0,
-  //     "verified_by": 0
-  //   }
-  // ]
+    axiosClient.get(DOCUMENTS_BASE).then((res) => {
+      const data = res.data;
+      return data?.results ?? data?.data ?? (Array.isArray(data) ? data : []);
+    }),
 
   getById: (id) =>
-    axiosClient.get(`/supplier-documents/${id}/`).then((res) => res.data),
-
-  // {
-  //   "id": 0,
-  //   "file_url": "string",
-  //   "document_type": "business_license",
-  //   "status": "pending",
-  //   "verified_at": "2026-06-07T07:46:26.729Z",
-  //   "created_at": "2026-06-07T07:46:26.729Z",
-  //   "supplier": 0,
-  //   "verified_by": 0
-  // }
+    axiosClient.get(`${DOCUMENTS_BASE}${id}/`).then((res) => res.data),
 
   // --- SUPPLIER
+  // POST /account-documents/ — Upload 3 loại giấy tờ (một lần)
   create: (data) =>
-    axiosClient.post("/supplier-documents/", data).then((res) => res.data.data),
+    axiosClient.post(DOCUMENTS_BASE, data).then((res) => res.data?.data ?? res.data),
 
-  // business_license (file)
-  // id_card (file)
-  // tax_certificate (file)
-
-  // [
-  //   {
-  //     "id": 0,
-  //     "document_type": "business_license",
-  //     "file_url": "string",
-  //     "status": "pending",
-  //     "verified_by": 0,
-  //     "verified_by_username": "string",
-  //     "verified_at": "2026-06-07T07:47:24.652Z",
-  //     "created_at": "2026-06-07T07:47:24.652Z"
-  //   }
-  // ]
-
-  // --- ADMIN
-  verify: (id, status) => {
+  upload: (files = {}) => {
     const formData = new FormData();
 
+    if (files.business_license) {
+      formData.append("business_license", files.business_license);
+    }
+    if (files.id_card) {
+      formData.append("id_card", files.id_card);
+    }
+    if (files.tax_certificate) {
+      formData.append("tax_certificate", files.tax_certificate);
+    }
+
+    return axiosClient.post(DOCUMENTS_BASE, formData).then((res) => res.data);
+  },
+
+  update: (id, data) =>
+    axiosClient.put(`${DOCUMENTS_BASE}${id}/`, data).then((res) => res.data),
+
+  patch: (id, data) =>
+    axiosClient.patch(`${DOCUMENTS_BASE}${id}/`, data).then((res) => res.data),
+
+  delete: (id) =>
+    axiosClient.delete(`${DOCUMENTS_BASE}${id}/`).then((res) => res.data),
+
+  // --- ADMIN
+  // POST /account-documents/{id}/verify/ — Admin duyệt giấy tờ
+  verify: (id, status) => {
+    const formData = new FormData();
     formData.append("status", status);
 
     return axiosClient
-      .post(`/supplier-documents/${id}/verify/`, formData, {
-        headers: {
-          "Content-Type": "multipart/form-data",
-        },
-      })
+      .post(`${DOCUMENTS_BASE}${id}/verify/`, formData)
       .then((res) => res.data);
   },
-
-  //   {
-  //     "status": "approved / rejected",
-  //     }
 };
 
-// Xử lý bug
 export const handleApiError = (error, defaultMessage = "Có lỗi xảy ra") => {
   const message =
-    error.response?.data?.message || error.message || defaultMessage;
+    error.response?.data?.detail ||
+    error.response?.data?.message ||
+    error.message ||
+    defaultMessage;
   console.error("API Error:", error);
   return message;
 };

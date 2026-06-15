@@ -17,6 +17,10 @@ axiosClient.interceptors.request.use(
       config.headers.Authorization = `Bearer ${token}`;
     }
 
+    if (config.data instanceof FormData) {
+      delete config.headers["Content-Type"];
+    }
+
     return config;
   },
   (error) => Promise.reject(error),
@@ -29,7 +33,14 @@ axiosClient.interceptors.response.use(
   async (error) => {
     const originalRequest = error.config;
 
-    if (error.response?.status === 401 && !originalRequest._retry) {
+    // Nếu là API đăng nhập thì không thực hiện refresh token hay redirect tự động
+    const isLoginRequest = originalRequest?.url?.endsWith("/dang-nhap/");
+
+    if (
+      error.response?.status === 401 &&
+      !isLoginRequest &&
+      !originalRequest?._retry
+    ) {
       originalRequest._retry = true;
 
       try {
@@ -50,10 +61,19 @@ axiosClient.interceptors.response.use(
         return axiosClient(originalRequest);
       } catch (refreshError) {
         localStorage.removeItem("access_token");
-
         localStorage.removeItem("user");
 
-        window.location.href = "/admin/login";
+        // Điều hướng thông minh về trang đăng nhập tương ứng
+        const pathname = window.location.pathname;
+        if (pathname.startsWith("/quan-tri")) {
+          window.location.href = "/quan-tri/login";
+        } else if (pathname.startsWith("/dai-ly")) {
+          window.location.href = "/dai-ly/dang-nhap";
+        } else if (pathname.startsWith("/nha-cung-cap")) {
+          window.location.href = "/nha-cung-cap/dang-nhap";
+        } else {
+          window.location.href = "/";
+        }
 
         return Promise.reject(refreshError);
       }

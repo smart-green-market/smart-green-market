@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { X } from "lucide-react";
 import ConfirmModal from "../../common/ConfirmModal";
+import RejectModal from "../../common/RejectModal";
 
 export default function UserViewModal({
     isOpen,
@@ -14,6 +15,7 @@ export default function UserViewModal({
     loading,
 }) {
     const [confirmConfig, setConfirmConfig] = useState(null);
+    const [rejectConfig, setRejectConfig] = useState(null);
 
     if (!isOpen || !user) return null;
 
@@ -24,6 +26,18 @@ export default function UserViewModal({
     const isInactive = user.verify === "inactive";
 
     const isBanned = user.verify === "banned";
+
+    const openReject = ({ title, message, action }) => {
+        setRejectConfig({ title, message, action });
+    };
+
+    const handleRejectConfirm = async (reason) => {
+        if (rejectConfig?.action) {
+            await rejectConfig.action(reason);
+        }
+        setRejectConfig(null);
+        onClose();
+    };
 
     const openConfirm = ({
         title,
@@ -181,18 +195,11 @@ export default function UserViewModal({
                                 <button
                                     disabled={loading}
                                     onClick={() =>
-                                        openConfirm({
-                                            title:
-                                                "Từ chối nhà cung cấp",
+                                        openReject({
+                                            title: "Từ chối người dùng",
                                             message: `Bạn có chắc chắn muốn từ chối "${user.full_name}" không?`,
-                                            confirmText:
-                                                "Từ chối",
-                                            variant:
-                                                "danger",
-                                            action: () =>
-                                                onReject(
-                                                    user
-                                                ),
+                                            action: (reason) =>
+                                                onReject(user, reason),
                                         })
                                     }
                                     className="px-6 py-2.5 bg-red-500 hover:bg-red-400 text-white rounded-lg text-sm font-semibold"
@@ -314,6 +321,15 @@ export default function UserViewModal({
                 }
                 cancelText="Hủy"
                 variant={confirmConfig?.variant}
+            />
+
+            <RejectModal
+                isOpen={rejectConfig !== null}
+                onClose={() => setRejectConfig(null)}
+                onConfirm={handleRejectConfirm}
+                title={rejectConfig?.title}
+                message={rejectConfig?.message}
+                loading={loading}
             />
         </>
     );

@@ -117,23 +117,22 @@ export default function CategoryPage() {
     };
 
     // REJECT
-    const handleReject = async (category) => {
+    const handleReject = async (category, rejectionReason) => {
         try {
             setActionLoading(true);
             await categoryService.verify(
                 category.id,
                 {
                     status: "rejected",
-                    rejection_reason:
-                        "Không hợp lệ",
+                    rejection_reason: rejectionReason,
                 }
             );
             setViewRow(null);
             await fetchCategories();
         } catch (error) {
-            console.error(
-                handleApiError(error)
-            );
+            const msg = handleApiError(error, "Không thể từ chối danh mục");
+            console.error(msg);
+            throw new Error(msg);
         } finally {
             setActionLoading(false);
         }

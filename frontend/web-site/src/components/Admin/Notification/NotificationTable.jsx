@@ -1,10 +1,16 @@
 import DataTable from "react-data-table-component";
 import { tableStyles, paginationVi } from "../../common/tableStyles";
+import { formatDateTime } from "../../common/formatDateTime";
+import { isNotificationUnread } from "./notificationFormatters";
 
 const STATUS_CONFIG = {
     read:  { label: "ĐÃ ĐỌC", bg: "bg-green-200",   text: "text-green-800"  },
-    unread:  { label: "CHƯA ĐỌC",        bg: "bg-red-200",     text: "text-red-700"   },
+    unread:  { label: "CHƯA ĐỌC",        bg: "bg-gray-200",     text: "text-gray-800"   },
 };
+const getSupplierName = async (supplierId) => {
+    const response = await supplierService.getSupplierById(supplierId);
+    return response.data.name;
+}
 const TYPE = {
     info: {label: "THÔNG BÁO"},
     warning: {label: "CẢNH BÁO"},
@@ -12,10 +18,14 @@ const TYPE = {
     error: {label: "THẤT BẠI"},
 }
 const TYPE_REF = {
-    supplier_document: {label: "GIẤY TỜ"},
+    account_document: {label: "GIẤY TỜ - NHÀ CUNG CẤP"},
     supplier: {label: "NHÀ CUNG CẤP"},
-    category: {label: "DANH MỤC"},
-    certification: {label: "CHỨNG CHỈ"},
+    dealer: {label: "ĐẠI LÝ"},
+    category: {label: "DANH MỤC - NHÀ CUNG CẤP"},
+    certification: {label: "CHỨNG CHỈ - NHÀ CUNG CẤP"},
+    supplier_product: {label: "SẢN PHẨM - NHÀ CUNG CẤP"},
+    dealer_product:{label: "SẢN PHẨM - ĐẠI LÝ"},
+    purchase_order:{label: "ĐƠN HÀNG - ĐẠI LÝ"},
 }
 // ── Column definitions ────────────────────────────────────────────────────────
 const buildColumns = (onView) => [
@@ -23,7 +33,8 @@ const buildColumns = (onView) => [
         name: "THÔNG BÁO",
         selector: (row) => row.type,
         sortable: true,
-        width: '200px',
+        center: true,
+        width: '150px',
         cell: (row) => {
             const st = TYPE[row.type] || {
                 label: row.type || "KHÔNG XÁC ĐỊNH",
@@ -40,7 +51,7 @@ const buildColumns = (onView) => [
         name: "TIÊU ĐỀ",
         selector: (row) => row.title,
         sortable: true,
-        grow: 3,
+        grow: 2,
         cell: (row) => (
             <span className="font-bold text-sm font-semibold font-['Geist',sans-serif]">
                 {row.title}
@@ -52,7 +63,7 @@ const buildColumns = (onView) => [
         selector: (row) => row.referenceType,
         sortable: true,
         center: true,
-        
+        width: '250px',
         grow: 1,
         cell: (row) => {
             const st = TYPE_REF[row.referenceType] || {
@@ -67,16 +78,27 @@ const buildColumns = (onView) => [
         },
     },
     {
+        name: "THỜI GIAN",
+        selector: (row) => row.createdAt,
+        sortable: true,
+        center: true,
+        width: '150px',
+        cell: (row) => (
+            <span className="font-bold text-sm font-semibold font-['Geist',sans-serif]">
+                {formatDateTime(row.createdAt)}
+            </span>
+        ),
+    },
+    {
         name: "Trạng thái",
         selector: (row) => row.readAt,
         sortable: true,
         center: true,
-        
-        grow: 1,
+        width: '150px',
         cell: (row) => {
-            const st = row.readAt ? STATUS_CONFIG.read : STATUS_CONFIG.unread;
+            const st = isNotificationUnread(row) ? STATUS_CONFIG.unread : STATUS_CONFIG.read;
             return (
-                <span className={`px-2.5 py-1 rounded-full text-sm font-semibold font-['Geist',sans-serif] uppercase tracking-wide`}>
+                <span className={`px-2.5 py-1 rounded-full text-sm font-semibold font-['Geist',sans-serif] uppercase tracking-wide ${st.bg} ${st.text}`}>
                     {st.label}
                 </span>
             );
@@ -84,7 +106,7 @@ const buildColumns = (onView) => [
     },
     {
     name: "Thao tác",
-    width: "250px",
+    width: "150px",
     center: true,
     cell: (row) => (
       <div className="flex items-center gap-1 pr-2">
@@ -102,7 +124,7 @@ const buildColumns = (onView) => [
 ];
 const conditionalRowStyles = [
     {
-        when: (row) => !!row.readAt, // Đã đọc (read_at có dữ liệu)
+        when: (row) => !isNotificationUnread(row),
         style: {
             backgroundColor: "#f5f5f5", // Màu nền tối hơn (neutral-100/stone-100)
             color: "#737373",           // Chữ mờ đi chút
@@ -110,7 +132,7 @@ const conditionalRowStyles = [
         },
     },
     {
-        when: (row) => !row.readAt, // Chưa đọc (read_at null)
+        when: (row) => isNotificationUnread(row),
         style: {
             backgroundColor: "#ffffff", // Sáng lên
             fontWeight: "bold",
@@ -134,9 +156,9 @@ export default function NotificationTable({ data, search, statusFilter, onView }
 
         if (statusFilter && statusFilter !== "") {
             if (statusFilter === "read") {
-                matchFilter = !!row.readAt; // Có dữ liệu thời gian => Đã đọc
+                matchFilter = !isNotificationUnread(row);
             } else if (statusFilter === "unread") {
-                matchFilter = !row.readAt;  // null => Chưa đọc
+                matchFilter = isNotificationUnread(row);
             } else {
                 // Lọc theo các loại Group Type/Ref cũ của bạn
                 const typeGroup = ["info", "warning", "success", "error"];
