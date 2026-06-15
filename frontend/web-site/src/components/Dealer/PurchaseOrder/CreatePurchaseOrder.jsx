@@ -121,21 +121,11 @@ export default function CreatePurchaseOrder({ onClose, onSuccess }) {
   }, []);
 
   // --- POPULATE MẶC ĐỊNH DELIVERY INFO KHI CÓ USER ---
-  useEffect(() => {
-    if (user) {
-      // Create a default date (current date + 2 days, formatted for datetime-local: YYYY-MM-DDTHH:MM)
-      const defaultDate = new Date(Date.now() + 2 * 24 * 60 * 60 * 1000);
-      const tzOffset = defaultDate.getTimezoneOffset() * 60000; // offset in milliseconds
-      const localISOTime = new Date(defaultDate.getTime() - tzOffset).toISOString().slice(0, 16);
+  // Đã bỏ mặc định điền thông tin giao hàng theo yêu cầu
+  // useEffect(() => {
+  //   if (user) { ... }
+  // }, [user]);
 
-      setDeliveryInfo({
-        receiverName: user?.full_name || "Đại lý đối tác",
-        receiverPhone: user?.phone || "0900000000",
-        deliveryAddress: user?.dealer_profile?.store_address || "Kho hàng đại lý đối tác",
-        requestedDeliveryTime: localISOTime,
-      });
-    }
-  }, [user]);
 
   /**
    * Cập nhật số lượng nhập trực tiếp từ ô input của thẻ sản phẩm.
@@ -280,6 +270,11 @@ export default function CreatePurchaseOrder({ onClose, onSuccess }) {
   const handleCreateOrder = () => {
     if (cartItems.length === 0) {
       toast.error("Vui lòng thêm ít nhất một sản phẩm vào phiếu nhập!",  { position: "top-center", duration: 5000 },);
+      return;
+    }
+
+    if (!deliveryInfo.receiverName?.trim() || !deliveryInfo.receiverPhone?.trim() || !deliveryInfo.deliveryAddress?.trim() || !deliveryInfo.requestedDeliveryTime) {
+      toast.error("Vui lòng nhập đầy đủ Thông tin giao hàng trước khi tạo phiếu!", { position: "top-center", duration: 5000 });
       return;
     }
 

@@ -59,8 +59,8 @@ export default function DealerCategoryDetail() {
     );
   }
 
-  // Lọc sản phẩm thuộc danh mục này (Tạm thời để rỗng chờ API)
-  const categoryProducts = [];
+  // Lọc sản phẩm thuộc danh mục này
+  const categoryProducts = category.products || [];
 
   return (
     <div className="p-6 bg-emerald-50/15 min-h-screen font-['Geist',sans-serif]">

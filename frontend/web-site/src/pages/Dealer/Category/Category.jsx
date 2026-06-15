@@ -4,6 +4,7 @@ import { Tag, Plus } from "lucide-react";
 import SupplierFilter from "../../../components/Dealer/Supplier/SupplierFilter";
 import CategoryGrid from "../../../components/Dealer/Category/CategoryGrid";
 import CreateCategoryModal from "../../../components/Dealer/Category/CreateCategoryModal";
+import UpdateCategoryModal from "../../../components/Dealer/Category/UpdateCategoryModal";
 import { categoryService, handleApiError } from "../../../services/api/categoryService";
 import { toast } from "sonner";
 
@@ -15,6 +16,7 @@ export default function DealerCategoryPage() {
     const [searchQuery, setSearchQuery] = useState("");
     const [statusFilter, setStatusFilter] = useState("");
     const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+    const [categoryToUpdate, setCategoryToUpdate] = useState(null);
 
     const mapCategoryStatus = (status) => {
         const statusMap = {
@@ -50,8 +52,8 @@ export default function DealerCategoryPage() {
 
     const filteredCategories = categoryList.filter((cat) => {
         const matchesSearch =
-            cat.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-            cat.code.toLowerCase().includes(searchQuery.toLowerCase());
+            (cat.name || "").toLowerCase().includes(searchQuery.toLowerCase()) ||
+            (cat.code || "").toLowerCase().includes(searchQuery.toLowerCase());
         const matchesStatus = statusFilter === "" || cat.status === statusFilter;
         return matchesSearch && matchesStatus;
     });
@@ -90,6 +92,31 @@ export default function DealerCategoryPage() {
         } catch (error) {
             toast.error(handleApiError(error, "Không thể thêm danh mục mới"));
             throw error;
+        }
+    };
+
+    const handleUpdateCategory = async (id, updatedData) => {
+        try {
+            await categoryService.update(id, updatedData);
+            toast.success("Cập nhật danh mục thành công!");
+            fetchCategories();
+        } catch (error) {
+            toast.error(handleApiError(error, "Không thể cập nhật danh mục"));
+            throw error;
+        }
+    };
+
+    const handleDeleteCategory = async (id) => {
+        if (!window.confirm("Bạn có chắc chắn muốn xóa danh mục này?")) return;
+        try {
+            await categoryService.delete(id);
+            toast.success("Xóa danh mục thành công!");
+            
+            fetchCategories();
+        } catch (error) {
+            console.log(error);
+            toast.error(handleApiError(error, "Không thể xóa danh mục"));
+            
         }
     };
 
@@ -138,6 +165,8 @@ export default function DealerCategoryPage() {
                 <CategoryGrid
                     categories={filteredCategories}
                     onViewDetail={handleViewDetail}
+                    onUpdate={(cat) => setCategoryToUpdate(cat)}
+                    onDelete={handleDeleteCategory}
                 />
             )}
 
@@ -146,6 +175,15 @@ export default function DealerCategoryPage() {
                 <CreateCategoryModal
                     onClose={() => setIsCreateModalOpen(false)}
                     onConfirm={handleCreateCategory}
+                />
+            )}
+
+            {/* Update Category Modal */}
+            {categoryToUpdate && (
+                <UpdateCategoryModal
+                    category={categoryToUpdate}
+                    onClose={() => setCategoryToUpdate(null)}
+                    onConfirm={handleUpdateCategory}
                 />
             )}
         </div>
