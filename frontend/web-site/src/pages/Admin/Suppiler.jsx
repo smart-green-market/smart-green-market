@@ -6,6 +6,7 @@ import {
 } from "react";
 
 import SearchBar from "../../components/Admin/UI/SearchBar";
+import { AdminInitialLoadGate } from "../../components/Admin/UI/AdminFetchState";
 
 import Filter from "../../components/Admin/Suppiler/SuppilerFilter";
 
@@ -23,6 +24,10 @@ export default function SupplierPage() {
     // STATES
     // ─────────────────────────────────────────
     const [data, setData] = useState([]);
+
+    const [isFetching, setIsFetching] = useState(true);
+
+    const [loadError, setLoadError] = useState("");
 
     const [loading, setLoading] =
         useState(false);
@@ -44,9 +49,14 @@ export default function SupplierPage() {
     // FETCH ALL
     // ─────────────────────────────────────────
     const fetchSuppliers =
-        useCallback(async () => {
+        useCallback(async ({ initial = false } = {}) => {
             try {
-                setLoading(true);
+                if (initial) {
+                    setIsFetching(true);
+                    setLoadError("");
+                } else {
+                    setLoading(true);
+                }
 
                 setError("");
 
@@ -84,14 +94,21 @@ export default function SupplierPage() {
 
                 setData(formatted);
             } catch (error) {
-                setError(
-                    handleApiError(
-                        error,
-                        "Không thể tải danh sách nhà cung cấp"
-                    )
+                const message = handleApiError(
+                    error,
+                    "Không thể tải danh sách nhà cung cấp"
                 );
+                if (initial) {
+                    setLoadError(message);
+                } else {
+                    setError(message);
+                }
             } finally {
-                setLoading(false);
+                if (initial) {
+                    setIsFetching(false);
+                } else {
+                    setLoading(false);
+                }
             }
         }, []);
 
@@ -168,7 +185,7 @@ export default function SupplierPage() {
     // INITIAL FETCH
     // ─────────────────────────────────────────
     useEffect(() => {
-        fetchSuppliers();
+        fetchSuppliers({ initial: true });
     }, [fetchSuppliers]);
 
     const handleApprove = useCallback(async (supplier) => {
@@ -261,6 +278,12 @@ const handleReject = async (supplier, rejectionReason) => {
     }, [data, search, statusFilter]);
 
     return (
+        <AdminInitialLoadGate
+            isFetching={isFetching}
+            loadError={loadError}
+            onRetry={() => fetchSuppliers({ initial: true })}
+            loadingMessage="Đang tải danh sách nhà cung cấp..."
+        >
         <div className="flex flex-col gap-6 px-8 pt-6 pb-10">
             {/* SEARCH */}
             <SearchBar
@@ -308,5 +331,6 @@ const handleReject = async (supplier, rejectionReason) => {
                 loading={actionLoading}
             />
         </div>
+        </AdminInitialLoadGate>
     );
 }
