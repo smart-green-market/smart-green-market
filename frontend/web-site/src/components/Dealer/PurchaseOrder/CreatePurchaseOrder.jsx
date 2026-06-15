@@ -229,14 +229,28 @@ export default function CreatePurchaseOrder({ onClose, onSuccess }) {
 
   // --- LỌC SẢN PHẨM THEO BỘ LỌC ---
   const filteredProducts = products.filter((p) => {
+    const selectedSupObj = suppliers.find(s => String(s.id) === String(selectedSupplier));
+    const selectedSupName = selectedSupObj ? (selectedSupObj.company_name || selectedSupObj.name) : "";
+
     const matchesSupplier =
       selectedSupplier === "" ||
-      String(p.supplier?.id) === String(selectedSupplier) ||
-      p.supplier?.company_name === selectedSupplier;
+      (p.supplier && (
+        String(p.supplier?.id || p.supplier) === String(selectedSupplier) ||
+        String(p.supplier?.company_name || p.supplier?.name || p.supplier) === String(selectedSupplier) ||
+        (selectedSupName && String(p.supplier?.company_name || p.supplier?.name || p.supplier).toLowerCase() === selectedSupName.toLowerCase())
+      ));
+
+    const selectedCatObj = categories.find(c => String(c.id) === String(selectedCategory));
+    const selectedCatName = selectedCatObj ? selectedCatObj.name : "";
+
     const matchesCategory =
       selectedCategory === "" ||
-      String(p.category?.id) === String(selectedCategory) ||
-      p.category?.name === selectedCategory;
+      (p.category && (
+        String(p.category?.id || p.category) === String(selectedCategory) ||
+        String(p.category?.name || p.category) === String(selectedCategory) ||
+        (selectedCatName && String(p.category?.name || p.category).toLowerCase() === selectedCatName.toLowerCase())
+      ));
+
     const matchesSearch =
       searchQuery === "" ||
       p.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
