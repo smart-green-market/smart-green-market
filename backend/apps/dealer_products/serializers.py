@@ -203,6 +203,50 @@ class DealerInventoryBatchSerializer(serializers.ModelSerializer):
         read_only=True,
         allow_null=True,
     )
+    category = ApprovalCategoryNestedSerializer(
+        source="dealer_product.category",
+        read_only=True,
+        allow_null=True,
+    )
+    supplier_id = serializers.IntegerField(
+        source="dealer_product.supplier_product.supplier_id",
+        read_only=True,
+    )
+    supplier_name = serializers.CharField(
+        source="dealer_product.supplier_product.supplier.company_name",
+        read_only=True,
+    )
+    supplier_product = serializers.IntegerField(
+        source="dealer_product.supplier_product_id",
+        read_only=True,
+    )
+    supplier_product_name = serializers.CharField(
+        source="dealer_product.supplier_product.name",
+        read_only=True,
+    )
+    supplier_product_unit = serializers.CharField(
+        source="dealer_product.supplier_product.unit",
+        read_only=True,
+    )
+    storage_duration_days = serializers.IntegerField(
+        source="dealer_product.supplier_product.storage_duration_days",
+        read_only=True,
+        allow_null=True,
+    )
+    min_storage_temp = serializers.DecimalField(
+        source="dealer_product.supplier_product.min_storage_temp",
+        max_digits=5,
+        decimal_places=2,
+        read_only=True,
+        allow_null=True,
+    )
+    max_storage_temp = serializers.DecimalField(
+        source="dealer_product.supplier_product.max_storage_temp",
+        max_digits=5,
+        decimal_places=2,
+        read_only=True,
+        allow_null=True,
+    )
 
     class Meta:
         model = DealerInventoryBatch
@@ -210,14 +254,23 @@ class DealerInventoryBatchSerializer(serializers.ModelSerializer):
             "id",
             "dealer_product",
             "dealer_product_title",
+            "category",
             "purchase_order_item",
             "order_code",
+            "supplier_id",
+            "supplier_name",
+            "supplier_product",
+            "supplier_product_name",
+            "supplier_product_unit",
             "batch_number",
             "quantity",
             "remaining_quantity",
             "import_price",
             "import_date",
             "expiry_date",
+            "storage_duration_days",
+            "min_storage_temp",
+            "max_storage_temp",
             "status",
             "created_at",
             "updated_at",

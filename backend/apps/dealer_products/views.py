@@ -215,7 +215,10 @@ class DealerInventoryBatchViewSet(viewsets.ReadOnlyModelViewSet):
     permission_classes = [IsAdminOrDealer]
     queryset = DealerInventoryBatch.objects.select_related(
         "dealer_product",
+        "dealer_product__category",
         "dealer_product__dealer_profile",
+        "dealer_product__supplier_product",
+        "dealer_product__supplier_product__supplier",
         "purchase_order_item",
         "purchase_order_item__purchase_order",
     ).filter(deleted_at__isnull=True)

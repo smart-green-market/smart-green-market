@@ -66,6 +66,13 @@ if not CORS_ALLOW_ALL_ORIGINS:
     ]
 CORS_ALLOW_CREDENTIALS = True
 
+# URL frontend public để backend sinh link gian hàng đại lý.
+# Deploy production nên set STOREFRONT_BASE_URL=https://domain-frontend
+STOREFRONT_BASE_URL = os.environ.get(
+    "STOREFRONT_BASE_URL",
+    os.environ.get("FRONTEND_SITE_URL", "http://localhost:5173"),
+).rstrip("/")
+
 
 # Application definition
 
@@ -101,6 +108,7 @@ INSTALLED_APPS = [
     "apps.supplier_products",
     "apps.dealers",
     "apps.dealer_products",
+    "apps.customers",
     "apps.purchase_orders",
     "apps.certifications",
     "apps.notifications",
@@ -125,6 +133,7 @@ REST_FRAMEWORK = {
     ),
     "DEFAULT_PERMISSION_CLASSES": ("rest_framework.permissions.IsAuthenticated",),
     "DEFAULT_PAGINATION_CLASS": "common.pagination.LoadMorePagination",
+    "EXCEPTION_HANDLER": "common.exceptions.custom_exception_handler",
     "PAGE_SIZE": 20,
 }
 
@@ -237,6 +246,25 @@ SPECTACULAR_SETTINGS = {
                 "Tồn kho lô hàng nhập từ phiếu nhập hoàn tất. "
                 "Ghi hao hụt: `POST /api/dealer-inventory-batches/{id}/record-wastage/`."
             ),
+        },
+        {
+            "name": "Storefront Auth",
+            "description": (
+                "Đăng ký / đăng nhập buyer theo từng gian hàng đại lý. "
+                "Cùng email có thể đăng ký lại tại đại lý khác."
+            ),
+        },
+        {
+            "name": "Storefront Customer",
+            "description": "Buyer xem và cập nhật hồ sơ tại gian hàng đang đăng nhập.",
+        },
+        {
+            "name": "Storefront Addresses",
+            "description": "Buyer quản lý địa chỉ nhận hàng trong gian hàng đại lý.",
+        },
+        {
+            "name": "Dealer Customers",
+            "description": "Đại lý xem tệp khách hàng đã đăng ký qua gian hàng của mình.",
         },
         {
             "name": "Account Documents",

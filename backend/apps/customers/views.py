@@ -1,0 +1,161 @@
+"""API hồ sơ khách hàng, địa chỉ và quản lý khách theo đại lý."""
+
+from drf_spectacular.utils import extend_schema, extend_schema_view
+from rest_framework import viewsets
+from rest_framework.exceptions import PermissionDenied, ValidationError
+from rest_framework.permissions import IsAuthenticated
+from rest_framework.response import Response
+
+from apps.accounts.models import AccountRole
+from common.openapi import PAGINATION_QUERY_HELP, paginated_response_schema
+from common.permission import IsAdmin, IsAdminOrDealer
+
+from .models import CustomerAddress, CustomerProfile
+from .permissions import IsStorefrontCustomer
+from .serializers import (
+    CustomerAddressSerializer,
+    CustomerProfileSerializer,
+    CustomerProfileUpdateSerializer,
+)
+from .storefront_serializers import DealerCustomerListSerializer, DealerCustomerNoteSerializer
+
+
+def _customer_profile_queryset():
+    return CustomerProfile.objects.select_related(
+        "user",
+        "user__store_dealer",
+        "favorite_category",
+    )
+
+
+@extend_schema_view(
+    list=extend_schema(
+        tags=["Dealer Customers"],
+        summary="Tệp khách hàng của đại lý",
+        description="Admin xem tất cả. Dealer chỉ thấy buyer đăng ký tại cửa hàng mình."
+        + PAGINATION_QUERY_HELP,
+        responses={
+            200: paginated_response_schema(
+                DealerCustomerListSerializer,
+                "PaginatedDealerCustomer",
+            )
+        },
+    ),
+    retrieve=extend_schema(tags=["Dealer Customers"], summary="Chi tiết khách hàng"),
+    partial_update=extend_schema(
+        tags=["Dealer Customers"],
+        summary="Cập nhật ghi chú khách hàng",
+        request=DealerCustomerNoteSerializer,
+        responses={200: DealerCustomerListSerializer},
+    ),
+    update=extend_schema(tags=["Dealer Customers"], summary="Cập nhật ghi chú khách hàng"),
+)
+class DealerCustomerViewSet(viewsets.ModelViewSet):
+    """Quản lý khách hàng đăng ký qua gian hàng đại lý."""
+
+    http_method_names = ["get", "patch", "put", "head", "options"]
+    queryset = _customer_profile_queryset().filter(user__store_dealer__isnull=False)
+    serializer_class = DealerCustomerListSerializer
+
+    def get_permissions(self):
+        if self.action in ("list", "retrieve", "update", "partial_update"):
+            return [IsAdminOrDealer()]
+        return [IsAdmin()]
+
+    def get_queryset(self):
+        user = self.request.user
+        qs = self.queryset
+        if user.role == AccountRole.DEALER:
+            if not hasattr(user, "dealer_profile"):
+                return qs.none()
+            qs = qs.filter(user__store_dealer=user.dealer_profile)
+        return qs
+
+    def get_serializer_class(self):
+        if self.action in ("update", "partial_update"):
+            return DealerCustomerNoteSerializer
+        return DealerCustomerListSerializer
+
+    def perform_update(self, serializer):
+        if self.request.user.role == AccountRole.DEALER:
+            if serializer.instance.user.store_dealer_id != self.request.user.dealer_profile_id:
+                raise PermissionDenied("Không có quyền sửa khách hàng của đại lý khác.")
+        serializer.save()
+
+
+@extend_schema_view(
+    retrieve=extend_schema(tags=["Storefront Customer"], summary="Hồ sơ buyer hiện tại"),
+    partial_update=extend_schema(
+        tags=["Storefront Customer"],
+        summary="Cập nhật hồ sơ buyer",
+        request=CustomerProfileUpdateSerializer,
+        responses={200: CustomerProfileSerializer},
+    ),
+    update=extend_schema(tags=["Storefront Customer"], summary="Cập nhật hồ sơ buyer"),
+)
+class StorefrontCustomerProfileViewSet(viewsets.GenericViewSet):
+    """Buyer xem/cập nhật hồ sơ tại gian hàng đang đăng nhập."""
+
+    permission_classes = [IsStorefrontCustomer]
+    serializer_class = CustomerProfileSerializer
+
+    def get_queryset(self):
+        return _customer_profile_queryset().filter(user=self.request.user)
+
+    def get_object(self):
+        return self.request.user.customer_profile
+
+    @extend_schema(tags=["Storefront Customer"], summary="Hồ sơ buyer hiện tại")
+    def retrieve(self, request, *args, **kwargs):
+        profile = self.get_object()
+        return Response(CustomerProfileSerializer(profile, context={"request": request}).data)
+
+    def partial_update(self, request, *args, **kwargs):
+        profile = self.get_object()
+        serializer = CustomerProfileUpdateSerializer(
+            profile,
+            data=request.data,
+            partial=True,
+        )
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+        return Response(CustomerProfileSerializer(profile, context={"request": request}).data)
+
+    def update(self, request, *args, **kwargs):
+        return self.partial_update(request, *args, **kwargs)
+
+
+@extend_schema_view(
+    list=extend_schema(
+        tags=["Storefront Addresses"],
+        summary="Danh sách địa chỉ buyer",
+        responses={
+            200: paginated_response_schema(
+                CustomerAddressSerializer,
+                "PaginatedStorefrontCustomerAddress",
+            )
+        },
+    ),
+    retrieve=extend_schema(tags=["Storefront Addresses"], summary="Chi tiết địa chỉ"),
+    create=extend_schema(tags=["Storefront Addresses"], summary="Thêm địa chỉ nhận hàng"),
+    update=extend_schema(tags=["Storefront Addresses"], summary="Cập nhật địa chỉ"),
+    partial_update=extend_schema(tags=["Storefront Addresses"], summary="Cập nhật một phần"),
+    destroy=extend_schema(tags=["Storefront Addresses"], summary="Xóa địa chỉ"),
+)
+class StorefrontCustomerAddressViewSet(viewsets.ModelViewSet):
+    """Buyer quản lý địa chỉ trong phạm vi gian hàng đại lý."""
+
+    permission_classes = [IsStorefrontCustomer]
+    serializer_class = CustomerAddressSerializer
+
+    def get_queryset(self):
+        return CustomerAddress.objects.filter(
+            customer__user=self.request.user,
+        ).select_related("customer", "customer__user")
+
+    def perform_create(self, serializer):
+        try:
+            profile = self.request.user.customer_profile
+        except CustomerProfile.DoesNotExist as exc:
+            raise ValidationError({"detail": "Chưa có hồ sơ khách hàng."}) from exc
+        serializer.save(customer=profile)

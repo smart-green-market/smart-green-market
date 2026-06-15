@@ -1,5 +1,6 @@
 """API quản lý hồ sơ đại lý và luồng duyệt."""
 
+from django.conf import settings
 from django.db.models import Count, Prefetch, Q
 from django.utils import timezone
 from drf_spectacular.utils import OpenApiExample, extend_schema, extend_schema_view
@@ -36,6 +37,7 @@ from .serializers import (
     DealerProfileDetailSerializer,
     DealerProfileListSerializer,
     DealerProfileSerializer,
+    DealerStorefrontLinkSerializer,
 )
 
 REQUIRED_DOCUMENT_TYPES = [choice[0] for choice in AccountDocumentType.choices]
@@ -126,6 +128,8 @@ class DealerProfileViewSet(viewsets.ModelViewSet):
     def get_permissions(self):
         if self.action in ("verify", "account_status"):
             return [IsAdmin()]
+        if self.action == "storefront_link":
+            return [IsDealer()]
         if self.action in ("create", "update", "partial_update", "destroy"):
             return [IsDealer()]
         if self.action in ("categories", "products"):
@@ -169,6 +173,41 @@ class DealerProfileViewSet(viewsets.ModelViewSet):
             reference_type="dealer",
             reference_id=dealer.id,
             created_by=self.request.user,
+        )
+
+    @extend_schema(
+        tags=["Dealers"],
+        summary="Link gian hàng của đại lý hiện tại",
+        description=(
+            "Dealer dùng endpoint này để lấy URL public gửi/PR cho buyer. "
+            "URL được sinh từ `STOREFRONT_BASE_URL` + `/cua-hang/{slug}`."
+        ),
+        responses={200: DealerStorefrontLinkSerializer},
+    )
+    @action(detail=False, methods=["get"], url_path="me/storefront-link")
+    def storefront_link(self, request):
+        try:
+            dealer = request.user.dealer_profile
+        except DealerProfile.DoesNotExist as exc:
+            raise ValidationError({"detail": "Tài khoản đại lý chưa có hồ sơ."}) from exc
+
+        storefront_path = f"/cua-hang/{dealer.slug}"
+        storefront_url = f"{settings.STOREFRONT_BASE_URL}{storefront_path}"
+        can_share = (
+            dealer.status == DealerProfileStatus.ACTIVE
+            and dealer.account.status == AccountStatus.ACTIVE
+        )
+
+        return Response(
+            {
+                "dealer_id": dealer.id,
+                "store_name": dealer.store_name,
+                "slug": dealer.slug,
+                "status": dealer.status,
+                "storefront_path": storefront_path,
+                "storefront_url": storefront_url,
+                "can_share": can_share,
+            }
         )
 
     @extend_schema(
