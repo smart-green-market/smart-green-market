@@ -16,7 +16,7 @@ export default function AdminProtectedRoute() {
     if (!user || user.role !== "admin") {
         return (
             <Navigate
-                to="/admin/login"
+                to="/quan-tri/dang-nhap"
                 replace
             />
         );

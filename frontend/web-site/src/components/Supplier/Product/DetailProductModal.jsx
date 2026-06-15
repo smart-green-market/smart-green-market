@@ -3,24 +3,38 @@ import {
   X, Check, ChevronLeft, ChevronRight, ZoomIn,
   Package, Tag, Thermometer, ShieldCheck,
   Calendar, Hash, AlertCircle, CheckCircle,
-  XCircle, Loader2, Pencil, Save, Ban, DollarSign, Lock,
+  XCircle, Loader2, Pencil, Save, Ban, Lock, LockOpen, ImageIcon, CircleDotDashed, Edit
 } from "lucide-react";
 import { productService } from "../../../services/api/productService";
-
+import UpdateProductImagesModal from "./UpdateProductImagesModal";
+import {
+  parseSupplierApiErrors,
+  validateProductForm,
+  errorsToSummary,
+  extractSupplierApiMessage,
+} from "../../../utils/supplierValidation";
+import {
+  canLockProduct,
+  canUnlockProduct,
+} from "./productSellingUtils";
+import { farmingProcessService } from "../../../services/api/cultivationService";
+import { parseCultivationList } from "../Cultivation/cultivationUtils";
+import CreateCultivationModal from "../Cultivation/CreateCultivationModal"
+import EditCultivationModal from "../Cultivation/EditCultivationModal";
 /* ─── Status helpers ─── */
 const STATUS_MAP = {
-  pending:  { label: "Chờ duyệt",   color: "bg-amber-100 text-amber-700 border-amber-200" },
-  approved: { label: "Đã duyệt",    color: "bg-emerald-100 text-emerald-700 border-emerald-200" },
-  rejected: { label: "Từ chối",     color: "bg-red-100 text-red-700 border-red-200" },
-  active:   { label: "Đang bán",    color: "bg-green-100 text-green-700 border-green-200" },
-  inactive: { label: "Tạm ngừng",   color: "bg-zinc-100 text-zinc-500 border-zinc-200" },
+  pending: { label: "Chờ duyệt", color: "bg-amber-100 text-amber-700 border-amber-200" },
+  approved: { label: "Đã duyệt", color: "bg-emerald-100 text-emerald-700 border-emerald-200" },
+  rejected: { label: "Từ chối", color: "bg-red-100 text-red-700 border-red-200" },
+  active: { label: "Đang bán", color: "bg-green-100 text-green-700 border-green-200" },
+  inactive: { label: "Ngừng bán", color: "bg-zinc-100 text-zinc-500 border-zinc-200" },
 };
 
 const StatusBadge = ({ status }) => {
   const s = STATUS_MAP[status] ?? { label: status, color: "bg-zinc-100 text-zinc-500 border-zinc-200" };
   return (
     <span className={`inline-flex items-center gap-1.5 text-xs font-semibold px-2.5 py-1 rounded-full border ${s.color}`}>
-      {status === "pending"  && <Loader2 className="w-3 h-3 animate-spin" />}
+      {status === "pending" && <Loader2 className="w-3 h-3 animate-spin" />}
       {status === "approved" && <CheckCircle className="w-3 h-3" />}
       {status === "rejected" && <XCircle className="w-3 h-3" />}
       {s.label}
@@ -60,7 +74,7 @@ function LockedStatusField({ label, status }) {
 /* ─── Inline editable field ─── */
 function EditableField({ label, value, onSave, type = "text", options, suffix, multiline }) {
   const [editing, setEditing] = useState(false);
-  const [draft, setDraft]     = useState(value ?? "");
+  const [draft, setDraft] = useState(value ?? "");
   const ref = useRef(null);
 
   useEffect(() => { setDraft(value ?? ""); }, [value]);
@@ -131,7 +145,7 @@ function EditableField({ label, value, onSave, type = "text", options, suffix, m
 /* ─── Image gallery lightbox ─── */
 function ImageGallery({ images }) {
   const [active, setActive] = useState(0);
-  const [zoom,   setZoom]   = useState(false);
+  const [zoom, setZoom] = useState(false);
 
   useEffect(() => { setActive(0); }, [images]);
 
@@ -142,7 +156,7 @@ function ImageGallery({ images }) {
     </div>
   );
 
-  const thumb   = images.find(i => i.is_thumbnail) ?? images[0];
+  const thumb = images.find(i => i.is_thumbnail) ?? images[0];
   const current = images[active] ?? thumb;
 
   return (
@@ -192,13 +206,27 @@ function ImageGallery({ images }) {
 }
 
 /* ─── Section wrapper ─── */
-function Section({ icon, title, children }) {
+function Section({ icon, title, children, action }) {
   return (
-    <div className="border border-zinc-200 rounded-xl p-4">
-      <div className="flex items-center gap-2 mb-4 pb-3 border-b border-zinc-100">
-        {icon}
-        <span className="text-sm font-semibold text-zinc-800">{title}</span>
+    // <div className="border border-zinc-200 rounded-xl p-4">
+    //   <div className="flex items-center gap-2 mb-4 pb-3 border-b border-zinc-100">
+    //     {icon}
+    //     <span className="text-sm font-semibold text-zinc-800">{title}</span>
+    //   </div>
+    //   {children}
+    // </div>
+    <div className="bg-white rounded-xl p-4">
+      <div className="flex items-center justify-between mb-4">
+        <div className="flex items-center gap-2">
+          {icon}
+          <h2 className="font-semibold text-lg">
+            {title}
+          </h2>
+        </div>
+
+        {action}
       </div>
+
       {children}
     </div>
   );
@@ -216,13 +244,31 @@ function InfoRow({ icon, label, value }) {
 }
 
 /* ─── Main modal ─── */
-export default function DetailProductModal({ isOpen, onClose, product: initialProduct, onUpdate }) {
+export default function DetailProductModal({
+  isOpen,
+  onClose,
+  product: initialProduct,
+  onUpdate,
+  onLockSelling,
+  onUnlockSelling,
+  togglingSelling = false,
+}) {
   const [product, setProduct] = useState(initialProduct);
-  const [saving,  setSaving]  = useState(false);
-  const [saved,   setSaved]   = useState(false);
-  const [error,   setError]   = useState("");
-
-  useEffect(() => { setProduct(initialProduct); setSaved(false); setError(""); }, [initialProduct]);
+  const [saving, setSaving] = useState(false);
+  const [saved, setSaved] = useState(false);
+  const [error, setError] = useState("");
+  const [showImageModal, setShowImageModal] = useState(false);
+  const [cultivationSteps, setCultivationSteps] = useState([]);
+  const [loadingCultivation, setLoadingCultivation] = useState(false);
+  const [createRow, setCreateRow] = useState(null);
+  const [editRow,setEditRow] = useState(null);
+  useEffect(() => {
+    setProduct(initialProduct);
+    setSaved(false);
+    setError("");
+    setShowImageModal(false);
+    setCultivationSteps([]);
+  }, [initialProduct]);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -236,22 +282,61 @@ export default function DetailProductModal({ isOpen, onClose, product: initialPr
     return () => { document.body.style.overflow = ""; };
   }, [isOpen]);
 
+  useEffect(() => {
+    if (!isOpen || !product?.id) return;
+
+    const fetchCultivation = async () => {
+      setLoadingCultivation(true);
+      try {
+        const res = await farmingProcessService.getAll({ supplier_product: product.id });
+        const steps = parseCultivationList(res)
+          .filter((s) => Number(s.supplier_product) === Number(product.id))
+          .sort((a, b) => a.step_order - b.step_order);
+        setCultivationSteps(steps);
+      } catch (err) {
+        console.error("Lỗi tải quy trình canh tác:", err);
+        setCultivationSteps([]);
+      } finally {
+        setLoadingCultivation(false);
+      }
+    };
+
+    fetchCultivation();
+  }, [isOpen, product?.id]);
+  const fetchData = async () => {
+    try {
+      setLoading(true);
+      const res = await farmingProcessService.getAll();
+      setData(parseCultivationList(res));
+    } catch (err) {
+      console.error("Lỗi khi tải quy trình canh tác:", err);
+    } finally {
+      setLoading(false);
+    }
+  };
   if (!isOpen || !product) return null;
 
-  const field  = (key) => product[key] ?? "";
+  const field = (key) => product[key] ?? "";
   const update = (key, val) => setProduct(p => ({ ...p, [key]: val }));
 
   const buildUpdatePayload = () => {
     const payload = {
       name: product.name?.trim() ?? "",
       slug: product.slug ?? "",
-      unit: product.unit ?? "",
       description: product.description ?? "",
     };
 
     const catId = product.category?.id ?? product.category;
     if (catId != null && catId !== "") {
       payload.category = Number(catId);
+    }
+
+    if (product.wholesale_price != null && product.wholesale_price !== "") {
+      payload.wholesale_price = String(product.wholesale_price);
+    }
+
+    if (product.daily_production_capacity != null && product.daily_production_capacity !== "") {
+      payload.daily_production_capacity = Number(product.daily_production_capacity);
     }
 
     if (product.storage_duration_days != null && product.storage_duration_days !== "") {
@@ -270,8 +355,23 @@ export default function DetailProductModal({ isOpen, onClose, product: initialPr
   };
 
   const handleSave = async () => {
-    setSaving(true);
     setError("");
+    const errs = validateProductForm({
+      name: product.name,
+      category: product.category?.id ?? product.category,
+      wholesale_price: product.wholesale_price,
+      daily_production_capacity: product.daily_production_capacity,
+      description: product.description,
+      storage_duration_days: product.storage_duration_days,
+      min_storage_temp: product.min_storage_temp,
+      max_storage_temp: product.max_storage_temp,
+    });
+    if (Object.keys(errs).length) {
+      setError(errorsToSummary(errs));
+      return;
+    }
+
+    setSaving(true);
     try {
       const payload = buildUpdatePayload();
       const updated = await productService.updateProduct(product.id, payload);
@@ -292,18 +392,10 @@ export default function DetailProductModal({ isOpen, onClose, product: initialPr
       setTimeout(() => setSaved(false), 2500);
     } catch (err) {
       console.error("Lỗi cập nhật sản phẩm:", err);
-      const data = err?.response?.data;
-      let msg = "Cập nhật thất bại. Vui lòng thử lại.";
-      if (data && typeof data === "object" && !Array.isArray(data)) {
-        const fieldErrors = Object.entries(data)
-          .filter(([k]) => k !== "detail" && k !== "message")
-          .map(([k, v]) => `${k}: ${Array.isArray(v) ? v.join(", ") : v}`)
-          .join(" | ");
-        msg = fieldErrors || data?.detail || data?.message || msg;
-      } else {
-        msg = data?.detail || data?.message || err?.message || msg;
-      }
-      setError(msg);
+      const parsed = parseSupplierApiErrors(err?.response?.data, {
+        fallback: "Cập nhật sản phẩm thất bại. Vui lòng kiểm tra lại thông tin.",
+      });
+      setError(parsed.general || parsed.summary || extractSupplierApiMessage(err));
     } finally {
       setSaving(false);
     }
@@ -346,11 +438,10 @@ export default function DetailProductModal({ isOpen, onClose, product: initialPr
 
           <div className="flex items-center gap-2 ml-4 flex-shrink-0">
             <button onClick={handleSave} disabled={saving}
-              className={`flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-sm font-semibold transition-all ${
-                saved
-                  ? "bg-green-100 text-green-700 border border-green-300"
-                  : "bg-green-700 hover:bg-green-800 text-white shadow-sm"
-              } disabled:opacity-60`}>
+              className={`flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-sm font-semibold transition-all ${saved
+                ? "bg-green-100 text-green-700 border border-green-300"
+                : "bg-green-700 hover:bg-green-800 text-white shadow-sm"
+                } disabled:opacity-60`}>
               {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : saved ? <Check className="w-4 h-4" /> : <Save className="w-4 h-4" />}
               {saving ? "Đang lưu…" : saved ? "Đã lưu!" : "Lưu thay đổi"}
             </button>
@@ -387,10 +478,15 @@ export default function DetailProductModal({ isOpen, onClose, product: initialPr
                     value={field("name")}
                     onSave={v => update("name", v)} />
 
-                  <EditableField label="Đơn vị tính"
-                    value={field("unit")}
-                    onSave={v => update("unit", v)}
-                    options={["kg", "bó", "cái", "túi", "hộp", "thùng"]} />
+                  <EditableField label="Giá sỉ"
+                    value={field("wholesale_price")}
+                    onSave={v => update("wholesale_price", v === "" ? null : v)}
+                    type="number" suffix="đ" />
+
+                  <EditableField label="Năng suất"
+                    value={field("daily_production_capacity")}
+                    onSave={v => update("daily_production_capacity", v === "" ? null : Number(v))}
+                    type="number" suffix="kg/tháng" />
 
                   <div className="col-span-2">
                     <EditableField label="Mô tả chi tiết"
@@ -423,9 +519,45 @@ export default function DetailProductModal({ isOpen, onClose, product: initialPr
               <Section icon={<ShieldCheck className="w-4 h-4 text-green-700" />} title="Trạng thái & Phê duyệt">
                 <div className="grid grid-cols-2 gap-x-6 gap-y-4">
                   <LockedStatusField
-                    label="Trạng thái (không thể thay đổi)"
+                    label="Trạng thái duyệt (không thể thay đổi)"
                     status={product.status}
                   />
+
+                  <div>
+                    <div className="text-xs text-zinc-400 mb-2">Trạng thái bán hàng</div>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <StatusBadge status={product.status} />
+                      {canLockProduct(product.status) && (
+                        <button
+                          type="button"
+                          onClick={() => onLockSelling?.(product)}
+                          disabled={togglingSelling}
+                          className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg
+                            border border-amber-200 text-amber-700 bg-amber-50 hover:bg-amber-100 transition-colors disabled:opacity-50"
+                        >
+                          <Lock className="w-3.5 h-3.5" />
+                          Khóa bán
+                        </button>
+                      )}
+                      {canUnlockProduct(product.status) && (
+                        <button
+                          type="button"
+                          onClick={() => onUnlockSelling?.(product)}
+                          disabled={togglingSelling}
+                          className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg
+                            border border-emerald-200 text-emerald-700 bg-emerald-50 hover:bg-emerald-100 transition-colors disabled:opacity-50"
+                        >
+                          <LockOpen className="w-3.5 h-3.5" />
+                          Mở khóa bán
+                        </button>
+                      )}
+                      {!canLockProduct(product.status) && !canUnlockProduct(product.status) && (
+                        <span className="text-xs text-zinc-400">
+                          Chỉ khóa/mở khóa khi sản phẩm đang bán hoặc đã tạm ngừng bán.
+                        </span>
+                      )}
+                    </div>
+                  </div>
                   <div>
                     <div className="text-xs text-zinc-400 mb-0.5">Người duyệt</div>
                     <div className="text-sm font-medium text-zinc-700">{product.verified_by_username ?? "—"}</div>
@@ -447,6 +579,50 @@ export default function DetailProductModal({ isOpen, onClose, product: initialPr
                   </div>
                 </div>
               </Section>
+
+              {/* Quy trình canh tác */}
+              <Section
+                icon={<CircleDotDashed className="w-4 h-4 text-green-700" />}
+                title="Quy trình canh tác"
+                action={
+                  <button
+                    onClick={() => setCreateRow({})}
+                    className="px-4 py-2 bg-emerald-800 text-white text-sm font-semibold rounded-lg hover:bg-emerald-700"
+                  >
+                    + Thêm quy trình mới
+                  </button>}
+              >
+                {loadingCultivation ? (
+                  <div className="flex items-center gap-2 text-sm text-zinc-400">
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    Đang tải quy trình canh tác...
+                  </div>
+                ) : cultivationSteps.length === 0 ? (
+                  <p className="text-sm text-zinc-400 italic">Chưa có quy trình canh tác cho sản phẩm này.</p>
+                ) : (
+                  <div className="flex flex-col gap-3">
+                    {cultivationSteps.map((step) => (
+                      <div key={step.id} className="flex gap-3 p-3 bg-zinc-50 rounded-lg border border-zinc-100">
+                        <span className="w-8 h-8 rounded-full bg-emerald-100 text-emerald-800 font-bold text-sm flex items-center justify-center flex-shrink-0">
+                          {step.step_order}
+                        </span>
+                        <div className="min-w-0">
+                          <p className="text-sm font-semibold text-zinc-800">{step.process_name}</p>
+                          <p className="text-xs text-zinc-500 mt-0.5 whitespace-pre-wrap">
+                            {step.description || "—"}
+                          </p>
+                        </div>
+                        <button
+                          onClick={() => setEditRow(step)}
+                          className="ml-auto flex items-center justify-center w-8 h-8 rounded-md bg-gray-500 text-white hover:bg-gray-300 transition-colors"
+                        >
+                          <Edit size={16} />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </Section>
             </div>
 
             {/* ── Right ── */}
@@ -458,6 +634,15 @@ export default function DetailProductModal({ isOpen, onClose, product: initialPr
                   <span className="text-xs text-zinc-400 ml-auto">{product.images?.length ?? 0} ảnh</span>
                 </div>
                 <ImageGallery images={product.images} />
+                <button
+                  type="button"
+                  onClick={() => setShowImageModal(true)}
+                  className="mt-3 w-full flex items-center justify-center gap-2 px-3 py-2 text-xs font-semibold text-green-700
+                    border border-green-200 rounded-lg hover:bg-green-50 transition-colors"
+                >
+                  <ImageIcon className="w-3.5 h-3.5" />
+                  Cập nhật hình ảnh
+                </button>
               </div>
 
               {/* Danh mục */}
@@ -489,6 +674,14 @@ export default function DetailProductModal({ isOpen, onClose, product: initialPr
                       <span className="font-mono text-zinc-600 truncate ml-2 max-w-[120px]" title={product.slug}>{product.slug}</span>
                     </div>
                   )}
+                  <div className="flex justify-between text-xs">
+                    <span className="text-zinc-500">Giá sỉ</span>
+                    <span className="font-semibold text-zinc-800">
+                      {product.wholesale_price != null && product.wholesale_price !== ""
+                        ? `${Number(product.wholesale_price).toLocaleString("vi-VN")} đ`
+                        : "—"}
+                    </span>
+                  </div>
                   <div className="flex justify-between text-xs">
                     <span className="text-zinc-500">Ngày tạo</span>
                     <span className="text-zinc-700">{fmt(product.created_at)}</span>
@@ -527,6 +720,28 @@ export default function DetailProductModal({ isOpen, onClose, product: initialPr
         </div>
       </div>
 
+      <UpdateProductImagesModal
+        isOpen={showImageModal}
+        onClose={() => setShowImageModal(false)}
+        product={product}
+        onSuccess={(updated) => {
+          setProduct(updated);
+          onUpdate?.(updated);
+        }}
+      />
+      <CreateCultivationModal
+        isOpen={createRow !== null}
+        onClose={() => setCreateRow(null)}
+        onSuccess={fetchData}
+        productId={product.id}
+      />
+      <EditCultivationModal
+              isOpen={editRow !== null}
+              onClose={() => setEditRow(null)}
+              process={editRow}
+              onSuccess={fetchData}
+              productId={product.id}
+            />
       <style>{`
         @keyframes modalIn {
           from { opacity: 0; transform: scale(0.96) translateY(10px); }

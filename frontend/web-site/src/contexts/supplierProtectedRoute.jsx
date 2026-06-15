@@ -17,7 +17,7 @@ export default function SupplierProtectedRoute() {
     if (!user || user.role !== "supplier") {
         return (
             <Navigate
-                to="/nha-cung-cap/login" // Đường dẫn trang login của Supplier (bạn có thể đổi tùy ý)
+                to="/nha-cung-cap/dang-nhap" // Đường dẫn trang login của Supplier (bạn có thể đổi tùy ý)
                 replace
             />
         );

@@ -1,15 +1,13 @@
-import { Eye, Trash2 } from "lucide-react";
-import { tableStyles, paginationVi } from "../../common/tableStyles";
+import { supplierTableStyles, paginationVi } from "../UI/supplierTableStyles";
+import { SupplierActionButton, SupplierActionGroup } from "../UI/SupplierTableActions";
 import DataTable from "react-data-table-component";
 
-// ── Status config ─────────────────────────────────────────────────────────────
 const STATUS_CONFIG = {
   active: { label: "ĐANG HOẠT ĐỘNG", bg: "bg-teal-800/10", text: "text-teal-800" },
   paused: { label: "TẠM NGƯNG", bg: "bg-red-700/10", text: "text-red-700" },
   pending: { label: "ĐĂNG KÝ", bg: "bg-amber-500/10", text: "text-amber-500" },
 };
 
-// ── Column definitions ────────────────────────────────────────────────────────
 const buildColumns = (onView, onDelete) => [
   {
     name: "Mã lô",
@@ -17,9 +15,7 @@ const buildColumns = (onView, onDelete) => [
     sortable: true,
     width: "100px",
     cell: (row) => (
-      <span className="text-emerald-800 text-xs font-semibold font-mono">
-        {row.code}
-      </span>
+      <span className="text-emerald-800 text-xs font-semibold font-mono">{row.code}</span>
     ),
   },
   {
@@ -29,7 +25,7 @@ const buildColumns = (onView, onDelete) => [
       <img
         src={row.image || "https://placehold.co/48x48"}
         alt={row.name}
-        className="w-12 h-12 rounded-lg border border-stone-300 object-cover"
+        className="w-14 h-14 rounded-lg border border-stone-300 object-cover"
       />
     ),
   },
@@ -37,7 +33,7 @@ const buildColumns = (onView, onDelete) => [
     name: "Tên sản phẩm",
     selector: (row) => row.name,
     sortable: true,
-    width: "150px",
+    minWidth: "160px",
     grow: 2,
     cell: (row) => (
       <span className="text-emerald-950 text-sm font-semibold font-['Geist',sans-serif]">
@@ -69,23 +65,23 @@ const buildColumns = (onView, onDelete) => [
   },
   {
     name: "Ngày nhập",
-    selector: (row) => row.unit,
+    selector: (row) => row.createdAt,
     sortable: true,
-    width: "150px",
+    width: "120px",
     cell: (row) => (
-      <span className="text-emerald-950 text-sm font-semibold font-['Geist',sans-serif]">
-        {new Date(row.createdAt).toLocaleDateString("vi-VN")}
+      <span className="text-emerald-950 text-sm font-['Geist',sans-serif]">
+        {row.createdAt ? new Date(row.createdAt).toLocaleDateString("vi-VN") : "—"}
       </span>
     ),
   },
   {
-    name: "Ngày hết hạn ",
-    selector: (row) => row.unit,
+    name: "Ngày hết hạn",
+    selector: (row) => row.expiryAt,
     sortable: true,
-    width: "150px",
+    width: "120px",
     cell: (row) => (
-      <span className="text-emerald-950 text-sm font-semibold font-['Geist',sans-serif]">
-        {new Date(row.createdAt).toLocaleDateString("vi-VN")}
+      <span className="text-emerald-950 text-sm font-['Geist',sans-serif]">
+        {row.expiryAt ? new Date(row.expiryAt).toLocaleDateString("vi-VN") : "—"}
       </span>
     ),
   },
@@ -93,11 +89,13 @@ const buildColumns = (onView, onDelete) => [
     name: "Trạng thái",
     selector: (row) => row.status,
     sortable: true,
-    width: "150px",
+    width: "140px",
     cell: (row) => {
       const st = STATUS_CONFIG[row.status] ?? STATUS_CONFIG.pending;
       return (
-        <span className={`px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wide ${st.bg} ${st.text}`}>
+        <span
+          className={`px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wide ${st.bg} ${st.text}`}
+        >
           {st.label}
         </span>
       );
@@ -105,25 +103,13 @@ const buildColumns = (onView, onDelete) => [
   },
   {
     name: "Thao tác",
-    width: "130px",
+    minWidth: "160px",
     right: true,
     cell: (row) => (
-      <div className="flex items-center gap-1 pr-2">
-        <button
-          onClick={() => onView(row)}
-          title="Xem chi tiết"
-          className="p-1.5 rounded-lg text-zinc-500 hover:text-emerald-700 hover:bg-emerald-50 transition-colors"
-        >
-          <Eye className="w-4 h-4" />
-        </button>
-        <button
-          onClick={() => onDelete(row)}
-          title="Xóa"
-          className="p-1.5 rounded-lg text-zinc-500 hover:text-red-600 hover:bg-red-50 transition-colors"
-        >
-          <Trash2 className="w-4 h-4" />
-        </button>
-      </div>
+      <SupplierActionGroup>
+        <SupplierActionButton label="Xem" onClick={() => onView(row)} />
+        <SupplierActionButton label="Xóa" variant="danger" onClick={() => onDelete(row)} />
+      </SupplierActionGroup>
     ),
     ignoreRowClick: true,
   },
@@ -145,13 +131,12 @@ export default function InventoryTable({ data, search, statusFilter, onView, onD
         paginationPerPage={6}
         paginationRowsPerPageOptions={[6, 12, 20]}
         paginationComponentOptions={paginationVi}
-        customStyles={tableStyles}
+        customStyles={supplierTableStyles}
         noDataComponent={
           <div className="py-16 text-sm text-neutral-400 font-['Geist']">
             Không tìm thấy sản phẩm phù hợp.
           </div>
         }
-        defaultSortFieldId={1}
         highlightOnHover
         responsive
       />

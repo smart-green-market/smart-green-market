@@ -3,7 +3,14 @@ import {
   X, ShieldCheck, Hash, Building2, CalendarDays, FileText,
   CloudUpload, Trash2, CheckCircle, Loader2, Info, Save, ImageIcon,
 } from "lucide-react";
-import {certificationService} from "../../../services/api/CertificationService";
+import { certificationService } from "../../../services/api/CertificationService";
+import {
+  parseSupplierApiErrors,
+  validateCertificationForm,
+  errorsToSummary,
+  extractSupplierApiMessage,
+} from "../../../utils/supplierValidation";
+import { productService } from "../../../services/api/productService"
 // ─────────────────────────────────────────────
 // Constants
 // ─────────────────────────────────────────────
@@ -118,15 +125,17 @@ export default function AddCertificationModal({ isOpen, onClose, onSuccess }) {
   });
 
   // ── image state (1 file duy nhất) ──
-  const [imageFile, setImageFile]     = useState(null);   // File object → gửi lên API
+  const [imageFile, setImageFile] = useState(null);   // File object → gửi lên API
   const [imagePreview, setImagePreview] = useState(null); // ObjectURL   → chỉ để hiển thị
   const [imageStatus, setImageStatus] = useState(null);   // null | "uploading" | "ready"
 
   // ── submit state ──
-  const [saving, setSaving]   = useState(false);
-  const [saved, setSaved]     = useState(false);
-  const [error, setError]     = useState(null);
-
+  const [saving, setSaving] = useState(false);
+  const [saved, setSaved] = useState(false);
+  const [error, setError] = useState(null);
+  const [fieldErrors, setFieldErrors] = useState({});
+  const [products, setProducts] = useState([]);
+  const [loadingProducts, setLoadingProducts] = useState(false);
   const fileRef = useRef(null);
 
   // Escape key
@@ -143,6 +152,19 @@ export default function AddCertificationModal({ isOpen, onClose, onSuccess }) {
     return () => { document.body.style.overflow = ""; };
   }, [isOpen]);
 
+  const fetchProduct = async () => {
+    try {
+      const res = await productService.getAll();
+
+      console.log("FULL RESPONSE:", res);
+
+      setProducts(res.results);
+      setLoadingProducts(false);
+    } catch (err) {
+      console.log(err);
+    }
+  };
+  useEffect(() => { fetchProduct(); }, [])
   // Cleanup object URL khi unmount / đổi file
   useEffect(() => {
     return () => { if (imagePreview) URL.revokeObjectURL(imagePreview); };
@@ -150,7 +172,11 @@ export default function AddCertificationModal({ isOpen, onClose, onSuccess }) {
 
   if (!isOpen) return null;
 
-  const set = (k, v) => setForm((f) => ({ ...f, [k]: v }));
+  const set = (k, v) => {
+    setForm((f) => ({ ...f, [k]: v }));
+    if (fieldErrors[k]) setFieldErrors((e) => ({ ...e, [k]: "" }));
+    if (error) setError(null);
+  };
 
   // ── image handlers ──
   const handleImageFile = (f) => {
@@ -178,59 +204,66 @@ export default function AddCertificationModal({ isOpen, onClose, onSuccess }) {
 
   // ── submit ──
   // ── submit ──
-// ── submit ──
+  // ── submit ──
   const handleSubmit = async (e) => {
     e.preventDefault();
+    setError(null);
+
+    const errs = validateCertificationForm(form, { hasImage: !!imageFile });
+    if (Object.keys(errs).length) {
+      setFieldErrors(errs);
+      setError(errorsToSummary(errs));
+      return;
+    }
+    setFieldErrors({});
+
     setSaving(true);
-    
     try {
-        const formData = new FormData();
-        
-        // 1. Lấy dữ liệu từ state 'form' của bạn
-        formData.append("name", form.name); 
-        formData.append("certificate_code", form.certificate_code); 
-        formData.append("issued_by", form.issued_by); 
-        formData.append("issue_date", form.issue_date); 
-        formData.append("expiry_date", form.expiry_date); 
-        formData.append("description", form.description);
-        
-        // Nếu backend có yêu cầu gửi tên sản phẩm thì bật dòng này lên:
-        // if (form.product) formData.append("product", form.product);
+      const formData = new FormData();
 
-        // 2. Lấy file ảnh từ state 'imageFile' của bạn
-        if (imageFile) {
-            formData.append("images", imageFile); 
-        }
+      // 1. Lấy dữ liệu từ state 'form' của bạn
+      formData.append("name", form.name);
+      formData.append("certificate_code", form.certificate_code);
+      formData.append("issued_by", form.issued_by);
+      formData.append("issue_date", form.issue_date);
+      formData.append("expiry_date", form.expiry_date);
+      formData.append("description", form.description);
 
-        // 3. GỌI API
-        const response = await certificationService.create(formData);
-        
-        console.log("Tạo chứng nhận thành công:", response);
-        
-        // Cập nhật UI thành công, đóng modal và báo lại cho bảng
-        setSaved(true);
-        setTimeout(() => {
-            onSuccess(response); 
-            onClose();
-        }, 500); // Đợi nửa giây cho đẹp UI rồi mới đóng
+      // Nếu backend có yêu cầu gửi tên sản phẩm thì bật dòng này lên:
+      // if (form.product) formData.append("product", form.product);
 
-    } catch (error) {
-        console.error("CHI TIẾT LỖI HOÀN CHỈNH:", error);
-        if (error.response) {
-             console.error("Lỗi từ Backend (Data):", error.response.data);
-             alert("Lỗi Backend: " + JSON.stringify(error.response.data));
-        } else {
-             console.error("Lỗi Code hoặc Mạng:", error.message);
-             alert("Lỗi hệ thống: " + error.message);
-        }
+      // 2. Lấy file ảnh từ state 'imageFile' của bạn
+      if (imageFile) {
+        formData.append("images", imageFile);
+      }
+
+      // 3. GỌI API
+      const response = await certificationService.create(formData);
+
+      console.log("Tạo chứng nhận thành công:", response);
+
+      // Cập nhật UI thành công, đóng modal và báo lại cho bảng
+      setSaved(true);
+      setTimeout(() => {
+        onSuccess(response);
+        onClose();
+      }, 500); // Đợi nửa giây cho đẹp UI rồi mới đóng
+
+    } catch (err) {
+      console.error("Lỗi tạo chứng nhận:", err);
+      const parsed = parseSupplierApiErrors(err?.response?.data, {
+        fallback: "Tạo chứng nhận thất bại. Vui lòng kiểm tra lại thông tin.",
+      });
+      if (Object.keys(parsed.fieldErrors).length) setFieldErrors(parsed.fieldErrors);
+      setError(parsed.general || parsed.summary || extractSupplierApiMessage(err));
     } finally {
-        setSaving(false);
+      setSaving(false);
     }
   };
 
   // ── image preview area ──
   const isImage = imageFile?.type?.startsWith("image/");
-  const isPdf   = imageFile?.type === "application/pdf";
+  const isPdf = imageFile?.type === "application/pdf";
 
   return (
     <div
@@ -342,7 +375,7 @@ export default function AddCertificationModal({ isOpen, onClose, onSuccess }) {
                 <label className={labelClass}>
                   <span className="flex items-center gap-1.5">
                     <ShieldCheck className="w-3.5 h-3.5 text-green-700" />
-                   Sản phẩm được chứng nhận 
+                    Sản phẩm được chứng nhận
                   </span>
                 </label>
                 <select
@@ -351,7 +384,15 @@ export default function AddCertificationModal({ isOpen, onClose, onSuccess }) {
                   className={inputClass}
                 >
                   <option value="">Chọn loại sản phẩm</option>
-                  {PRODUCT_TYPES.map((t) => <option key={t} value={t}>{t}</option>)}
+                  {loadingProducts ? (
+                    <option>Loading...</option>
+                  ) : (
+                    products.map((p) => (
+                      <option key={p.id} value={p.id}>
+                        {p.name}
+                      </option>
+                    ))
+                  )}
                 </select>
               </div>
               {/* issue_date + expiry_date */}

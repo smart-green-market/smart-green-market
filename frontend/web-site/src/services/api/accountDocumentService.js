@@ -15,22 +15,22 @@ export const accountDocumentService = {
       formData.append(key, file);
     });
     return axiosClient
-      .post("/account-documents/", formData, {
-        headers: { "Content-Type": "multipart/form-data" },
-      })
+      .post("/account-documents/", formData)
       .then((res) => res.data);
   },
 
   verify: (id, payload) => {
+    const formData = new FormData();
     const status = typeof payload === "string" ? payload : payload.status;
-    const body = { status };
+
+    formData.append("status", status);
 
     if (typeof payload === "object" && payload.rejection_reason) {
-      body.rejection_reason = payload.rejection_reason;
+      formData.append("rejection_reason", payload.rejection_reason);
     }
 
     return axiosClient
-      .post(`/account-documents/${id}/verify/`, body)
+      .post(`/account-documents/${id}/verify/`, formData)
       .then((res) => res.data);
   },
 };

@@ -1,0 +1,348 @@
+import { useEffect, useMemo, useState } from "react";
+import {
+    ChevronsLeft,
+    ChevronsRight,
+    ChevronLeft,
+    ChevronRight,
+    Loader2,
+} from "lucide-react";
+import { categoryService } from "../../../services/api/categoryService";
+import { useDealerProducts } from "../../../hooks/useDealerProducts";
+import { normalizeUnitKey, toCardProduct } from "../../../utils/userProductUtils";
+import FilterProductCard from "./FilterProductCard";
+
+const PAGE_SIZE = 8;
+
+const FALLBACK_CATEGORIES = [
+    { id: 1, name: "Rau củ" },
+    { id: 2, name: "Trái cây" },
+    { id: 3, name: "Củ quả" },
+];
+
+const UNITS = [
+    { value: "kg", label: "/kg" },
+    { value: "bo", label: "/bó" },
+    { value: "cay", label: "/cây" },
+];
+
+function FilterSection({ title, children }) {
+    return (
+        <div className="border-b border-stone-200 py-5 last:border-b-0">
+            <h3 className="mb-4 flex items-center gap-2 text-sm font-bold uppercase tracking-wide text-zinc-800">
+                <span className="h-4 w-1 rounded-full bg-emerald-700" />
+                {title}
+            </h3>
+            {children}
+        </div>
+    );
+}
+
+function TagButton({ active, onClick, children }) {
+    return (
+        <button
+            type="button"
+            onClick={onClick}
+            className={`rounded-md px-3 py-1.5 text-xs font-medium transition-colors ${
+                active
+                    ? "bg-emerald-700 text-white"
+                    : "bg-stone-100 text-neutral-600 hover:bg-emerald-50 hover:text-emerald-800"
+            }`}
+        >
+            {children}
+        </button>
+    );
+}
+
+function parseInputPrice(value) {
+    const digits = String(value).replace(/[^\d]/g, "");
+    return digits ? Number(digits) : null;
+}
+
+export default function FilterProduct() {
+    const { products: dealerProducts, loading: loadingProducts } = useDealerProducts();
+    const catalog = useMemo(() => dealerProducts.map(toCardProduct), [dealerProducts]);
+
+    const [categories, setCategories] = useState([]);
+    const [loadingCategories, setLoadingCategories] = useState(true);
+
+    const [draftCategories, setDraftCategories] = useState([]);
+    const [draftUnits, setDraftUnits] = useState([]);
+    const [draftMinPrice, setDraftMinPrice] = useState("");
+    const [draftMaxPrice, setDraftMaxPrice] = useState("");
+
+    const [appliedCategories, setAppliedCategories] = useState([]);
+    const [appliedUnits, setAppliedUnits] = useState([]);
+    const [appliedMinPrice, setAppliedMinPrice] = useState(null);
+    const [appliedMaxPrice, setAppliedMaxPrice] = useState(null);
+
+    const [page, setPage] = useState(1);
+
+    useEffect(() => {
+        categoryService
+            .getAll()
+            .then((data) => setCategories(Array.isArray(data) ? data : []))
+            .catch((err) => console.error("Fetch categories failed:", err))
+            .finally(() => setLoadingCategories(false));
+    }, []);
+
+    const toggleDraftCategory = (id) => {
+        setDraftCategories((prev) =>
+            prev.includes(id) ? prev.filter((item) => item !== id) : [...prev, id],
+        );
+    };
+
+    const toggleDraftUnit = (unit) => {
+        setDraftUnits((prev) =>
+            prev.includes(unit) ? prev.filter((item) => item !== unit) : [...prev, unit],
+        );
+    };
+
+    const handleApplyFilter = () => {
+        setAppliedCategories(draftCategories);
+        setAppliedUnits(draftUnits);
+        setAppliedMinPrice(parseInputPrice(draftMinPrice));
+        setAppliedMaxPrice(parseInputPrice(draftMaxPrice));
+        setPage(1);
+    };
+
+    const filteredProducts = useMemo(() => {
+        return catalog.filter((product) => {
+            const matchCategory =
+                appliedCategories.length === 0 ||
+                appliedCategories.includes(String(product.category_id));
+
+            const matchUnit =
+                appliedUnits.length === 0 ||
+                appliedUnits.includes(product.unitKey ?? normalizeUnitKey(product.unit));
+
+            const matchMin =
+                appliedMinPrice == null || product.priceValue >= appliedMinPrice;
+
+            const matchMax =
+                appliedMaxPrice == null || product.priceValue <= appliedMaxPrice;
+
+            return matchCategory && matchUnit && matchMin && matchMax;
+        });
+    }, [catalog, appliedCategories, appliedUnits, appliedMinPrice, appliedMaxPrice]);
+
+    const totalPages = Math.max(1, Math.ceil(filteredProducts.length / PAGE_SIZE));
+
+    const pageProducts = useMemo(() => {
+        const start = (page - 1) * PAGE_SIZE;
+        return filteredProducts.slice(start, start + PAGE_SIZE);
+    }, [filteredProducts, page]);
+
+    useEffect(() => {
+        if (page > totalPages) setPage(totalPages);
+    }, [page, totalPages]);
+
+    const visibleCategories = categories.filter(
+        (item) => item.status !== "inactive" && item.status !== "rejected",
+    );
+
+    return (
+        <section className="mx-auto w-full max-w-[1280px] px-10 pt-12 pb-4">
+            <div className="mb-8">
+                <h2 className="font-playfair text-2xl font-bold text-emerald-950">
+                    Khám phá sản phẩm
+                </h2>
+            </div>
+
+            <div className="flex flex-col gap-6 lg:flex-row lg:items-start">
+                <aside className="w-full shrink-0 rounded-lg border border-stone-200 bg-white shadow-sm lg:w-[280px]">
+                    <div className="border-b border-stone-200 px-5 py-4">
+                        <h3 className="text-base font-bold text-zinc-900">Bộ lọc</h3>
+                    </div>
+
+                    <div className="px-5">
+                        <FilterSection title="Danh mục">
+                            <div className="flex flex-wrap gap-2">
+                                {loadingCategories ? (
+                                    <span className="text-xs text-neutral-400">
+                                        Đang tải...
+                                    </span>
+                                ) : visibleCategories.length > 0 ? (
+                                    visibleCategories.map((category) => (
+                                        <TagButton
+                                            key={category.id}
+                                            active={draftCategories.includes(
+                                                String(category.id),
+                                            )}
+                                            onClick={() =>
+                                                toggleDraftCategory(String(category.id))
+                                            }
+                                        >
+                                            {category.name}
+                                        </TagButton>
+                                    ))
+                                ) : (
+                                    FALLBACK_CATEGORIES.map((category) => (
+                                        <TagButton
+                                            key={category.id}
+                                            active={draftCategories.includes(
+                                                String(category.id),
+                                            )}
+                                            onClick={() =>
+                                                toggleDraftCategory(String(category.id))
+                                            }
+                                        >
+                                            {category.name}
+                                        </TagButton>
+                                    ))
+                                )}
+                            </div>
+                        </FilterSection>
+
+                        <FilterSection title="Đơn vị tính">
+                            <div className="flex flex-wrap gap-2">
+                                {UNITS.map((unit) => (
+                                    <TagButton
+                                        key={unit.value}
+                                        active={draftUnits.includes(unit.value)}
+                                        onClick={() => toggleDraftUnit(unit.value)}
+                                    >
+                                        {unit.label}
+                                    </TagButton>
+                                ))}
+                            </div>
+                        </FilterSection>
+
+                        <FilterSection title="Khoảng giá">
+                            <div className="flex items-center gap-2">
+                                <input
+                                    type="text"
+                                    inputMode="numeric"
+                                    placeholder="0 đ"
+                                    value={draftMinPrice}
+                                    onChange={(e) => setDraftMinPrice(e.target.value)}
+                                    className="w-full rounded-md border border-stone-200 px-3 py-2 text-sm outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-200"
+                                />
+                                <span className="text-neutral-400">-</span>
+                                <input
+                                    type="text"
+                                    inputMode="numeric"
+                                    placeholder="500.000 đ"
+                                    value={draftMaxPrice}
+                                    onChange={(e) => setDraftMaxPrice(e.target.value)}
+                                    className="w-full rounded-md border border-stone-200 px-3 py-2 text-sm outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-200"
+                                />
+                            </div>
+                        </FilterSection>
+                    </div>
+
+                    <div className="p-5 pt-2">
+                        <button
+                            type="button"
+                            onClick={handleApplyFilter}
+                            className="w-full rounded-md bg-emerald-700 py-3 text-sm font-semibold text-white transition-colors hover:bg-emerald-800"
+                        >
+                            Áp dụng bộ lọc
+                        </button>
+                    </div>
+                </aside>
+
+                <div className="min-w-0 flex-1">
+                    {loadingProducts ? (
+                        <div className="flex h-48 items-center justify-center rounded-lg border border-stone-200 bg-white">
+                            <Loader2 className="h-7 w-7 animate-spin text-emerald-700" />
+                        </div>
+                    ) : pageProducts.length === 0 ? (
+                        <div className="rounded-lg border border-dashed border-stone-200 bg-white px-6 py-16 text-center text-sm text-neutral-500">
+                            Không tìm thấy sản phẩm phù hợp với bộ lọc.
+                        </div>
+                    ) : (
+                        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+                            {pageProducts.map((product) => (
+                                <FilterProductCard
+                                    key={product.id}
+                                    id={product.id}
+                                    brand={product.brand}
+                                    name={product.name}
+                                    price={product.price}
+                                    rating={product.rating}
+                                    sold={product.sold}
+                                    image={product.image}
+                                />
+                            ))}
+                        </div>
+                    )}
+
+                    {filteredProducts.length > 0 && (
+                        <Pagination
+                            page={page}
+                            totalPages={totalPages}
+                            onChange={setPage}
+                        />
+                    )}
+                </div>
+            </div>
+        </section>
+    );
+}
+
+function Pagination({ page, totalPages, onChange }) {
+    const pages = Array.from({ length: totalPages }, (_, i) => i + 1);
+
+    return (
+        <div className="mt-8 flex items-center justify-center gap-1">
+            <PaginationBtn
+                disabled={page === 1}
+                onClick={() => onChange(1)}
+                aria-label="Trang đầu"
+            >
+                <ChevronsLeft className="h-4 w-4" />
+            </PaginationBtn>
+            <PaginationBtn
+                disabled={page === 1}
+                onClick={() => onChange(page - 1)}
+                aria-label="Trang trước"
+            >
+                <ChevronLeft className="h-4 w-4" />
+            </PaginationBtn>
+
+            {pages.map((p) => (
+                <button
+                    key={p}
+                    type="button"
+                    onClick={() => onChange(p)}
+                    className={`flex h-9 w-9 items-center justify-center rounded-full text-sm font-semibold transition-colors ${
+                        p === page
+                            ? "bg-emerald-700 text-white"
+                            : "text-neutral-600 hover:bg-emerald-50 hover:text-emerald-800"
+                    }`}
+                >
+                    {p}
+                </button>
+            ))}
+
+            <PaginationBtn
+                disabled={page === totalPages}
+                onClick={() => onChange(page + 1)}
+                aria-label="Trang sau"
+            >
+                <ChevronRight className="h-4 w-4" />
+            </PaginationBtn>
+            <PaginationBtn
+                disabled={page === totalPages}
+                onClick={() => onChange(totalPages)}
+                aria-label="Trang cuối"
+            >
+                <ChevronsRight className="h-4 w-4" />
+            </PaginationBtn>
+        </div>
+    );
+}
+
+function PaginationBtn({ disabled, onClick, children, ...props }) {
+    return (
+        <button
+            type="button"
+            disabled={disabled}
+            onClick={onClick}
+            className="cursor-pointer flex h-9 w-9 items-center justify-center rounded-full text-neutral-500 transition-colors hover:bg-emerald-50 hover:text-emerald-800 disabled:cursor-not-allowed disabled:opacity-40"
+            {...props}
+        >
+            {children}
+        </button>
+    );
+}

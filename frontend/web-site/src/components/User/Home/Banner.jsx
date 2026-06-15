@@ -30,58 +30,62 @@ export default function Banner() {
     const next = () => setCurrent((c) => (c + 1) % SLIDES.length);
 
     return (
-        <div className="w-full px-10 pt-6">
-            <div className="relative w-full max-w-[1200px] mx-auto h-[400px] rounded-2xl overflow-hidden group">
-                {/* Slides */}
-                {SLIDES.map((slide, i) => (
-                    <div
-                        key={slide.id}
-                        className={`absolute inset-0 transition-opacity duration-700 ${i === current ? "opacity-100" : "opacity-0"}`}
-                    >
-                        <img
-                            src={slide.image}
-                            alt={slide.title}
-                            className="w-full h-full object-cover"
-                        />
-                        <div className="absolute inset-0 bg-gradient-to-r from-emerald-950/65 via-emerald-950/30 to-transparent" />
-                        <div className="absolute inset-0 flex flex-col justify-center px-14">
-                            <h1 className="text-white text-5xl font-normal leading-[1.2] mb-4" style={{ fontFamily: "'Pacifico', cursive" }}>
-                                {slide.title}
-                            </h1>
-                            <p className="text-white/85 text-lg max-w-sm mb-8 leading-7">
-                                {slide.subtitle}
-                            </p>
-                            <button className="w-fit px-7 py-3 bg-emerald-800 hover:bg-emerald-700 text-white rounded-xl font-medium transition-colors">
-                                Mua ngay
-                            </button>
-                        </div>
-                    </div>
-                ))}
-
-                {/* Arrow buttons */}
-                <button
-                    onClick={prev}
-                    className="absolute left-4 top-1/2 -translate-y-1/2 w-10 h-10 bg-white/20 hover:bg-white/40 backdrop-blur-sm rounded-full flex items-center justify-center text-white transition-all opacity-0 group-hover:opacity-100"
+        <div className="relative w-full h-[420px] overflow-hidden group">
+            {SLIDES.map((slide, i) => (
+                <div
+                    key={slide.id}
+                    className={`absolute inset-0 transition-opacity duration-700 ${i === current ? "opacity-100" : "opacity-0"}`}
                 >
-                    <ChevronLeft className="w-5 h-5" />
-                </button>
-                <button
-                    onClick={next}
-                    className="absolute right-4 top-1/2 -translate-y-1/2 w-10 h-10 bg-white/20 hover:bg-white/40 backdrop-blur-sm rounded-full flex items-center justify-center text-white transition-all opacity-0 group-hover:opacity-100"
-                >
-                    <ChevronRight className="w-5 h-5" />
-                </button>
-
-                {/* Dots */}
-                <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex gap-2">
-                    {SLIDES.map((_, i) => (
+                    <img
+                        src={slide.image}
+                        alt={slide.title}
+                        className="h-full w-full object-cover"
+                    />
+                    <div className="absolute inset-0 bg-gradient-to-r from-emerald-950/65 via-emerald-950/30 to-transparent" />
+                    <div className="absolute inset-0 flex flex-col justify-center px-8 md:px-16 lg:px-24">
+                        <h1
+                            className="mb-4 text-4xl font-normal leading-[1.2] text-white md:text-5xl"
+                            style={{ fontFamily: "'Pacifico', cursive" }}
+                        >
+                            {slide.title}
+                        </h1>
+                        <p className="mb-8 max-w-sm text-lg leading-7 text-white/85">
+                            {slide.subtitle}
+                        </p>
                         <button
-                            key={i}
-                            onClick={() => setCurrent(i)}
-                            className={`rounded-full transition-all ${i === current ? "w-5 h-2.5 bg-white" : "w-2.5 h-2.5 bg-white/50"}`}
-                        />
-                    ))}
+                            type="button"
+                            className="hover:scale-105 cursor-pointer w-fit rounded-xl bg-emerald-800 px-7 py-3 font-medium text-white transition-colors hover:bg-emerald-700"
+                        >
+                            Mua ngay
+                        </button>
+                    </div>
                 </div>
+            ))}
+
+            <button
+                type="button"
+                onClick={prev}
+                className="cursor-pointer absolute left-4 top-1/2 flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full bg-white/20 text-white opacity-0 backdrop-blur-sm transition-all hover:bg-white/40 group-hover:opacity-100"
+            >
+                <ChevronLeft className="h-5 w-5" />
+            </button>
+            <button
+                type="button"
+                onClick={next}
+                className="cursor-pointer absolute right-4 top-1/2 flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full bg-white/20 text-white opacity-0 backdrop-blur-sm transition-all hover:bg-white/40 group-hover:opacity-100"
+            >
+                <ChevronRight className="h-5 w-5" />
+            </button>
+
+            <div className="absolute bottom-4 left-1/2 flex -translate-x-1/2 gap-2">
+                {SLIDES.map((_, i) => (
+                    <button
+                        key={i}
+                        type="button"
+                        onClick={() => setCurrent(i)}
+                        className={`rounded-full transition-all ${i === current ? "h-2.5 w-5 bg-white" : "h-2.5 w-2.5 bg-white/50"}`}
+                    />
+                ))}
             </div>
         </div>
     );

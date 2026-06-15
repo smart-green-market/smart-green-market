@@ -44,7 +44,6 @@ export const supplierService = {
   // ]
 
   getById: (id) => axiosClient.get(`/suppliers/${id}/`).then((res) => res.data),
-
   // {
   //   "id": 0,
   //   "account": {
