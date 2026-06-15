@@ -10,7 +10,7 @@ from rest_framework.response import Response
 
 from apps.accounts.document_serializers import AccountDocumentListSerializer
 from apps.accounts.models import AccountDocument, AccountDocumentStatus, AccountDocumentType, AccountStatus
-from apps.categories.models import Category, CategoryStatus
+from apps.categories.models import Category, CategoryStatus, CategoryScope
 from apps.categories.serializers import DealerStoreCategorySerializer
 from apps.dealer_products.models import DealerProduct, DealerProductStatus
 from apps.dealer_products.serializers import DealerProductReadSerializer
@@ -320,10 +320,13 @@ class DealerProfileViewSet(viewsets.ModelViewSet):
         dealer = self.get_object()
         categories_qs = (
             Category.objects.filter(
-                created_by=dealer.account,
                 status=CategoryStatus.ACTIVE,
                 dealer_store_products__dealer_profile=dealer,
                 dealer_store_products__status=DealerProductStatus.ACTIVE,
+            )
+            .filter(
+                Q(scope=CategoryScope.SYSTEM)
+                | Q(created_by=dealer.account, scope=CategoryScope.CUSTOM)
             )
             .distinct()
             .annotate(

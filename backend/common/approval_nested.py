@@ -5,7 +5,7 @@ from drf_spectacular.utils import extend_schema_field
 from rest_framework import serializers
 
 from apps.accounts.models import AccountRole
-from apps.categories.models import Category, CategoryStatus
+from apps.categories.models import Category, CategoryStatus, CategoryScope
 from apps.dealers.models import DealerProfile, DealerProfileStatus
 from apps.suppliers.models import Supplier, SupplierVerificationStatus
 from common.openapi_enums import schema_choice_field
@@ -116,10 +116,11 @@ class ApprovalCategoryNestedSerializer(serializers.ModelSerializer):
     """Thông tin danh mục — nested trong danh sách sản phẩm."""
 
     status = schema_choice_field(choices=CategoryStatus.choices, read_only=True)
+    scope = schema_choice_field(choices=CategoryScope.choices, read_only=True)
 
     class Meta:
         model = Category
-        fields = ["id", "name", "status"]
+        fields = ["id", "name", "status", "scope"]
         extra_kwargs = {
             "id": {"help_text": "ID danh mục"},
             "name": {"help_text": "Tên danh mục"},

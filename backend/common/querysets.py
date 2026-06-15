@@ -1,8 +1,9 @@
 """Helper lọc và sắp xếp queryset theo vai trò người dùng."""
 
-from django.db.models import Case, IntegerField, Value, When
+from django.db.models import Case, IntegerField, Q, Value, When
 
 from apps.accounts.models import AccountRole
+from apps.categories.models import CategoryScope, CategoryStatus
 
 PENDING_STATUS = "pending"
 
@@ -59,6 +60,31 @@ def filter_admin_or_created_by(
         filtered = qs
     elif is_supplier_or_dealer(user):
         filtered = qs.filter(created_by=user)
+    else:
+        return qs.none()
+    return _apply_order(filtered, ordering, pending_field, pending_values)
+
+
+def filter_categories_for_user(
+    qs,
+    user,
+    ordering=ORDER_CATEGORY,
+    pending_field=None,
+    pending_values=PENDING_STATUS,
+):
+    """Admin: tất cả. Supplier/Dealer: danh mục hệ thống active + danh mục riêng của mình."""
+    if is_admin(user):
+        filtered = qs
+    elif is_supplier_or_dealer(user):
+        filtered = qs.filter(
+            Q(scope=CategoryScope.SYSTEM, status=CategoryStatus.ACTIVE)
+            | Q(scope=CategoryScope.CUSTOM, created_by=user)
+        )
+    elif user.role == AccountRole.BUYER:
+        filtered = qs.filter(
+            scope=CategoryScope.SYSTEM,
+            status=CategoryStatus.ACTIVE,
+        )
     else:
         return qs.none()
     return _apply_order(filtered, ordering, pending_field, pending_values)

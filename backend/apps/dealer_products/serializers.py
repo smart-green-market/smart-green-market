@@ -3,7 +3,7 @@
 from rest_framework import serializers
 
 from apps.dealers.models import DealerProfileStatus
-from apps.categories.models import CategoryStatus
+from apps.categories.utils import category_assignable_by_user
 from apps.supplier_products.models import SupplierProduct, SupplierProductStatus
 from common.approval_nested import ApprovalCategoryNestedSerializer, ApprovalDealerNestedSerializer
 from common.openapi_enums import schema_choice_field
@@ -123,16 +123,12 @@ class DealerProductSerializer(serializers.ModelSerializer):
         return product
 
     def validate_category(self, category):
-        if category.status != CategoryStatus.ACTIVE:
-            raise serializers.ValidationError(
-                "Danh mục chưa được duyệt, không thể gắn vào sản phẩm."
-            )
         request = self.context.get("request")
-        if request and request.user.is_authenticated:
-            if category.created_by_id != request.user.id:
-                raise serializers.ValidationError(
-                    "Chỉ được gắn danh mục do mình tạo."
-                )
+        user = request.user if request and request.user.is_authenticated else None
+        if not user or not category_assignable_by_user(user, category):
+            raise serializers.ValidationError(
+                "Danh mục không hợp lệ. Chọn danh mục hệ thống hoặc danh mục riêng của bạn."
+            )
         return category
 
     def validate(self, attrs):

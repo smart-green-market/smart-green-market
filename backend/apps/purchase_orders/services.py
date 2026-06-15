@@ -41,6 +41,7 @@ from apps.dealer_products.models import (
     DealerProductStatus,
 )
 from apps.accounts.models import AccountStatus
+from apps.categories.models import CategoryScope, CategoryStatus
 from apps.dealers.models import DealerProfileStatus
 from apps.supplier_products.models import SupplierProduct, SupplierProductStatus
 from apps.suppliers.models import SupplierVerificationStatus
@@ -423,20 +424,41 @@ def _complete_order(order, user):
     _import_dealer_inventory(order, user)
 
 
+def _resolve_dealer_category(supplier_product):
+    """Chọn danh mục cho sản phẩm đại lý khi nhập kho.
+
+    - SP của NCC gắn danh mục HỆ THỐNG (active) → đại lý dùng lại được.
+    - SP gắn danh mục RIÊNG của NCC → đại lý không sở hữu → để trống,
+      đại lý tự gán danh mục hệ thống / danh mục riêng của mình sau.
+    """
+    category = supplier_product.category
+    if category is None:
+        return None
+    if (
+        category.scope == CategoryScope.SYSTEM
+        and category.status == CategoryStatus.ACTIVE
+    ):
+        return category
+    return None
+
+
 def _import_dealer_inventory(order, user):
     """Tạo DealerProduct (nếu chưa có) + DealerInventoryBatch + transaction IMPORT.
 
     Mỗi dòng đơn → 1 batch gắn purchase_order_item (FIFO xuất kho sau này).
+    Danh mục bán lẻ: copy danh mục hệ thống của NCC nếu có, ngược lại để trống
+    cho đại lý tự phân loại (xem _resolve_dealer_category).
   Model: apps/dealer_products/models.py
     """
     import_date = timezone.now().date()
-    for item in order.items.select_related("supplier_product"):
+    for item in order.items.select_related("supplier_product", "supplier_product__category"):
         dealer_product, _ = DealerProduct.objects.get_or_create(
             dealer_profile=order.dealer,
             supplier_product=item.supplier_product,
             defaults={
                 "title": item.supplier_product.name,
                 "retail_price": item.unit_price,
+                "category": _resolve_dealer_category(item.supplier_product),
                 "status": DealerProductStatus.ACTIVE,
             },
         )

@@ -3,7 +3,7 @@
 from rest_framework import serializers
 
 from apps.accounts.models import AccountRole
-from apps.categories.models import Category, CategoryStatus
+from apps.categories.models import Category, CategoryScope, CategoryStatus
 from apps.dealer_products.models import DealerProduct, DealerProductStatus
 from apps.dealer_products.serializers import DealerProductReadSerializer
 from apps.supplier_products.models import SupplierProduct, SupplierProductStatus
@@ -21,6 +21,7 @@ class CategoryReadSerializer(serializers.ModelSerializer):
     """Serializer đọc thông tin danh mục (không kèm người tạo)."""
 
     status = schema_choice_field(choices=CategoryStatus.choices, read_only=True)
+    scope = schema_choice_field(choices=CategoryScope.choices, read_only=True)
     verified_by_username = serializers.CharField(
         source="verified_by.username",
         read_only=True,
@@ -35,6 +36,7 @@ class CategoryReadSerializer(serializers.ModelSerializer):
             "id",
             "name",
             "description",
+            "scope",
             "status",
             "sort_order",
             "verified_by",
@@ -48,6 +50,7 @@ class CategoryReadSerializer(serializers.ModelSerializer):
             "id": {"help_text": "ID danh mục"},
             "name": {"help_text": "Tên danh mục"},
             "description": {"help_text": "Mô tả ngắn"},
+            "scope": {"help_text": "system = hệ thống; custom = riêng"},
             "sort_order": {"help_text": "Thứ tự hiển thị (số nhỏ hiện trước)"},
             "verified_by": {"help_text": "ID admin duyệt"},
             "verified_at": {"help_text": "Thời điểm duyệt/từ chối"},
@@ -87,6 +90,7 @@ class DealerStoreCategorySerializer(CategoryReadSerializer):
 class SupplierCatalogCategorySerializer(serializers.ModelSerializer):
     """Danh mục NCC — dealer xem trước khi chọn sản phẩm đặt hàng."""
 
+    scope = schema_choice_field(choices=CategoryScope.choices, read_only=True)
     product_count = serializers.IntegerField(
         read_only=True,
         help_text="Số sản phẩm active có giá sỉ trong danh mục",
@@ -94,11 +98,12 @@ class SupplierCatalogCategorySerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Category
-        fields = ["id", "name", "description", "sort_order", "product_count"]
+        fields = ["id", "name", "description", "scope", "sort_order", "product_count"]
         extra_kwargs = {
             "id": {"help_text": "ID danh mục"},
             "name": {"help_text": "Tên danh mục"},
             "description": {"help_text": "Mô tả ngắn"},
+            "scope": {"help_text": "system | custom"},
             "sort_order": {"help_text": "Thứ tự hiển thị"},
         }
 
@@ -179,6 +184,7 @@ class CategorySerializer(serializers.ModelSerializer):
     """Serializer tạo và cập nhật danh mục."""
 
     status = schema_choice_field(choices=CategoryStatus.choices, read_only=True)
+    scope = schema_choice_field(choices=CategoryScope.choices, required=False)
 
     class Meta:
         """Cấu hình trường ghi danh mục."""
@@ -200,6 +206,11 @@ class CategorySerializer(serializers.ModelSerializer):
                 "help_text": "Mô tả ngắn về danh mục",
                 "required": False,
             },
+            "scope": {
+                "help_text": "Admin: system (hiển thị toàn hệ thống) hoặc custom. "
+                "Supplier/Dealer luôn tạo custom.",
+                "required": False,
+            },
             "sort_order": {
                 "help_text": "Thứ tự hiển thị (Admin quản lý qua /reorder/)",
                 "required": False,
@@ -207,27 +218,51 @@ class CategorySerializer(serializers.ModelSerializer):
         }
 
     def validate(self, attrs):
-        """Kiểm tra giới hạn số danh mục mỗi nhà cung cấp."""
+        """Kiểm tra giới hạn danh mục riêng và quyền đặt scope."""
         request = self.context.get("request")
-        if (
-            self.instance is None
-            and request
-            and request.user.is_authenticated
-            and request.user.role in ("supplier", "dealer")
-        ):
-            count = Category.objects.filter(created_by=request.user).count()
-            if count >= MAX_CATEGORIES_PER_SUPPLIER:
-                raise serializers.ValidationError(
-                    f"Mỗi tài khoản tối đa {MAX_CATEGORIES_PER_SUPPLIER} danh mục."
-                )
+        if not request or not request.user.is_authenticated:
+            return attrs
+
+        user = request.user
+        if user.role in (AccountRole.SUPPLIER, AccountRole.DEALER):
+            if self.instance is None:
+                count = Category.objects.filter(
+                    created_by=user,
+                    scope=CategoryScope.CUSTOM,
+                ).count()
+                if count >= MAX_CATEGORIES_PER_SUPPLIER:
+                    raise serializers.ValidationError(
+                        f"Mỗi tài khoản tối đa {MAX_CATEGORIES_PER_SUPPLIER} danh mục riêng."
+                    )
+            attrs.pop("scope", None)
+        elif user.role != AccountRole.ADMIN:
+            attrs.pop("scope", None)
+        elif self.instance is not None:
+            attrs.pop("scope", None)
+
         return attrs
 
     def create(self, validated_data):
-        """Tạo danh mục mới với trạng thái chờ duyệt."""
+        """Tạo danh mục hệ thống (admin) hoặc riêng (chờ duyệt)."""
         request = self.context.get("request")
-        if request and request.user.is_authenticated:
-            validated_data["created_by"] = request.user
-        validated_data.setdefault("status", CategoryStatus.PENDING)
+        user = request.user
+
+        if user.role in (AccountRole.SUPPLIER, AccountRole.DEALER):
+            validated_data["scope"] = CategoryScope.CUSTOM
+            validated_data["created_by"] = user
+            validated_data.setdefault("status", CategoryStatus.PENDING)
+        elif user.role == AccountRole.ADMIN:
+            scope = validated_data.get("scope", CategoryScope.CUSTOM)
+            validated_data["scope"] = scope
+            validated_data["created_by"] = user
+            if scope == CategoryScope.SYSTEM:
+                validated_data["status"] = CategoryStatus.ACTIVE
+            else:
+                validated_data.setdefault("status", CategoryStatus.PENDING)
+        else:
+            validated_data.setdefault("scope", CategoryScope.CUSTOM)
+            validated_data.setdefault("status", CategoryStatus.PENDING)
+
         return super().create(validated_data)
 
 

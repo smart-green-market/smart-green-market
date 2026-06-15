@@ -21,8 +21,9 @@ from common.verify_openapi import (
     VERIFY_REJECT_HELP,
 )
 from common.permission import IsActive, IsAdmin
-from common.querysets import filter_admin_or_created_by, ORDER_CATEGORY
-from .models import Category, CategoryStatus
+from common.querysets import filter_categories_for_user, ORDER_CATEGORY
+from .models import Category, CategoryScope, CategoryStatus
+from .utils import user_can_manage_category
 from .serializers import (
     CategoryDetailSerializer,
     CategoryListSerializer,
@@ -81,8 +82,9 @@ def _annotate_category_product_count(qs, user):
         tags=["Categories"],
         summary="Danh sách danh mục",
         description=(
-            "Admin xem tất cả. Supplier/Dealer chỉ thấy danh mục do mình tạo. "
-            "Mỗi danh mục kèm `product_count` — số sản phẩm thuộc danh mục của tài khoản hiện tại."
+            "Admin xem tất cả. Supplier/Dealer thấy **danh mục hệ thống** (`scope=system`, "
+            "`active`) và **danh mục riêng** do mình tạo. Buyer chỉ thấy danh mục hệ thống. "
+            "Mỗi danh mục kèm `product_count`."
             + PAGINATION_QUERY_HELP
         ),
         responses={200: paginated_response_schema(CategoryListSerializer, "PaginatedCategory")},
@@ -100,9 +102,9 @@ def _annotate_category_product_count(qs, user):
         tags=["Categories"],
         summary="Tạo danh mục",
         description=(
-            "Supplier/Dealer tạo danh mục → `status=pending`, chờ Admin duyệt. "
-            "Đại lý gắn danh mục khi tạo `DealerProduct`. "
-            f"Tối đa theo cấu hình hệ thống (xem /api/system-config/)."
+            "Admin tạo `scope=system` (active ngay) hoặc `custom`. "
+            "Supplier/Dealer tạo danh mục riêng (`custom`) → `status=pending`, chờ Admin duyệt. "
+            f"Tối đa danh mục riêng theo /api/system-config/."
         ),
     ),
     update=extend_schema(
@@ -139,8 +141,8 @@ class CategoryViewSet(viewsets.ModelViewSet):
         return [IsActive()]
 
     def get_queryset(self):
-        """Lọc danh mục theo quyền Admin hoặc người tạo."""
-        qs = filter_admin_or_created_by(
+        """Lọc danh mục: hệ thống + riêng theo quyền."""
+        qs = filter_categories_for_user(
             self.queryset,
             self.request.user,
             ordering=ORDER_CATEGORY,
@@ -151,24 +153,27 @@ class CategoryViewSet(viewsets.ModelViewSet):
         return qs
 
     def _ensure_can_edit(self, category):
-        """Kiểm tra quyền sửa danh mục — chỉ Admin hoặc người tạo."""
-        user = self.request.user
-        if user.role == "admin":
-            return
-        if category.created_by_id != user.id:
+        """Kiểm tra quyền sửa danh mục — admin hoặc người tạo danh mục riêng."""
+        if not user_can_manage_category(self.request.user, category):
+            if category.scope == CategoryScope.SYSTEM:
+                raise PermissionDenied("Chỉ admin được sửa danh mục hệ thống.")
             raise PermissionDenied("Bạn chỉ được sửa danh mục do mình tạo.")
 
     def perform_create(self, serializer):
-        """Lưu danh mục mới và gửi thông báo cho Admin."""
+        """Lưu danh mục mới; danh mục riêng chờ duyệt thì thông báo admin."""
         category = serializer.save()
-        title, content = admin_new_category(category, self.request.user.username)
-        notify_admins(
-            title=title,
-            content=content,
-            reference_type="category",
-            reference_id=category.id,
-            created_by=self.request.user,
-        )
+        if (
+            category.scope == CategoryScope.CUSTOM
+            and category.status == CategoryStatus.PENDING
+        ):
+            title, content = admin_new_category(category, self.request.user.username)
+            notify_admins(
+                title=title,
+                content=content,
+                reference_type="category",
+                reference_id=category.id,
+                created_by=self.request.user,
+            )
 
     def perform_update(self, serializer):
         """Cập nhật danh mục; sửa danh mục đã duyệt sẽ chuyển về chờ duyệt."""
@@ -191,16 +196,19 @@ class CategoryViewSet(viewsets.ModelViewSet):
                     "updated_at",
                 ]
             )
-            title, content = admin_new_category(category, self.request.user.username)
-            notify_admins(
-                title=f"[Danh mục] Yêu cầu chỉnh sửa chờ duyệt",
-                content=(
-                    f"{content} Đây là yêu cầu chỉnh sửa danh mục đã được duyệt trước đó."
-                ),
-                reference_type="category",
-                reference_id=category.id,
-                created_by=self.request.user,
-            )
+            if category.scope == CategoryScope.CUSTOM:
+                title, content = admin_new_category(
+                    category, self.request.user.username
+                )
+                notify_admins(
+                    title=f"[Danh mục] Yêu cầu chỉnh sửa chờ duyệt",
+                    content=(
+                        f"{content} Đây là yêu cầu chỉnh sửa danh mục đã được duyệt trước đó."
+                    ),
+                    reference_type="category",
+                    reference_id=category.id,
+                    created_by=self.request.user,
+                )
 
     @extend_schema(
         tags=["Categories"],
@@ -234,15 +242,16 @@ class CategoryViewSet(viewsets.ModelViewSet):
         category.save()
 
         title, content, notif_type = category_reviewed(category)
-        notify_account(
-            account=category.created_by,
-            title=title,
-            content=content,
-            reference_type="category",
-            reference_id=category.id,
-            created_by=request.user,
-            notif_type=notif_type,
-        )
+        if category.created_by_id:
+            notify_account(
+                account=category.created_by,
+                title=title,
+                content=content,
+                reference_type="category",
+                reference_id=category.id,
+                created_by=request.user,
+                notif_type=notif_type,
+            )
         return Response(
             CategoryListSerializer(category, context={"request": request}).data
         )
@@ -260,15 +269,16 @@ class CategoryViewSet(viewsets.ModelViewSet):
         category.verified_by = request.user
         category.verified_at = timezone.now()
         category.save()
-        notify_account(
-            account=category.created_by,
-            title=f"[Danh mục] \"{category.name}\" — Đã khóa",
-            content=f"Danh mục {category.name} đã bị khóa do vi phạm quy định.",
-            reference_type="category",
-            reference_id=category.id,
-            created_by=request.user,
-            notif_type="warning",
-        )
+        if category.created_by_id:
+            notify_account(
+                account=category.created_by,
+                title=f"[Danh mục] \"{category.name}\" — Đã khóa",
+                content=f"Danh mục {category.name} đã bị khóa do vi phạm quy định.",
+                reference_type="category",
+                reference_id=category.id,
+                created_by=request.user,
+                notif_type="warning",
+            )
         return Response(
             CategoryListSerializer(category, context={"request": request}).data
         )
@@ -288,15 +298,16 @@ class CategoryViewSet(viewsets.ModelViewSet):
         category.verified_by = request.user
         category.verified_at = timezone.now()
         category.save()
-        notify_account(
-            account=category.created_by,
-            title=f"[Danh mục] \"{category.name}\" — Đã mở khóa",
-            content=f"Danh mục {category.name} đã được mở khóa và kích hoạt lại.",
-            reference_type="category",
-            reference_id=category.id,
-            created_by=request.user,
-            notif_type="success",
-        )
+        if category.created_by_id:
+            notify_account(
+                account=category.created_by,
+                title=f"[Danh mục] \"{category.name}\" — Đã mở khóa",
+                content=f"Danh mục {category.name} đã được mở khóa và kích hoạt lại.",
+                reference_type="category",
+                reference_id=category.id,
+                created_by=request.user,
+                notif_type="success",
+            )
         return Response(
             CategoryListSerializer(category, context={"request": request}).data
         )
