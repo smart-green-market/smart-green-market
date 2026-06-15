@@ -32,6 +32,7 @@ import {
     DealerPurchaseOrderDetailPage,
     DealerSupplierDetailPage,
     DealerCategoryDetail,
+    DealerInfoPage,
 } from "./pages/Dealer";
 
 
@@ -103,6 +104,7 @@ export default function App() {
                             <Route path="nhap-hang/chi-tiet/:id" element={<DealerPurchaseOrderDetailPage />} />
                             <Route path="nha-cung-cap/:id" element={<DealerSupplierDetailPage />} />
                             <Route path="danh-muc/:id" element={<DealerCategoryDetail />} />
+                            <Route path="cau-hinh" element={<DealerInfoPage />} />
                         </Route>
                     </Route>
                     <Route path="dai-ly/dang-nhap" element={<DealerLoginPage />} />

@@ -8,6 +8,7 @@ import {
     ShoppingCart,
     ClipboardList,
     LogOut,
+    Settings,
 } from "lucide-react";
 
 const NAV_ITEMS = [
@@ -17,6 +18,7 @@ const NAV_ITEMS = [
     { label: "Kho hàng",     icon: Package,          to: "/dai-ly/kho-hang"               },
     { label: "Nhập hàng",    icon: ClipboardList,    to: "/dai-ly/nhap-hang"              },
     { label: "Bán hàng",     icon: ShoppingCart,     to: "/dai-ly/ban-hang"               },
+    { label: "Cấu hình",     icon: Settings,         to: "/dai-ly/cau-hinh"               },
 ];
 
 export default function SideBar({ isOpen }) {
