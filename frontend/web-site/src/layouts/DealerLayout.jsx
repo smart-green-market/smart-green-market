@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Outlet } from "react-router-dom";
+import { Outlet, useNavigate } from "react-router-dom";
 import { Menu } from "lucide-react";
 import SideBar from "../components/Dealer/UI/SideBar";
 import Logo from "../components/Dealer/UI/Logo";
@@ -8,6 +8,7 @@ import AppToaster from "../components/common/AppToaster";
 
 export default function DealerLayout() {
     const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+    const navigate = useNavigate();
 
     return (
         <div className="min-h-screen bg-neutral-50/50">
@@ -30,7 +31,10 @@ export default function DealerLayout() {
                     <NotificationBell role="dealer" />
 
                     <div className="pl-4 border-l border-emerald-100 flex items-center gap-2">
-                        <button className="w-8 h-8 rounded-full bg-emerald-800 hover:bg-emerald-900 flex items-center justify-center text-white text-xs font-bold font-['Geist',sans-serif] shadow-xs active:scale-95 transition-transform cursor-pointer">
+                        <button 
+                            onClick={() => navigate("/dai-ly/cau-hinh")}
+                            className="w-8 h-8 rounded-full bg-emerald-800 hover:bg-emerald-900 flex items-center justify-center text-white text-xs font-bold font-['Geist',sans-serif] shadow-xs active:scale-95 transition-transform cursor-pointer"
+                        >
                             D
                         </button>
                     </div>

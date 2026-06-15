@@ -74,18 +74,6 @@ export default function DraftInvoice({
             {rawSubtotal.toLocaleString("vi-VN")} đ
           </span>
         </div>
-        <div className="flex justify-between text-xs text-neutral-500 font-medium">
-          <span>Thuế VAT (10%):</span>
-          <span className="font-bold text-neutral-700">
-            {vatAmount.toLocaleString("vi-VN")} đ
-          </span>
-        </div>
-        <div className="flex justify-between text-xs text-neutral-500 font-medium">
-          <span>Chiết khấu NCC (5%):</span>
-          <span className="font-bold text-red-600">
-            -{discountAmount.toLocaleString("vi-VN")} đ
-          </span>
-        </div>
 
         <div className="flex justify-between items-baseline mt-2 pt-3 border-t border-neutral-100">
           <span className="font-bold text-neutral-800 text-sm">

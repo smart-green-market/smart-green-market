@@ -1,6 +1,7 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Tag, X, ClipboardList } from "lucide-react";
 import { toast } from "sonner";
+import { categoryService } from "../../../services/api/categoryService";
 
 export default function UpdateProductModal({ data, onClose, onSave }) {
 
@@ -10,6 +11,24 @@ export default function UpdateProductModal({ data, onClose, onSave }) {
   const [note, setNote] = useState("");
   const [discount, setDiscount] = useState(data.discount === undefined ? "" : data.discount);
   const [discountDate, setDiscountDate] = useState(data.discountDate || "");
+  const [categories, setCategories] = useState([]);
+  const [loadingCategories, setLoadingCategories] = useState(false);
+  const [selectedCategory, setSelectedCategory] = useState(data.category || "");
+
+  useEffect(() => {
+    const fetchCats = async () => {
+      setLoadingCategories(true);
+      try {
+        const cats = await categoryService.getAll();
+        setCategories(cats || []);
+      } catch (err) {
+        console.error("Lỗi tải danh mục:", err);
+      } finally {
+        setLoadingCategories(false);
+      }
+    };
+    fetchCats();
+  }, []);
 
   const handleSubmit = () => {
     const parsedShrinkage = parseInt(adjustment, 10) || 0;
@@ -47,6 +66,7 @@ export default function UpdateProductModal({ data, onClose, onSave }) {
       status: finalStatus,
       freshness: finalFreshness,
       freshnessColor: finalFreshnessColor,
+      category: selectedCategory,
       discount: parseInt(discount, 10) || 0,
       discountDate: discountDate || "",
       wastageData: parsedShrinkage > 0 ? {
@@ -90,6 +110,29 @@ export default function UpdateProductModal({ data, onClose, onSave }) {
             <p className="font-bold text-emerald-900 text-sm">{data.productName}</p>
             <p className="text-neutral-500 font-semibold mt-1">Phân loại: {data.category}</p>
             <p className="text-neutral-400 mt-0.5">Nhà cung cấp: {data.supplier}</p>
+          </div>
+
+          {/* Section: Chọn danh mục */}
+          <div className="mb-5">
+            <label className="text-xs font-bold text-neutral-600 mb-1.5 block">
+              Danh mục của lô hàng
+            </label>
+            {loadingCategories ? (
+              <div className="text-xs text-neutral-400 font-medium">Đang tải danh mục...</div>
+            ) : (
+              <select
+                value={selectedCategory}
+                onChange={(e) => setSelectedCategory(e.target.value)}
+                className="w-full border border-neutral-200 rounded-xl px-3 py-2.5 text-xs focus:outline-none focus:border-emerald-600 focus:ring-2 focus:ring-emerald-500/10 font-medium text-neutral-700 bg-white"
+              >
+                <option value="">-- Chọn danh mục --</option>
+                {categories.map((cat) => (
+                  <option key={cat.id} value={cat.name}>
+                    {cat.name}
+                  </option>
+                ))}
+              </select>
+            )}
           </div>
 
           {/* Section: Cập nhật tồn kho & Hao hụt */}

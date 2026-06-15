@@ -12,10 +12,20 @@ export default function DealerInventoryPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
   const [selectedRow, setSelectedRow] = useState(null);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    fetchInventory();
-    fetchTransactions();
+    const loadData = async () => {
+      setLoading(true);
+      try {
+        await Promise.all([fetchInventory(), fetchTransactions()]);
+      } catch (error) {
+        console.error("Failed to load inventory data:", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+    loadData();
   }, []);
 
   const fetchInventory = async () => {
@@ -121,6 +131,14 @@ export default function DealerInventoryPage() {
       )
     );
   };
+
+  if (loading) {
+    return (
+      <div className="p-6 bg-emerald-50/15 min-h-screen flex justify-center items-center">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-emerald-600"></div>
+      </div>
+    );
+  }
 
   return (
     <div className="p-6 bg-emerald-50/15 min-h-screen font-['Geist',sans-serif]">

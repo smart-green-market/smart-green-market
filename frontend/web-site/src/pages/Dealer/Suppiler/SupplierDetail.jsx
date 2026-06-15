@@ -100,9 +100,12 @@ export default function DealerSupplierDetailPage() {
     fetchSupplierDetails();
   }, [id]);
 
-  // Hiển thị trạng thái đang tải
   if (loading) {
-    return <div className="p-6 text-center font-medium text-emerald-800">Đang tải chi tiết nhà cung cấp...</div>;
+    return (
+      <div className="p-6 bg-emerald-50/15 min-h-screen flex justify-center items-center">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-emerald-600"></div>
+      </div>
+    );
   }
 
   // Trường hợp không tìm thấy nhà cung cấp (hoặc lỗi gọi API)

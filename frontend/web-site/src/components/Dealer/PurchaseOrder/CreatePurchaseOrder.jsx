@@ -271,10 +271,7 @@ export default function CreatePurchaseOrder({ onClose, onSuccess }) {
     .filter((item) => item.product !== undefined);
 
   //Tổng số lượng sản phẩm
-  const totalItemsCount = cartItems.reduce(
-    (acc, curr) => acc + curr.quantity,
-    0,
-  );
+  const totalItemsCount = cartItems.length;
   //Tổng tiền
   const rawSubtotal = cartItems.reduce((acc, curr) => acc + curr.subtotal, 0);
   const finalTotal = rawSubtotal;

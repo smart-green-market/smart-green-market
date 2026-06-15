@@ -119,6 +119,14 @@ export default function DealerCategoryPage() {
         }
     };
 
+    if (isLoading) {
+        return (
+            <div className="p-6 bg-emerald-50/15 min-h-screen flex justify-center items-center">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-emerald-600"></div>
+            </div>
+        );
+    }
+
     return (
         <div className="p-6 bg-emerald-50/15 min-h-screen font-['Geist',sans-serif]">
             {/* Header */}
@@ -155,19 +163,13 @@ export default function DealerCategoryPage() {
                 </div>
             )}
 
-            {isLoading ? (
-                <div className="flex justify-center items-center py-16">
-                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-emerald-600"></div>
-                </div>
-            ) : (
-                /* Grid layout for categories */
-                <CategoryGrid
-                    categories={filteredCategories}
-                    onViewDetail={handleViewDetail}
-                    onUpdate={(cat) => setCategoryToUpdate(cat)}
-                    onDelete={handleDeleteCategory}
-                />
-            )}
+            {/* Grid layout for categories */}
+            <CategoryGrid
+                categories={filteredCategories}
+                onViewDetail={handleViewDetail}
+                onUpdate={(cat) => setCategoryToUpdate(cat)}
+                onDelete={handleDeleteCategory}
+            />
 
             {/* Create Category Modal */}
             {isCreateModalOpen && (

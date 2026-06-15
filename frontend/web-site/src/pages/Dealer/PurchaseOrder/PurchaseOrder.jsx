@@ -120,6 +120,14 @@ export default function DealerPurchaseOrderPage() {
         return matchesSearch && matchesStatus;
     });
 
+    if (loading) {
+        return (
+            <div className="p-6 bg-emerald-50/15 min-h-screen flex justify-center items-center">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-emerald-600"></div>
+            </div>
+        );
+    }
+
     return (
         <div className="p-6 bg-emerald-50/15 min-h-screen font-['Geist',sans-serif]">
             {/* Header */}
@@ -151,16 +159,10 @@ export default function DealerPurchaseOrderPage() {
             />
 
             {/* List of orders */}
-
-
-            {loading ? (
-                <div className="text-center py-10">Đang tải dữ liệu...</div>
-            ) : (
-                <PurchaseOrderList
-                    purchaseOrders={filteredData}
-                    onViewDetail={handleViewDetail}
-                />
-            )}
+            <PurchaseOrderList
+                purchaseOrders={filteredData}
+                onViewDetail={handleViewDetail}
+            />
             <Pagination
                 currentPage={currentPage}
                 totalPages={totalPages}
