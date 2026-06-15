@@ -5,6 +5,7 @@ import {
 } from "react";
 
 import Toolbar from "../../components/Admin/UI/Toolbar";
+import { AdminInitialLoadGate } from "../../components/Admin/UI/AdminFetchState";
 import Filter from "../../components/Admin/Certification/CertificationFilter";
 import CerificationTable from "../../components/Admin/Certification/CertificationTable";
 import CertificationViewModal from "../../components/Admin/Certification/CertificationViewModal";
@@ -19,6 +20,12 @@ export default function CertificationPage() {
     // ── STATES ─────────────────────────────────────────
     const [data, setData] =
         useState([]);
+
+    const [isFetching, setIsFetching] =
+        useState(true);
+
+    const [loadError, setLoadError] =
+        useState("");
 
     const [loading, setLoading] =
         useState(false);
@@ -42,9 +49,14 @@ export default function CertificationPage() {
 
     // ── FETCH CERTIFICATIONS ───────────────────────────
     const fetchCertifications =
-        useCallback(async () => {
+        useCallback(async ({ initial = false } = {}) => {
             try {
-                setLoading(true);
+                if (initial) {
+                    setIsFetching(true);
+                    setLoadError("");
+                } else {
+                    setLoading(true);
+                }
 
                 setError("");
 
@@ -117,16 +129,24 @@ export default function CertificationPage() {
                         "Không thể tải danh sách chứng chỉ"
                     );
 
-                setError(message);
+                if (initial) {
+                    setLoadError(message);
+                } else {
+                    setError(message);
+                }
 
             } finally {
-                setLoading(false);
+                if (initial) {
+                    setIsFetching(false);
+                } else {
+                    setLoading(false);
+                }
             }
         }, []);
 
     // ── INITIAL FETCH ──────────────────────────────────
     useEffect(() => {
-        fetchCertifications();
+        fetchCertifications({ initial: true });
     }, [fetchCertifications]);
 
     // ── APPROVE ────────────────────────────────────────
@@ -193,6 +213,12 @@ export default function CertificationPage() {
         };
 
     return (
+        <AdminInitialLoadGate
+            isFetching={isFetching}
+            loadError={loadError}
+            onRetry={() => fetchCertifications({ initial: true })}
+            loadingMessage="Đang tải danh sách chứng chỉ..."
+        >
         <div className="flex flex-col gap-6 px-8 pt-6 pb-10">
 
             {/* TOOLBAR */}
@@ -254,5 +280,6 @@ export default function CertificationPage() {
                 }
             />
         </div>
+        </AdminInitialLoadGate>
     );
 }

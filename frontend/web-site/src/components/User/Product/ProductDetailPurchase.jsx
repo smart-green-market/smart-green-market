@@ -1,6 +1,8 @@
 import { useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { Heart, Minus, Plus, ShoppingCart, Zap } from "lucide-react";
+import { useCart } from "../../../contexts/cartProvider";
+import { appToast } from "../../common/toast";
 import {
     formatProductPrice,
     formatStorageDuration,
@@ -16,6 +18,8 @@ export default function ProductDetailPurchase({
     reviewCount = 124,
 }) {
     const [quantity, setQuantity] = useState(1);
+    const navigate = useNavigate();
+    const { addToCart } = useCart();
     const inStock = isProductInStock(product.status);
     const storageLabel = formatStorageDuration(product.storage_duration_days);
     const unitLabel = formatUnitLabel(product.unit);
@@ -28,6 +32,13 @@ export default function ProductDetailPurchase({
         product.unit === "kg"
             ? `Khoảng ${quantity * 2}-${quantity * 3} kg`
             : `Số lượng: ${quantity} ${product.unit || "đơn vị"}`;
+
+    const handleAddToCart = () => {
+        if (!inStock) return;
+        addToCart(product, quantity);
+        appToast.success("Đã thêm vào giỏ hàng");
+        navigate("/gio-hang");
+    };
 
     return (
         <div className="flex flex-col gap-8">
@@ -147,15 +158,17 @@ export default function ProductDetailPurchase({
                         </button>
                     </div>
 
-                    <Link
-                        to="/gio-hang"
-                        className={`flex items-center justify-center gap-3 rounded-lg bg-emerald-950 px-4 py-4 text-base text-white no-underline transition-colors ${
-                            inStock ? "hover:bg-emerald-900" : "pointer-events-none opacity-50"
+                    <button
+                        type="button"
+                        onClick={handleAddToCart}
+                        disabled={!inStock}
+                        className={`flex items-center justify-center gap-3 rounded-lg bg-emerald-950 px-4 py-4 text-base text-white transition-colors ${
+                            inStock ? "hover:bg-emerald-900" : "cursor-not-allowed opacity-50"
                         }`}
                     >
                         <ShoppingCart className="h-5 w-5" />
                         THÊM VÀO GIỎ HÀNG
-                    </Link>
+                    </button>
                 </div>
             </div>
         </div>

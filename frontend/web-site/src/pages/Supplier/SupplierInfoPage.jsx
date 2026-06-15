@@ -4,6 +4,7 @@ import { accountService } from "../../services/api/accountService";
 import { bankService } from "../../services/api/bankService";
 import SupplierPageHeader, { SUPPLIER_PAGE_CLASS } from "../../components/Supplier/UI/SupplierPageHeader";
 import { extractSupplierApiMessage } from "../../utils/supplierValidation";
+import ChangePasswordModal from "./ChangePassWord"
 
 // ---- Helpers ----
 const verificationLabel = {
@@ -285,7 +286,7 @@ function InfoField({ label, value, wide = false }) {
 }
 
 // ---- Section: Thông tin cá nhân ----
-function PersonalSection({ supplier, onEdit, onPickAvatar }) {
+function PersonalSection({ supplier, onEdit, onPickAvatar, onOpenChangePassword }) {
   const { account } = supplier;
   return (
     <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
@@ -296,20 +297,18 @@ function PersonalSection({ supplier, onEdit, onPickAvatar }) {
           <p className="text-xs text-gray-400 mt-0.5">Thông tin tài khoản đăng nhập</p>
         </div>
         <div className="flex items-center gap-2">
-        <label className="flex items-center gap-2 px-4 py-2 border border-[#2D6A4F] text-[#2D6A4F] hover:bg-[#D8F3DC] text-sm font-medium rounded-lg transition-colors cursor-pointer">
+          <button
+            type="button"
+            onClick={onOpenChangePassword}
+            className="flex items-center gap-2 px-4 py-2 border border-[#2D6A4F] text-[#2D6A4F] hover:bg-[#D8F3DC] text-sm font-medium rounded-lg transition-colors"
+          >
             <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
                 d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
             </svg>
             Đổi mật khẩu
-            <input
-              type="password"
-              accept="image/png,image/jpeg,image/webp"
-              className="hidden"
-              onChange={onPickAvatar}
-            />
-          </label>
+          </button>
           <label className="flex items-center gap-2 px-4 py-2 border border-[#2D6A4F] text-[#2D6A4F] hover:bg-[#D8F3DC] text-sm font-medium rounded-lg transition-colors cursor-pointer">
             <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
@@ -401,24 +400,6 @@ function CompanySection({ supplier, onEdit }) {
       </div>
 
       <div className="p-6">
-        {/* Verification banner */}
-        {/* <div className={`flex items-center gap-3 px-4 py-3 rounded-lg mb-6 border ${vsBanner.bg}`}>
-          <span>{vsBanner.icon}</span>
-          <div>
-            <p className={`text-sm font-semibold ${vsBanner.text}`}>
-              {verificationLabel[vs] || vs}
-            </p>
-            {vs === "approved" && (
-              <p className={`text-xs ${vsBanner.sub}`}>
-                Xác minh bởi <span className="font-semibold">@{supplier.verified_by_username}</span> lúc {formatDate(supplier.verified_at)}
-              </p>
-            )}
-            {vs === "rejected" && supplier.rejection_reason && (
-              <p className={`text-xs ${vsBanner.sub}`}>Lý do: {supplier.rejection_reason}</p>
-            )}
-          </div>
-        </div> */}
-
         {/* Fields */}
         <div className="grid grid-cols-2 gap-x-8 gap-y-5">
           <InfoField label="Mã nhà cung cấp" value={`#${supplier.id}`} />
@@ -445,10 +426,6 @@ function CompanySection({ supplier, onEdit }) {
             label="Trạng thái xác minh"
             value={verificationLabel[supplier.verification_status] || supplier.verification_status}
           />
-          {/* <InfoField
-            label="Xác minh bởi"
-            value={supplier.verified_by_username}
-          /> */}
           <InfoField label="Thời điểm xác minh" value={formatDate(supplier.verified_at)} />
           {supplier.rejection_reason ? (
             <InfoField label="Lý do từ chối" value={supplier.rejection_reason} />
@@ -470,7 +447,6 @@ function CompanySection({ supplier, onEdit }) {
 
 // ---- Modal chỉnh sửa thông tin cá nhân ----
 function EditPersonalModal({ account, onClose, onSave, isSaving }) {
-  // Lưu giá trị gốc để so sánh dirty check
   const initial = {
     full_name: account.full_name,
     email: account.email,
@@ -479,7 +455,6 @@ function EditPersonalModal({ account, onClose, onSave, isSaving }) {
 
   const [form, setForm] = useState(initial);
 
-  // Có thay đổi so với dữ liệu gốc không?
   const isDirty = Object.keys(initial).some((key) => form[key] !== initial[key]);
 
   const fields = [
@@ -709,6 +684,7 @@ export default function SupplierInfoPage() {
   const [editingCompany, setEditingCompany] = useState(false);
   const [isUpdatingPersonal, setIsUpdatingPersonal] = useState(false);
   const [isUpdatingCompany, setIsUpdatingCompany] = useState(false);
+  const [showChangePassword, setShowChangePassword] = useState(false);
 
   // Avatar confirm flow
   const [avatarPreview, setAvatarPreview] = useState(null);
@@ -836,7 +812,24 @@ export default function SupplierInfoPage() {
         return;
       }
     }
+
+    try {
+      setIsUpdatingCompany(true);
+      await supplierService.update(supplier.id, changedFields);
+      setSupplier((s) => ({ ...s, ...changedFields }));
+      setEditingCompany(false);
+      alert("Cập nhật thông tin doanh nghiệp thành công!");
+    } catch (error) {
+      console.error("Lỗi khi cập nhật thông tin doanh nghiệp:", error);
+      alert(extractSupplierErrorMessage(error, "Cập nhật thông tin doanh nghiệp thất bại. Vui lòng kiểm tra lại thông tin."));
+    } finally {
+      setIsUpdatingCompany(false);
+    }
   };
+
+  // ChangePasswordModal đã tự gọi accountService.updatePassword bên trong,
+  // nên ở đây không cần gọi API nữa — chỉ dùng làm callback sau khi đổi thành công (nếu cần).
+  const handleChangePassword = () => {};
 
   if (isLoadingSupplier) {
     return (
@@ -880,6 +873,7 @@ export default function SupplierInfoPage() {
           supplier={supplier}
           onEdit={() => setEditingPersonal(true)}
           onPickAvatar={handlePickAvatar}
+          onOpenChangePassword={() => setShowChangePassword(true)}
         />
         <CompanySection supplier={supplier} onEdit={() => setEditingCompany(true)} />
       </div>
@@ -910,52 +904,12 @@ export default function SupplierInfoPage() {
           isSaving={uploadingAvatar}
         />
       )}
-    </div>
-  );
-}
 
-// ================================================================
-// Preview wrapper — mô phỏng Kamereo layout để dễ xem thử
-// Xoá phần này khi tích hợp vào project thực
-// ================================================================
-const NAV_ITEMS = [
-  { key: "home",     icon: "⊞", label: "Trang chủ" },
-  { key: "config",   icon: "⚙", label: "Quản lý cấu hình" },
-  { key: "products", icon: "📦", label: "Quản lý sản phẩm" },
-  { key: "stock",    icon: "🗄", label: "Quản lý tồn kho" },
-  { key: "certs",    icon: "✓",  label: "Quản lý chứng nhận" },
-  { key: "orders",   icon: "🛒", label: "Quản lý đơn hàng" },
-  { key: "profile",  icon: "👤", label: "Thông tin nhà cung cấp" },
-];
-
-export function KamereoLayoutPreview() {
-  const [activeNav, setActiveNav] = useState("profile");
-
-  return (
-    <div className="flex h-screen bg-[#F5F5F0] font-sans text-sm overflow-hidden">
-      <div className="flex-1 flex flex-col overflow-hidden">
-        <main className="flex-1 overflow-y-auto">
-          {activeNav === "profile" ? (
-            <SupplierInfoPage />
-          ) : activeNav === "certs" ? (
-            <div className={SUPPLIER_PAGE_CLASS}>
-              <SupplierPageHeader
-                title="Quản lý chứng nhận"
-                description="Theo dõi và quản lý các chứng nhận kiểm định chất lượng sản phẩm"
-              />
-              <div className="bg-white rounded-xl border border-gray-200 p-10 text-center text-gray-400">
-                Nội dung trang chứng nhận...
-              </div>
-            </div>
-          ) : (
-            <div className={SUPPLIER_PAGE_CLASS}>
-              <div className="bg-white rounded-xl border border-gray-200 p-10 text-center text-gray-400">
-                Chọn "Thông tin nhà cung cấp" để xem demo
-              </div>
-            </div>
-          )}
-        </main>
-      </div>
+      <ChangePasswordModal
+        isOpen={showChangePassword}
+        onClose={() => setShowChangePassword(false)}
+        onSubmit={handleChangePassword}
+      />
     </div>
   );
 }

@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
+import { AdminInitialLoadGate } from "../../components/Admin/UI/AdminFetchState";
 import Toolbar from "../../components/Admin/UI/Toolbar";
 import Filter from "../../components/Admin/Category/CategoryFilter";
 import CategoryTable from "../../components/Admin/Category/CategoryTable";
@@ -7,6 +8,8 @@ import { categoryService, handleApiError} from "../../services/api/categoryServi
 
 export default function CategoryPage() {
     const [data, setData] = useState([]);
+    const [isFetching, setIsFetching] = useState(true);
+    const [loadError, setLoadError] = useState("");
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState("");
     const [search, setSearch] = useState("");
@@ -15,9 +18,14 @@ export default function CategoryPage() {
     const [actionLoading, setActionLoading] = useState(false);
 
     // FETCH
-    const fetchCategories = useCallback(async () => {
+    const fetchCategories = useCallback(async ({ initial = false } = {}) => {
         try {
-            setLoading(true);
+            if (initial) {
+                setIsFetching(true);
+                setLoadError("");
+            } else {
+                setLoading(true);
+            }
 
             const response =
                 await categoryService.getAll();
@@ -48,9 +56,17 @@ export default function CategoryPage() {
                 )
             );
 
-            setError(message);
+            if (initial) {
+                setLoadError(message);
+            } else {
+                setError(message);
+            }
             } finally {
-                setLoading(false);
+                if (initial) {
+                    setIsFetching(false);
+                } else {
+                    setLoading(false);
+                }
             }
         },
         []
@@ -92,7 +108,7 @@ export default function CategoryPage() {
                 }
             }, []);
 
-    useEffect(() => { fetchCategories(); }, [fetchCategories]);
+    useEffect(() => { fetchCategories({ initial: true }); }, [fetchCategories]);
 
     // APPROVE
     const handleApprove = async (category) => {
@@ -181,6 +197,12 @@ export default function CategoryPage() {
     };
 
     return (
+        <AdminInitialLoadGate
+            isFetching={isFetching}
+            loadError={loadError}
+            onRetry={() => fetchCategories({ initial: true })}
+            loadingMessage="Đang tải danh sách danh mục..."
+        >
         <div className="flex flex-col gap-6 px-8 pt-6 pb-10">
 
             <Toolbar
@@ -226,5 +248,6 @@ export default function CategoryPage() {
                 loading={actionLoading}
             />
         </div>
+        </AdminInitialLoadGate>
     );
 }

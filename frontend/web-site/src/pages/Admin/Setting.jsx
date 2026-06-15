@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
-import { HardDrive, Shield, ShoppingCart, Loader2, AlertCircle, RefreshCw } from 'lucide-react';
+import { HardDrive, Shield, ShoppingCart, RefreshCw } from 'lucide-react';
+import { AdminPageLoadError, AdminPageLoading } from '../../components/Admin/UI/AdminFetchState';
 import { settingService, handleApiError } from '../../services/api/settingService';
 
 // ── Field hiển thị chỉ đọc ──────────────────────────────────────────────────
@@ -50,10 +51,7 @@ export default function SettingsAside() {
   if (isFetching) {
     return (
       <aside className="w-full max-w-full p-4 md:p-8 font-sans antialiased text-zinc-900 bg-neutral-50 min-h-screen">
-        <div className="w-full h-64 bg-white rounded-lg shadow-sm border border-neutral-200 flex flex-col items-center justify-center gap-3 text-neutral-500">
-          <Loader2 className="w-8 h-8 animate-spin text-emerald-700" />
-          <span className="text-sm font-medium">Đang tải cấu hình hệ thống...</span>
-        </div>
+        <AdminPageLoading message="Đang tải cấu hình hệ thống..." />
       </aside>
     );
   }
@@ -62,20 +60,7 @@ export default function SettingsAside() {
   if (loadError) {
     return (
       <aside className="w-full max-w-full p-4 md:p-8 font-sans antialiased text-zinc-900 bg-neutral-50 min-h-screen">
-        <div className="w-full bg-white rounded-lg shadow-sm border border-neutral-200 p-8 flex flex-col items-center justify-center gap-4">
-          <div className="flex items-center gap-2 text-red-700 text-sm">
-            <AlertCircle className="w-5 h-5" />
-            {loadError}
-          </div>
-          <button
-            type="button"
-            onClick={fetchConfig}
-            className="px-5 py-2.5 rounded-lg bg-emerald-900 text-white text-sm font-semibold inline-flex items-center gap-2 hover:bg-emerald-950 transition-colors"
-          >
-            <RefreshCw className="w-4 h-4" />
-            Thử lại
-          </button>
-        </div>
+        <AdminPageLoadError message={loadError} onRetry={fetchConfig} />
       </aside>
     );
   }

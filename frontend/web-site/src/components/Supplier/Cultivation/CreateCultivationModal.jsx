@@ -13,14 +13,13 @@ import { errorsToSummary } from "../../../utils/supplierValidation";
 
 const EMPTY = { supplier_product: "", step_order: "", process_name: "", description: "" };
 
-export default function CreateCultivationModal({ isOpen, onClose, onSuccess }) {
+export default function CreateCultivationModal({ isOpen, onClose, onSuccess,productId }) {
   const [form, setForm] = useState(EMPTY);
   const [errors, setErrors] = useState({});
   const [apiError, setApiError] = useState("");
   const [loading, setLoading] = useState(false);
   const [productsLoading, setProductsLoading] = useState(false);
   const [products, setProducts] = useState([]);
-  const [activeProductIds, setActiveProductIds] = useState([]);
 
   useEffect(() => {
     if (isOpen) {
@@ -36,11 +35,10 @@ export default function CreateCultivationModal({ isOpen, onClose, onSuccess }) {
     async function fetchProducts() {
       try {
         setProductsLoading(true);
-        const res = await productService.getAll();
-        const allProducts = parseProductList(res);
-        const activeProducts = getActiveProducts(allProducts);
-        setProducts(activeProducts);
-        setActiveProductIds(activeProducts.map((p) => p.id));
+        const res = await productService.getById(productId);
+        console.log(res)
+        setProducts(res)
+        setProductsLoading(true)
       } catch (err) {
         console.error("Lỗi khi tải danh sách sản phẩm:", err);
         setApiError("Không thể tải danh sách sản phẩm. Vui lòng thử lại!");
@@ -108,28 +106,21 @@ export default function CreateCultivationModal({ isOpen, onClose, onSuccess }) {
         <div className="px-6 py-5 flex flex-col gap-4 overflow-y-auto">
           {apiError && <ApiErrorBanner message={apiError} />}
 
-          {!productsLoading && products.length === 0 && (
+          {!productsLoading && products === null && (
             <div className="text-xs bg-amber-50 border border-amber-200 text-amber-700 rounded-lg px-3 py-2">
               Không có sản phẩm đang hoạt động. Vui lòng niêm yết sản phẩm trước khi thêm quy trình.
             </div>
           )}
 
           <Field label="Sản phẩm" required error={errors.supplier_product}>
-            <select
-              value={form.supplier_product}
-              onChange={set("supplier_product")}
-              disabled={productsLoading || products.length === 0}
+            <input 
+              type="text" 
+              value= {productsLoading ? "Đang tải sản phẩm..." : products.name} 
+              onChange={false}
+              onClick={false}
+              readOnly
               className={inputCls(errors.supplier_product)}
-            >
-              <option value="">
-                {productsLoading ? "Đang tải sản phẩm..." : "— Chọn sản phẩm —"}
-              </option>
-              {products.map((p) => (
-                <option key={p.id} value={p.id}>
-                  {p.name}
-                </option>
-              ))}
-            </select>
+              />
           </Field>
 
           <div className="grid grid-cols-3 gap-4">

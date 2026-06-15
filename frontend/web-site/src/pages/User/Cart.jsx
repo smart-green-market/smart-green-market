@@ -1,13 +1,21 @@
-import { useMemo, useState } from "react";
+import { useMemo } from "react";
 import { Link } from "react-router-dom";
 import { ArrowLeft, ShoppingBag } from "lucide-react";
 import CartTable from "../../components/User/Cart/CartTable";
 import OrderSummary from "../../components/User/Cart/OrderSummary";
 import SuggestedProducts from "../../components/User/Cart/SuggestedProducts";
-import { mockCartItems, mockSuggestedProducts } from "../../components/User/Cart/mockData";
+import { mockSuggestedProducts } from "../../components/User/Cart/mockData";
+import { useCart } from "../../contexts/cartProvider";
 
 export default function CartPage() {
-  const [cartItems, setCartItems] = useState(mockCartItems);
+  const {
+    items: cartItems,
+    toggleAll,
+    toggleSelectItem,
+    increaseQuantity,
+    decreaseQuantity,
+    removeItem,
+  } = useCart();
 
   const selectedItems = useMemo(
     () => cartItems.filter((item) => item.selected),
@@ -18,41 +26,12 @@ export default function CartPage() {
   const selectedCount = selectedItems.length;
   const subtotal = selectedItems.reduce((sum, item) => sum + item.price * item.quantity, 0);
 
-  const toggleAll = () => {
-    const next = !allSelected;
-    setCartItems((prev) => prev.map((item) => ({ ...item, selected: next })));
-  };
-
-  const toggleSelectItem = (id) => {
-    setCartItems((prev) =>
-      prev.map((item) => (item.id === id ? { ...item, selected: !item.selected } : item)),
-    );
-  };
-
-  const increaseQuantity = (id) => {
-    setCartItems((prev) =>
-      prev.map((item) =>
-        item.id === id ? { ...item, quantity: item.quantity + 1 } : item,
-      ),
-    );
-  };
-
-  const decreaseQuantity = (id) => {
-    setCartItems((prev) =>
-      prev.map((item) =>
-        item.id === id
-          ? { ...item, quantity: Math.max(1, item.quantity - 1) }
-          : item,
-      ),
-    );
-  };
-
-  const removeItem = (id) => {
-    setCartItems((prev) => prev.filter((item) => item.id !== id));
+  const handleToggleAll = () => {
+    toggleAll(!allSelected);
   };
 
   const handleCheckout = () => {
-    console.log("Checkout payload (mock):", selectedItems);
+    console.log("Checkout payload:", selectedItems);
   };
 
   return (
@@ -86,7 +65,7 @@ export default function CartPage() {
             <CartTable
               items={cartItems}
               allSelected={allSelected}
-              onToggleAll={toggleAll}
+              onToggleAll={handleToggleAll}
               onToggleSelect={toggleSelectItem}
               onDecrease={decreaseQuantity}
               onIncrease={increaseQuantity}
