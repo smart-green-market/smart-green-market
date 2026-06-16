@@ -110,6 +110,10 @@ INSTALLED_APPS = [
     "apps.dealer_products",
     "apps.customers",
     "apps.purchase_orders",
+    "apps.orders",
+    "apps.marketing",
+    "apps.promotions",
+    "apps.reviews",
     "apps.certifications",
     "apps.notifications",
 ]
@@ -192,6 +196,52 @@ SPECTACULAR_SETTINGS = {
     "COMPONENT_SPLIT_REQUEST": True,
     "SWAGGER_UI_SETTINGS": {
         "persistAuthorization": True,
+        "docExpansion": "none",
+        "filter": True,
+    },
+    "EXTENSIONS_ROOT": {
+        "x-tagGroups": [
+            {
+                "name": "1. Hệ thống",
+                "tags": ["Auth", "System Config", "Banks", "Account Documents"],
+            },
+            {
+                "name": "2. Buyer — Gian hàng (B2C)",
+                "tags": [
+                    "Storefront Catalog",
+                    "Storefront Auth",
+                    "Storefront Customer",
+                    "Storefront Addresses",
+                ],
+            },
+            {
+                "name": "3. Nhà cung cấp",
+                "tags": [
+                    "Suppliers",
+                    "Supplier Products",
+                    "Supplier Product Images",
+                    "Cultivation Processes",
+                    "Certifications",
+                    "Certification Images",
+                ],
+            },
+            {
+                "name": "4. Đại lý & Kho",
+                "tags": [
+                    "Dealers",
+                    "Dealer Customers",
+                    "Categories",
+                    "Dealer Products",
+                    "Dealer Product Images",
+                    "Dealer Inventory",
+                    "Purchase Orders",
+                ],
+            },
+            {
+                "name": "5. Thông báo",
+                "tags": ["Notifications"],
+            },
+        ],
     },
     "SECURITY": [{"BearerAuth": []}],
     "COMPONENTS": {
@@ -204,47 +254,43 @@ SPECTACULAR_SETTINGS = {
             }
         }
     },
+    # Thứ tự tag trên Swagger UI — khai báo đủ tag và sắp theo luồng nghiệp vụ.
     "TAGS": [
+        # --- 1. Hệ thống & xác thực ---
         {
             "name": "Auth",
             "description": (
-                "Đăng ký, đăng nhập, quản lý JWT và thông tin cá nhân. "
+                "Đăng ký, đăng nhập, quản lý JWT và thông tin cá nhân (supplier/dealer/admin). "
                 "Upload avatar qua `POST /api/profile/avatar/` (multipart/form-data). "
                 "Endpoint register trả token ngay — không cần login riêng cho onboarding."
             ),
         },
         {
-            "name": "Suppliers",
+            "name": "System Config",
+            "description": "Cấu hình giới hạn hệ thống (upload, danh mục, sản phẩm, đăng nhập).",
+        },
+        {
+            "name": "Banks",
             "description": (
-                "Quản lý hồ sơ nhà cung cấp. Supplier tạo profile sau khi đăng ký. "
-                "Admin duyệt qua action `verify`. "
-                "**Dealer:** `GET /api/suppliers/` (catalog NCC) → "
-                "`GET /api/suppliers/{id}/products/` (chọn SP đặt hàng)."
+                "Danh sách ngân hàng Napas/VietQR cho dropdown cấu hình TK NCC. "
+                "Lưu `bank_bin` + `bank_name` từ response khi PATCH supplier profile."
             ),
         },
         {
-            "name": "Dealers",
+            "name": "Account Documents",
             "description": (
-                "Quản lý hồ sơ đại lý. Dealer tạo profile sau đăng ký. "
-                "Admin duyệt qua `POST /api/dealers/{id}/verify/`."
+                "Upload & quản lý giấy tờ tài khoản supplier/dealer "
+                "(giấy phép KD, CMND, giấy thuế). "
+                "Upload dạng multipart/form-data qua `POST /api/account-documents/bulk-upload/`. "
+                "Mỗi loại giấy tờ chỉ 1 file/tài khoản."
             ),
         },
+        # --- 2. Buyer — gian hàng đại lý (B2C) ---
         {
-            "name": "Dealer Products",
+            "name": "Storefront Catalog",
             "description": (
-                "Sản phẩm bán lẻ của đại lý, gắn sản phẩm NCC. "
-                "Admin duyệt qua action `verify`."
-            ),
-        },
-        {
-            "name": "Dealer Product Images",
-            "description": "Ảnh sản phẩm đại lý (URL — field `image_url`).",
-        },
-        {
-            "name": "Dealer Inventory",
-            "description": (
-                "Tồn kho lô hàng nhập từ phiếu nhập hoàn tất. "
-                "Ghi hao hụt: `POST /api/dealer-inventory-batches/{id}/record-wastage/`."
+                "Buyer duyệt catalog **không cần đăng nhập**: danh mục, tìm kiếm, chi tiết SP. "
+                "Prefix URL: `/api/storefronts/{dealer_slug}/`."
             ),
         },
         {
@@ -262,22 +308,15 @@ SPECTACULAR_SETTINGS = {
             "name": "Storefront Addresses",
             "description": "Buyer quản lý địa chỉ nhận hàng trong gian hàng đại lý.",
         },
+        # --- 3. Nhà cung cấp (B2B) ---
         {
-            "name": "Dealer Customers",
-            "description": "Đại lý xem tệp khách hàng đã đăng ký qua gian hàng của mình.",
-        },
-        {
-            "name": "Account Documents",
+            "name": "Suppliers",
             "description": (
-                "Upload & quản lý giấy tờ tài khoản supplier/dealer "
-                "(giấy phép KD, CMND, giấy thuế). "
-                "Upload dạng multipart/form-data qua `POST /api/account-documents/bulk-upload/`. "
-                "Mỗi loại giấy tờ chỉ 1 file/tài khoản."
+                "Quản lý hồ sơ nhà cung cấp. Supplier tạo profile sau khi đăng ký. "
+                "Admin duyệt qua action `verify`. "
+                "**Dealer:** `GET /api/suppliers/` (catalog NCC) → "
+                "`GET /api/suppliers/{id}/products/` (chọn SP đặt hàng)."
             ),
-        },
-        {
-            "name": "Categories",
-            "description": "Danh mục sản phẩm nông sản (Rau củ, Trái cây, ...). Yêu cầu tài khoản active.",
         },
         {
             "name": "Supplier Products",
@@ -309,16 +348,39 @@ SPECTACULAR_SETTINGS = {
             "name": "Certification Images",
             "description": "Ảnh scan chứng nhận — upload/thay/xóa từng ảnh hoặc nhiều ảnh cùng lúc.",
         },
+        # --- 4. Đại lý & kho ---
         {
-            "name": "System Config",
-            "description": "Cấu hình giới hạn hệ thống (upload, danh mục, sản phẩm, đăng nhập).",
+            "name": "Dealers",
+            "description": (
+                "Quản lý hồ sơ đại lý. Dealer tạo profile sau đăng ký. "
+                "Admin duyệt qua `POST /api/dealers/{id}/verify/`. "
+                "Link gian hàng: `GET /api/dealers/me/storefront-link/`."
+            ),
         },
         {
-            "name": "Notifications",
+            "name": "Dealer Customers",
+            "description": "Đại lý xem tệp khách hàng đã đăng ký qua gian hàng của mình.",
+        },
+        {
+            "name": "Categories",
+            "description": "Danh mục sản phẩm nông sản (Rau củ, Trái cây, ...). Yêu cầu tài khoản active.",
+        },
+        {
+            "name": "Dealer Products",
             "description": (
-                "Thông báo hệ thống (tiếng Việt). "
-                "Dùng `GET /api/notifications/my/` — có `type_label`, `reference_type_label`, "
-                "và `reference_status`/`reference_order_code` khi liên quan phiếu nhập."
+                "Sản phẩm bán lẻ của đại lý, gắn sản phẩm NCC. "
+                "Admin duyệt qua action `verify`."
+            ),
+        },
+        {
+            "name": "Dealer Product Images",
+            "description": "Ảnh sản phẩm đại lý (URL — field `image_url`).",
+        },
+        {
+            "name": "Dealer Inventory",
+            "description": (
+                "Tồn kho lô hàng nhập từ phiếu nhập hoàn tất. "
+                "Ghi hao hụt: `POST /api/dealer-inventory-batches/{id}/record-wastage/`."
             ),
         },
         {
@@ -326,16 +388,19 @@ SPECTACULAR_SETTINGS = {
             "description": (
                 "Phiếu nhập hàng đại lý → NCC. Trước khi tạo đơn: "
                 "`GET /api/suppliers/{id}/products/` để lấy `supplier_product_id`. "
+                "Cấu hình đơn: `GET /api/purchase-order-config/`. "
                 "Luồng: tạo đơn → NCC xác nhận → cọc → chuẩn bị → giao hàng → "
                 "thanh toán cuối → hoàn tất. "
                 "VietQR: `GET /api/purchase-orders/{id}/payment-qr/`."
             ),
         },
+        # --- 5. Thông báo ---
         {
-            "name": "Banks",
+            "name": "Notifications",
             "description": (
-                "Danh sách ngân hàng Napas/VietQR cho dropdown cấu hình TK NCC. "
-                "Lưu `bank_bin` + `bank_name` từ response khi PATCH supplier profile."
+                "Thông báo hệ thống (tiếng Việt). "
+                "Dùng `GET /api/notifications/my/` — có `type_label`, `reference_type_label`, "
+                "và `reference_status`/`reference_order_code` khi liên quan phiếu nhập."
             ),
         },
     ],

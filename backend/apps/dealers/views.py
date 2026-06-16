@@ -1,7 +1,7 @@
 """API quản lý hồ sơ đại lý và luồng duyệt."""
 
 from django.conf import settings
-from django.db.models import Count, Prefetch, Q
+from django.db.models import Prefetch
 from django.utils import timezone
 from drf_spectacular.utils import OpenApiExample, extend_schema, extend_schema_view
 from rest_framework import viewsets
@@ -11,8 +11,8 @@ from rest_framework.response import Response
 
 from apps.accounts.document_serializers import AccountDocumentListSerializer
 from apps.accounts.models import AccountDocument, AccountDocumentStatus, AccountDocumentType, AccountStatus
-from apps.categories.models import Category, CategoryStatus, CategoryScope
 from apps.categories.serializers import DealerStoreCategorySerializer
+from apps.customers.catalog_services import get_storefront_categories_qs
 from apps.dealer_products.models import DealerProduct, DealerProductStatus
 from apps.dealer_products.serializers import DealerProductReadSerializer
 from common.notification_messages import dealer_verification_updated
@@ -344,8 +344,8 @@ class DealerProfileViewSet(viewsets.ModelViewSet):
         tags=["Dealers"],
         summary="Danh mục cửa hàng đại lý (buyer catalog)",
         description=(
-            "Buyer/dealer xem danh mục bán lẻ của cửa hàng đã duyệt. "
-            "Chỉ trả danh mục `active` có ít nhất một sản phẩm đại lý `active`."
+            "Buyer/dealer xem toàn bộ danh mục `active` của cửa hàng (system + custom), "
+            "kèm `product_count` — cùng logic với `GET /api/storefronts/{slug}/categories/`."
         ),
         responses={
             200: paginated_response_schema(
@@ -357,28 +357,7 @@ class DealerProfileViewSet(viewsets.ModelViewSet):
     @action(detail=True, methods=["get"], url_path="categories")
     def categories(self, request, pk=None):
         dealer = self.get_object()
-        categories_qs = (
-            Category.objects.filter(
-                status=CategoryStatus.ACTIVE,
-                dealer_store_products__dealer_profile=dealer,
-                dealer_store_products__status=DealerProductStatus.ACTIVE,
-            )
-            .filter(
-                Q(scope=CategoryScope.SYSTEM)
-                | Q(created_by=dealer.account, scope=CategoryScope.CUSTOM)
-            )
-            .distinct()
-            .annotate(
-                product_count=Count(
-                    "dealer_store_products",
-                    filter=Q(
-                        dealer_store_products__dealer_profile=dealer,
-                        dealer_store_products__status=DealerProductStatus.ACTIVE,
-                    ),
-                )
-            )
-            .order_by("sort_order", "name")
-        )
+        categories_qs = get_storefront_categories_qs(dealer)
 
         def serialize(page):
             return DealerStoreCategorySerializer(

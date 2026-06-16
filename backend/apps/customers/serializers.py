@@ -1,9 +1,11 @@
 """Serializer cho hồ sơ khách hàng và địa chỉ."""
 
 from django.contrib.auth import get_user_model
+from drf_spectacular.utils import extend_schema_field
 from rest_framework import serializers
 
 from apps.accounts.models import AccountRole, AccountStatus
+from common.avatar import build_avatar_url
 from common.openapi_enums import schema_choice_field
 
 from .models import CustomerAddress, CustomerProfile
@@ -14,6 +16,7 @@ Account = get_user_model()
 class CustomerAccountNestedSerializer(serializers.ModelSerializer):
     """Thông tin tài khoản buyer tối giản."""
 
+    avatar_url = serializers.SerializerMethodField()
     role = schema_choice_field(choices=AccountRole.choices, read_only=True)
     status = schema_choice_field(choices=AccountStatus.choices, read_only=True)
     store_dealer_id = serializers.IntegerField(
@@ -34,11 +37,16 @@ class CustomerAccountNestedSerializer(serializers.ModelSerializer):
             "email",
             "full_name",
             "phone",
+            "avatar_url",
             "role",
             "status",
             "store_dealer_id",
             "store_dealer_slug",
         ]
+
+    @extend_schema_field(serializers.URLField(allow_null=True))
+    def get_avatar_url(self, obj):
+        return build_avatar_url(obj, self.context.get("request"))
 
 
 class CustomerProfileSerializer(serializers.ModelSerializer):
