@@ -38,8 +38,27 @@ export default function StoreInfoCard({ profile, onEdit }) {
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <InfoField label="Tên cửa hàng" value={profile.store_name} />
           <InfoField label="Mã đại lý" value={profile.id ? `#DL${String(profile.id).padStart(4, "0")}` : "Chưa có"} />
-          <InfoField label="Địa chỉ" value={profile.store_address} wide />
-          <InfoField label="Mô tả" value={profile.description} wide />
+          <InfoField label="Địa chỉ" value={profile.store_address} />
+          <InfoField label="Mô tả" value={profile.description} />
+          <div className="col-span-2">
+            <p className="text-[11px] font-semibold text-gray-400 uppercase tracking-wider mb-1">
+              Đường dẫn cửa hàng (Storefront URL)
+            </p>
+            <div className="text-sm font-medium text-gray-800 break-all">
+              {profile.storefront_url ? (
+                <a
+                  href={profile.storefront_url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-emerald-600 hover:text-emerald-700 font-bold hover:underline"
+                >
+                  {profile.storefront_url}
+                </a>
+              ) : (
+                "Chưa có"
+              )}
+            </div>
+          </div>
         </div>
       </div>
     </div>

@@ -146,6 +146,7 @@ export default function InventoryTable({ data, onRowClick }) {
         }
         highlightOnHover
         responsive
+        onRowClicked={(row) => onRowClick && onRowClick(row)}
       />
     </div>
   );

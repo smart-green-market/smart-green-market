@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { ShoppingCart, Plus } from "lucide-react";
-import SupplierFilter from "../../components/Dealer/Supplier/SupplierFilter";
-import SalesOrderList from "../../components/Dealer/SalesOrder/SalesOrderList";
+import SupplierFilter from "../../../components/Dealer/Supplier/SupplierFilter";
+import SalesOrderList from "../../../components/Dealer/SalesOrder/SalesOrderList";
 
 export default function DealerSalesOrderPage() {
     const [searchQuery, setSearchQuery] = useState("");
@@ -79,7 +79,7 @@ export default function DealerSalesOrderPage() {
                     </p>
                 </div>
                 <button className="h-10 px-4 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white font-bold text-xs transition-all flex items-center justify-center gap-1.5 shadow-md shadow-emerald-100 cursor-pointer self-start sm:self-auto">
-                    <Plus className="w-4 h-4" /> Xuất đơn bán mới
+                    <Plus className="w-4 h-4" /> Tạo đơn bán mới
                 </button>
             </div>
 

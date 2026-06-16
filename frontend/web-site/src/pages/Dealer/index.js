@@ -6,7 +6,7 @@ export { default as DealerCategoryPage } from "./Category/Category";
 export { default as DealerPurchaseOrderPage } from "./PurchaseOrder/PurchaseOrder";
 export { default as DealerCreatePurchaseOrderPage } from "./PurchaseOrder/CreatePurchaseOrder";
 export { default as DealerPurchaseOrderDetailPage } from "./PurchaseOrder/PurchaseOrderDetail";
-export { default as DealerSalesOrderPage } from "./SalesOrder";
+export { default as DealerSalesOrderPage } from "./SalesOrder/SalesOrder";
 export { default as DealerSupplierDetailPage } from "./Suppiler/SupplierDetail";
 export { default as DealerCategoryDetail } from "./Category/CategeryDetail";
 export { default as RegisterDealerPage } from "./Register/RegisterDealerPage";

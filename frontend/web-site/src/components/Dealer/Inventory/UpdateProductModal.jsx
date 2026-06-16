@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { Tag, X, ClipboardList } from "lucide-react";
 import { toast } from "sonner";
 import { categoryService } from "../../../services/api/categoryService";
+import { dealerProductService } from "../../../services/api/dealerProductService";
 
 export default function UpdateProductModal({ data, onClose, onSave }) {
 
@@ -30,7 +31,7 @@ export default function UpdateProductModal({ data, onClose, onSave }) {
     fetchCats();
   }, []);
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     const parsedShrinkage = parseInt(adjustment, 10) || 0;
 
     if (parsedShrinkage > 0) {
@@ -41,6 +42,32 @@ export default function UpdateProductModal({ data, onClose, onSave }) {
       if (reason === "Khác" && !note.trim()) {
         toast.error("Vui lòng nhập chi tiết (Ghi chú) cho lý do Khác.", { position: "top-center", duration: 5000 },);
         return;
+      }
+    }
+
+    // Lấy ID lô hàng và ID sản phẩm đại lý
+    const batchId = data.originalData?.id;
+    const dealerProductId = data.originalData?.dealer_product || data.originalData?.dealer_product_id;
+    console.log("Shipment (lô hàng) ID:", batchId);
+    console.log("Dealer Product ID:", dealerProductId);
+
+    // Kiểm tra và thực hiện cập nhật danh mục nếu có thay đổi
+    const categoryChanged = selectedCategory !== data.category;
+    if (categoryChanged && selectedCategory) {
+      const chosenCat = categories.find(c => c.name === selectedCategory);
+      const categoryId = chosenCat ? chosenCat.id : null;
+
+      if (dealerProductId && categoryId) {
+        try {
+          await dealerProductService.update(dealerProductId, {
+            category: categoryId
+          });
+          toast.success("Cập nhật danh mục sản phẩm thành công!");
+        } catch (error) {
+          console.error("Lỗi khi cập nhật danh mục sản phẩm:", error);
+          toast.error("Không thể cập nhật danh mục cho sản phẩm.");
+          return; // Dừng xử lý nếu gọi API lỗi
+        }
       }
     }
 

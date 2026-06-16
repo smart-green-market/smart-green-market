@@ -100,6 +100,15 @@ export const dealerProductService = {
             throw error;
         }
     },
+    update: async (id, data) => {
+        try {
+            const res = await axiosClient.patch(`/dealer-products/${id}/`, data);
+            return res.data;
+        } catch (error) {
+            console.error("Lỗi cập nhật sản phẩm đại lý:", error);
+            throw error;
+        }
+    },
 };
 
 export const handleApiError = (error, defaultMessage = "Có lỗi xảy ra") => {

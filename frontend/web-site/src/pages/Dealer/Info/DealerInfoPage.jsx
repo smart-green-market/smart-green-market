@@ -38,16 +38,32 @@ export default function DealerInfoPage() {
   useEffect(() => {
     const fetchProfile = async () => {
       try {
-        // Nếu chưa có profile từ context thì bật loading
         if (!profile) setLoading(true);
-        const data = await dealerService.resolveMyProfile();
-        // Add account info from context to profile object to match layout
-        if (data) {
-           setProfile((prev) => ({ ...prev, ...data, account: user }));
-        } else if (!profile) {
-           // Fallback to user data if profile is not fully created yet
-           setProfile({ account: user, store_name: "Chưa cập nhật", store_address: "Chưa cập nhật", description: "Chưa cập nhật", documents: [] });
-        }
+        const [dealers, linkData] = await Promise.all([
+          dealerService.getAll(),
+          dealerService.getStorefrontLink().catch((err) => {
+            console.error("Lỗi khi fetch storefront link:", err);
+            return null;
+          })
+        ]);
+
+        console.log("Dữ liệu LinkData nhận được:", linkData);
+
+        const profileData = dealers?.[0] || null;
+        const storefrontUrl = linkData?.storefront_url || null;
+
+        setProfile((prev) => {
+          const base = profileData || prev || {};
+          return {
+            ...base,
+            storefront_url: storefrontUrl,
+            account: profileData?.account ? { ...user, ...profileData.account } : user,
+            store_name: base.store_name || "Chưa cập nhật",
+            store_address: base.store_address || "Chưa cập nhật",
+            description: base.description || "Chưa cập nhật",
+            documents: base.documents || [],
+          };
+        });
       } catch (error) {
         console.error("Failed to load dealer profile:", error);
         toast.error("Không thể tải thông tin cập nhật cửa hàng.");
@@ -58,27 +74,85 @@ export default function DealerInfoPage() {
     if (user) fetchProfile();
   }, [user]);
 
+
+  //Xử lý cập nhật thông tin cá nhận
   const handleSavePersonal = async (form) => {
     try {
       setIsUpdating(true);
+      const savedUserStr = localStorage.getItem("user");
+      const savedUser = savedUserStr ? JSON.parse(savedUserStr) : {};
+
       const changedFields = getChangedFields(
         { full_name: profile.account.full_name, email: profile.account.email, phone: profile.account.phone },
-        form
+        { full_name: form.full_name, email: form.email, phone: form.phone }
       );
-      if (Object.keys(changedFields).length > 0) {
-        await accountService.update(changedFields);
-        setProfile((p) => ({ ...p, account: { ...p.account, ...changedFields } }));
+      
+      const hasChanges = Object.keys(changedFields).length > 0 || form.avatarFile;
+
+      if (hasChanges) {
+        let updatedAccount = profile.account;
+
+        // 1. Cập nhật chữ (PUT /profile/)
+        if (Object.keys(changedFields).length > 0) {
+          const textPayload = {
+            email: form.email,
+            full_name: form.full_name,
+            phone: form.phone
+          };
+          updatedAccount = await accountService.updateProfile(textPayload);
+        }
+
+        // 2. Cập nhật ảnh (POST /profile/avatar/)
+        if (form.avatarFile) {
+          const formData = new FormData();
+          formData.append("avatar", form.avatarFile);
+          try {
+            const avatarResult = await accountService.updateAvatar(formData);
+            // Nếu api trả về chuỗi hoặc array, tự động bỏ qua việc rải (spread) vào object
+            if (typeof avatarResult === 'object' && avatarResult !== null && !Array.isArray(avatarResult)) {
+              updatedAccount = { ...updatedAccount, ...avatarResult };
+            }
+          } catch (avatarErr) {
+            console.error("Lỗi khi gọi API upload avatar:", avatarErr.response?.data || avatarErr.message);
+            // Nếu backend vẫn lưu file thành công nhưng trả về HTTP lỗi (400/500/CORS/JSON), 
+            // chúng ta vẫn cập nhật giao diện tạm thời bằng ảnh đã preview
+            updatedAccount = { ...updatedAccount, avatar_url: URL.createObjectURL(form.avatarFile) };
+            toast.warning("Lưu ảnh thành công nhưng server trả về phản hồi lỗi. Bạn vui lòng check console F12!");
+          }
+        }
+        
+        // ==============================================================================
+        // LOCAL STATE UPDATE (Cập nhật trạng thái cục bộ)
+        // ==============================================================================
+        // Trộn thông tin cũ với thông tin mới vừa trả về từ API
+        const nextAccount = { ...profile.account, ...updatedAccount };
+        
+        // 1. setProfile: Thay đổi State của React. Ngay lập tức vẽ lại (re-render) cái thẻ
+        // <PersonalInfoCard /> trên màn hình bằng hình ảnh và tên mới MÀ KHÔNG CẦN F5.
+        setProfile((p) => ({ ...p, account: nextAccount }));
+        
+        // 2. localStorage.setItem: Lưu đè thông tin mới vào bộ nhớ trình duyệt để đồng bộ dữ liệu
+        // cho các chỗ dùng chung (Ví dụ: Thanh Navbar ở góc trên bên phải trang web).
+        localStorage.setItem("user", JSON.stringify({ ...savedUser, ...updatedAccount }));
+        
         toast.success("Cập nhật thông tin cá nhân thành công!");
       }
       setEditingPersonal(false);
     } catch (error) {
-      toast.error("Cập nhật thất bại. Vui lòng thử lại!");
-      console.error(error);
+      console.error("Lưu cá nhân lỗi:", error);
+      const data = error.response?.data;
+      if (data?.message) {
+        toast.error(data.message);
+      } else {
+        toast.error(`Cập nhật cá nhân thất bại: ${error.message}`);
+      }
     } finally {
       setIsUpdating(false);
     }
   };
 
+  
+   //Xử lý cập nhật thông tin cửa hàng
   const handleSaveStore = async (form) => {
     try {
       setIsUpdating(true);
@@ -90,9 +164,14 @@ export default function DealerInfoPage() {
       const hasChanges = Object.keys(changedFields).length > 0 || form.logoFile;
 
       if (hasChanges) {
+        if (!profile.id) {
+          toast.error("Không tìm thấy thông tin cửa hàng để cập nhật.");
+          setIsUpdating(false);
+          return;
+        }
+
         let payload = changedFields;
         
-        // Use FormData if logo is provided
         if (form.logoFile) {
           payload = new FormData();
           if (changedFields.store_name) payload.append("store_name", changedFields.store_name);
@@ -101,27 +180,35 @@ export default function DealerInfoPage() {
           payload.append("logo", form.logoFile);
         }
 
-        if (profile.id) {
-           const updated = await dealerService.update(profile.id, payload);
-           setProfile((p) => ({ ...p, ...updated, account: p.account }));
-        } else {
-           let payloadForCreate = { ...form };
-           if (form.logoFile) {
-               payloadForCreate = new FormData();
-               payloadForCreate.append("store_name", form.store_name);
-               payloadForCreate.append("store_address", form.store_address);
-               payloadForCreate.append("description", form.description);
-               payloadForCreate.append("logo", form.logoFile);
-           }
-           const created = await dealerService.create(payloadForCreate);
-           setProfile((p) => ({ ...created, account: p.account }));
+        const updated = await dealerService.update(profile.id, payload);
+        let nextStorefrontUrl = profile.storefront_url;
+        try {
+          // Lấy lại link cửa hàng (storefront_url) mới nhất nhỡ đâu tên cửa hàng vừa bị đổi
+          const linkData = await dealerService.getStorefrontLink();
+          nextStorefrontUrl = linkData?.storefront_url || nextStorefrontUrl;
+        } catch (err) {
+          console.error("Lỗi khi gọi getStorefrontLink sau update:", err);
         }
+        
+        // ==============================================================================
+        // LOCAL STATE UPDATE (Cập nhật trạng thái cục bộ)
+        // ==============================================================================
+        // Gọi setProfile để chèn Logo, Tên, Địa chỉ mới (nằm trong biến 'updated') đè lên dữ liệu cũ.
+        // Nhờ vậy giao diện thẻ <StoreInfoCard /> sẽ tự động cập nhật ngay tức thì mà không cần F5!
+        // Lưu ý: Không cần lưu vào localStorage vì Navbar không quan tâm tên cửa hàng.
+        setProfile((p) => ({ ...p, ...updated, storefront_url: nextStorefrontUrl, account: p.account }));
+        
         toast.success("Cập nhật thông tin cửa hàng thành công!");
       }
       setEditingStore(false);
     } catch (error) {
-      toast.error("Cập nhật thất bại. Vui lòng thử lại!");
-      console.error(error);
+      console.error("Lưu cửa hàng lỗi:", error);
+      const data = error.response?.data;
+      if (data?.message) {
+        toast.error(data.message);
+      } else {
+        toast.error(`Cập nhật cửa hàng thất bại: ${error.message}`);
+      }
     } finally {
       setIsUpdating(false);
     }
@@ -150,12 +237,14 @@ export default function DealerInfoPage() {
             Quản lý thông tin tài khoản và thông tin cửa hàng của bạn.
           </p>
         </div>
+        
+         {/* Thông tin cá nhân */}
+        <PersonalInfoCard profile={profile} onEdit={() => setEditingPersonal(true)} />
 
         {/* Thông tin cửa hàng */}
         <StoreInfoCard profile={profile} onEdit={() => setEditingStore(true)} />
 
-        {/* Thông tin cá nhân */}
-        <PersonalInfoCard profile={profile} onEdit={() => setEditingPersonal(true)} />
+       
 
         {/* Giấy tờ pháp lý */}
         <DocumentsCard documents={profile?.documents} />

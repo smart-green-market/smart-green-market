@@ -2,17 +2,7 @@ import axiosClient from "./axiosClient";
 import { accountDocumentService } from "./accountDocumentService";
 import { extractApiError } from "../../utils/extractApiError";
 
-const DEALER_PROFILE_ID_KEY = "dealer_profile_id";
 
-function persistProfileId(id) {
-  if (id != null) {
-    localStorage.setItem(DEALER_PROFILE_ID_KEY, String(id));
-  }
-}
-
-function readCachedProfileId() {
-  return localStorage.getItem(DEALER_PROFILE_ID_KEY);
-}
 
 export const dealerService = {
   getAll: () =>
@@ -50,52 +40,18 @@ export const dealerService = {
   //     ]
   getById: (id) => axiosClient.get(`/dealers/${id}/`).then((res) => res.data),
   
-  // --- DEALER (đăng ký / tự quản lý hồ sơ)
-  getMine: () => axiosClient.get("/dealers/me/").then((res) => res.data),
-
   create: (data) =>
     axiosClient
       .post("/dealers/", data)
       .then((res) => res.data.data ?? res.data),
 
-  resolveMyProfile: async () => {
-    try {
-      const profile = await axiosClient
-        .get("/dealers/me/")
-        .then((res) => res.data);
-      if (profile?.id) {
-        persistProfileId(profile.id);
-        return profile;
-      }
-    } catch (err) {
-      if (err.response?.status !== 404) {
-        throw err;
-      }
-    }
 
-    const cachedId = readCachedProfileId();
-    if (cachedId) {
-      try {
-        const profile = await axiosClient
-          .get(`/dealers/${cachedId}/`)
-          .then((res) => res.data);
-        if (profile?.id) {
-          return profile;
-        }
-      } catch (err) {
-        if (err.response?.status === 404) {
-          localStorage.removeItem(DEALER_PROFILE_ID_KEY);
-        } else {
-          throw err;
-        }
-      }
-    }
-
-    return null;
-  },
+  //NTD lấy url cửa hàng đại lý
+  getStorefrontLink: () =>
+    axiosClient.get("/dealers/me/storefront-link/").then((res) => res.data),
 
   update: (id, data) =>
-    axiosClient.put(`/dealers/${id}/`, data).then((res) => res.data),
+    axiosClient.patch(`/dealers/${id}/`, data).then((res) => res.data),
 
   // {
   //   "store_name": "string",
@@ -110,11 +66,11 @@ export const dealerService = {
       description: profile.description,
     };
 
-    let dealerProfile = await dealerService.resolveMyProfile();
+    let dealers = await dealerService.getAll();
+    let dealerProfile = dealers?.[0];
 
     if (dealerProfile?.id) {
       await dealerService.update(dealerProfile.id, payload);
-      persistProfileId(dealerProfile.id);
     } else {
       try {
         const created = await dealerService.create(payload);
@@ -122,12 +78,11 @@ export const dealerService = {
         if (!id) {
           throw new Error("Không thể tạo hồ sơ đại lý.");
         }
-        persistProfileId(id);
       } catch (createErr) {
-        dealerProfile = await dealerService.resolveMyProfile();
+        dealers = await dealerService.getAll();
+        dealerProfile = dealers?.[0];
         if (dealerProfile?.id) {
           await dealerService.update(dealerProfile.id, payload);
-          persistProfileId(dealerProfile.id);
         } else {
           throw createErr;
         }
