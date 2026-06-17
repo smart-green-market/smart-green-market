@@ -23,6 +23,7 @@ from common.openapi import (
     VerifyDealerSerializer,
     paginated_response_schema,
 )
+from common.openapi_files import multipart_request
 from common.verify_openapi import (
     DEALER_VERIFY_APPROVE,
     DEALER_VERIFY_REJECT,
@@ -33,6 +34,11 @@ from common.permission import IsActive, IsAdmin, IsAdminOrDealer, IsDealer
 from common.querysets import ORDER_DOCUMENT, ORDER_NEWEST, _apply_order, filter_admin_or_dealer_account
 
 from .models import DealerProfile, DealerProfileStatus
+from .openapi import (
+    DEALER_PROFILE_WRITE_HELP,
+    DealerProfileCreateForm,
+    DealerProfileUpdateForm,
+)
 from .serializers import (
     DealerProfileDetailSerializer,
     DealerProfileListSerializer,
@@ -102,14 +108,27 @@ def _validate_dealer_ready_for_approval(dealer):
         summary="Tạo hồ sơ đại lý",
         description=(
             "**Bước 2 onboarding** — sau `POST /api/register/` với `role=dealer`.\n\n"
+            f"{DEALER_PROFILE_WRITE_HELP}\n\n"
             "Mỗi account chỉ tạo **1** hồ sơ. `status` mặc định `pending`."
         ),
-        request=DealerProfileSerializer,
+        request=multipart_request(DealerProfileCreateForm),
         responses={201: DealerProfileSerializer},
         examples=[DEALER_CREATE_EXAMPLE],
     ),
-    update=extend_schema(tags=["Dealers"], summary="Cập nhật toàn bộ hồ sơ"),
-    partial_update=extend_schema(tags=["Dealers"], summary="Cập nhật một phần hồ sơ"),
+    update=extend_schema(
+        tags=["Dealers"],
+        summary="Cập nhật toàn bộ hồ sơ",
+        description=DEALER_PROFILE_WRITE_HELP,
+        request=multipart_request(DealerProfileUpdateForm),
+        responses={200: DealerProfileSerializer},
+    ),
+    partial_update=extend_schema(
+        tags=["Dealers"],
+        summary="Cập nhật một phần hồ sơ",
+        description=DEALER_PROFILE_WRITE_HELP,
+        request=multipart_request(DealerProfileUpdateForm),
+        responses={200: DealerProfileSerializer},
+    ),
     destroy=extend_schema(tags=["Dealers"], summary="Xóa hồ sơ đại lý"),
 )
 class DealerProfileViewSet(viewsets.ModelViewSet):
@@ -128,7 +147,7 @@ class DealerProfileViewSet(viewsets.ModelViewSet):
     def get_permissions(self):
         if self.action in ("verify", "account_status"):
             return [IsAdmin()]
-        if self.action == "storefront_link":
+        if self.action in ("storefront_link", "me"):
             return [IsDealer()]
         if self.action in ("create", "update", "partial_update", "destroy"):
             return [IsDealer()]
@@ -140,7 +159,7 @@ class DealerProfileViewSet(viewsets.ModelViewSet):
         qs = self.queryset
         if self.action in ("categories", "products"):
             return _active_dealer_catalog_qs()
-        if self.action in ("retrieve", "verify"):
+        if self.action in ("retrieve", "verify", "me"):
             qs = qs.select_related("account", "verified_by").prefetch_related(
                 Prefetch(
                     "account__documents",
@@ -173,6 +192,23 @@ class DealerProfileViewSet(viewsets.ModelViewSet):
             reference_type="dealer",
             reference_id=dealer.id,
             created_by=self.request.user,
+        )
+
+    @extend_schema(
+        tags=["Dealers"],
+        summary="Hồ sơ đại lý hiện tại",
+        description="Dealer lấy hồ sơ của mình kèm `documents[]` và `products[]`.",
+        responses={200: DealerProfileDetailSerializer},
+    )
+    @action(detail=False, methods=["get"], url_path="me")
+    def me(self, request):
+        try:
+            dealer = self.get_queryset().get(account=request.user)
+        except DealerProfile.DoesNotExist as exc:
+            raise ValidationError({"detail": "Tài khoản đại lý chưa có hồ sơ."}) from exc
+
+        return Response(
+            DealerProfileDetailSerializer(dealer, context={"request": request}).data
         )
 
     @extend_schema(

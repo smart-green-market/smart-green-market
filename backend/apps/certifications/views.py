@@ -10,6 +10,7 @@ from rest_framework.response import Response
 from common.notification_messages import admin_new_certification, certification_reviewed
 from common.notifications import notify_account, notify_admins
 from common.openapi import PAGINATION_QUERY_HELP, paginated_response_schema
+from common.openapi_files import MULTIPART_FILE_UPLOAD_NOTE, multipart_request
 from common.verify_openapi import (
     CERT_REVOKE,
     CERT_VERIFY_APPROVE,
@@ -66,26 +67,26 @@ from .serializers import (
         tags=["Certifications"],
         summary="Đăng ký chứng nhận mới (upload nhiều ảnh scan)",
         description=(
+            f"{MULTIPART_FILE_UPLOAD_NOTE}\n\n"
             "Supplier/Dealer đăng ký chứng nhận — `supplier` tự gắn theo JWT.\n"
-            "Chọn ảnh scan trên Swagger (multipart/form-data, field `images`).\n"
-            "Có thể chọn nhiều file cùng lúc.\n"
+            "Field `images` — chọn một hoặc nhiều file scan.\n"
             f"Tối đa 5 ảnh/chứng nhận, 5MB/ảnh"
         ),
-        request={"multipart/form-data": CertificationCreateForm},
+        request=multipart_request(CertificationCreateForm),
         responses={201: CertificationSerializer},
     ),
     update=extend_schema(
         tags=["Certifications"],
         summary="Cập nhật thông tin chứng nhận",
         description="Chỉ cập nhật metadata. Ảnh scan quản lý qua `/api/certification-images/`.",
-        request={"multipart/form-data": CertificationUpdateForm},
+        request=multipart_request(CertificationUpdateForm),
         responses={200: CertificationSerializer},
     ),
     partial_update=extend_schema(
         tags=["Certifications"],
         summary="Cập nhật một phần thông tin chứng nhận",
         description="Chỉ cập nhật metadata. Ảnh scan quản lý qua `/api/certification-images/`.",
-        request={"multipart/form-data": CertificationUpdateForm},
+        request=multipart_request(CertificationUpdateForm),
         responses={200: CertificationSerializer},
     ),
     destroy=extend_schema(tags=["Certifications"], summary="Xóa chứng nhận"),
@@ -315,22 +316,22 @@ class CertificationViewSet(viewsets.ModelViewSet):
         tags=["Certification Images"],
         summary="Upload ảnh chứng nhận (1 hoặc nhiều ảnh)",
         description=(
-            "Thêm ảnh scan cho chứng nhận đã tạo (multipart/form-data, field `images`).\n"
-            "Có thể chọn nhiều file cùng lúc."
+            f"{MULTIPART_FILE_UPLOAD_NOTE}\n\n"
+            "Thêm ảnh scan cho chứng nhận đã tạo — field `images`, chọn một hoặc nhiều file."
         ),
-        request={"multipart/form-data": CertificationImageBulkUploadForm},
+        request=multipart_request(CertificationImageBulkUploadForm),
         responses={201: CertificationImageSerializer(many=True)},
     ),
     update=extend_schema(
         tags=["Certification Images"],
         summary="Thay ảnh chứng nhận",
-        request={"multipart/form-data": CertificationImageReplaceForm},
+        request=multipart_request(CertificationImageReplaceForm),
         responses={200: CertificationImageSerializer},
     ),
     partial_update=extend_schema(
         tags=["Certification Images"],
         summary="Cập nhật một phần (ảnh / thứ tự)",
-        request={"multipart/form-data": CertificationImageReplaceForm},
+        request=multipart_request(CertificationImageReplaceForm),
         responses={200: CertificationImageSerializer},
     ),
     destroy=extend_schema(tags=["Certification Images"], summary="Xóa ảnh"),

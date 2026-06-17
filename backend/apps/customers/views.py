@@ -3,14 +3,20 @@
 from drf_spectacular.utils import extend_schema, extend_schema_view
 from rest_framework import viewsets
 from rest_framework.exceptions import PermissionDenied, ValidationError
+from rest_framework.parsers import FormParser, JSONParser, MultiPartParser
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
 from apps.accounts.models import AccountRole
 from common.openapi import PAGINATION_QUERY_HELP, paginated_response_schema
+from common.openapi_files import multipart_request
 from common.permission import IsAdmin, IsAdminOrDealer
 
 from .models import CustomerAddress, CustomerProfile
+from .openapi import (
+    STOREFRONT_PROFILE_UPDATE_HELP,
+    StorefrontCustomerProfileUpdateForm,
+)
 from .permissions import IsStorefrontCustomer
 from .serializers import (
     CustomerAddressSerializer,
@@ -84,31 +90,51 @@ class DealerCustomerViewSet(viewsets.ModelViewSet):
 
 
 @extend_schema_view(
-    retrieve=extend_schema(tags=["Storefront Customer"], summary="Hồ sơ buyer hiện tại"),
+    retrieve=extend_schema(
+        tags=["Storefront Customer"],
+        summary="Hồ sơ buyer hiện tại",
+        description=(
+            "Trả hồ sơ buyer kèm `user.avatar_url` (URL đọc-only, có `?v=` chống cache).\n\n"
+            "Cập nhật: `PATCH /api/storefronts/{dealer_slug}/me/` (multipart, chọn file avatar)."
+        ),
+        responses={200: CustomerProfileSerializer},
+    ),
     partial_update=extend_schema(
         tags=["Storefront Customer"],
         summary="Cập nhật hồ sơ buyer",
-        request=CustomerProfileUpdateSerializer,
+        description=STOREFRONT_PROFILE_UPDATE_HELP,
+        request=multipart_request(StorefrontCustomerProfileUpdateForm),
         responses={200: CustomerProfileSerializer},
     ),
-    update=extend_schema(tags=["Storefront Customer"], summary="Cập nhật hồ sơ buyer"),
+    update=extend_schema(
+        tags=["Storefront Customer"],
+        summary="Cập nhật hồ sơ buyer",
+        description=STOREFRONT_PROFILE_UPDATE_HELP,
+        request=multipart_request(StorefrontCustomerProfileUpdateForm),
+        responses={200: CustomerProfileSerializer},
+    ),
 )
 class StorefrontCustomerProfileViewSet(viewsets.GenericViewSet):
     """Buyer xem/cập nhật hồ sơ tại gian hàng đang đăng nhập."""
 
     permission_classes = [IsStorefrontCustomer]
     serializer_class = CustomerProfileSerializer
+    parser_classes = [JSONParser, MultiPartParser, FormParser]
 
     def get_queryset(self):
         return _customer_profile_queryset().filter(user=self.request.user)
 
     def get_object(self):
-        return self.request.user.customer_profile
+        return self.get_queryset().get(user=self.request.user)
+
+    def _serialize_profile(self, profile, request):
+        profile = self.get_queryset().get(pk=profile.pk)
+        return CustomerProfileSerializer(profile, context={"request": request}).data
 
     @extend_schema(tags=["Storefront Customer"], summary="Hồ sơ buyer hiện tại")
     def retrieve(self, request, *args, **kwargs):
         profile = self.get_object()
-        return Response(CustomerProfileSerializer(profile, context={"request": request}).data)
+        return Response(self._serialize_profile(profile, request))
 
     def partial_update(self, request, *args, **kwargs):
         profile = self.get_object()
@@ -118,8 +144,8 @@ class StorefrontCustomerProfileViewSet(viewsets.GenericViewSet):
             partial=True,
         )
         serializer.is_valid(raise_exception=True)
-        serializer.save()
-        return Response(CustomerProfileSerializer(profile, context={"request": request}).data)
+        profile = serializer.save()
+        return Response(self._serialize_profile(profile, request))
 
     def update(self, request, *args, **kwargs):
         return self.partial_update(request, *args, **kwargs)
@@ -159,3 +185,16 @@ class StorefrontCustomerAddressViewSet(viewsets.ModelViewSet):
         except CustomerProfile.DoesNotExist as exc:
             raise ValidationError({"detail": "Chưa có hồ sơ khách hàng."}) from exc
         serializer.save(customer=profile)
+
+    def update(self, request, *args, **kwargs):
+        partial = kwargs.pop("partial", False)
+        instance = self.get_object()
+        serializer = self.get_serializer(instance, data=request.data, partial=partial)
+        serializer.is_valid(raise_exception=True)
+        self.perform_update(serializer)
+        instance = self.get_queryset().get(pk=instance.pk)
+        return Response(self.get_serializer(instance).data)
+
+    def partial_update(self, request, *args, **kwargs):
+        kwargs["partial"] = True
+        return self.update(request, *args, **kwargs)

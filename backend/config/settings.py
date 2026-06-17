@@ -261,7 +261,7 @@ SPECTACULAR_SETTINGS = {
             "name": "Auth",
             "description": (
                 "Đăng ký, đăng nhập, quản lý JWT và thông tin cá nhân (supplier/dealer/admin). "
-                "Upload avatar qua `POST /api/profile/avatar/` (multipart/form-data). "
+                "Upload avatar: `POST /api/profile/avatar/` — multipart, chọn file `avatar`. "
                 "Endpoint register trả token ngay — không cần login riêng cho onboarding."
             ),
         },
@@ -281,7 +281,7 @@ SPECTACULAR_SETTINGS = {
             "description": (
                 "Upload & quản lý giấy tờ tài khoản supplier/dealer "
                 "(giấy phép KD, CMND, giấy thuế). "
-                "Upload dạng multipart/form-data qua `POST /api/account-documents/bulk-upload/`. "
+                "Swagger: multipart — chọn file cho từng loại giấy tờ. "
                 "Mỗi loại giấy tờ chỉ 1 file/tài khoản."
             ),
         },
@@ -302,7 +302,11 @@ SPECTACULAR_SETTINGS = {
         },
         {
             "name": "Storefront Customer",
-            "description": "Buyer xem và cập nhật hồ sơ tại gian hàng đang đăng nhập.",
+            "description": (
+                "Buyer xem/cập nhật hồ sơ tại gian hàng đang đăng nhập. "
+                "`PATCH .../me/` — multipart: chọn file `avatar`, cập nhật `full_name`, `phone`, "
+                "`favorite_category`. Response trả `user.avatar_url` (read-only)."
+            ),
         },
         {
             "name": "Storefront Addresses",
@@ -312,8 +316,8 @@ SPECTACULAR_SETTINGS = {
         {
             "name": "Suppliers",
             "description": (
-                "Quản lý hồ sơ nhà cung cấp. Supplier tạo profile sau khi đăng ký. "
-                "Admin duyệt qua action `verify`. "
+                "Quản lý hồ sơ nhà cung cấp. Supplier tạo/cập nhật profile sau đăng ký "
+                "(multipart — chọn file `logo`). Admin duyệt qua action `verify`. "
                 "**Dealer:** `GET /api/suppliers/` (catalog NCC) → "
                 "`GET /api/suppliers/{id}/products/` (chọn SP đặt hàng)."
             ),
@@ -352,8 +356,8 @@ SPECTACULAR_SETTINGS = {
         {
             "name": "Dealers",
             "description": (
-                "Quản lý hồ sơ đại lý. Dealer tạo profile sau đăng ký. "
-                "Admin duyệt qua `POST /api/dealers/{id}/verify/`. "
+                "Quản lý hồ sơ đại lý. Dealer tạo/cập nhật profile sau đăng ký "
+                "(multipart — chọn file `logo`). Admin duyệt qua `POST /api/dealers/{id}/verify/`. "
                 "Link gian hàng: `GET /api/dealers/me/storefront-link/`."
             ),
         },

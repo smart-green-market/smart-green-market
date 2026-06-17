@@ -10,6 +10,7 @@ from rest_framework.response import Response
 
 from common.notifications import notify_account, notify_admins
 from common.openapi import PAGINATION_QUERY_HELP, paginated_response_schema
+from common.openapi_files import MULTIPART_FILE_UPLOAD_NOTE, multipart_request
 from common.verify_openapi import (
     SUPPLIER_PRODUCT_VERIFY_APPROVE,
     SUPPLIER_PRODUCT_VERIFY_REJECT,
@@ -212,26 +213,25 @@ class SupplierProductViewSet(viewsets.ModelViewSet):
         tags=["Supplier Product Images"],
         summary="Upload ảnh sản phẩm",
         description=(
-            "Chọn ảnh trên Swagger (multipart/form-data, field `images`).\n"
-            "Có thể chọn nhiều file cùng lúc.\n"
-            "- `is_thumbnail=true`: ảnh đầu tiên làm ảnh đại diện\n"
-            f"- Định dạng: jpg, jpeg, png, webp, gif, bmp, tif, avif, heic... — tối đa 5MB/ảnh"
+            f"{MULTIPART_FILE_UPLOAD_NOTE}\n\n"
+            "Field `images` — chọn một hoặc nhiều file.\n"
+            "- `is_thumbnail=true`: ảnh đầu tiên làm ảnh đại diện"
         ),
-        request={"multipart/form-data": SupplierProductImageBulkUploadForm},
+        request=multipart_request(SupplierProductImageBulkUploadForm),
         responses={201: SupplierProductImageSerializer(many=True)},
     ),
     update=extend_schema(
         tags=["Supplier Product Images"],
         summary="Thay ảnh sản phẩm",
-        description="Chọn ảnh mới qua field `image_url` (multipart/form-data).",
-        request={"multipart/form-data": SupplierProductImageReplaceForm},
+        description=f"{MULTIPART_FILE_UPLOAD_NOTE}\n\nChọn file ảnh mới qua field `image_url`.",
+        request=multipart_request(SupplierProductImageReplaceForm),
         responses={200: SupplierProductImageSerializer},
     ),
     partial_update=extend_schema(
         tags=["Supplier Product Images"],
         summary="Cập nhật một phần (ảnh / thumbnail / thứ tự)",
-        description="Có thể upload ảnh mới qua field `image_url` (multipart/form-data).",
-        request={"multipart/form-data": SupplierProductImageReplaceForm},
+        description=f"{MULTIPART_FILE_UPLOAD_NOTE}\n\nCó thể chọn file mới qua field `image_url`.",
+        request=multipart_request(SupplierProductImageReplaceForm),
         responses={200: SupplierProductImageSerializer},
     ),
     destroy=extend_schema(tags=["Supplier Product Images"], summary="Xóa ảnh"),

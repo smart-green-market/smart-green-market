@@ -1,6 +1,76 @@
 """Mô tả và ví dụ Swagger cho API nhà cung cấp."""
 
-from drf_spectacular.utils import OpenApiExample
+from drf_spectacular.utils import OpenApiExample, inline_serializer
+from rest_framework import serializers
+
+from common.openapi_files import LOGO_FILE_HELP, MULTIPART_FILE_UPLOAD_NOTE
+
+SUPPLIER_PROFILE_WRITE_HELP = (
+    f"{MULTIPART_FILE_UPLOAD_NOTE}\n\n"
+    "Gửi thông tin công ty; `logo` là file ảnh (tùy chọn)."
+)
+
+SupplierProfileCreateForm = inline_serializer(
+    name="SupplierProfileCreateForm",
+    fields={
+        "company_name": serializers.CharField(help_text="Tên công ty / hộ kinh doanh"),
+        "tax_code": serializers.CharField(help_text="Mã số thuế"),
+        "phone": serializers.CharField(help_text="Số điện thoại liên hệ"),
+        "address": serializers.CharField(help_text="Địa chỉ trụ sở"),
+        "description": serializers.CharField(
+            required=False,
+            allow_blank=True,
+            help_text="Mô tả ngắn",
+        ),
+        "bank_name": serializers.CharField(
+            required=False,
+            allow_blank=True,
+            help_text="Tên ngân hàng (khớp `GET /api/banks/`)",
+        ),
+        "bank_bin": serializers.CharField(
+            required=False,
+            allow_blank=True,
+            help_text="Mã BIN ngân hàng Napas",
+        ),
+        "account_number": serializers.CharField(
+            required=False,
+            allow_blank=True,
+            help_text="Số tài khoản nhận tiền",
+        ),
+        "account_name": serializers.CharField(
+            required=False,
+            allow_blank=True,
+            help_text="Tên chủ tài khoản (khuyến nghị viết hoa, không dấu)",
+        ),
+        "logo": serializers.FileField(
+            required=False,
+            help_text=LOGO_FILE_HELP,
+        ),
+    },
+)
+
+SupplierProfileUpdateForm = inline_serializer(
+    name="SupplierProfileUpdateForm",
+    fields={
+        "company_name": serializers.CharField(required=False, help_text="Tên công ty"),
+        "tax_code": serializers.CharField(required=False, help_text="Mã số thuế"),
+        "phone": serializers.CharField(required=False, help_text="Số điện thoại"),
+        "address": serializers.CharField(required=False, help_text="Địa chỉ"),
+        "description": serializers.CharField(
+            required=False,
+            allow_blank=True,
+            help_text="Mô tả ngắn",
+        ),
+        "bank_name": serializers.CharField(required=False, allow_blank=True),
+        "bank_bin": serializers.CharField(required=False, allow_blank=True),
+        "account_number": serializers.CharField(required=False, allow_blank=True),
+        "account_name": serializers.CharField(required=False, allow_blank=True),
+        "logo": serializers.FileField(
+            required=False,
+            help_text=LOGO_FILE_HELP,
+        ),
+    },
+)
 
 SUPPLIER_PRODUCTS_CATALOG_HELP = (
     "\n\n**Điều kiện (Dealer):**\n"

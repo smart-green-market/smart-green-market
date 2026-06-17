@@ -255,11 +255,5 @@ SystemConfigResponseSerializer = inline_serializer(
 )
 
 
-AvatarUploadForm = inline_serializer(
-    name="AvatarUploadForm",
-    fields={
-        "avatar": serializers.FileField(
-            help_text="Ảnh đại diện (jpg, png, webp — tối đa 5MB)",
-        ),
-    },
-)
+
+from common.openapi_files import AvatarUploadForm  # noqa: F401 — re-export

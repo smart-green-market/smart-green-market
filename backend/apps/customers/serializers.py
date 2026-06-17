@@ -5,8 +5,9 @@ from drf_spectacular.utils import extend_schema_field
 from rest_framework import serializers
 
 from apps.accounts.models import AccountRole, AccountStatus
-from common.avatar import build_avatar_url
+from common.avatar import build_avatar_url, save_account_avatar
 from common.openapi_enums import schema_choice_field
+from common.validators import validate_image_upload
 
 from .models import CustomerAddress, CustomerProfile
 
@@ -81,11 +82,40 @@ class CustomerProfileSerializer(serializers.ModelSerializer):
 
 
 class CustomerProfileUpdateSerializer(serializers.ModelSerializer):
-    """Buyer cập nhật sở thích; đại lý cập nhật note qua serializer riêng."""
+    """Buyer cập nhật sở thích, thông tin liên hệ và avatar trên gian hàng."""
+
+    full_name = serializers.CharField(required=False, allow_blank=True, max_length=255)
+    phone = serializers.CharField(required=False, allow_blank=True, max_length=20)
+    avatar = serializers.FileField(required=False, write_only=True)
 
     class Meta:
         model = CustomerProfile
-        fields = ["favorite_category"]
+        fields = ["favorite_category", "full_name", "phone", "avatar"]
+
+    def validate_avatar(self, file):
+        validate_image_upload(file)
+        return file
+
+    def update(self, instance, validated_data):
+        avatar = validated_data.pop("avatar", None)
+        user_fields = {}
+        if "full_name" in validated_data:
+            user_fields["full_name"] = validated_data.pop("full_name")
+        if "phone" in validated_data:
+            user_fields["phone"] = validated_data.pop("phone")
+
+        instance = super().update(instance, validated_data)
+
+        if user_fields:
+            user = instance.user
+            for field, value in user_fields.items():
+                setattr(user, field, value)
+            user.save(update_fields=[*user_fields.keys(), "updated_at"])
+
+        if avatar is not None:
+            save_account_avatar(instance.user, avatar)
+
+        return instance
 
 
 class CustomerAddressSerializer(serializers.ModelSerializer):
