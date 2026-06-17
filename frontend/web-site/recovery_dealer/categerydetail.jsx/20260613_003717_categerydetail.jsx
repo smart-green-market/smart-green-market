@@ -1,45 +1,9 @@
+import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { ArrowLeft } from "lucide-react";
-import CategoryInfoCard from "../../components/Dealer/Category/CategoryInfoCard";
-import CategoryProductList from "../../components/Dealer/Category/CategoryProductList";
-
-const MOCK_CATEGORIES = [
-  {
-    name: "Rau lá xanh",
-    code: "CAT-RLX",
-    description: "Các loại rau ăn lá như cải thìa, cải ngọt, xà lách, rau muống hữu cơ.",
-    count: "18 sản phẩm",
-    status: "Đang kinh doanh"
-  },
-  {
-    name: "Quả hữu cơ",
-    code: "CAT-QHC",
-    description: "Cà chua bi, ớt chuông, dưa leo Baby, bí ngòi được trồng tự nhiên.",
-    count: "12 sản phẩm",
-    status: "Đang kinh doanh"
-  },
-  {
-    name: "Củ & Thân",
-    code: "CAT-CT",
-    description: "Khoai tây, cà rốt Đà Lạt, củ cải đường, khoai lang mật sạch.",
-    count: "15 sản phẩm",
-    status: "Đang kinh doanh"
-  },
-  {
-    name: "Nấm & Thảo mộc",
-    code: "CAT-NTM",
-    description: "Nấm đùi gà, nấm rơm, nấm kim châm, hành lá, ngò rí tươi.",
-    count: "8 sản phẩm",
-    status: "Đang kinh doanh"
-  },
-  {
-    name: "Trái cây sạch",
-    code: "CAT-TCS",
-    description: "Dâu tây Đà Lạt, táo mật sạch nhập vườn, bơ sáp Đắk Lắk.",
-    count: "10 sản phẩm",
-    status: "Tạm ngưng"
-  }
-];
+import CategoryInfoCard from "../../../components/Dealer/Category/CategoryInfoCard";
+import CategoryProductList from "../../../components/Dealer/Category/CategoryProductList";
+import { categoryService, handleApiError } from "../../../services/api/categoryService";
 
 const ALL_PRODUCTS = [
   {
@@ -207,12 +171,55 @@ const ALL_PRODUCTS = [
 export default function DealerCategoryDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
+  const [category, setCategory] = useState(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState(null);
 
-  // Tìm danh mục phù hợp theo code (string) hoặc vị trí index (number)
-  const categoryIndex = (parseInt(id) - 1) % MOCK_CATEGORIES.length;
-  const category = isNaN(categoryIndex) || categoryIndex < 0 
-    ? MOCK_CATEGORIES.find(c => c.code === id) || MOCK_CATEGORIES[0]
-    : MOCK_CATEGORIES[categoryIndex];
+  useEffect(() => {
+    const fetchCategoryDetail = async () => {
+      setIsLoading(true);
+      try {
+        const data = await categoryService.getById(id);
+        setCategory({
+          ...data,
+          code: data.code || `CAT-${data.id}`,
+          status: data.status === "active" ? "Đang kinh doanh" : "Tạm ngưng"
+        });
+      } catch (err) {
+        setError(handleApiError(err, "Không thể tải chi tiết danh mục"));
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    
+    if (id) fetchCategoryDetail();
+  }, [id]);
+
+  if (isLoading) {
+    return (
+      <div className="p-6 bg-emerald-50/15 min-h-screen font-['Geist',sans-serif] flex justify-center items-center">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-emerald-600"></div>
+      </div>
+    );
+  }
+
+  if (error || !category) {
+    return (
+      <div className="p-6 bg-emerald-50/15 min-h-screen font-['Geist',sans-serif]">
+        <div className="mb-6">
+          <button
+            onClick={() => navigate("/dai-ly/danh-muc")}
+            className="flex items-center gap-2 text-xs font-bold text-emerald-700 hover:text-emerald-800 transition-all w-fit cursor-pointer"
+          >
+            <ArrowLeft className="w-4 h-4" /> Quay lại danh mục
+          </button>
+        </div>
+        <div className="p-4 bg-red-50 text-red-700 rounded-xl border border-red-100">
+          {error || "Danh mục không tồn tại"}
+        </div>
+      </div>
+    );
+  }
 
   // Lọc sản phẩm thuộc danh mục này
   const categoryProducts = ALL_PRODUCTS.filter(
