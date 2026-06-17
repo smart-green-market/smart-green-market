@@ -1,5 +1,6 @@
 import { Link } from "react-router-dom";
 import { Heart } from "lucide-react";
+import { useStorefrontPaths } from "../../../hooks/useStorefrontPaths";
 import {
     formatProductPrice,
     formatUnitLabel,
@@ -7,9 +8,11 @@ import {
 } from "../../../utils/userProductUtils";
 
 function RelatedProductCard({ product }) {
+    const paths = useStorefrontPaths();
+
     return (
         <Link
-            to={`/san-pham/${product.id}`}
+            to={paths.product(product.id)}
             className="group flex flex-col gap-4 no-underline"
         >
             <div className="relative overflow-hidden rounded-2xl bg-zinc-100 shadow-sm">

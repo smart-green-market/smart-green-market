@@ -6,24 +6,11 @@ import {
     ChevronRight,
     Loader2,
 } from "lucide-react";
-import { categoryService } from "../../../services/api/categoryService";
-import { useDealerProducts } from "../../../hooks/useDealerProducts";
-import { normalizeUnitKey, toCardProduct } from "../../../utils/userProductUtils";
+import { useBuyerCatalog } from "../../../hooks/useBuyerCatalog";
+import { buildUnitFilterOptions, toCardProduct } from "../../../utils/userProductUtils";
 import FilterProductCard from "./FilterProductCard";
 
 const PAGE_SIZE = 8;
-
-const FALLBACK_CATEGORIES = [
-    { id: 1, name: "Rau củ" },
-    { id: 2, name: "Trái cây" },
-    { id: 3, name: "Củ quả" },
-];
-
-const UNITS = [
-    { value: "kg", label: "/kg" },
-    { value: "bo", label: "/bó" },
-    { value: "cay", label: "/cây" },
-];
 
 function FilterSection({ title, children }) {
     return (
@@ -59,47 +46,40 @@ function parseInputPrice(value) {
 }
 
 export default function FilterProduct() {
-    const { products: dealerProducts, loading: loadingProducts } = useDealerProducts();
-    const catalog = useMemo(() => dealerProducts.map(toCardProduct), [dealerProducts]);
+    const { categories, products, loading, error } = useBuyerCatalog();
+    const catalog = useMemo(() => products.map(toCardProduct), [products]);
 
-    const [categories, setCategories] = useState([]);
-    const [loadingCategories, setLoadingCategories] = useState(true);
-
-    const [draftCategories, setDraftCategories] = useState([]);
-    const [draftUnits, setDraftUnits] = useState([]);
+    const [selectedCategories, setSelectedCategories] = useState([]);
+    const [selectedUnits, setSelectedUnits] = useState([]);
     const [draftMinPrice, setDraftMinPrice] = useState("");
     const [draftMaxPrice, setDraftMaxPrice] = useState("");
 
-    const [appliedCategories, setAppliedCategories] = useState([]);
-    const [appliedUnits, setAppliedUnits] = useState([]);
     const [appliedMinPrice, setAppliedMinPrice] = useState(null);
     const [appliedMaxPrice, setAppliedMaxPrice] = useState(null);
 
     const [page, setPage] = useState(1);
 
-    useEffect(() => {
-        categoryService
-            .getAll()
-            .then((data) => setCategories(Array.isArray(data) ? data : []))
-            .catch((err) => console.error("Fetch categories failed:", err))
-            .finally(() => setLoadingCategories(false));
-    }, []);
+    const availableUnits = useMemo(
+        () => buildUnitFilterOptions(products),
+        [products],
+    );
 
-    const toggleDraftCategory = (id) => {
-        setDraftCategories((prev) =>
-            prev.includes(id) ? prev.filter((item) => item !== id) : [...prev, id],
+    const toggleCategory = (id) => {
+        const key = String(id);
+        setSelectedCategories((prev) =>
+            prev.includes(key) ? prev.filter((item) => item !== key) : [...prev, key],
         );
+        setPage(1);
     };
 
-    const toggleDraftUnit = (unit) => {
-        setDraftUnits((prev) =>
+    const toggleUnit = (unit) => {
+        setSelectedUnits((prev) =>
             prev.includes(unit) ? prev.filter((item) => item !== unit) : [...prev, unit],
         );
+        setPage(1);
     };
 
     const handleApplyFilter = () => {
-        setAppliedCategories(draftCategories);
-        setAppliedUnits(draftUnits);
         setAppliedMinPrice(parseInputPrice(draftMinPrice));
         setAppliedMaxPrice(parseInputPrice(draftMaxPrice));
         setPage(1);
@@ -107,13 +87,19 @@ export default function FilterProduct() {
 
     const filteredProducts = useMemo(() => {
         return catalog.filter((product) => {
+            const productCategoryId =
+                product.category_id != null ? String(product.category_id) : "";
+
             const matchCategory =
-                appliedCategories.length === 0 ||
-                appliedCategories.includes(String(product.category_id));
+                selectedCategories.length === 0 ||
+                (productCategoryId !== "" &&
+                    selectedCategories.includes(productCategoryId));
 
             const matchUnit =
-                appliedUnits.length === 0 ||
-                appliedUnits.includes(product.unitKey ?? normalizeUnitKey(product.unit));
+                selectedUnits.length === 0 ||
+                selectedUnits.includes(
+                    product.unitFilterKey ?? product.unitKey ?? "",
+                );
 
             const matchMin =
                 appliedMinPrice == null || product.priceValue >= appliedMinPrice;
@@ -123,7 +109,7 @@ export default function FilterProduct() {
 
             return matchCategory && matchUnit && matchMin && matchMax;
         });
-    }, [catalog, appliedCategories, appliedUnits, appliedMinPrice, appliedMaxPrice]);
+    }, [catalog, selectedCategories, selectedUnits, appliedMinPrice, appliedMaxPrice]);
 
     const totalPages = Math.max(1, Math.ceil(filteredProducts.length / PAGE_SIZE));
 
@@ -141,12 +127,18 @@ export default function FilterProduct() {
     );
 
     return (
-        <section className="mx-auto w-full max-w-[1280px] px-10 pt-12 pb-4">
+        <section id="kham-pha" className="mx-auto w-full max-w-[1280px] px-10 pt-12 pb-4">
             <div className="mb-8">
                 <h2 className="font-playfair text-2xl font-bold text-emerald-950">
                     Khám phá sản phẩm
                 </h2>
             </div>
+
+            {error ? (
+                <div className="mb-6 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+                    {error}
+                </div>
+            ) : null}
 
             <div className="flex flex-col gap-6 lg:flex-row lg:items-start">
                 <aside className="w-full shrink-0 rounded-lg border border-stone-200 bg-white shadow-sm lg:w-[280px]">
@@ -157,7 +149,7 @@ export default function FilterProduct() {
                     <div className="px-5">
                         <FilterSection title="Danh mục">
                             <div className="flex flex-wrap gap-2">
-                                {loadingCategories ? (
+                                {loading ? (
                                     <span className="text-xs text-neutral-400">
                                         Đang tải...
                                     </span>
@@ -165,45 +157,55 @@ export default function FilterProduct() {
                                     visibleCategories.map((category) => (
                                         <TagButton
                                             key={category.id}
-                                            active={draftCategories.includes(
+                                            active={selectedCategories.includes(
                                                 String(category.id),
                                             )}
                                             onClick={() =>
-                                                toggleDraftCategory(String(category.id))
+                                                toggleCategory(String(category.id))
                                             }
                                         >
                                             {category.name}
+                                            {category.product_count != null ? (
+                                                <span className="ml-1 opacity-70">
+                                                    ({category.product_count})
+                                                </span>
+                                            ) : null}
                                         </TagButton>
                                     ))
                                 ) : (
-                                    FALLBACK_CATEGORIES.map((category) => (
-                                        <TagButton
-                                            key={category.id}
-                                            active={draftCategories.includes(
-                                                String(category.id),
-                                            )}
-                                            onClick={() =>
-                                                toggleDraftCategory(String(category.id))
-                                            }
-                                        >
-                                            {category.name}
-                                        </TagButton>
-                                    ))
+                                    <span className="text-xs text-neutral-400">
+                                        Chưa có danh mục
+                                    </span>
                                 )}
                             </div>
                         </FilterSection>
 
                         <FilterSection title="Đơn vị tính">
                             <div className="flex flex-wrap gap-2">
-                                {UNITS.map((unit) => (
-                                    <TagButton
-                                        key={unit.value}
-                                        active={draftUnits.includes(unit.value)}
-                                        onClick={() => toggleDraftUnit(unit.value)}
-                                    >
-                                        {unit.label}
-                                    </TagButton>
-                                ))}
+                                {loading ? (
+                                    <span className="text-xs text-neutral-400">
+                                        Đang tải...
+                                    </span>
+                                ) : availableUnits.length > 0 ? (
+                                    availableUnits.map((unit) => (
+                                        <TagButton
+                                            key={unit.value}
+                                            active={selectedUnits.includes(unit.value)}
+                                            onClick={() => toggleUnit(unit.value)}
+                                        >
+                                            {unit.label}
+                                            {unit.count != null ? (
+                                                <span className="ml-1 opacity-70">
+                                                    ({unit.count})
+                                                </span>
+                                            ) : null}
+                                        </TagButton>
+                                    ))
+                                ) : (
+                                    <span className="text-xs text-neutral-400">
+                                        Chưa có dữ liệu
+                                    </span>
+                                )}
                             </div>
                         </FilterSection>
 
@@ -242,7 +244,7 @@ export default function FilterProduct() {
                 </aside>
 
                 <div className="min-w-0 flex-1">
-                    {loadingProducts ? (
+                    {loading ? (
                         <div className="flex h-48 items-center justify-center rounded-lg border border-stone-200 bg-white">
                             <Loader2 className="h-7 w-7 animate-spin text-emerald-700" />
                         </div>
@@ -260,7 +262,8 @@ export default function FilterProduct() {
                                     name={product.name}
                                     price={product.price}
                                     rating={product.rating}
-                                    sold={product.sold}
+                                    sold={product.available_quantity}
+                                    inStock={product.in_stock}
                                     image={product.image}
                                 />
                             ))}

@@ -69,6 +69,15 @@ export default function ProductDetailSpecs({ product }) {
                         value={`${formatProductPrice(getProductPrice(product))}${formatUnitLabel(product.unit)}`}
                         highlight
                     />
+                    <SpecRow label="Nhà cung cấp gốc" value={product.supplier_name} />
+                    <SpecRow
+                        label="Tồn kho"
+                        value={
+                            product.available_quantity != null
+                                ? `${product.available_quantity} ${product.unit || ""}`.trim()
+                                : null
+                        }
+                    />
                     <SpecRow
                         label="Nguồn hàng gốc"
                         value={product.supplier_product_name}

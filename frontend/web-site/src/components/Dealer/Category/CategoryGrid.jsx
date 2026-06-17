@@ -1,6 +1,7 @@
 import { BookOpen, Layers, Trash2, Edit } from "lucide-react";
 
 export default function CategoryGrid({ categories, onViewDetail, onDelete, onUpdate }) {
+
   if (categories.length === 0) {
     return (
       <div className="col-span-full py-16 bg-white border border-neutral-150 rounded-2xl text-center text-sm font-semibold text-neutral-400 font-['Geist',sans-serif]">

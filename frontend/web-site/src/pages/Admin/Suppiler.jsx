@@ -5,7 +5,7 @@ import {
     useState,
 } from "react";
 
-import SearchBar from "../../components/Admin/UI/SearchBar";
+import Toolbar from "../../components/Admin/UI/Toolbar";
 import { AdminInitialLoadGate } from "../../components/Admin/UI/AdminFetchState";
 
 import Filter from "../../components/Admin/Suppiler/SuppilerFilter";
@@ -285,26 +285,17 @@ const handleReject = async (supplier, rejectionReason) => {
             loadingMessage="Đang tải danh sách nhà cung cấp..."
         >
         <div className="flex flex-col gap-6 px-8 pt-6 pb-10">
-            {/* SEARCH */}
-            <SearchBar
-                value={search}
-                onChange={setSearch}
-                placeholder="Tìm kiếm nhà cung cấp..."
+            <Toolbar
+                search={search}
+                onSearch={setSearch}
+                searchPlaceholder="Tìm kiếm nhà cung cấp..."
+                filter={
+                    <Filter
+                        value={statusFilter}
+                        onChange={setStatusFilter}
+                    />
+                }
             />
-
-            {/* FILTER */}
-            <div className="flex items-center gap-3">
-                <span className="text-xs font-semibold uppercase tracking-wide text-neutral-500">
-                    Lọc:
-                </span>
-
-                <Filter
-                    value={statusFilter}
-                    onChange={
-                        setStatusFilter
-                    }
-                />
-            </div>
 
             {/* ERROR */}
             {error && (

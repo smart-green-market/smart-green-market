@@ -51,6 +51,9 @@ export default function DealerPurchaseOrderDetailPage() {
         deliveryDate: data.requested_delivery_time
           ? new Date(data.requested_delivery_time).toLocaleDateString("vi-VN")
           : "Chưa xác định",
+        completedAt: data.completed_at 
+          ? new Date(data.completed_at).toLocaleString("vi-VN") 
+          : null,
         status: mapStatusToFrontend(data.status),
         rawStatus: data.status,
         dealer: {

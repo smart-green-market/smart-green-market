@@ -1,5 +1,6 @@
 import { Link } from "react-router-dom";
 import AddToCartButton from "../Cart/AddToCartButton";
+import { useStorefrontPaths } from "../../../hooks/useStorefrontPaths";
 
 export default function BestSellingProductCard({
     id,
@@ -10,6 +11,7 @@ export default function BestSellingProductCard({
     priceValue = 0,
     unitKey = "kg",
 }) {
+    const paths = useStorefrontPaths();
     const content = (
         <div className="mt-5 mb-5 relative flex w-64 shrink-0 flex-col overflow-hidden rounded-2xl border border-stone-100 bg-white shadow-sm transition-all duration-200 hover:-translate-y-1 hover:shadow-md">
             <span className="absolute left-3 top-3 z-10 rounded-full bg-orange-400 px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-white">
@@ -42,7 +44,7 @@ export default function BestSellingProductCard({
 
     if (id) {
         return (
-            <Link to={`/san-pham/${id}`} className="no-underline">
+            <Link to={paths.product(id)} className="no-underline">
                 {content}
             </Link>
         );

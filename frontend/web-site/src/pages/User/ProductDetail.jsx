@@ -2,10 +2,11 @@ import { useEffect, useMemo, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { ChevronRight, Loader2 } from "lucide-react";
 import {
-    fetchDealerProductById,
-    fetchRelatedDealerProducts,
-} from "../../hooks/useDealerProducts";
-import { handleApiError } from "../../services/api/dealerProductService";
+    fetchBuyerProductById,
+    fetchRelatedBuyerProducts,
+} from "../../hooks/useBuyerCatalog";
+import { useStorefrontPaths } from "../../hooks/useStorefrontPaths";
+import { handleApiError } from "../../services/api/Buyer/buyerCatalogService";
 import ProductDetailGallery from "../../components/User/Product/ProductDetailGallery";
 import ProductDetailPurchase from "../../components/User/Product/ProductDetailPurchase";
 import ProductDetailSpecs from "../../components/User/Product/ProductDetailSpecs";
@@ -14,6 +15,7 @@ import RelatedProducts from "../../components/User/Product/RelatedProducts";
 
 export default function ProductDetailPage() {
     const { id } = useParams();
+    const paths = useStorefrontPaths();
     const [product, setProduct] = useState(null);
     const [related, setRelated] = useState([]);
     const [loading, setLoading] = useState(true);
@@ -26,13 +28,20 @@ export default function ProductDetailPage() {
             setLoading(true);
             setError("");
 
+            if (!paths.slug) {
+                setError("Chưa xác định cửa hàng. Vui lòng truy cập qua link cửa hàng đại lý.");
+                setLoading(false);
+                return;
+            }
+
             try {
-                const detail = await fetchDealerProductById(id);
+                const detail = await fetchBuyerProductById(paths.slug, id);
                 if (cancelled) return;
 
                 setProduct(detail);
 
-                const relatedList = await fetchRelatedDealerProducts(
+                const relatedList = await fetchRelatedBuyerProducts(
+                    paths.slug,
                     detail.id,
                     detail.category_id,
                     4,
@@ -52,16 +61,16 @@ export default function ProductDetailPage() {
         return () => {
             cancelled = true;
         };
-    }, [id]);
+    }, [id, paths.slug]);
 
     const breadcrumb = useMemo(() => {
         if (!product) return [];
         return [
-            { label: "Cửa hàng", to: "/trang-chu" },
-            { label: product.category_name || "Nông sản", to: "/trang-chu" },
+            { label: "Cửa hàng", to: paths.home },
+            { label: product.category_name || "Nông sản", to: paths.home },
             { label: product.name, to: null },
         ];
-    }, [product]);
+    }, [product, paths.home]);
 
     if (loading) {
         return (
@@ -76,7 +85,7 @@ export default function ProductDetailPage() {
             <div className="mx-auto flex min-h-[50vh] max-w-[1280px] flex-col items-center justify-center gap-4 px-10 text-center">
                 <p className="text-neutral-600">{error || "Không tìm thấy sản phẩm."}</p>
                 <Link
-                    to="/trang-chu"
+                    to={paths.home}
                     className="rounded-lg bg-emerald-800 px-5 py-2.5 text-sm font-semibold text-white no-underline hover:bg-emerald-900"
                 >
                     Về cửa hàng
@@ -112,6 +121,7 @@ export default function ProductDetailPage() {
                     images={product.images}
                     name={product.name}
                     status={product.status}
+                    inStock={product.in_stock}
                 />
                 <ProductDetailPurchase
                     product={product}

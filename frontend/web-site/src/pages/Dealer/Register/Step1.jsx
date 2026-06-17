@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import { Link } from "react-router-dom";
 import { accountService } from "../../../services/api/accountService";
 import { authService } from "../../../services/api/authAdminService";
+import { saveAuthTokens } from "../../../services/token/authTokenStorage";
 import { extractApiError } from "../../../utils/extractApiError";
 import {
     attemptResumeDealerRegistration,
@@ -27,7 +28,10 @@ export default function Step1({ onNext }) {
         }));
 
     const saveSession = (loginResult) => {
-        localStorage.setItem("access_token", loginResult.access);
+        saveAuthTokens({
+            access: loginResult.access,
+            refresh: loginResult.refresh,
+        });
         localStorage.setItem("user", JSON.stringify(loginResult.account));
     };
 

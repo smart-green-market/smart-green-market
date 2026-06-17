@@ -6,8 +6,10 @@ import OrderSummary from "../../components/User/Cart/OrderSummary";
 import SuggestedProducts from "../../components/User/Cart/SuggestedProducts";
 import { mockSuggestedProducts } from "../../components/User/Cart/mockData";
 import { useCart } from "../../contexts/cartProvider";
+import { useStorefrontPaths } from "../../hooks/useStorefrontPaths";
 
 export default function CartPage() {
+  const paths = useStorefrontPaths();
   const {
     items: cartItems,
     toggleAll,
@@ -52,7 +54,7 @@ export default function CartPage() {
         <div className="rounded-xl border border-dashed border-stone-300 bg-white px-6 py-16 text-center">
           <p className="text-neutral-600">Giỏ hàng trống.</p>
           <Link
-            to="/trang-chu"
+            to={paths.home}
             className="mt-4 inline-flex items-center gap-2 text-sm font-semibold text-teal-800 no-underline hover:text-teal-900"
           >
             <ArrowLeft className="h-4 w-4" />
@@ -73,7 +75,7 @@ export default function CartPage() {
             />
 
             <Link
-              to="/trang-chu"
+              to={paths.home}
               className="inline-flex items-center gap-2 text-sm font-semibold text-teal-800 no-underline hover:text-teal-900"
             >
               <ArrowLeft className="h-4 w-4" />

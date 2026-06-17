@@ -4,6 +4,13 @@ import Toolbar from "../../components/Admin/UI/Toolbar";
 import Filter from "../../components/Admin/Category/CategoryFilter";
 import CategoryTable from "../../components/Admin/Category/CategoryTable";
 import CategoryViewModal from "../../components/Admin/Category/CategoryViewModal";
+import CategoryFormModal from "../../components/Admin/Category/CategoryFormModal";
+import {
+    buildSystemCategoryPayload,
+    formatCategoryDetail,
+    formatCategoryRow,
+} from "../../components/Admin/Category/categoryHelpers";
+import { appToast } from "../../components/common/toast";
 import { categoryService, handleApiError} from "../../services/api/categoryService";
 
 export default function CategoryPage() {
@@ -16,8 +23,8 @@ export default function CategoryPage() {
     const [statusFilter, setStatusFilter] = useState("pending");
     const [viewRow, setViewRow] = useState(null);
     const [actionLoading, setActionLoading] = useState(false);
+    const [isCreateOpen, setIsCreateOpen] = useState(false);
 
-    // FETCH
     const fetchCategories = useCallback(async ({ initial = false } = {}) => {
         try {
             if (initial) {
@@ -27,33 +34,12 @@ export default function CategoryPage() {
                 setLoading(true);
             }
 
-            const response =
-                await categoryService.getAll();
-
-            const formattedData = response.map(
-                (category) => ({
-                    id: category.id,
-
-                    name: category.name,
-
-                    status:
-                        category.status,
-
-                    created_at:
-                        category.created_at,
-
-                    updated_at:
-                        category.updated_at,
-                })
-            );
-
-            setData(formattedData);
+            const response = await categoryService.getAll();
+            setData(response.map(formatCategoryRow));
         } catch (error) {
-            const message = (
-                handleApiError(
-                    error,
-                    "Không thể tải danh sách danh mục"
-                )
+            const message = handleApiError(
+                error,
+                "Không thể tải danh sách danh mục",
             );
 
             if (initial) {
@@ -61,89 +47,115 @@ export default function CategoryPage() {
             } else {
                 setError(message);
             }
-            } finally {
-                if (initial) {
-                    setIsFetching(false);
-                } else {
-                    setLoading(false);
-                }
+        } finally {
+            if (initial) {
+                setIsFetching(false);
+            } else {
+                setLoading(false);
             }
-        },
-        []
-    );
+        }
+    }, []);
 
-    const handleViewCategory =
-            useCallback(async (row) => {
-                try {
-                    setLoading(true);
-    
-                    const detail =
-                        await categoryService.getById(
-                            row.id
-                        );
-                    const formattedDetail = {
-                        id: detail.id,
-                        
-                        status: detail.status,
+    const handleViewCategory = useCallback(async (row) => {
+        try {
+            setLoading(true);
+            const detail = await categoryService.getById(row.id);
+            setViewRow(formatCategoryDetail(detail));
+        } catch (error) {
+            const message = handleApiError(
+                error,
+                "Không thể tải chi tiết danh mục",
+            );
+            setError(message);
+        } finally {
+            setLoading(false);
+        }
+    }, []);
 
-                        name: detail.name,
-    
-                        description: detail.description,
-    
-                        created_at: detail.created_at,
-    
-                        verified_at: detail.updated_at,
-                    };
-    
-                    setViewRow(
-                        formattedDetail
-                    );
-                } catch (error) {
-                    handleApiError(
-                        error,
-                        "Không thể tải chi tiết danh mục"
-                    );
-                } finally {
-                    setLoading(false);
-                }
-            }, []);
+    useEffect(() => {
+        fetchCategories({ initial: true });
+    }, [fetchCategories]);
 
-    useEffect(() => { fetchCategories({ initial: true }); }, [fetchCategories]);
-
-    // APPROVE
-    const handleApprove = async (category) => {
+    const handleCreateSystem = async (formData) => {
         try {
             setActionLoading(true);
-            await categoryService.verify(
-                category.id,
-                {
-                    status: "active",
-                    rejection_reason: "",
-                }
-            );
-            setViewRow(null);
+            setError("");
+            await categoryService.createSystem(buildSystemCategoryPayload(formData));
+            appToast.success("Đã tạo danh mục hệ thống.");
             await fetchCategories();
         } catch (error) {
-            console.error(
-                handleApiError(error)
-            );
+            const message = handleApiError(error, "Không thể tạo danh mục hệ thống");
+            setError(message);
+            throw new Error(message);
         } finally {
             setActionLoading(false);
         }
     };
 
-    // REJECT
+    const handleUpdateSystem = async (category, formData) => {
+        try {
+            setActionLoading(true);
+            setError("");
+            const updated = await categoryService.update(
+                category.id,
+                buildSystemCategoryPayload(formData),
+            );
+            setViewRow(formatCategoryDetail(updated));
+            appToast.success("Đã cập nhật danh mục hệ thống.");
+            await fetchCategories();
+        } catch (error) {
+            const message = handleApiError(error, "Không thể cập nhật danh mục");
+            throw new Error(message);
+        } finally {
+            setActionLoading(false);
+        }
+    };
+
+    const handleDeleteSystem = async (category) => {
+        try {
+            setActionLoading(true);
+            setError("");
+            await categoryService.delete(category.id);
+            setViewRow(null);
+            appToast.success("Đã xóa danh mục hệ thống.");
+            await fetchCategories();
+        } catch (error) {
+            const message = handleApiError(error, "Không thể xóa danh mục");
+            setError(message);
+            throw new Error(message);
+        } finally {
+            setActionLoading(false);
+        }
+    };
+
+    const handleApprove = async (category) => {
+        try {
+            setActionLoading(true);
+            await categoryService.verify(category.id, {
+                status: "active",
+                rejection_reason: "",
+            });
+            setViewRow(null);
+            appToast.success("Đã duyệt danh mục.");
+            await fetchCategories();
+        } catch (error) {
+            const message = handleApiError(error, "Không thể duyệt danh mục");
+            setError(message);
+            console.error(message);
+        } finally {
+            setActionLoading(false);
+        }
+    };
+
     const handleReject = async (category, rejectionReason) => {
         try {
             setActionLoading(true);
-            await categoryService.verify(
-                category.id,
-                {
-                    status: "rejected",
-                    rejection_reason: rejectionReason,
-                }
-            );
+            await categoryService.verify(category.id, {
+                status: "rejected",
+                rejection_reason: rejectionReason,
+            });
             setViewRow(null);
+            appToast.success("Đã từ chối danh mục.");
             await fetchCategories();
         } catch (error) {
             const msg = handleApiError(error, "Không thể từ chối danh mục");
@@ -154,43 +166,33 @@ export default function CategoryPage() {
         }
     };
 
-    // LOCK
     const handleLock = async (category) => {
         try {
             setActionLoading(true);
-            await categoryService.lock(
-                category.id,{
-                    status: "inactive",
-                    rejection_reason:
-                        "Không hợp lệ",
-                }
-            );
+            await categoryService.lock(category.id);
             setViewRow(null);
+            appToast.success("Đã khóa danh mục.");
             await fetchCategories();
         } catch (error) {
-            console.error(
-                handleApiError(error)
-            );
+            const message = handleApiError(error, "Không thể khóa danh mục");
+            setError(message);
+            console.error(message);
         } finally {
             setActionLoading(false);
         }
     };
 
-    // UNLOCK
     const handleUnlock = async (category) => {
         try {
             setActionLoading(true);
-            await categoryService.unlock(
-                category.id,{
-                    status: "active",
-                }
-            );
+            await categoryService.unlock(category.id);
             setViewRow(null);
+            appToast.success("Đã mở khóa danh mục.");
             await fetchCategories();
         } catch (error) {
-            console.error(
-                handleApiError(error)
-            );
+            const message = handleApiError(error, "Không thể mở khóa danh mục");
+            setError(message);
+            console.error(message);
         } finally {
             setActionLoading(false);
         }
@@ -203,51 +205,49 @@ export default function CategoryPage() {
             onRetry={() => fetchCategories({ initial: true })}
             loadingMessage="Đang tải danh sách danh mục..."
         >
-        <div className="flex flex-col gap-6 px-8 pt-6 pb-10">
+            <div className="flex flex-col gap-6 px-8 pt-6 pb-10">
+                <Toolbar
+                    search={search}
+                    onSearch={setSearch}
+                    onAdd={() => setIsCreateOpen(true)}
+                    addLabel="Thêm danh mục"
+                    searchPlaceholder="Tìm kiếm danh mục..."
+                    filter={<Filter value={statusFilter} onChange={setStatusFilter} />}
+                />
 
-            <Toolbar
-                search={search}
-                onSearch={setSearch}
-                searchPlaceholder="Tìm kiếm danh mục..."
-            />
+                {error ? (
+                    <div className="rounded-xl bg-red-100 px-4 py-3 text-sm text-red-700">
+                        {error}
+                    </div>
+                ) : null}
 
-            <div className="flex items-center gap-3">
-                <span className="text-xs font-semibold text-neutral-400 uppercase tracking-wide">
-                    Lọc:
-                </span>
+                <CategoryTable
+                    data={data}
+                    loading={loading}
+                    search={search}
+                    statusFilter={statusFilter}
+                    onView={handleViewCategory}
+                />
 
-                <Filter
-                    value={statusFilter}
-                    onChange={setStatusFilter}
+                <CategoryFormModal
+                    isOpen={isCreateOpen}
+                    onClose={() => setIsCreateOpen(false)}
+                    onSubmit={handleCreateSystem}
+                />
+
+                <CategoryViewModal
+                    isOpen={viewRow !== null}
+                    onClose={() => setViewRow(null)}
+                    category={viewRow}
+                    onApprove={handleApprove}
+                    onReject={handleReject}
+                    onLock={handleLock}
+                    onUnlock={handleUnlock}
+                    onUpdate={handleUpdateSystem}
+                    onDelete={handleDeleteSystem}
+                    loading={actionLoading}
                 />
             </div>
-
-            {/* ERROR */}
-            {error && (
-                <div className="px-4 py-3 rounded-xl bg-red-100 text-red-700 text-sm">
-                    {error}
-                </div>
-            )}
-
-            <CategoryTable
-                data={data}
-                loading={loading}
-                search={search}
-                statusFilter={statusFilter}
-                onView={handleViewCategory}
-            />
-
-            <CategoryViewModal
-                isOpen={viewRow !== null}
-                onClose={() => setViewRow(null)}
-                category={viewRow}
-                onApprove={handleApprove}
-                onReject={handleReject}
-                onLock={handleLock}
-                onUnlock={handleUnlock}
-                loading={actionLoading}
-            />
-        </div>
         </AdminInitialLoadGate>
     );
 }

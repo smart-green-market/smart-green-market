@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import SearchBar from "../../components/Admin/UI/SearchBar";
+import Toolbar from "../../components/Admin/UI/Toolbar";
 import { AdminInitialLoadGate } from "../../components/Admin/UI/AdminFetchState";
 import Filter from "../../components/Admin/User/UserFilter";
 import UserTable from "../../components/Admin/User/UserTable";
@@ -248,26 +248,17 @@ export default function UserPage() {
         <div className="flex flex-col gap-6 px-8 pt-6 pb-10">
 
             {/* SEARCH */}
-            <SearchBar
-                value={search}
-                onChange={setSearch}
-                placeholder="Tìm kiếm người dùng..."
+            <Toolbar
+                search={search}
+                onSearch={setSearch}
+                searchPlaceholder="Tìm kiếm người dùng..."
+                filter={
+                    <Filter
+                        value={statusFilter}
+                        onChange={setStatusFilter}
+                    />
+                }
             />
-
-            {/* FILTER */}
-            <div className="flex items-center gap-3">
-
-                <span className="text-xs font-semibold text-neutral-400 uppercase tracking-wide">
-                    Lọc:
-                </span>
-
-                <Filter
-                    value={statusFilter}
-                    onChange={
-                        setStatusFilter
-                    }
-                />
-            </div>
 
             {/* ERROR */}
             {error && (

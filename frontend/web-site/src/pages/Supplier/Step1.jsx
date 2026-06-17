@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { accountService } from "../../services/api/accountService";
 import { authService } from "../../services/api/authAdminService";
+import { saveAuthTokens } from "../../services/token/authTokenStorage";
 import { extractSupplierApiMessage } from "../../utils/supplierValidation";
 
 export default function Step1({ onNext }) {
@@ -70,7 +71,10 @@ export default function Step1({ onNext }) {
       });
 
       // Lưu token để Step2, Step3 dùng
-      localStorage.setItem("access_token", loginResult.access);
+      saveAuthTokens({
+        access: loginResult.access,
+        refresh: loginResult.refresh,
+      });
 
       console.log("Đăng nhập sau đăng ký thành công:", loginResult);
       onNext?.(result);

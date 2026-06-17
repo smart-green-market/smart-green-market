@@ -1,13 +1,27 @@
-import { useRef } from "react";
+import { useMemo, useRef } from "react";
+import { Link } from "react-router-dom";
 import { ChevronLeft, ChevronRight, Loader2 } from "lucide-react";
-import { useDealerProducts } from "../../../hooks/useDealerProducts";
+import { useBuyerCatalog } from "../../../hooks/useBuyerCatalog";
+import { useStorefrontPaths } from "../../../hooks/useStorefrontPaths";
 import { toCardProduct } from "../../../utils/userProductUtils";
 import SuggestProductCard from "./SuggestProductCard";
 
 export default function SuggestProduct() {
     const scrollRef = useRef(null);
-    const { products, loading } = useDealerProducts();
-    const items = products.slice(0, 10).map(toCardProduct);
+    const paths = useStorefrontPaths();
+    const { products, loading } = useBuyerCatalog();
+    const items = useMemo(
+        () =>
+            [...products]
+                .sort(
+                    (a, b) =>
+                        new Date(b.updated_at || 0).getTime() -
+                        new Date(a.updated_at || 0).getTime(),
+                )
+                .slice(0, 10)
+                .map(toCardProduct),
+        [products],
+    );
 
     const scroll = (dir) => {
         const container = scrollRef.current;
@@ -23,15 +37,20 @@ export default function SuggestProduct() {
                 <h2 className="font-playfair text-2xl font-bold text-emerald-950">
                     Gợi Ý Hôm Nay
                 </h2>
-                <a href="#" className="text-sm font-medium text-emerald-700 hover:underline">
+                <Link
+                    to={paths.search()}
+                    className="text-sm font-medium text-emerald-700 no-underline hover:underline"
+                >
                     Xem tất cả →
-                </a>
+                </Link>
             </div>
 
             {loading ? (
                 <div className="flex h-48 items-center justify-center">
                     <Loader2 className="h-7 w-7 animate-spin text-emerald-700" />
                 </div>
+            ) : items.length === 0 ? (
+                <p className="text-sm text-neutral-500">Chưa có sản phẩm nào.</p>
             ) : (
                 <div className="group relative">
                     <button

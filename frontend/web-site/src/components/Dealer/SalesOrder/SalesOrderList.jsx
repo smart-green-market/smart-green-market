@@ -1,6 +1,6 @@
 import { Calendar } from "lucide-react";
 
-export default function SalesOrderList({ salesOrders, onViewDetail }) {
+export default function SalesOrderList({ salesOrders, onViewDetail, selectedOrderId }) {
   if (salesOrders.length === 0) {
     return (
       <div className="py-16 bg-white border border-neutral-100 rounded-2xl text-center text-sm font-semibold text-neutral-400 font-['Geist',sans-serif]">
@@ -15,7 +15,11 @@ export default function SalesOrderList({ salesOrders, onViewDetail }) {
         <div
           key={idx}
           onClick={() => onViewDetail && onViewDetail(order)}
-          className="bg-white border border-neutral-100 rounded-2xl p-5 shadow-xs hover:shadow-md transition-all duration-300 cursor-pointer"
+          className={`bg-white border rounded-2xl p-5 transition-all duration-300 cursor-pointer ${
+            selectedOrderId === order.id
+              ? "border-emerald-500 shadow-md shadow-emerald-100 ring-1 ring-emerald-500 bg-emerald-50/10"
+              : "border-neutral-100 shadow-xs hover:shadow-md hover:border-emerald-200"
+          }`}
         >
           <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-4 pb-4 border-b border-neutral-50">
             {/* Left Meta info */}

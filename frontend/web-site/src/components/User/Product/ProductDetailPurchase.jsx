@@ -2,7 +2,8 @@ import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Heart, Minus, Plus, ShoppingCart, Zap } from "lucide-react";
 import { useCart } from "../../../contexts/cartProvider";
-import { appToast } from "../../common/toast";
+import { useStorefrontPaths } from "../../../hooks/useStorefrontPaths";
+import { showAddToCartFeedback } from "../../../utils/cartAddFeedback";
 import {
     formatProductPrice,
     formatStorageDuration,
@@ -19,8 +20,9 @@ export default function ProductDetailPurchase({
 }) {
     const [quantity, setQuantity] = useState(1);
     const navigate = useNavigate();
+    const paths = useStorefrontPaths();
     const { addToCart } = useCart();
-    const inStock = isProductInStock(product.status);
+    const inStock = isProductInStock(product);
     const storageLabel = formatStorageDuration(product.storage_duration_days);
     const unitLabel = formatUnitLabel(product.unit);
 
@@ -35,9 +37,13 @@ export default function ProductDetailPurchase({
 
     const handleAddToCart = () => {
         if (!inStock) return;
-        addToCart(product, quantity);
-        appToast.success("Đã thêm vào giỏ hàng");
-        navigate("/gio-hang");
+
+        const result = addToCart(product, quantity);
+        showAddToCartFeedback(result);
+
+        if (result.added) {
+            navigate(paths.cart);
+        }
     };
 
     return (

@@ -8,6 +8,9 @@ import {
 
 import { useNavigate } from "react-router-dom";
 import { authService } from "../services/api/authAdminService";
+import { authBuyerService } from "../services/api/Buyer/authBuyerService";
+import { clearAuthStorage, getAccessToken, saveAuthTokens } from "../services/token/authTokenStorage";
+import { clearBuyerAuth, getStoredDealerSlug } from "../utils/buyerAuthUtils";
 
 const AuthContext = createContext();
 
@@ -39,7 +42,10 @@ export function AuthProvider({ children }) {
                 };
             }
 
-            localStorage.setItem("access_token", accessToken);
+            saveAuthTokens({
+                access: accessToken,
+                refresh: response.refresh,
+            });
 
             const me = response.account;
 
@@ -54,14 +60,13 @@ export function AuthProvider({ children }) {
 
             // Sửa lỗi đăng nhập vào khu vực không đúng
             if (me.role !== expectedRole) {
-                localStorage.removeItem("access_token");
+                clearAuthStorage();
                 let roleName = "Quản trị";
-               if (expectedRole === "supplier") roleName = "Nhà cung cấp";                          
-               if (expectedRole === "dealer") roleName = "Đại lý";
+                if (expectedRole === "supplier") roleName = "Nhà cung cấp";
+                if (expectedRole === "dealer") roleName = "Đại lý";
                 return {
                     success: false,
-                  message: `Tài khoản này không có quyền đăng nhập vào khu vực ${expectedRole === "supplier" ? "Nhà cung cấp" : "Quản trị"}`,
-                   message: `Tài khoản này không có quyền đăng nhập vào khu vực ${roleName}`,
+                    message: `Tài khoản này không có quyền đăng nhập vào khu vực ${roleName}`,
                 };
             }
 
@@ -102,42 +107,55 @@ export function AuthProvider({ children }) {
 
     // LOGOUT DÙNG CHUNG (ĐÃ FIX LỖI VÒNG LẶP)
     const logout = useCallback(async () => {
-        // Lấy role trực tiếp từ localStorage để KHÔNG làm re-render component
         const savedUser = localStorage.getItem("user");
         const currentUser = savedUser ? JSON.parse(savedUser) : null;
         const currentRole = currentUser?.role;
+        const isBuyer =
+            currentRole === "buyer" || currentUser?.auth_scope === "storefront";
+        const buyerSlug =
+            currentUser?.store_dealer_slug || getStoredDealerSlug();
 
         try {
-            // Gọi API logout (nếu có)
-            await authService.logout();
+            if (isBuyer) {
+                await authBuyerService.logout();
+            } else {
+                await authService.logout();
+            }
         } catch (error) {
             console.error("Lỗi khi logout API:", error);
         } finally {
-            // Xóa dữ liệu cũ
-            localStorage.removeItem("access_token");
-            localStorage.removeItem("user");
+            if (isBuyer) {
+                clearBuyerAuth();
+            } else {
+                clearAuthStorage();
+            }
             setUser(null);
 
-            // ĐIỀU HƯỚNG TỰ ĐỘNG DỰA THEO ROLE
             if (currentRole === "supplier") {
                 navigate("/nha-cung-cap/dang-nhap");
             } else if (currentRole === "admin") {
                 navigate("/quan-tri/dang-nhap");
-            }else if (currentRole === "dealer") {
+            } else if (currentRole === "dealer") {
                 navigate("/dai-ly/dang-nhap");
+            } else if (isBuyer) {
+                navigate(
+                    buyerSlug
+                        ? `/cua-hang/${encodeURIComponent(buyerSlug)}/trang-chu`
+                        : "/",
+                    { replace: true },
+                );
             } else {
                 navigate("/");
             }
         }
-    }, [navigate]); // <-- SỬA: Đã xóa chữ 'user' khỏi mảng này
+    }, [navigate]);
 
     // INIT SESSION (ĐÃ FIX LỖI VÒNG LẶP)
     useEffect(() => {
         const initAuth = async () => {
             try {
-                const token = localStorage.getItem("access_token");
+                const token = getAccessToken();
                 if (!token) {
-                    setLoading(false);
                     return;
                 }
 
@@ -147,9 +165,7 @@ export function AuthProvider({ children }) {
                 }
             } catch (error) {
                 console.error("Lỗi khởi tạo session:", error);
-                // Dọn dẹp local storage nếu có lỗi (tránh kẹt token cũ)
-                localStorage.removeItem("access_token");
-                localStorage.removeItem("user");
+                clearAuthStorage();
                 setUser(null);
             } finally {
                 setLoading(false);
@@ -157,7 +173,12 @@ export function AuthProvider({ children }) {
         };
 
         initAuth();
-    }, []); // <-- SỬA QUAN TRỌNG: Để mảng rỗng [] để CHỈ CHẠY 1 LẦN khi tải lại trang
+    }, []);
+
+    const syncSession = useCallback(() => {
+        const saved = localStorage.getItem("user");
+        setUser(saved ? JSON.parse(saved) : null);
+    }, []);
 
     return (
         <AuthContext.Provider
@@ -166,6 +187,7 @@ export function AuthProvider({ children }) {
                 login,
                 logout,
                 loading,
+                syncSession,
             }}
         >
             {children}

@@ -1,11 +1,16 @@
 import { useState } from "react";
-import { ShoppingCart, Plus } from "lucide-react";
+import { ShoppingCart, Plus, ClipboardList, Clock, Truck, CheckCircle2, XCircle } from "lucide-react";
 import SupplierFilter from "../../../components/Dealer/Supplier/SupplierFilter";
 import SalesOrderList from "../../../components/Dealer/SalesOrder/SalesOrderList";
+import StatsCard from "../../../components/Dealer/Supplier/StatsCard";
+import CreateSalesOrderModal from "../../../components/Dealer/SalesOrder/CreateSalesOrderModal";
+import SalesOrderDetailPanel from "../../../components/Dealer/SalesOrder/SalesOrderDetailPanel";
 
 export default function DealerSalesOrderPage() {
     const [searchQuery, setSearchQuery] = useState("");
     const [statusFilter, setStatusFilter] = useState("");
+    const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+    const [selectedOrder, setSelectedOrder] = useState(null);
 
     const salesOrders = [
         {
@@ -15,7 +20,8 @@ export default function DealerSalesOrderPage() {
             items: "15kg Cải thìa hữu cơ, 10kg Cà chua bi, 5kg Hành lá",
             amount: "1,250,000 đ",
             payment: "Đã thanh toán",
-            delivery: "Đã giao"
+            delivery: "Đã giao",
+            status: "Đã giao"
         },
         {
             id: "BH-1091",
@@ -24,7 +30,28 @@ export default function DealerSalesOrderPage() {
             items: "20kg Dâu tây Đà Lạt, 50kg Khoai tây vàng",
             amount: "3,400,000 đ",
             payment: "Chưa thanh toán",
-            delivery: "Đang giao hàng"
+            delivery: "Đang giao hàng",
+            status: "Đang giao hàng"
+        },
+        {
+            id: "BH-1093",
+            customer: "Quán Ăn Sân Vườn",
+            date: "10/06/2026",
+            items: "15kg Cải thìa hữu cơ, 10kg Cà chua bi",
+            amount: "650,000 đ",
+            payment: "Chưa thanh toán",
+            delivery: "Chờ xác nhận",
+            status: "Chờ xác nhận"
+        },
+        {
+            id: "BH-1094",
+            customer: "Cửa hàng Hữu Cơ xanh",
+            date: "10/06/2026",
+            items: "20kg Dưa lưới, 10kg Xoài cát",
+            amount: "1,150,000 đ",
+            payment: "Đã thanh toán",
+            delivery: "Đang chuẩn bị hàng",
+            status: "Đang chuẩn bị hàng"
         },
         {
             id: "BH-1090",
@@ -34,6 +61,60 @@ export default function DealerSalesOrderPage() {
             amount: "680,000 đ",
             payment: "Đã thanh toán",
             delivery: "Đã giao"
+        },
+        {
+            id: "BH-1089",
+            customer: "Nước ép Healthy Juice",
+            date: "08/06/2026",
+            items: "30kg Cần tây Tây Nguyên, 15kg Táo xanh hữu cơ",
+            amount: "1,850,000 đ",
+            payment: "Đã hủy",
+            delivery: "Đã hủy"
+        },
+        {
+            id: "BH-1089",
+            customer: "Nước ép Healthy Juice",
+            date: "08/06/2026",
+            items: "30kg Cần tây Tây Nguyên, 15kg Táo xanh hữu cơ",
+            amount: "1,850,000 đ",
+            payment: "Đã hủy",
+            delivery: "Đã hủy"
+        },
+        {
+            id: "BH-1089",
+            customer: "Nước ép Healthy Juice",
+            date: "08/06/2026",
+            items: "30kg Cần tây Tây Nguyên, 15kg Táo xanh hữu cơ",
+            amount: "1,850,000 đ",
+            payment: "Đã hủy",
+            delivery: "Đã hủy"
+        },
+        {
+            id: "BH-1089",
+            customer: "Nước ép Healthy Juice",
+            date: "08/06/2026",
+            items: "30kg Cần tây Tây Nguyên, 15kg Táo xanh hữu cơ",
+            amount: "1,850,000 đ",
+            payment: "Đã hủy",
+            delivery: "Đã hủy"
+        },
+        {
+            id: "BH-1089",
+            customer: "Nước ép Healthy Juice",
+            date: "08/06/2026",
+            items: "30kg Cần tây Tây Nguyên, 15kg Táo xanh hữu cơ",
+            amount: "1,850,000 đ",
+            payment: "Đã hủy",
+            delivery: "Đã hủy"
+        },
+        {
+            id: "BH-1089",
+            customer: "Nước ép Healthy Juice",
+            date: "08/06/2026",
+            items: "30kg Cần tây Tây Nguyên, 15kg Táo xanh hữu cơ",
+            amount: "1,850,000 đ",
+            payment: "Đã hủy",
+            delivery: "Đã hủy"
         },
         {
             id: "BH-1089",
@@ -63,7 +144,7 @@ export default function DealerSalesOrderPage() {
     ];
 
     const handleViewDetail = (order) => {
-        console.log("Xem chi tiết đơn bán hàng:", order);
+        setSelectedOrder(order);
     };
 
     return (
@@ -78,9 +159,50 @@ export default function DealerSalesOrderPage() {
                         Theo dõi danh sách khách hàng đặt mua nông sản sỉ/lẻ từ đại lý của bạn.
                     </p>
                 </div>
-                <button className="h-10 px-4 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white font-bold text-xs transition-all flex items-center justify-center gap-1.5 shadow-md shadow-emerald-100 cursor-pointer self-start sm:self-auto">
+                <button 
+                    onClick={() => setIsCreateModalOpen(true)}
+                    className="h-10 px-4 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white font-bold text-xs transition-all flex items-center justify-center gap-1.5 shadow-md shadow-emerald-100 cursor-pointer self-start sm:self-auto">
                     <Plus className="w-4 h-4" /> Tạo đơn bán mới
                 </button>
+            </div>
+
+            {/* Stats Cards */}
+            <div className="grid grid-cols-2 lg:grid-cols-5 gap-4 mb-8">
+                <StatsCard 
+                    icon={ClipboardList} 
+                    label="Tất cả đơn" 
+                    value={salesOrders.length} 
+                    iconBg="bg-blue-50" 
+                    valueColor="text-blue-800" 
+                />
+                <StatsCard 
+                    icon={Clock} 
+                    label="Chờ xác nhận" 
+                    value={salesOrders.filter(o => o.delivery === "Chờ xác nhận").length} 
+                    iconBg="bg-amber-50" 
+                    valueColor="text-amber-800" 
+                />
+                <StatsCard 
+                    icon={Truck} 
+                    label="Đang giao" 
+                    value={salesOrders.filter(o => o.delivery === "Đang giao hàng").length} 
+                    iconBg="bg-sky-50" 
+                    valueColor="text-sky-800" 
+                />
+                <StatsCard 
+                    icon={CheckCircle2} 
+                    label="Đã giao" 
+                    value={salesOrders.filter(o => o.delivery === "Đã giao").length} 
+                    iconBg="bg-emerald-50" 
+                    valueColor="text-emerald-800" 
+                />
+                <StatsCard 
+                    icon={XCircle} 
+                    label="Đã huỷ" 
+                    value={salesOrders.filter(o => o.delivery === "Đã hủy").length} 
+                    iconBg="bg-red-50" 
+                    valueColor="text-red-800" 
+                />
             </div>
 
             {/* Filter */}
@@ -93,10 +215,28 @@ export default function DealerSalesOrderPage() {
                 placeholder="Tìm kiếm đơn bán hàng (Mã đơn, Khách hàng...)"
             />
 
-            {/* Orders list */}
-            <SalesOrderList
-                salesOrders={filteredOrders}
-                onViewDetail={handleViewDetail}
+            {/* Orders list & Detail Panel */}
+            <div className={`flex flex-col ${selectedOrder ? "lg:flex-row lg:items-start" : ""} gap-6 relative`}>
+                <div className={`flex-1 ${selectedOrder ? "lg:w-2/3" : "w-full"}`}>
+                    <SalesOrderList
+                        salesOrders={filteredOrders}
+                        onViewDetail={handleViewDetail}
+                        selectedOrderId={selectedOrder?.id}
+                    />
+                </div>
+                {selectedOrder && (
+                    <div className="w-full lg:w-1/3 lg:sticky lg:top-24 h-[calc(100vh-7rem)] pb-4">
+                        <SalesOrderDetailPanel 
+                            order={selectedOrder} 
+                            onClose={() => setSelectedOrder(null)} 
+                        />
+                    </div>
+                )}
+            </div>
+
+            <CreateSalesOrderModal 
+                isOpen={isCreateModalOpen} 
+                onClose={() => setIsCreateModalOpen(false)} 
             />
         </div>
     );

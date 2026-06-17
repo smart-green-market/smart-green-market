@@ -1,6 +1,29 @@
+import { getStoredDealerSlug } from "./buyerAuthUtils";
 import { getProductPrice, normalizeUnitKey } from "./userProductUtils";
 
-export const CART_SESSION_KEY = "gm_user_cart";
+export const CART_SESSION_PREFIX = "gm_cart";
+
+export function getBuyerCartId(user) {
+    if (!user) return null;
+    if (user.role !== "buyer" && user.auth_scope !== "storefront") return null;
+    return user.id ?? user.buyer_id ?? user.account_id ?? null;
+}
+
+export function getCartSessionKey(dealerSlug, buyerId) {
+    const slug = String(dealerSlug || getStoredDealerSlug() || "default").trim();
+    const owner = buyerId != null ? String(buyerId) : "guest";
+    return `${CART_SESSION_PREFIX}_${slug}_${owner}`;
+}
+
+export function resolveCartOwner(user, dealerSlug) {
+    const slug = dealerSlug || getStoredDealerSlug() || "";
+    const buyerId = getBuyerCartId(user);
+    return {
+        slug,
+        buyerId,
+        key: getCartSessionKey(slug, buyerId),
+    };
+}
 
 export function buildCartItemFromProduct(product, quantity = 1) {
     const price = Number(getProductPrice(product) ?? product.priceValue ?? 0);
@@ -49,9 +72,10 @@ function normalizeCartItem(item) {
     };
 }
 
-export function loadCartFromSession() {
+export function loadCartFromSession(dealerSlug, buyerId) {
     try {
-        const raw = sessionStorage.getItem(CART_SESSION_KEY);
+        const key = getCartSessionKey(dealerSlug, buyerId);
+        const raw = sessionStorage.getItem(key);
         if (!raw) return [];
 
         const parsed = JSON.parse(raw);
@@ -63,10 +87,20 @@ export function loadCartFromSession() {
     }
 }
 
-export function saveCartToSession(items) {
+export function saveCartToSession(items, dealerSlug, buyerId) {
     try {
-        sessionStorage.setItem(CART_SESSION_KEY, JSON.stringify(items));
+        const key = getCartSessionKey(dealerSlug, buyerId);
+        sessionStorage.setItem(key, JSON.stringify(items));
     } catch {
         // Bỏ qua khi sessionStorage đầy hoặc không khả dụng.
+    }
+}
+
+export function clearCartSession(dealerSlug, buyerId) {
+    try {
+        const key = getCartSessionKey(dealerSlug, buyerId);
+        sessionStorage.removeItem(key);
+    } catch {
+        // ignore
     }
 }

@@ -58,6 +58,19 @@ export function getProductPrice(product) {
     return product?.retail_price ?? product?.wholesale_price ?? product?.price ?? null;
 }
 
+function resolveCategoryId(raw) {
+    if (raw?.category_id != null) return raw.category_id;
+    if (raw?.category == null) return null;
+    if (typeof raw.category === "object") return raw.category.id;
+    return raw.category;
+}
+
+function resolveCategoryName(raw) {
+    if (raw?.category_name) return raw.category_name;
+    if (typeof raw?.category === "object") return raw.category?.name ?? "Nông sản";
+    return "Nông sản";
+}
+
 export function formatDealerProduct(raw) {
     const images = buildDealerImages(raw);
     const thumbnail =
@@ -67,38 +80,55 @@ export function formatDealerProduct(raw) {
         null;
 
     const retailPrice = raw?.retail_price ?? null;
+    const inStock = raw?.in_stock;
+    const status =
+        typeof inStock === "boolean"
+            ? inStock
+                ? "active"
+                : "inactive"
+            : raw?.status;
 
     return {
         id: raw.id,
         name: raw.title || raw.supplier_product_name || "",
         slug: raw.slug ?? `dp-${raw.id}`,
-        unit: raw.supplier_product_unit ?? "",
+        unit: raw.unit ?? raw.supplier_product_unit ?? "",
         description: raw.description ?? "",
         retail_price: retailPrice,
         wholesale_price: retailPrice,
         price: retailPrice,
+        available_quantity: raw.available_quantity ?? 0,
+        in_stock:
+            typeof inStock === "boolean"
+                ? inStock
+                : status === "active" || status === "approved",
         storage_duration_days: raw.storage_duration_days,
         min_storage_temp: raw.min_storage_temp,
         max_storage_temp: raw.max_storage_temp,
-        status: raw.status,
+        status,
         verified_at: raw.status === "active" || raw.status === "approved" ? raw.updated_at : null,
         verified_by_username: raw.dealer?.account_username ?? null,
         created_at: raw.created_at,
         updated_at: raw.updated_at,
         images,
         thumbnail,
-        category: raw.category ?? null,
-        category_name: raw.category_name ?? raw.category?.name ?? "Nông sản",
-        category_id: raw.category_id ?? raw.category?.id,
+        category: typeof raw.category === "object" ? raw.category : null,
+        category_name: resolveCategoryName(raw),
+        category_id: resolveCategoryId(raw),
         supplier_product: raw.supplier_product,
         supplier_product_name: raw.supplier_product_name ?? "",
-        supplier_name: raw.supplier_product_name ?? "",
+        supplier_name: raw.supplier_name ?? raw.supplier_product_name ?? "",
         dealer: raw.dealer ?? null,
         dealer_name: raw.dealer?.store_name ?? "",
         rating: raw.rating ?? 4.5,
         sold: raw.sold ?? 0,
         source: "dealer",
     };
+}
+
+/** Chuẩn hóa sản phẩm từ buyerCatalogService (storefront API) */
+export function formatBuyerProduct(raw) {
+    return formatDealerProduct(raw);
 }
 
 /** @deprecated Dùng formatDealerProduct cho luồng User */
@@ -176,11 +206,22 @@ export function formatProductPrice(price) {
     return formatCurrency(value);
 }
 
-export function isProductInStock(status) {
+export function isProductInStock(productOrStatus) {
+    if (productOrStatus && typeof productOrStatus === "object") {
+        if (typeof productOrStatus.in_stock === "boolean") {
+            return productOrStatus.in_stock;
+        }
+        return isProductInStock(productOrStatus.status);
+    }
+
+    const status = productOrStatus;
     return status === "active" || status === "approved";
 }
 
-export function getStockLabel(status) {
+export function getStockLabel(status, inStock) {
+    if (typeof inStock === "boolean") {
+        return inStock ? "Còn hàng" : "Hết hàng";
+    }
     if (status === "active" || status === "approved") return "Còn hàng";
     if (status === "inactive" || status === "paused") return "Ngừng bán";
     if (status === "pending") return "Chờ duyệt";
@@ -201,23 +242,61 @@ export function formatDateVi(value) {
 
 export function normalizeUnitKey(unit) {
     if (!unit) return "";
-    const value = String(unit).toLowerCase();
+    const value = String(unit).trim().toLowerCase().replace(/^\//, "");
     if (value === "bó" || value === "bo") return "bo";
     if (value === "cây" || value === "cay") return "cay";
     return value;
 }
 
+export function getUnitFilterKey(unit) {
+    return normalizeUnitKey(unit);
+}
+
+export function buildUnitFilterOptions(products = []) {
+    const map = new Map();
+
+    for (const product of products) {
+        const rawUnit = product?.unit ?? product?.rawUnit ?? "";
+        const key = getUnitFilterKey(rawUnit);
+        if (!key) continue;
+
+        const existing = map.get(key);
+        if (existing) {
+            existing.count += 1;
+            continue;
+        }
+
+        map.set(key, {
+            value: key,
+            label: formatUnitLabel(rawUnit || key),
+            count: 1,
+        });
+    }
+
+    return Array.from(map.values()).sort((a, b) =>
+        a.label.localeCompare(b.label, "vi"),
+    );
+}
+
 export function toCardProduct(product) {
+    const inStock = isProductInStock(product);
+    const rawUnit = product.unit ?? "";
+    const unitFilterKey = getUnitFilterKey(rawUnit);
+
     return {
         id: product.id,
         name: product.name,
         price: formatProductPrice(getProductPrice(product)),
-        unit: formatUnitLabel(product.unit),
-        unitKey: normalizeUnitKey(product.unit),
+        unit: formatUnitLabel(rawUnit),
+        rawUnit,
+        unitKey: unitFilterKey,
+        unitFilterKey,
         image: product.thumbnail,
-        brand: product.dealer_name || product.category_name || "GreenMarket",
+        brand: product.category_name || product.supplier_name || "GreenMarket",
         rating: product.rating,
         sold: product.sold,
+        in_stock: inStock,
+        available_quantity: product.available_quantity ?? 0,
         category_id: product.category_id,
         priceValue: Number(getProductPrice(product)) || 0,
     };

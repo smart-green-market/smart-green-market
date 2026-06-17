@@ -4,7 +4,7 @@ import { getStockLabel } from "../../../utils/userProductUtils";
 
 const VISIBLE_THUMBS = 3;
 
-export default function ProductDetailGallery({ images = [], name = "", status }) {
+export default function ProductDetailGallery({ images = [], name = "", status, inStock }) {
     const sorted = useMemo(
         () =>
             [...images].sort((a, b) => {
@@ -37,7 +37,7 @@ export default function ProductDetailGallery({ images = [], name = "", status })
                     className="aspect-[4/5] w-full object-cover lg:max-h-[560px]"
                 />
                 <div className="absolute left-4 top-3 rounded-full bg-teal-800 px-3 py-1 text-xs font-medium uppercase tracking-wide text-white shadow-sm">
-                    {getStockLabel(status)}
+                    {getStockLabel(status, inStock)}
                 </div>
             </div>
 

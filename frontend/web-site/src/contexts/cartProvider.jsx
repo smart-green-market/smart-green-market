@@ -4,46 +4,84 @@ import {
     useContext,
     useEffect,
     useMemo,
+    useRef,
     useState,
 } from "react";
+import { useAuth } from "./authProvider";
+import { useDealerSlug } from "../hooks/useStorefrontPaths";
 import {
     buildCartItemFromProduct,
+    getBuyerCartId,
     loadCartFromSession,
+    resolveCartOwner,
     saveCartToSession,
 } from "../utils/cartUtils";
+import {
+    clearProductSpamEntry,
+    registerDuplicateAddAttempt,
+    resetCartSpamGuard,
+} from "../utils/cartSpamGuard";
 
 const CartContext = createContext(null);
 
 export function CartProvider({ children }) {
-    const [items, setItems] = useState(() => loadCartFromSession());
+    const { user } = useAuth();
+    const dealerSlug = useDealerSlug();
+    const buyerId = getBuyerCartId(user);
+
+    const cartOwner = useMemo(
+        () => resolveCartOwner(user, dealerSlug),
+        [user, dealerSlug, buyerId],
+    );
+
+    const [items, setItems] = useState(() =>
+        loadCartFromSession(cartOwner.slug, cartOwner.buyerId),
+    );
+
+    const ownerKeyRef = useRef(cartOwner.key);
 
     useEffect(() => {
-        saveCartToSession(items);
-    }, [items]);
+        if (ownerKeyRef.current === cartOwner.key) return;
+
+        ownerKeyRef.current = cartOwner.key;
+        resetCartSpamGuard();
+        setItems(loadCartFromSession(cartOwner.slug, cartOwner.buyerId));
+    }, [cartOwner.key, cartOwner.slug, cartOwner.buyerId]);
+
+    useEffect(() => {
+        saveCartToSession(items, cartOwner.slug, cartOwner.buyerId);
+    }, [items, cartOwner.slug, cartOwner.buyerId]);
 
     const addToCart = useCallback((product, quantity = 1) => {
+        const productId = product?.id;
+        if (productId == null) {
+            return { added: false, reason: "invalid", showToast: false };
+        }
+
         const nextItem = buildCartItemFromProduct(product, quantity);
+        let result = { added: true, showToast: true };
 
         setItems((prev) => {
-            const index = prev.findIndex(
-                (item) => String(item.id) === String(nextItem.id),
+            const exists = prev.some(
+                (item) => String(item.id) === String(productId),
             );
-
-            if (index === -1) {
-                return [...prev, nextItem];
+            if (exists) {
+                result = registerDuplicateAddAttempt(productId);
+                return prev;
             }
 
-            return prev.map((item, i) =>
-                i === index
-                    ? {
-                          ...item,
-                          quantity: item.quantity + nextItem.quantity,
-                          selected: true,
-                      }
-                    : item,
-            );
+            clearProductSpamEntry(productId);
+            return [...prev, nextItem];
         });
+
+        return result;
     }, []);
+
+    const isInCart = useCallback(
+        (productId) =>
+            items.some((item) => String(item.id) === String(productId)),
+        [items],
+    );
 
     const removeItem = useCallback((id) => {
         setItems((prev) => prev.filter((item) => String(item.id) !== String(id)));
@@ -92,11 +130,16 @@ export function CartProvider({ children }) {
         [items],
     );
 
+    const itemCount = items.length;
+
     const value = useMemo(
         () => ({
             items,
             totalQuantity,
+            itemCount,
+            cartOwnerKey: cartOwner.key,
             addToCart,
+            isInCart,
             removeItem,
             increaseQuantity,
             decreaseQuantity,
@@ -107,7 +150,10 @@ export function CartProvider({ children }) {
         [
             items,
             totalQuantity,
+            itemCount,
+            cartOwner.key,
             addToCart,
+            isInCart,
             removeItem,
             increaseQuantity,
             decreaseQuantity,

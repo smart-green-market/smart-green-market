@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 
-import SearchBar from "../../components/Admin/UI/SearchBar";
+import Toolbar from "../../components/Admin/UI/Toolbar";
 import { AdminInitialLoadGate } from "../../components/Admin/UI/AdminFetchState";
 import Filter from "../../components/Admin/Product/ProductFilter";
 import ProductTable from "../../components/Admin/Product/ProductTable";
@@ -183,19 +183,12 @@ export default function ProductPage() {
     >
     <div className="flex flex-col gap-6 px-8 pt-6 pb-10">
       {/* SEARCH */}
-      <SearchBar
-        value={search}
-        onChange={setSearch}
-        placeholder="Tìm kiếm sản phẩm..."
+      <Toolbar
+        search={search}
+        onSearch={setSearch}
+        searchPlaceholder="Tìm kiếm sản phẩm..."
+        filter={<Filter value={statusFilter} onChange={setStatusFilter} />}
       />
-      
-      {/* FILTER */}
-      <div className="flex items-center gap-3">
-        <span className="text-xs font-semibold uppercase tracking-wide text-neutral-500">
-          Lọc:
-        </span>
-        <Filter value={statusFilter} onChange={setStatusFilter} />
-      </div>
 
       {/* ERROR */}
             {error && (
