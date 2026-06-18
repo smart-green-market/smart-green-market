@@ -1,6 +1,6 @@
-import { X, Package, CheckCircle2, Truck, CreditCard, User, Calendar, MapPin, Receipt, ArrowRight } from "lucide-react";
+import { X, Package, CheckCircle2, Truck, CreditCard, User, Calendar, MapPin, Receipt, ArrowRight, Printer } from "lucide-react";
 
-export default function SalesOrderDetailPanel({ order, onClose }) {
+export default function SalesOrderDetailPanel({ order, onClose, onPrint }) {
   if (!order) return null;
 
   // Status visual mapping
@@ -18,7 +18,7 @@ export default function SalesOrderDetailPanel({ order, onClose }) {
   const products = order.items?.split(',').map(i => i.trim()) || [];
 
   return (
-    <div className="bg-white border border-neutral-100 rounded-3xl shadow-[0_8px_30px_rgb(0,0,0,0.06)] overflow-hidden font-['Geist',sans-serif] h-full flex flex-col animate-in slide-in-from-right-8 fade-in duration-300 relative z-10">
+    <div className="bg-white border border-neutral-100 rounded-3xl shadow-[0_8px_30px_rgb(0,0,0,0.06)] overflow-hidden font-['Geist',sans-serif] h-full flex flex-col animate-in zoom-in-95 fade-in duration-200 relative z-10">
       
       {/* Header */}
       <div className="relative p-6 border-b border-neutral-100 bg-gradient-to-br from-emerald-50/80 via-white to-white overflow-hidden">
@@ -45,7 +45,7 @@ export default function SalesOrderDetailPanel({ order, onClose }) {
       </div>
 
       {/* Content */}
-      <div className="p-6 flex-1 overflow-y-auto space-y-8 scrollbar-hide">
+      <div className="p-6 flex-1 overflow-y-auto overscroll-contain space-y-8 scrollbar-hide">
         
         {/* Customer & General Info */}
         <div className="space-y-4">
@@ -60,9 +60,17 @@ export default function SalesOrderDetailPanel({ order, onClose }) {
             </div>
             <div className="space-y-1.5 pt-0.5">
               <p className="font-bold text-neutral-800 text-sm leading-tight">{order.customer}</p>
-              <div className="flex items-center gap-1.5 text-xs text-neutral-500 font-medium">
-                <Calendar className="w-3.5 h-3.5 text-neutral-400" />
-                <span>Ngày đặt: <span className="text-neutral-700">{order.date}</span></span>
+              <div className="flex flex-col gap-1.5 mt-2">
+                <div className="flex items-center gap-1.5 text-xs text-neutral-500 font-medium">
+                  <Calendar className="w-3.5 h-3.5 text-neutral-400" />
+                  <span>Ngày đặt: <span className="text-neutral-700">{order.date}</span></span>
+                </div>
+                {order.address && (
+                  <div className="flex items-start gap-1.5 text-xs text-neutral-500 font-medium">
+                    <MapPin className="w-3.5 h-3.5 text-neutral-400 shrink-0 mt-0.5" />
+                    <span className="leading-relaxed">Giao đến: <span className="text-neutral-700">{order.address}</span></span>
+                  </div>
+                )}
               </div>
             </div>
           </div>
@@ -150,12 +158,13 @@ export default function SalesOrderDetailPanel({ order, onClose }) {
             <Truck className="w-5 h-5" /> Bắt đầu giao hàng
           </button>
         )}
-        {(order.status !== "Chờ xác nhận" && order.status !== "Đang chuẩn bị hàng") && (
-          <button className="w-full py-3.5 rounded-xl bg-neutral-50 hover:bg-neutral-100 border border-neutral-200 text-neutral-700 font-bold text-sm transition-all cursor-pointer flex items-center justify-center gap-2 group">
-            Xem chi tiết đầy đủ
-            <ArrowRight className="w-4 h-4 text-neutral-400 group-hover:text-neutral-700 transition-colors group-hover:translate-x-1" />
-          </button>
-        )}
+        
+        <button 
+          onClick={() => onPrint && onPrint(order)}
+          className="w-full py-3 rounded-xl bg-neutral-100 hover:bg-neutral-200 text-neutral-700 font-bold text-sm transition-all cursor-pointer flex items-center justify-center gap-2"
+        >
+          <Printer className="w-4 h-4" /> In hoá đơn
+        </button>
       </div>
     </div>
   );

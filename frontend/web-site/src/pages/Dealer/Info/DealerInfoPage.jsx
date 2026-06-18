@@ -39,11 +39,15 @@ export default function DealerInfoPage() {
     const fetchProfile = async () => {
       try {
         if (!profile) setLoading(true);
-        const [dealers, linkData] = await Promise.all([
+        const [dealers, linkData, docsData] = await Promise.all([
           dealerService.getAll(),
           dealerService.getStorefrontLink().catch((err) => {
             console.error("Lỗi khi fetch storefront link:", err);
             return null;
+          }),
+          accountService.getDocuments().catch((err) => {
+            console.error("Lỗi khi fetch documents:", err);
+            return { results: [] };
           })
         ]);
 
@@ -51,6 +55,7 @@ export default function DealerInfoPage() {
 
         const profileData = dealers?.[0] || null;
         const storefrontUrl = linkData?.storefront_url || null;
+        const documents = docsData?.results || [];
 
         setProfile((prev) => {
           const base = profileData || prev || {};
@@ -61,7 +66,7 @@ export default function DealerInfoPage() {
             store_name: base.store_name || "Chưa cập nhật",
             store_address: base.store_address || "Chưa cập nhật",
             description: base.description || "Chưa cập nhật",
-            documents: base.documents || [],
+            documents: documents,
           };
         });
       } catch (error) {
