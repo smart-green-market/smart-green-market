@@ -12,3 +12,5 @@ export { default as DealerCategoryDetail } from "./Category/CategeryDetail";
 export { default as RegisterDealerPage } from "./Register/RegisterDealerPage";
 export { default as DealerInfoPage } from "./Info/DealerInfoPage";
 export { default as DealerCustomerPage } from "./Customer/CustomerPage";
+export { default as DealerProductManagementPage } from "./Product/ProductManagement";
+export { default as DealerProductDetailPage } from "./Product/ProductDetail";

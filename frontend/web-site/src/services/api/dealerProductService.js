@@ -109,6 +109,44 @@ export const dealerProductService = {
       throw error;
     }
   },
+  toggleStatus: async (id, status) => {
+    try {
+      const res = await axiosClient.patch(`/dealer-products/${id}/`, { status });
+      return res.data;
+    } catch (error) {
+      console.error("Lỗi cập nhật trạng thái sản phẩm:", error);
+      throw error;
+    }
+  },
+  uploadImage: async (id, formData) => {
+    try {
+      const res = await axiosClient.post(`/dealer-products/${id}/images/`, formData, {
+        headers: { "Content-Type": "multipart/form-data" }
+      });
+      return res.data;
+    } catch (error) {
+      console.error("Lỗi tải lên ảnh sản phẩm:", error);
+      throw error;
+    }
+  },
+  deleteImage: async (productId, imageId) => {
+    try {
+      const res = await axiosClient.delete(`/dealer-products/${productId}/images/${imageId}/`);
+      return res.data;
+    } catch (error) {
+      console.error("Lỗi xóa ảnh sản phẩm:", error);
+      throw error;
+    }
+  },
+  setThumbnail: async (productId, imageId) => {
+    try {
+      const res = await axiosClient.patch(`/dealer-products/${productId}/images/${imageId}/set-thumbnail/`);
+      return res.data;
+    } catch (error) {
+      console.error("Lỗi đặt ảnh chính:", error);
+      throw error;
+    }
+  },
 };
 
 export const handleApiError = (error, defaultMessage = "Có lỗi xảy ra") => {
