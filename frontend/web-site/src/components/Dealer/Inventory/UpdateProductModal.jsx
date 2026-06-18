@@ -72,13 +72,13 @@ export default function UpdateProductModal({ data, onClose, onSave }) {
     }
 
     const finalStock = Math.max(0, data.stock - parsedShrinkage);
-    
+
     const finalStatus =
       finalStock === 0
         ? "Hết hàng"
         : finalStock <= 10
-        ? "Sắp hết hàng"
-        : "Còn hàng";
+          ? "Sắp hết hàng"
+          : "Còn hàng";
 
     let finalFreshness = data.freshness;
     let finalFreshnessColor = data.freshnessColor;

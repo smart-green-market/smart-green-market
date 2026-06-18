@@ -160,11 +160,10 @@ export default function Step1({ onNext }) {
                 type="button"
                 onClick={handleSubmit}
                 disabled={loading}
-                className={`mt-2 flex w-full items-center justify-center gap-2 rounded-xl py-4 text-[15px] font-bold text-white transition-all ${
-                    loading
-                        ? "cursor-not-allowed bg-gray-400"
-                        : "bg-[#006c49] hover:-translate-y-0.5 hover:bg-[#005038]"
-                }`}
+                className={`mt-2 flex w-full items-center justify-center gap-2 rounded-xl py-4 text-[15px] font-bold text-white transition-all ${loading
+                    ? "cursor-not-allowed bg-gray-400"
+                    : "bg-[#006c49] hover:-translate-y-0.5 hover:bg-[#005038]"
+                    }`}
             >
                 {loading ? "Đang xử lý..." : "Tiếp tục"}
             </button>

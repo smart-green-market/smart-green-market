@@ -8,43 +8,43 @@ import ProductViewModal from "../../components/Admin/Product/ProductViewModal";
 
 import { productService, handleApiError } from "../../services/api/productService";
 const formatProduct = (p) => ({
-  id:                    p.id,
-  name:                  p.name,
-  slug:                  p.slug,
-  unit:                  p.unit,
-  description:           p.description,
+  id: p.id,
+  name: p.name,
+  slug: p.slug,
+  unit: p.unit,
+  description: p.description,
   storage_duration_days: p.storage_duration_days,
-  min_storage_temp:      p.min_storage_temp,
-  max_storage_temp:      p.max_storage_temp,
-  status:                p.status,
-  rejection_reason:      p.rejection_reason,
-  verified_by:           p.verified_by,
-  verified_by_username:  p.verified_by_username,
-  verified_at:           p.verified_at,
-  created_at:            p.created_at,
-  updated_at:            p.updated_at,
-  images:                p.images ?? [],
-  image:                 p.images?.find((i) => i.is_thumbnail)?.image_url ?? p.images?.[0]?.image_url,
-  supplier:              p.supplier,
-  supplier_name:         p.supplier?.company_name,
-  category_name:         p.category?.name,
+  min_storage_temp: p.min_storage_temp,
+  max_storage_temp: p.max_storage_temp,
+  status: p.status,
+  rejection_reason: p.rejection_reason,
+  verified_by: p.verified_by,
+  verified_by_username: p.verified_by_username,
+  verified_at: p.verified_at,
+  created_at: p.created_at,
+  updated_at: p.updated_at,
+  images: p.images ?? [],
+  image: p.images?.find((i) => i.is_thumbnail)?.image_url ?? p.images?.[0]?.image_url,
+  supplier: p.supplier,
+  supplier_name: p.supplier?.company_name,
+  category_name: p.category?.name,
 });
 
 // ── Page ────────────────────────────────────────────────────────────────────────
 export default function ProductPage() {
   // ─── State ────────────────────────────────────────────────────────────────
-  const [data,          setData]          = useState([]);
-  const [isFetching,    setIsFetching]    = useState(true);
-  const [loadError,       setLoadError]     = useState("");
-  const [loading,       setLoading]       = useState(false);
+  const [data, setData] = useState([]);
+  const [isFetching, setIsFetching] = useState(true);
+  const [loadError, setLoadError] = useState("");
+  const [loading, setLoading] = useState(false);
   const [actionLoading, setActionLoading] = useState(false);
-  const [error,         setError]         = useState("");
-  const [modalError,    setModalError]    = useState("");
+  const [error, setError] = useState("");
+  const [modalError, setModalError] = useState("");
 
-  const [search,        setSearch]        = useState("");
-  const [statusFilter,  setStatusFilter]  = useState("pending");
+  const [search, setSearch] = useState("");
+  const [statusFilter, setStatusFilter] = useState("pending");
 
-  const [viewRow,       setViewRow]       = useState(null);
+  const [viewRow, setViewRow] = useState(null);
 
   // ─── Fetch all ────────────────────────────────────────────────────────────
   const fetchProducts = useCallback(async ({ initial = false } = {}) => {
@@ -148,31 +148,31 @@ export default function ProductPage() {
   }, [fetchProducts]);
 
   const filteredData = useMemo(() => {
-        return data.filter((item) => {
-            const keyword =
-                search.toLowerCase();
+    return data.filter((item) => {
+      const keyword =
+        search.toLowerCase();
 
-            const matchSearch =
-                item.name
-                    ?.toLowerCase()
-                    .includes(keyword) ||
-                item.category_name
-                    ?.toLowerCase()
-                    .includes(keyword) ||
-                item.supplier_name
-                    ?.toLowerCase()
-                    .includes(keyword);
+      const matchSearch =
+        item.name
+          ?.toLowerCase()
+          .includes(keyword) ||
+        item.category_name
+          ?.toLowerCase()
+          .includes(keyword) ||
+        item.supplier_name
+          ?.toLowerCase()
+          .includes(keyword);
 
-            const matchStatus =
-                !statusFilter ||
-                item.status === statusFilter;
+      const matchStatus =
+        !statusFilter ||
+        item.status === statusFilter;
 
-            return (
-                matchSearch &&
-                matchStatus
-            );
-        });
-    }, [data, search, statusFilter]);
+      return (
+        matchSearch &&
+        matchStatus
+      );
+    });
+  }, [data, search, statusFilter]);
   // ─── Render ───────────────────────────────────────────────────────────────
   return (
     <AdminInitialLoadGate
@@ -181,41 +181,41 @@ export default function ProductPage() {
       onRetry={() => fetchProducts({ initial: true })}
       loadingMessage="Đang tải danh sách sản phẩm..."
     >
-    <div className="flex flex-col gap-6 px-8 pt-6 pb-10">
-      {/* SEARCH */}
-      <Toolbar
-        search={search}
-        onSearch={setSearch}
-        searchPlaceholder="Tìm kiếm sản phẩm..."
-        filter={<Filter value={statusFilter} onChange={setStatusFilter} />}
-      />
+      <div className="flex flex-col gap-6 px-8 pt-6 pb-10">
+        {/* SEARCH */}
+        <Toolbar
+          search={search}
+          onSearch={setSearch}
+          searchPlaceholder="Tìm kiếm sản phẩm..."
+          filter={<Filter value={statusFilter} onChange={setStatusFilter} />}
+        />
 
-      {/* ERROR */}
-            {error && (
-                <div className="px-4 py-3 rounded-xl bg-red-100 text-red-700 text-sm">
-                    {error}
-                </div>
-            )}
-            
-      {/* TABLE */}
-      <ProductTable
-        data={filteredData}
-        onView={handleViewProduct}
-      />
+        {/* ERROR */}
+        {error && (
+          <div className="px-4 py-3 rounded-xl bg-red-100 text-red-700 text-sm">
+            {error}
+          </div>
+        )}
 
-      {/* DETAIL MODAL */}
-      <ProductViewModal
-        isOpen={viewRow !== null}
-        onClose={() => { setViewRow(null); setModalError(""); }}
-        product={viewRow}
-        onApprove={handleApprove}
-        onReject={handleReject}
-        onActive={handleApprove}
-        onPause={handlePause}
-        loading={actionLoading}
-        error={modalError}
-      />
-    </div>
+        {/* TABLE */}
+        <ProductTable
+          data={filteredData}
+          onView={handleViewProduct}
+        />
+
+        {/* DETAIL MODAL */}
+        <ProductViewModal
+          isOpen={viewRow !== null}
+          onClose={() => { setViewRow(null); setModalError(""); }}
+          product={viewRow}
+          onApprove={handleApprove}
+          onReject={handleReject}
+          onActive={handleApprove}
+          onPause={handlePause}
+          loading={actionLoading}
+          error={modalError}
+        />
+      </div>
     </AdminInitialLoadGate>
   );
 }

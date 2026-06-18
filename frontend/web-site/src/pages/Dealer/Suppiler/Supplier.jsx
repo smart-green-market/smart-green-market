@@ -27,7 +27,7 @@ export default function DealerSupplierPage() {
   };
   const filterOptions = [
 
-    ];
+  ];
 
   useEffect(() => {
     fetchSuppliers();
@@ -42,12 +42,12 @@ export default function DealerSupplierPage() {
     const matchesSearch =
       supplierName.toLowerCase().includes(searchQuery.toLowerCase()) ||
       supplierStatus.toLowerCase().includes(searchQuery.toLowerCase());
-    
+
     const matchesStatus = statusFilter === "" || supplierStatus === statusFilter;
     return matchesSearch && matchesStatus;
   });
 
- 
+
 
   if (loading) {
     return (
@@ -68,9 +68,9 @@ export default function DealerSupplierPage() {
         onSearchChange={setSearchQuery}
         statusFilter={statusFilter}
         onStatusChange={setStatusFilter}
-        filterOptions = {filterOptions}
-        placeholder = "Tìm kiếm nhà cung cấp..."
-        
+        filterOptions={filterOptions}
+        placeholder="Tìm kiếm nhà cung cấp..."
+
       />
 
       {/* Bảng Dữ liệu */}

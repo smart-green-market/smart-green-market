@@ -1,4 +1,4 @@
-import  { useState, useEffect } from "react";
+import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { ArrowLeft } from "lucide-react";
 import SupplierInfoCard from "../../../components/Dealer/Supplier/SupplierInfoCard";
@@ -119,28 +119,28 @@ export default function DealerSupplierDetailPage() {
 
   return (
     <div className="p-6 bg-emerald-50/15 min-h-screen font-['Geist',sans-serif]">
-        {/* Nút quay lại và Breadcrumb */}
-        <div className="mb-6 flex flex-col gap-2">
-          <button
-            onClick={() => navigate("/dai-ly/nha-cung-cap")}
-            className="flex items-center gap-2 text-xs font-bold text-emerald-700 hover:text-emerald-800 transition-all w-fit cursor-pointer"
-          >
-            <ArrowLeft className="w-4 h-4" /> Quay lại danh sách
-          </button>
-          <div className="text-xs text-neutral-400 flex items-center gap-1.5 mt-1">
-            <span>Đại lý</span>
-            <span>/</span>
-            <span>Nhà cung cấp</span>
-            <span>/</span>
-            <span className="text-emerald-950 font-medium">{supplier.name}</span>
-          </div>
+      {/* Nút quay lại và Breadcrumb */}
+      <div className="mb-6 flex flex-col gap-2">
+        <button
+          onClick={() => navigate("/dai-ly/nha-cung-cap")}
+          className="flex items-center gap-2 text-xs font-bold text-emerald-700 hover:text-emerald-800 transition-all w-fit cursor-pointer"
+        >
+          <ArrowLeft className="w-4 h-4" /> Quay lại danh sách
+        </button>
+        <div className="text-xs text-neutral-400 flex items-center gap-1.5 mt-1">
+          <span>Đại lý</span>
+          <span>/</span>
+          <span>Nhà cung cấp</span>
+          <span>/</span>
+          <span className="text-emerald-950 font-medium">{supplier.name}</span>
         </div>
-
-        {/* Hiển thị Component thông tin chi tiết nhà cung cấp */}
-        <SupplierInfoCard supplier={supplier} />
-
-        {/* Hiển thị danh sách sản phẩm của nhà cung cấp đó */}
-        <SupplierProductList products={products} />
       </div>
+
+      {/* Hiển thị Component thông tin chi tiết nhà cung cấp */}
+      <SupplierInfoCard supplier={supplier} />
+
+      {/* Hiển thị danh sách sản phẩm của nhà cung cấp đó */}
+      <SupplierProductList products={products} />
+    </div>
   );
 }

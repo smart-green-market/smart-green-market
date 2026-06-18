@@ -173,54 +173,54 @@ export default function NotificationPage() {
             onRetry={() => fetchNotifications({ initial: true })}
             loadingMessage="Đang tải danh sách thông báo..."
         >
-        <div className="flex flex-col gap-6 px-8 pt-6 pb-10">
+            <div className="flex flex-col gap-6 px-8 pt-6 pb-10">
 
-            {/* TOOLBAR */}
-            <Toolbar
-                search={search}
-                onSearch={setSearch}
-                searchPlaceholder="Tìm kiếm thông báo..."
-                filter={
-                    <Filter
-                        value={statusFilter}
-                        onChange={setStatusFilter}
-                    />
-                }
-            />
+                {/* TOOLBAR */}
+                <Toolbar
+                    search={search}
+                    onSearch={setSearch}
+                    searchPlaceholder="Tìm kiếm thông báo..."
+                    filter={
+                        <Filter
+                            value={statusFilter}
+                            onChange={setStatusFilter}
+                        />
+                    }
+                />
 
-            {/* ERROR */}
-            {error && (
-                <div className="px-4 py-3 rounded-xl bg-red-100 text-red-700 text-sm">
-                    {error}
-                </div>
-            )}
+                {/* ERROR */}
+                {error && (
+                    <div className="px-4 py-3 rounded-xl bg-red-100 text-red-700 text-sm">
+                        {error}
+                    </div>
+                )}
 
-            {/* TABLE */}
-            <NotificationTable
-                data={data}
-                loading={loading}
-                search={search}
-                statusFilter={statusFilter}
-                onView={
-                    handleViewNotification
-                }
-            />
+                {/* TABLE */}
+                <NotificationTable
+                    data={data}
+                    loading={loading}
+                    search={search}
+                    statusFilter={statusFilter}
+                    onView={
+                        handleViewNotification
+                    }
+                />
 
-            {/* VIEW MODAL */}
-            <NotificationViewModal
-                isOpen={
-                    viewRow !== null
-                }
-                onClose={() =>
-                    setViewRow(null)
-                }
-                notification={viewRow}
-                loading={
-                    actionLoading
-                }
-                canManageActions={canManageActions}
-            />
-        </div>
+                {/* VIEW MODAL */}
+                <NotificationViewModal
+                    isOpen={
+                        viewRow !== null
+                    }
+                    onClose={() =>
+                        setViewRow(null)
+                    }
+                    notification={viewRow}
+                    loading={
+                        actionLoading
+                    }
+                    canManageActions={canManageActions}
+                />
+            </div>
         </AdminInitialLoadGate>
     );
 }

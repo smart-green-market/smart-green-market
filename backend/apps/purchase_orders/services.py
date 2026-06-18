@@ -1,4 +1,29 @@
-"""Logic nghiệp vụ phiếu nhập hàng: state machine, thanh toán, nhập kho dealer."""
+"""Logic nghiệp vụ phiếu nhập hàng: state machine, thanh toán, nhập kho dealer.
+
+FILE LIÊN QUAN (đọc kèm khi vấn đáp):
+- views.py          : API endpoint → gọi hàm trong file này
+- serializers.py    : validate input JSON/multipart trước khi vào service
+- models.py         : 4 bảng DB + enum trạng thái
+- notifications.py  : push thông báo khi status đổi
+- common/business_rules.py : min/max tiền đơn, % cọc, ngày giao tối thiểu
+- common/vietqr.py  : sinh QR chuyển khoản tới TK NCC
+- common/banks.py   : danh sách ngân hàng (dropdown NCC)
+- apps/dealer_products/ : nhập kho đại lý khi đơn completed
+- common/querysets.py : filter_purchase_orders (phân quyền list)
+
+=== SƠ ĐỒ LUỒNG ===
+[Đại lý] POST /purchase-orders/           → create_purchase_order
+[NCC]    POST .../confirm/                → supplier_confirm_order (+ tính cọc)
+[NCC]    POST .../reject/                 → supplier_reject_order
+[Đại lý] GET  .../payment-qr?deposit      → get_payment_qr (VietQR)
+[Đại lý] POST .../submit-deposit/         → dealer_submit_payment (cọc)
+[NCC]    POST .../verify-payment/         → supplier_verify_payment
+[NCC]    POST .../ship/                   → supplier_start_shipping
+[Đại lý] POST .../confirm-delivery/       → dealer_confirm_delivery
+[Đại lý] GET  .../payment-qr?final_payment→ get_payment_qr
+[Đại lý] POST .../submit-final-payment/   → dealer_submit_payment (cuối)
+[NCC]    POST .../verify-payment/         → supplier_verify_payment → _complete_order → _import_dealer_inventory
+"""
 
 from decimal import Decimal
 
@@ -15,8 +40,11 @@ from apps.dealer_products.models import (
     DealerProduct,
     DealerProductStatus,
 )
+from apps.accounts.models import AccountStatus
+from apps.categories.models import CategoryScope, CategoryStatus
 from apps.dealers.models import DealerProfileStatus
 from apps.supplier_products.models import SupplierProduct, SupplierProductStatus
+from apps.suppliers.models import SupplierVerificationStatus
 from common.business_rules import (
     DEFAULT_DEPOSIT_PERCENT,
     validate_deposit_percent,
@@ -49,6 +77,10 @@ DEALER_CANCELLABLE = {
 
 
 def generate_order_code(dealer_id: int) -> str:
+    """Sinh mã phiếu duy nhất: PN-YYYYMMDD-{dealer_id}-{seq}.
+
+    Ví dụ: PN-20250610-0003-0001 — seq tăng theo số đơn cùng ngày của đại lý đó.
+    """
     today = timezone.now().strftime("%Y%m%d")
     prefix = f"PN-{today}-{dealer_id:04d}"
     seq = PurchaseOrder.objects.filter(order_code__startswith=prefix).count() + 1
@@ -56,6 +88,10 @@ def generate_order_code(dealer_id: int) -> str:
 
 
 def record_status_change(order, new_status, user, note=""):
+    """Ghi lịch sử + cập nhật status + gửi notification cho bên còn lại.
+
+    Mọi bước chuyển trạng thái đều đi qua hàm này để audit trail nhất quán.
+    """
     old_status = order.status
     if old_status == new_status:
         return order
@@ -76,11 +112,13 @@ def record_status_change(order, new_status, user, note=""):
 
 
 def _ensure_not_terminal(order):
+    """Chặn thao tác trên đơn đã kết thúc (rejected / completed / cancelled)."""
     if order.status in TERMINAL_STATUSES:
         raise ValidationError({"detail": "Phiếu nhập đã kết thúc, không thể thay đổi."})
 
 
 def _refresh_payment_totals(order):
+    """Tính lại paid_amount và debt_amount từ các payment status=verified."""
     paid = (
         order.payments.filter(status=PurchaseOrderPaymentStatus.VERIFIED).aggregate(
             total=Sum("amount")
@@ -92,7 +130,16 @@ def _refresh_payment_totals(order):
     order.save(update_fields=["paid_amount", "debt_amount", "updated_at"])
 
 
+def validate_supplier_for_dealer_order(supplier):
+    """Đại lý chỉ đặt hàng từ NCC đã duyệt và tài khoản active."""
+    if supplier.verification_status != SupplierVerificationStatus.APPROVED:
+        raise ValidationError({"supplier_id": "Nhà cung cấp chưa được duyệt."})
+    if supplier.account.status != AccountStatus.ACTIVE:
+        raise ValidationError({"supplier_id": "Tài khoản nhà cung cấp chưa active."})
+
+
 def validate_items_for_supplier(supplier_id, items_data):
+    """Kiểm tra từng dòng: thuộc đúng NCC, sản phẩm active, đã có wholesale_price."""
     product_ids = [item["supplier_product"].id for item in items_data]
     products = SupplierProduct.objects.filter(id__in=product_ids)
     if products.count() != len(product_ids):
@@ -114,6 +161,7 @@ def validate_items_for_supplier(supplier_id, items_data):
 
 
 def build_order_items(order, items_data):
+    """Tạo PurchaseOrderItem, snapshot unit_price từ wholesale_price, tính total_amount."""
     total = Decimal("0")
     created = []
     for row in items_data:
@@ -139,9 +187,16 @@ def build_order_items(order, items_data):
 
 @transaction.atomic
 def create_purchase_order(*, dealer_profile, supplier, delivery_data, items_data, user):
+    """Bước 1 — Đại lý tạo phiếu nhập.
+
+    Điều kiện: đại lý active, SP thuộc NCC & active, ngày giao >= min_delivery_lead_days,
+    tổng tiền trong [min_order_amount, max_order_amount].
+    Kết quả: status = pending_supplier_confirmation.
+    """
     if dealer_profile.status != DealerProfileStatus.ACTIVE:
         raise ValidationError({"detail": "Hồ sơ đại lý chưa active, không thể tạo phiếu nhập."})
 
+    validate_supplier_for_dealer_order(supplier)
     validate_items_for_supplier(supplier.id, items_data)
     validate_requested_delivery_time(delivery_data["requested_delivery_time"])
 
@@ -169,6 +224,11 @@ def create_purchase_order(*, dealer_profile, supplier, delivery_data, items_data
 
 @transaction.atomic
 def supplier_confirm_order(order, user, deposit_percent=None, note=""):
+    """Bước 2 — NCC xác nhận đơn và chốt % cọc.
+
+    deposit_percent mặc định DEFAULT_DEPOSIT_PERCENT (30%), phải trong [10%, 50%].
+    Tính deposit_amount = total × % / 100 → status = confirmed.
+    """
     _ensure_not_terminal(order)
     if order.status != PurchaseOrderStatus.PENDING_SUPPLIER_CONFIRMATION:
         raise ValidationError({"detail": "Chỉ xác nhận phiếu đang chờ NCC."})
@@ -195,6 +255,10 @@ def supplier_confirm_order(order, user, deposit_percent=None, note=""):
 
 @transaction.atomic
 def supplier_reject_order(order, user, rejection_reason):
+    """Bước 2b — NCC từ chối đơn (chỉ khi pending_supplier_confirmation).
+
+    Bắt buộc rejection_reason → status = rejected (terminal).
+    """
     _ensure_not_terminal(order)
     if order.status != PurchaseOrderStatus.PENDING_SUPPLIER_CONFIRMATION:
         raise ValidationError({"detail": "Chỉ từ chối phiếu đang chờ NCC."})
@@ -209,6 +273,11 @@ def supplier_reject_order(order, user, rejection_reason):
 
 @transaction.atomic
 def dealer_submit_payment(order, user, payment_type, payment_data):
+    """Bước 3/7 — Đại lý nộp biên lai thanh toán (multipart: receipt_file).
+
+  - DEPOSIT: khi confirmed → tạo payment pending, status đơn = deposit_pending_verification
+  - FINAL_PAYMENT: khi delivered → amount = debt_amount còn lại
+    """
     _ensure_not_terminal(order)
 
     if payment_type == PurchaseOrderPaymentType.DEPOSIT:
@@ -251,6 +320,13 @@ def dealer_submit_payment(order, user, payment_type, payment_data):
 
 @transaction.atomic
 def supplier_verify_payment(payment, user, approved, rejection_reason=""):
+    """Bước 4/8 — NCC xác minh hoặc từ chối thanh toán.
+
+    Duyệt cọc  → processing (NCC chuẩn bị/thu hoạch).
+    Từ chối cọc → quay lại confirmed (đại lý nộp lại).
+    Duyệt cuối  → _complete_order (nhập kho dealer).
+    Từ chối cuối → quay lại delivered.
+    """
     order = payment.purchase_order
     _ensure_not_terminal(order)
 
@@ -303,6 +379,7 @@ def supplier_verify_payment(payment, user, approved, rejection_reason=""):
 
 @transaction.atomic
 def supplier_start_shipping(order, user, note=""):
+    """Bước 5 — NCC bắt đầu giao hàng: processing → shipping."""
     _ensure_not_terminal(order)
     if order.status != PurchaseOrderStatus.PROCESSING:
         raise ValidationError({"detail": "Chỉ giao hàng khi đang chuẩn bị (processing)."})
@@ -312,6 +389,10 @@ def supplier_start_shipping(order, user, note=""):
 
 @transaction.atomic
 def dealer_confirm_delivery(order, user, note=""):
+    """Bước 6 — Đại lý xác nhận đã nhận hàng: shipping → delivered.
+
+    Sau bước này đại lý có thể thanh toán phần còn lại (final_payment).
+    """
     _ensure_not_terminal(order)
     if order.status != PurchaseOrderStatus.SHIPPING:
         raise ValidationError({"detail": "Chỉ xác nhận nhận hàng khi đang giao (shipping)."})
@@ -323,6 +404,7 @@ def dealer_confirm_delivery(order, user, note=""):
 
 @transaction.atomic
 def cancel_order(order, user, note="", *, is_admin=False):
+    """Hủy đơn — dealer chỉ hủy được khi pending hoặc confirmed; admin hủy mọi trạng thái chưa terminal."""
     _ensure_not_terminal(order)
     if is_admin:
         allowed = order.status not in TERMINAL_STATUSES
@@ -335,21 +417,48 @@ def cancel_order(order, user, note="", *, is_admin=False):
 
 
 def _complete_order(order, user):
+    """Kết thúc đơn sau khi NCC xác minh thanh toán cuối → gọi nhập kho đại lý."""
     order.completed_at = timezone.now()
     order.save(update_fields=["completed_at", "updated_at"])
     record_status_change(order, PurchaseOrderStatus.COMPLETED, user, note="Hoàn tất phiếu nhập")
     _import_dealer_inventory(order, user)
 
 
+def _resolve_dealer_category(supplier_product):
+    """Chọn danh mục cho sản phẩm đại lý khi nhập kho.
+
+    - SP của NCC gắn danh mục HỆ THỐNG (active) → đại lý dùng lại được.
+    - SP gắn danh mục RIÊNG của NCC → đại lý không sở hữu → để trống,
+      đại lý tự gán danh mục hệ thống / danh mục riêng của mình sau.
+    """
+    category = supplier_product.category
+    if category is None:
+        return None
+    if (
+        category.scope == CategoryScope.SYSTEM
+        and category.status == CategoryStatus.ACTIVE
+    ):
+        return category
+    return None
+
+
 def _import_dealer_inventory(order, user):
+    """Tạo DealerProduct (nếu chưa có) + DealerInventoryBatch + transaction IMPORT.
+
+    Mỗi dòng đơn → 1 batch gắn purchase_order_item (FIFO xuất kho sau này).
+    Danh mục bán lẻ: copy danh mục hệ thống của NCC nếu có, ngược lại để trống
+    cho đại lý tự phân loại (xem _resolve_dealer_category).
+  Model: apps/dealer_products/models.py
+    """
     import_date = timezone.now().date()
-    for item in order.items.select_related("supplier_product"):
+    for item in order.items.select_related("supplier_product", "supplier_product__category"):
         dealer_product, _ = DealerProduct.objects.get_or_create(
             dealer_profile=order.dealer,
             supplier_product=item.supplier_product,
             defaults={
                 "title": item.supplier_product.name,
                 "retail_price": item.unit_price,
+                "category": _resolve_dealer_category(item.supplier_product),
                 "status": DealerProductStatus.ACTIVE,
             },
         )
@@ -379,7 +488,12 @@ def _import_dealer_inventory(order, user):
 
 
 def get_payment_qr(order, payment_type: str):
-    """Sinh payload VietQR cho thanh toán cọc hoặc thanh toán cuối."""
+    """Sinh payload VietQR (ảnh QR + thông tin TK NCC) cho đại lý quét chuyển khoản.
+
+    - deposit: khi confirmed, amount = deposit_amount
+    - final_payment: khi delivered, amount = debt_amount
+    TK lấy từ supplier.bank_bin, account_number, account_name.
+    """
     supplier = order.supplier
     transfer_content = order.order_code
 

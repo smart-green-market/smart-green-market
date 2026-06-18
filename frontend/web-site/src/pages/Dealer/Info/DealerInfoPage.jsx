@@ -22,7 +22,7 @@ function getChangedFields(initial, current) {
 }
 export default function DealerInfoPage() {
   const { user } = useAuth();
-  
+
   const [profile, setProfile] = useState(() => {
     if (user?.dealer_profile) {
       return { ...user.dealer_profile, account: user };
@@ -30,7 +30,7 @@ export default function DealerInfoPage() {
     return null;
   });
   const [loading, setLoading] = useState(!user?.dealer_profile);
-  
+
   const [editingPersonal, setEditingPersonal] = useState(false);
   const [editingStore, setEditingStore] = useState(false);
   const [isUpdating, setIsUpdating] = useState(false);
@@ -91,7 +91,7 @@ export default function DealerInfoPage() {
         { full_name: profile.account.full_name, email: profile.account.email, phone: profile.account.phone },
         { full_name: form.full_name, email: form.email, phone: form.phone }
       );
-      
+
       const hasChanges = Object.keys(changedFields).length > 0 || form.avatarFile;
 
       if (hasChanges) {
@@ -125,21 +125,21 @@ export default function DealerInfoPage() {
             toast.warning("Lưu ảnh thành công nhưng server trả về phản hồi lỗi. Bạn vui lòng check console F12!");
           }
         }
-        
+
         // ==============================================================================
         // LOCAL STATE UPDATE (Cập nhật trạng thái cục bộ)
         // ==============================================================================
         // Trộn thông tin cũ với thông tin mới vừa trả về từ API
         const nextAccount = { ...profile.account, ...updatedAccount };
-        
+
         // 1. setProfile: Thay đổi State của React. Ngay lập tức vẽ lại (re-render) cái thẻ
         // <PersonalInfoCard /> trên màn hình bằng hình ảnh và tên mới MÀ KHÔNG CẦN F5.
         setProfile((p) => ({ ...p, account: nextAccount }));
-        
+
         // 2. localStorage.setItem: Lưu đè thông tin mới vào bộ nhớ trình duyệt để đồng bộ dữ liệu
         // cho các chỗ dùng chung (Ví dụ: Thanh Navbar ở góc trên bên phải trang web).
         localStorage.setItem("user", JSON.stringify({ ...savedUser, ...updatedAccount }));
-        
+
         toast.success("Cập nhật thông tin cá nhân thành công!");
       }
       setEditingPersonal(false);
@@ -156,8 +156,8 @@ export default function DealerInfoPage() {
     }
   };
 
-  
-   //Xử lý cập nhật thông tin cửa hàng
+
+  //Xử lý cập nhật thông tin cửa hàng
   const handleSaveStore = async (form) => {
     try {
       setIsUpdating(true);
@@ -165,7 +165,7 @@ export default function DealerInfoPage() {
         { store_name: profile.store_name, store_address: profile.store_address, description: profile.description },
         form
       );
-      
+
       const hasChanges = Object.keys(changedFields).length > 0 || form.logoFile;
 
       if (hasChanges) {
@@ -176,7 +176,7 @@ export default function DealerInfoPage() {
         }
 
         let payload = changedFields;
-        
+
         if (form.logoFile) {
           payload = new FormData();
           if (changedFields.store_name) payload.append("store_name", changedFields.store_name);
@@ -194,7 +194,7 @@ export default function DealerInfoPage() {
         } catch (err) {
           console.error("Lỗi khi gọi getStorefrontLink sau update:", err);
         }
-        
+
         // ==============================================================================
         // LOCAL STATE UPDATE (Cập nhật trạng thái cục bộ)
         // ==============================================================================
@@ -202,7 +202,7 @@ export default function DealerInfoPage() {
         // Nhờ vậy giao diện thẻ <StoreInfoCard /> sẽ tự động cập nhật ngay tức thì mà không cần F5!
         // Lưu ý: Không cần lưu vào localStorage vì Navbar không quan tâm tên cửa hàng.
         setProfile((p) => ({ ...p, ...updated, storefront_url: nextStorefrontUrl, account: p.account }));
-        
+
         toast.success("Cập nhật thông tin cửa hàng thành công!");
       }
       setEditingStore(false);
@@ -232,7 +232,7 @@ export default function DealerInfoPage() {
   return (
     <div className="p-6 md:p-10 bg-emerald-50/15 min-h-screen font-['Geist',sans-serif]">
       <div className="max-w-4xl mx-auto space-y-8">
-        
+
         {/* Header */}
         <div>
           <h1 className="text-2xl font-bold text-emerald-950 flex items-center gap-2">
@@ -242,14 +242,14 @@ export default function DealerInfoPage() {
             Quản lý thông tin tài khoản và thông tin cửa hàng của bạn.
           </p>
         </div>
-        
-         {/* Thông tin cá nhân */}
+
+        {/* Thông tin cá nhân */}
         <PersonalInfoCard profile={profile} onEdit={() => setEditingPersonal(true)} />
 
         {/* Thông tin cửa hàng */}
         <StoreInfoCard profile={profile} onEdit={() => setEditingStore(true)} />
 
-       
+
 
         {/* Giấy tờ pháp lý */}
         <DocumentsCard documents={profile?.documents} />

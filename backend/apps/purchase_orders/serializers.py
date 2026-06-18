@@ -1,11 +1,18 @@
-"""Serializer phiếu nhập hàng."""
+"""Serializer phiếu nhập hàng — chuyển JSON/multipart ↔ model, gọi services khi tạo đơn.
+
+- PurchaseOrderCreateSerializer : body POST tạo đơn → services.create_purchase_order
+- PurchaseOrderDetailSerializer : response chi tiết (items, payments, status_histories)
+- SubmitPaymentSerializer       : multipart nộp biên lai
+- VerifyPaymentSerializer       : NCC duyệt/từ chối payment
+"""
 
 from decimal import Decimal
 
 from rest_framework import serializers
 
+from apps.accounts.models import AccountStatus
 from apps.supplier_products.models import SupplierProduct
-from apps.suppliers.models import Supplier
+from apps.suppliers.models import Supplier, SupplierVerificationStatus
 from common.files import build_media_url
 from common.openapi_enums import schema_choice_field
 from common.validators import require_rejection_reason
@@ -418,11 +425,18 @@ class PurchaseOrderCreateSerializer(serializers.Serializer):
         return value
 
     def validate_supplier_id(self, value):
-        if not Supplier.objects.filter(pk=value).exists():
-            raise serializers.ValidationError("Nhà cung cấp không tồn tại.")
+        try:
+            supplier = Supplier.objects.select_related("account").get(pk=value)
+        except Supplier.DoesNotExist as exc:
+            raise serializers.ValidationError("Nhà cung cấp không tồn tại.") from exc
+        if supplier.verification_status != SupplierVerificationStatus.APPROVED:
+            raise serializers.ValidationError("Nhà cung cấp chưa được duyệt.")
+        if supplier.account.status != AccountStatus.ACTIVE:
+            raise serializers.ValidationError("Tài khoản nhà cung cấp chưa active.")
         return value
 
     def create(self, validated_data):
+        """Map supplier_product_id → SupplierProduct object rồi gọi create_purchase_order."""
         from . import services
 
         user = self.context["request"].user

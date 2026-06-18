@@ -26,7 +26,7 @@ export default function SalesOrderList({ salesOrders, onViewDetail, onSelectedRo
       sortable: true,
       width: "140px",
       cell: (row) => (
-        <span 
+        <span
           onClick={() => onViewDetail && onViewDetail(row)}
           className="text-xs font-extrabold text-emerald-800 hover:text-emerald-950 cursor-pointer hover:underline underline-offset-2 transition-colors uppercase tracking-wider"
         >

@@ -43,7 +43,7 @@ export default function DealerInventoryPage() {
         dealerProductService.getAll().catch(() => []) // Fallback mảng rỗng nếu lỗi
       ]);
       const batches = data.results || data || [];
-      
+
       // Ánh xạ dữ liệu lô hàng với sản phẩm đại lý tương ứng để hiển thị thông tin đầy đủ nhất
       const mappedInventory = batches.map(batch => {
         // Tìm sản phẩm đại lý khớp với dealer_product của lô hàng để lấy giá bán lẻ
@@ -57,8 +57,8 @@ export default function DealerInventoryPage() {
         const unitName = batch.supplier_product_unit || "kg";
         const retailPriceRaw = matchedProduct?.retail_price;
 
-        const priceRetail = retailPriceRaw 
-          ? new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(retailPriceRaw) 
+        const priceRetail = retailPriceRaw
+          ? new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(retailPriceRaw)
           : "N/A";
 
         // Trả về đối tượng lô hàng đã được format thân thiện với UI table
@@ -92,7 +92,7 @@ export default function DealerInventoryPage() {
     try {
       const data = await dealerInventoryService.getTransactions();
       const transactions = data.results || data;
-      
+
       // Định nghĩa tên loại giao dịch sang tiếng Việt hiển thị trên UI
       const typeMapping = {
         "import": "Nhập kho",
@@ -132,7 +132,7 @@ export default function DealerInventoryPage() {
       item.batchCode.toLowerCase().includes(searchQuery.toLowerCase()) ||
       item.supplier.toLowerCase().includes(searchQuery.toLowerCase()) ||
       item.category.toLowerCase().includes(searchQuery.toLowerCase());
-    
+
     // Lọc theo trạng thái tồn kho (Còn hàng, Sắp hết hàng, Hết hàng...)
     const matchesStatus = statusFilter === "" || item.status === statusFilter;
     return matchesSearch && matchesStatus;
@@ -199,7 +199,7 @@ export default function DealerInventoryPage() {
           data={filteredInventory}
           onRowClick={(row) => setSelectedRow(row)} // Click dòng sẽ kích hoạt mở modal
         />
-        
+
         {/* Modal Cập nhật Lô hàng (chỉ mở khi có lô hàng được chọn) */}
         {selectedRow && (
           <UpdateProductModal

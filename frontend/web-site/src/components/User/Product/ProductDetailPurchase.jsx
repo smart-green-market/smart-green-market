@@ -147,9 +147,8 @@ export default function ProductDetailPurchase({
                     <div className="flex flex-col gap-3 sm:flex-row">
                         <Link
                             to="/dat-hang"
-                            className={`flex flex-1 items-center justify-center gap-3 rounded-lg bg-orange-500 px-4 py-4 text-base text-white no-underline transition-colors ${
-                                inStock ? "hover:bg-orange-600" : "pointer-events-none opacity-50"
-                            }`}
+                            className={`flex flex-1 items-center justify-center gap-3 rounded-lg bg-orange-500 px-4 py-4 text-base text-white no-underline transition-colors ${inStock ? "hover:bg-orange-600" : "pointer-events-none opacity-50"
+                                }`}
                         >
                             <Zap className="h-4 w-4" />
                             MUA NGAY
@@ -168,9 +167,8 @@ export default function ProductDetailPurchase({
                         type="button"
                         onClick={handleAddToCart}
                         disabled={!inStock}
-                        className={`flex items-center justify-center gap-3 rounded-lg bg-emerald-950 px-4 py-4 text-base text-white transition-colors ${
-                            inStock ? "hover:bg-emerald-900" : "cursor-not-allowed opacity-50"
-                        }`}
+                        className={`flex items-center justify-center gap-3 rounded-lg bg-emerald-950 px-4 py-4 text-base text-white transition-colors ${inStock ? "hover:bg-emerald-900" : "cursor-not-allowed opacity-50"
+                            }`}
                     >
                         <ShoppingCart className="h-5 w-5" />
                         THÊM VÀO GIỎ HÀNG

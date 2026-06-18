@@ -79,7 +79,7 @@ export default function DealerCategoryPage() {
             };
             const response = await categoryService.create(dataToCreate);
             const newCat = response?.data || response;
-            
+
             const mappedCat = {
                 ...newCat,
                 code: newCat.id ? `CAT-${newCat.id}` : `CAT-${Math.floor(Math.random() * 1000)}`,
@@ -110,12 +110,12 @@ export default function DealerCategoryPage() {
         try {
             await categoryService.delete(id);
             toast.success("Xóa danh mục thành công!");
-            
+
             fetchCategories();
         } catch (error) {
             console.log(error);
             toast.error(handleApiError(error, "Không thể xóa danh mục"));
-            
+
         }
     };
 

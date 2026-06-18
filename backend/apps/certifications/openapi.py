@@ -3,11 +3,11 @@
 from rest_framework import serializers
 from drf_spectacular.utils import inline_serializer
 
-from common.business_rules import MAX_IMAGES_PER_CERTIFICATION, allowed_image_extensions_label
+from common.business_rules import MAX_IMAGES_PER_CERTIFICATION
+from common.openapi_files import IMAGE_FILE_HELP
 
 _IMAGE_HELP = (
-    f"Ảnh scan chứng nhận ({allowed_image_extensions_label()} — tối đa 5MB/ảnh). "
-    f"Tối đa {MAX_IMAGES_PER_CERTIFICATION} ảnh/chứng nhận."
+    f"{IMAGE_FILE_HELP}. Tối đa {MAX_IMAGES_PER_CERTIFICATION} ảnh/chứng nhận."
 )
 
 CertificationCreateForm = inline_serializer(

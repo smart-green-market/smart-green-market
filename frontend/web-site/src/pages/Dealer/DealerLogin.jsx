@@ -11,7 +11,7 @@ export default function DealerLoginPage() {
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState("");
     const [showPassword, setShowPassword] = useState(false);
-    
+
 
     const handleSubmit = async (e) => {
         e.preventDefault();
@@ -29,18 +29,18 @@ export default function DealerLoginPage() {
 
     return (
         <div className="min-h-screen flex items-center justify-center bg-gradient-to-tr from-emerald-100/40 via-stone-50 to-green-100/30 px-4 font-['Geist',sans-serif]">
-            
+
             {/* Login Card */}
             <div className="w-full max-w-md bg-white rounded-3xl shadow-xl border border-emerald-100/40 p-8 relative overflow-hidden">
                 {/* Decorative top green glow */}
                 <div className="absolute top-0 left-0 right-0 h-1.5 bg-gradient-to-r from-emerald-500 via-green-500 to-lime-500" />
-                
+
                 <div className="text-center mb-8">
                     {/* Icon leaf representing veggie green */}
                     <div className="w-12 h-12 bg-emerald-50 rounded-2xl flex items-center justify-center mx-auto mb-4 border border-emerald-100">
                         <Leaf className="w-6 h-6 text-emerald-600" />
                     </div>
-                    
+
                     <span className="text-[10px] font-bold bg-emerald-100 text-emerald-800 px-3 py-1 rounded-full uppercase tracking-wider">
                         Đại lý nông sản
                     </span>
@@ -51,7 +51,7 @@ export default function DealerLoginPage() {
                         Quản lý cửa hàng phân phối sản phẩm hữu cơ
                     </p>
                 </div>
-                
+
                 <form onSubmit={handleSubmit} className="space-y-5">
                     {/* Username Input */}
                     <div>
@@ -99,7 +99,7 @@ export default function DealerLoginPage() {
                                 {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                             </button>
                         </div>
-                        
+
                     </div>
 
                     {/* Error Message */}
@@ -113,11 +113,10 @@ export default function DealerLoginPage() {
                     <button
                         type="submit"
                         disabled={loading}
-                        className={`w-full h-11 rounded-xl text-white font-bold transition-all shadow-md active:scale-[0.98] cursor-pointer flex items-center justify-center gap-2 ${
-                            loading 
-                                ? "bg-emerald-600/50 cursor-not-allowed" 
-                                : "bg-emerald-700 hover:bg-emerald-800 shadow-emerald-100"
-                        }`}
+                        className={`w-full h-11 rounded-xl text-white font-bold transition-all shadow-md active:scale-[0.98] cursor-pointer flex items-center justify-center gap-2 ${loading
+                            ? "bg-emerald-600/50 cursor-not-allowed"
+                            : "bg-emerald-700 hover:bg-emerald-800 shadow-emerald-100"
+                            }`}
                     >
                         {loading ? (
                             <>

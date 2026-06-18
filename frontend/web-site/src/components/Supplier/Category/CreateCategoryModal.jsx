@@ -23,8 +23,8 @@ const INITIAL_FORM = {
 //   onSuccess — (newCategory) => void
 // ================================================================
 export default function AddCategoryModal({ onClose, onSuccess }) {
-  const [form, setForm]         = useState(INITIAL_FORM);
-  const [errors, setErrors]     = useState({});
+  const [form, setForm] = useState(INITIAL_FORM);
+  const [errors, setErrors] = useState({});
   const [submitting, setSubmitting] = useState(false);
   const [apiError, setApiError] = useState("");
 
@@ -44,9 +44,9 @@ export default function AddCategoryModal({ onClose, onSuccess }) {
 
     // Payload đúng theo API spec
     const payload = {
-      name:        form.name.trim(),
+      name: form.name.trim(),
       description: form.description.trim(),
-      sort_order:  Number(form.sort_order),
+      sort_order: Number(form.sort_order),
     };
 
     try {

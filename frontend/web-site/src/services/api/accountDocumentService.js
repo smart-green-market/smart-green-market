@@ -1,13 +1,40 @@
 import axiosClient from "./axiosClient";
 
 export const accountDocumentService = {
+  // --- ADMIN + SUPPLIER
   getAll: () =>
-    axiosClient
-      .get("/account-documents/")
-      .then((res) => res.data.results ?? res.data),
+    axiosClient.get("/account-documents/").then((res) => res.data.results),
+
+  // [
+  //   {
+  //     "id": 0,
+  //     "file_url": "string",
+  //     "document_type": "business_license",
+  //     "status": "pending",
+  //     "verified_at": "2026-06-07T07:45:49.745Z",
+  //     "created_at": "2026-06-07T07:45:49.745Z",
+  //     "supplier": 0,
+  //     "verified_by": 0
+  //   }
+  // ]
 
   getById: (id) =>
     axiosClient.get(`/account-documents/${id}/`).then((res) => res.data),
+
+  // {
+  //   "id": 0,
+  //   "file_url": "string",
+  //   "document_type": "business_license",
+  //   "status": "pending",
+  //   "verified_at": "2026-06-07T07:46:26.729Z",
+  //   "created_at": "2026-06-07T07:46:26.729Z",
+  //   "supplier": 0,
+  //   "verified_by": 0
+  // }
+
+  // --- SUPPLIER
+  create: (data) =>
+    axiosClient.post("/account-documents/", data).then((res) => res.data.data),
 
   upload: (selectedFiles) => {
     const formData = new FormData();
@@ -35,14 +62,10 @@ export const accountDocumentService = {
   },
 };
 
+// Xử lý bug
 export const handleApiError = (error, defaultMessage = "Có lỗi xảy ra") => {
-  const data = error.response?.data;
   const message =
-    data?.message ||
-    data?.detail ||
-    (typeof data === "object" ? JSON.stringify(data) : null) ||
-    error.message ||
-    defaultMessage;
+    error.response?.data?.message || error.message || defaultMessage;
   console.error("API Error:", error);
   return message;
 };

@@ -7,6 +7,7 @@ from rest_framework.response import Response
 
 from common.notifications import notify_account, notify_admins
 from common.openapi import PAGINATION_QUERY_HELP, paginated_response_schema
+from common.openapi_files import multipart_request
 from common.verify_openapi import (
     DEALER_PRODUCT_VERIFY_APPROVE,
     DEALER_PRODUCT_VERIFY_REJECT,
@@ -21,6 +22,11 @@ from .models import (
     DealerProduct,
     DealerProductImage,
     DealerProductStatus,
+)
+from .openapi import (
+    DEALER_PRODUCT_IMAGE_HELP,
+    DealerProductImageCreateForm,
+    DealerProductImageUpdateForm,
 )
 from .serializers import (
     DealerInventoryBatchSerializer,
@@ -80,6 +86,7 @@ class DealerProductViewSet(viewsets.ModelViewSet):
         "dealer_profile",
         "dealer_profile__account",
         "supplier_product",
+        "category",
     ).prefetch_related("images")
     serializer_class = DealerProductSerializer
 
@@ -157,9 +164,27 @@ class DealerProductViewSet(viewsets.ModelViewSet):
 @extend_schema_view(
     list=extend_schema(tags=["Dealer Product Images"], summary="Danh sách ảnh"),
     retrieve=extend_schema(tags=["Dealer Product Images"], summary="Chi tiết ảnh"),
-    create=extend_schema(tags=["Dealer Product Images"], summary="Thêm ảnh (URL)"),
-    update=extend_schema(tags=["Dealer Product Images"], summary="Cập nhật ảnh"),
-    partial_update=extend_schema(tags=["Dealer Product Images"], summary="Cập nhật một phần"),
+    create=extend_schema(
+        tags=["Dealer Product Images"],
+        summary="Thêm ảnh sản phẩm",
+        description=DEALER_PRODUCT_IMAGE_HELP,
+        request=multipart_request(DealerProductImageCreateForm),
+        responses={201: DealerProductImageSerializer},
+    ),
+    update=extend_schema(
+        tags=["Dealer Product Images"],
+        summary="Cập nhật ảnh",
+        description=DEALER_PRODUCT_IMAGE_HELP,
+        request=multipart_request(DealerProductImageUpdateForm),
+        responses={200: DealerProductImageSerializer},
+    ),
+    partial_update=extend_schema(
+        tags=["Dealer Product Images"],
+        summary="Cập nhật một phần",
+        description=DEALER_PRODUCT_IMAGE_HELP,
+        request=multipart_request(DealerProductImageUpdateForm),
+        responses={200: DealerProductImageSerializer},
+    ),
     destroy=extend_schema(tags=["Dealer Product Images"], summary="Xóa ảnh"),
 )
 class DealerProductImageViewSet(viewsets.ModelViewSet):
@@ -214,7 +239,10 @@ class DealerInventoryBatchViewSet(viewsets.ReadOnlyModelViewSet):
     permission_classes = [IsAdminOrDealer]
     queryset = DealerInventoryBatch.objects.select_related(
         "dealer_product",
+        "dealer_product__category",
         "dealer_product__dealer_profile",
+        "dealer_product__supplier_product",
+        "dealer_product__supplier_product__supplier",
         "purchase_order_item",
         "purchase_order_item__purchase_order",
     ).filter(deleted_at__isnull=True)

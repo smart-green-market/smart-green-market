@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { Link } from "react-router-dom";
 import { accountService } from "../../services/api/accountService";
 import { authService } from "../../services/api/authAdminService";
 import { saveAuthTokens } from "../../services/token/authTokenStorage";
@@ -174,12 +175,11 @@ export default function Step1({ onNext }) {
 
       <p className="text-[13px] text-[#5a6a5e] text-center">
         Đã có tài khoản?{" "}
-        <a
-          href="#"
+        <Link to="/nha-cung-cap/dang-nhap"
           className="text-[#006c49] font-bold no-underline"
         >
           Đăng nhập ngay
-        </a>
+        </Link>
       </p>
     </div>
   );

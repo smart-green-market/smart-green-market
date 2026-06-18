@@ -1,4 +1,23 @@
-"""API phiếu nhập hàng đại lý ↔ nhà cung cấp."""
+"""API phiếu nhập hàng đại lý ↔ nhà cung cấp.
+
+Router: config/urls.py → purchase_orders/urls.py → PurchaseOrderViewSet
+
+| Endpoint | Role | Service |
+|----------|------|---------|
+| GET/POST /api/purchase-orders/ | Dealer (POST) | create_purchase_order |
+| GET /api/purchase-orders/{id}/ | All (phân quyền) | — |
+| POST .../confirm/ | Supplier | supplier_confirm_order |
+| POST .../reject/ | Supplier | supplier_reject_order |
+| GET .../payment-qr/ | Dealer | get_payment_qr |
+| POST .../submit-deposit/ | Dealer | dealer_submit_payment |
+| POST .../submit-final-payment/ | Dealer | dealer_submit_payment |
+| POST .../verify-payment/ | Supplier | supplier_verify_payment |
+| POST .../ship/ | Supplier | supplier_start_shipping |
+| POST .../confirm-delivery/ | Dealer | dealer_confirm_delivery |
+| POST .../cancel/ | Dealer/Admin | cancel_order |
+
+Config công khai: GET /api/purchase-order-config/
+"""
 
 from django.db.models import Prefetch
 
@@ -12,6 +31,7 @@ from rest_framework.response import Response
 from apps.accounts.models import AccountRole
 from apps.supplier_products.models import SupplierProductImage
 from common.openapi import PAGINATION_QUERY_HELP, paginated_response_schema
+from common.openapi_files import multipart_request
 from common.permission import IsAdmin, IsAdminOrSupplier, IsDealer, IsSupplier
 from common.querysets import ORDER_NEWEST, filter_purchase_orders
 
@@ -99,6 +119,8 @@ def _detail_response(order, request):
     ),
 )
 class PurchaseOrderViewSet(viewsets.GenericViewSet):
+    """ViewSet phiếu nhập — mỗi @action ủy quyền cho services.py xử lý nghiệp vụ."""
+
     queryset = PurchaseOrder.objects.select_related(
         "supplier",
         "dealer",
@@ -122,6 +144,7 @@ class PurchaseOrderViewSet(viewsets.GenericViewSet):
         return filter_purchase_orders(qs, self.request.user, ordering=ORDER_NEWEST)
 
     def get_permissions(self):
+        """Phân quyền theo action: dealer tạo/nộp tiền, supplier duyệt/giao, admin xem tất cả."""
         if self.action == "create":
             return [IsDealer()]
         if self.action in (
@@ -257,7 +280,7 @@ class PurchaseOrderViewSet(viewsets.GenericViewSet):
         tags=["Purchase Orders"],
         summary="Đại lý gửi xác nhận thanh toán cọc",
         description=SUBMIT_PAYMENT_MINIMAL_HELP,
-        request={"multipart/form-data": SubmitPaymentForm},
+        request=multipart_request(SubmitPaymentForm),
         responses={201: PurchaseOrderPaymentReadSerializer},
         examples=[SUBMIT_PAYMENT_EXAMPLE_NOTE],
     )
@@ -288,7 +311,7 @@ class PurchaseOrderViewSet(viewsets.GenericViewSet):
         tags=["Purchase Orders"],
         summary="Đại lý gửi xác nhận thanh toán cuối",
         description=SUBMIT_PAYMENT_MINIMAL_HELP,
-        request={"multipart/form-data": SubmitPaymentForm},
+        request=multipart_request(SubmitPaymentForm),
         responses={201: PurchaseOrderPaymentReadSerializer},
         examples=[SUBMIT_PAYMENT_EXAMPLE_NOTE],
     )

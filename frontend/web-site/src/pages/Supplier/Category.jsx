@@ -7,18 +7,18 @@ import DeleteConfirmModal from "../../components/common/DeleteConfirmModal";
 import SupplierPageHeader, { SUPPLIER_PAGE_CLASS } from "../../components/Supplier/UI/SupplierPageHeader";
 
 export default function CategorySupplierPage() {
-  const [data,         setData]         = useState([]);
-  const [search,       setSearch]       = useState("");
+  const [data, setData] = useState([]);
+  const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
 
   // Modal states
-  const [deleteRow,       setDeleteRow]       = useState(null); // row | null
+  const [deleteRow, setDeleteRow] = useState(null); // row | null
   const [showAddCategory, setShowAddCategory] = useState(false);
 
   /* ── Fetch ── */
   const fetchProducts = async () => {
     try {
-      const response    = await categoryService.getAll();
+      const response = await categoryService.getAll();
       const productList = Array.isArray(response) ? response : (response?.results || []);
       setData(productList);
     } catch (error) {
@@ -121,7 +121,7 @@ export default function CategorySupplierPage() {
         itemType="sản phẩm"
         loading={deleting}
       />
-{/* 
+      {/* 
       <DetailProductModal
         isOpen={detailRow !== null}
         onClose={() => setDetailRow(null)}

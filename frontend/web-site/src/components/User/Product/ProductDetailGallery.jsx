@@ -48,11 +48,10 @@ export default function ProductDetailGallery({ images = [], name = "", status, i
                             key={img.id ?? index}
                             type="button"
                             onClick={() => setActiveIndex(index)}
-                            className={`relative shrink-0 overflow-hidden rounded-lg bg-zinc-100 transition-all ${
-                                activeIndex === index
-                                    ? "outline outline-2 outline-offset-[-2px] outline-emerald-950"
-                                    : "outline outline-1 outline-offset-[-1px] outline-transparent hover:outline-stone-300"
-                            }`}
+                            className={`relative shrink-0 overflow-hidden rounded-lg bg-zinc-100 transition-all ${activeIndex === index
+                                ? "outline outline-2 outline-offset-[-2px] outline-emerald-950"
+                                : "outline outline-1 outline-offset-[-1px] outline-transparent hover:outline-stone-300"
+                                }`}
                         >
                             <img
                                 src={img.image_url}

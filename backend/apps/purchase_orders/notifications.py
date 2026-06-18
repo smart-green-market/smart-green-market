@@ -9,9 +9,10 @@ Account = get_user_model()
 
 
 def notify_purchase_order_status_change(order, *, actor, old_status=""):
-    """
-    Gửi notification cho bên còn lại (dealer ↔ supplier) khi status đổi.
-    UI poll GET /api/notifications/my/ → reference_type=purchase_order → refetch phiếu.
+    """Gửi notification cho bên còn lại (dealer ↔ supplier) khi status đổi.
+
+    Gọi từ record_status_change — mỗi bước luồng đặt hàng đều trigger.
+    FE: GET /api/notifications/my/ → reference_type=purchase_order → mở chi tiết đơn.
     """
     title, content, notif_type = purchase_order_status_updated(
         order,

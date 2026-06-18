@@ -28,9 +28,8 @@ export default function SideBar({ isOpen }) {
 
   return (
     <aside
-      className={`fixed left-0 top-16 bottom-0 w-64 bg-stone-50 border-r border-emerald-100 flex flex-col z-40 transition-all duration-300 ${
-        isOpen ? "translate-x-0" : "-translate-x-full"
-      }`}
+      className={`fixed left-0 top-16 bottom-0 w-64 bg-stone-50 border-r border-emerald-100 flex flex-col z-40 transition-all duration-300 ${isOpen ? "translate-x-0" : "-translate-x-full"
+        }`}
     >
       {/* Nav items */}
       <nav className="flex-1 px-4 py-6 flex flex-col gap-1 overflow-y-auto">
@@ -41,11 +40,10 @@ export default function SideBar({ isOpen }) {
             end={end}
             className={({ isActive }) =>
               `relative flex items-center gap-3 px-4 py-3 rounded-lg text-xs font-semibold transition-all duration-150
-                            ${
-                              isActive
-                                ? "bg-emerald-100/60 border-l-4 border-emerald-700 text-emerald-800 pl-3 shadow-xs"
-                                : "text-neutral-600 hover:bg-emerald-50 hover:text-emerald-800"
-                            }`
+                            ${isActive
+                ? "bg-emerald-100/60 border-l-4 border-emerald-700 text-emerald-800 pl-3 shadow-xs"
+                : "text-neutral-600 hover:bg-emerald-50 hover:text-emerald-800"
+              }`
             }
           >
             <Icon className="w-4 h-4 shrink-0" />

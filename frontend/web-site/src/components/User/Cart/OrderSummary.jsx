@@ -14,9 +14,8 @@ export default function OrderSummary({
 
   return (
     <section
-      className={`rounded-xl border border-stone-200 bg-white p-6 shadow-sm ${
-        sticky ? "lg:sticky lg:top-[88px]" : ""
-      }`}
+      className={`rounded-xl border border-stone-200 bg-white p-6 shadow-sm ${sticky ? "lg:sticky lg:top-[88px]" : ""
+        }`}
     >
       <h2 className="text-lg font-semibold text-emerald-950">Tóm tắt đơn hàng</h2>
 

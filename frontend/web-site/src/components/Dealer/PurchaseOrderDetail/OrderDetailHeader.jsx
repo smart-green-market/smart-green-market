@@ -48,14 +48,16 @@ export default function OrderDetailHeader({ orderData, onBack }) {
             <p className="text-xs text-neutral-400 mt-1.5 font-medium">
               Giao dự kiến: {orderData.deliveryDate}
             </p>
-            {orderData.completedAt && (
-              <p className="text-xs text-emerald-600 mt-1.5 font-medium">
-                Hoàn thành: {orderData.completedAt}
-              </p>
-            )}
-          </div>
-        </div>
-      </div>
-    </div>
+            {
+              orderData.completedAt && (
+                <p className="text-xs text-emerald-600 mt-1.5 font-medium">
+                  Hoàn thành: {orderData.completedAt}
+                </p>
+              )
+            }
+          </div >
+        </div >
+      </div >
+    </div >
   );
 }

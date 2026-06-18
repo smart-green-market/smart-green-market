@@ -47,53 +47,55 @@ export default function Header() {
                 </form>
 
                 <div className="flex items-center gap-2 shrink-0">
-                    {isLoggedIn ? (
-                        <>
-                            <Link
-                                to={paths.orderStatus}
-                                className="hover:scale-110 p-2 rounded-full hover:bg-zinc-100 hover:text-green-600 transition-colors text-zinc-700"
-                                title="Theo dõi đơn hàng"
-                            >
-                                <Newspaper className="w-5 h-5" />
-                            </Link>
-                            <Link
-                                to={paths.cart}
-                                className="relative hover:scale-110 p-2 rounded-full hover:bg-zinc-100 hover:text-green-600 transition-colors text-zinc-700"
-                                title="Giỏ hàng"
-                            >
-                                <ShoppingCart className="w-5 h-5" />
-                                {itemCount > 0 ? (
-                                    <span className="absolute -right-0.5 -top-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-emerald-700 px-1 text-[10px] font-bold text-white">
-                                        {itemCount > 99 ? "99+" : itemCount}
-                                    </span>
-                                ) : null}
-                            </Link>
-                            <Link
-                                to={paths.account}
-                                className="hover:scale-110 p-2 rounded-full hover:bg-zinc-100 hover:text-green-600 transition-colors text-zinc-700"
-                                title="Tài khoản"
-                            >
-                                <User className="w-5 h-5" />
-                            </Link>
-                        </>
-                    ) : (
-                        <>
-                            <Link
-                                to={paths.login}
-                                className="rounded-lg border border-emerald-800 px-4 py-2 text-sm font-semibold text-emerald-800 no-underline transition-colors hover:bg-emerald-50"
-                            >
-                                Đăng nhập
-                            </Link>
-                            <Link
-                                to={paths.register}
-                                className="rounded-lg bg-emerald-800 px-4 py-2 text-sm font-semibold text-white no-underline transition-colors hover:bg-emerald-900"
-                            >
-                                Đăng ký
-                            </Link>
-                        </>
-                    )}
-                </div>
-            </div>
-        </header>
+                    {
+                        isLoggedIn ? (
+                            <>
+                                <Link
+                                    to={paths.orderStatus}
+                                    className="hover:scale-110 p-2 rounded-full hover:bg-zinc-100 hover:text-green-600 transition-colors text-zinc-700"
+                                    title="Theo dõi đơn hàng"
+                                >
+                                    <Newspaper className="w-5 h-5" />
+                                </Link>
+                                <Link
+                                    to={paths.cart}
+                                    className="relative hover:scale-110 p-2 rounded-full hover:bg-zinc-100 hover:text-green-600 transition-colors text-zinc-700"
+                                    title="Giỏ hàng"
+                                >
+                                    <ShoppingCart className="w-5 h-5" />
+                                    {itemCount > 0 ? (
+                                        <span className="absolute -right-0.5 -top-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-emerald-700 px-1 text-[10px] font-bold text-white">
+                                            {itemCount > 99 ? "99+" : itemCount}
+                                        </span>
+                                    ) : null}
+                                </Link>
+                                <Link
+                                    to={paths.account}
+                                    className="hover:scale-110 p-2 rounded-full hover:bg-zinc-100 hover:text-green-600 transition-colors text-zinc-700"
+                                    title="Tài khoản"
+                                >
+                                    <User className="w-5 h-5" />
+                                </Link>
+                            </>
+                        ) : (
+                            <>
+                                <Link
+                                    to={paths.login}
+                                    className="rounded-lg border border-emerald-800 px-4 py-2 text-sm font-semibold text-emerald-800 no-underline transition-colors hover:bg-emerald-50"
+                                >
+                                    Đăng nhập
+                                </Link>
+                                <Link
+                                    to={paths.register}
+                                    className="rounded-lg bg-emerald-800 px-4 py-2 text-sm font-semibold text-white no-underline transition-colors hover:bg-emerald-900"
+                                >
+                                    Đăng ký
+                                </Link>
+                            </>
+                        )
+                    }
+                </div >
+            </div >
+        </header >
     );
 }

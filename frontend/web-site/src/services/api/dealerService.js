@@ -3,7 +3,6 @@ import { accountDocumentService } from "./accountDocumentService";
 import { extractApiError } from "../../utils/extractApiError";
 
 
-
 export const dealerService = {
   getAll: () =>
     axiosClient
@@ -39,7 +38,7 @@ export const dealerService = {
   //       }
   //     ]
   getById: (id) => axiosClient.get(`/dealers/${id}/`).then((res) => res.data),
-  
+
   create: (data) =>
     axiosClient
       .post("/dealers/", data)

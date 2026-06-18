@@ -189,64 +189,64 @@ export default function SupplierPage() {
     }, [fetchSuppliers]);
 
     const handleApprove = useCallback(async (supplier) => {
-    try {
-        setActionLoading(true);
-        setError(""); // Clear lỗi cũ nếu có
-        
-        // Gọi API duyệt supplier
-        await supplierService.verify(supplier.id, { verification_status: "approved" });
-        
-        // Thông báo thành công và tải lại danh sách
-        fetchSuppliers(); 
-    } catch (error) {
-        // ─────────────────────────────────────────────────────────
-        // NÂNG CẤP THÔNG BÁO LỖI TẠI ĐÂY
-        // ─────────────────────────────────────────────────────────
-        let customMessage = "Không thể duyệt nhà cung cấp";
-        
-        if (error.response && error.response.status === 400) {
-            // Ép thông báo ngắn gọn như bạn yêu cầu
-            customMessage = "Vui lòng duyệt đủ 3 loại giấy tờ";
-        } else {
-            customMessage = handleApiError(error, customMessage);
+        try {
+            setActionLoading(true);
+            setError(""); // Clear lỗi cũ nếu có
+
+            // Gọi API duyệt supplier
+            await supplierService.verify(supplier.id, { verification_status: "approved" });
+
+            // Thông báo thành công và tải lại danh sách
+            fetchSuppliers();
+        } catch (error) {
+            // ─────────────────────────────────────────────────────────
+            // NÂNG CẤP THÔNG BÁO LỖI TẠI ĐÂY
+            // ─────────────────────────────────────────────────────────
+            let customMessage = "Không thể duyệt nhà cung cấp";
+
+            if (error.response && error.response.status === 400) {
+                // Ép thông báo ngắn gọn như bạn yêu cầu
+                customMessage = "Vui lòng duyệt đủ 3 loại giấy tờ";
+            } else {
+                customMessage = handleApiError(error, customMessage);
+            }
+
+            // Vẫn lưu vào hệ thống chung
+            setError(customMessage);
+
+            // Không gọi toast.error ở đây nữa.
+            // ném lỗi ra ngoài để hàm handleConfirm của Modal có thể bắt được và không đóng modal
+            throw new Error(customMessage);
+
+        } finally {
+            setActionLoading(false);
         }
+    }, [fetchSuppliers]);
 
-        // Vẫn lưu vào hệ thống chung
-        setError(customMessage);
-        
-        // Không gọi toast.error ở đây nữa.
-        // ném lỗi ra ngoài để hàm handleConfirm của Modal có thể bắt được và không đóng modal
-        throw new Error(customMessage);
-        
-    } finally {
-        setActionLoading(false);
-    }
-}, [fetchSuppliers]);
+    // ─────────────────────────────────────────
+    // REJECT (TỪ CHỐI NHÀ CUNG CẤP)
+    // ─────────────────────────────────────────
+    const handleReject = async (supplier, rejectionReason) => {
+        console.log("Từ chối supplier ID:", supplier?.id);
+        try {
+            setActionLoading(true);
+            setError("");
 
-// ─────────────────────────────────────────
-// REJECT (TỪ CHỐI NHÀ CUNG CẤP)
-// ─────────────────────────────────────────
-const handleReject = async (supplier, rejectionReason) => {
-    console.log("Từ chối supplier ID:", supplier?.id);
-    try {
-        setActionLoading(true);
-        setError("");
+            await supplierService.verify(supplier.id, {
+                verification_status: "rejected",
+                rejection_reason: rejectionReason,
+            });
 
-        await supplierService.verify(supplier.id, {
-            verification_status: "rejected",
-            rejection_reason: rejectionReason,
-        });
-
-        setViewRow(null);
-        await fetchSuppliers();
-    } catch (error) {
-        const msg = handleApiError(error, "Không thể từ chối nhà cung cấp");
-        setError(msg);
-        throw new Error(msg);
-    } finally {
-        setActionLoading(false);
-    }
-};
+            setViewRow(null);
+            await fetchSuppliers();
+        } catch (error) {
+            const msg = handleApiError(error, "Không thể từ chối nhà cung cấp");
+            setError(msg);
+            throw new Error(msg);
+        } finally {
+            setActionLoading(false);
+        }
+    };
     // ─────────────────────────────────────────
     // FILTERED DATA
     // ─────────────────────────────────────────
@@ -284,44 +284,44 @@ const handleReject = async (supplier, rejectionReason) => {
             onRetry={() => fetchSuppliers({ initial: true })}
             loadingMessage="Đang tải danh sách nhà cung cấp..."
         >
-        <div className="flex flex-col gap-6 px-8 pt-6 pb-10">
-            <Toolbar
-                search={search}
-                onSearch={setSearch}
-                searchPlaceholder="Tìm kiếm nhà cung cấp..."
-                filter={
-                    <Filter
-                        value={statusFilter}
-                        onChange={setStatusFilter}
-                    />
-                }
-            />
+            <div className="flex flex-col gap-6 px-8 pt-6 pb-10">
+                <Toolbar
+                    search={search}
+                    onSearch={setSearch}
+                    searchPlaceholder="Tìm kiếm nhà cung cấp..."
+                    filter={
+                        <Filter
+                            value={statusFilter}
+                            onChange={setStatusFilter}
+                        />
+                    }
+                />
 
-            {/* ERROR */}
-            {error && (
-                <div className="px-4 py-3 rounded-xl bg-red-100 text-red-700 text-sm">
-                    {error}
-                </div>
-            )}
+                {/* ERROR */}
+                {error && (
+                    <div className="px-4 py-3 rounded-xl bg-red-100 text-red-700 text-sm">
+                        {error}
+                    </div>
+                )}
 
-            {/* TABLE */}
-            <SupplierTable
-                data={filteredData}
-                onView={
-                    handleViewSupplier
-                }
-            />
+                {/* TABLE */}
+                <SupplierTable
+                    data={filteredData}
+                    onView={
+                        handleViewSupplier
+                    }
+                />
 
-            {/* MODAL */}
-            <SupplierViewModal
-                isOpen={viewRow !== null}
-                onClose={() => setViewRow(null)}
-                supplier={viewRow}
-                onApprove={handleApprove}
-                onReject={handleReject}
-                loading={actionLoading}
-            />
-        </div>
+                {/* MODAL */}
+                <SupplierViewModal
+                    isOpen={viewRow !== null}
+                    onClose={() => setViewRow(null)}
+                    supplier={viewRow}
+                    onApprove={handleApprove}
+                    onReject={handleReject}
+                    loading={actionLoading}
+                />
+            </div>
         </AdminInitialLoadGate>
     );
 }

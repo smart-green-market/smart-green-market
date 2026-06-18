@@ -58,7 +58,7 @@ LOGIN_LOCKOUT_MINUTES = 15
 
 
 def get_purchase_order_config():
-    """Cấu hình phiếu nhập — dùng cho UI dealer/NCC và validate backend."""
+    """Cấu hình phiếu nhập — expose qua GET /api/purchase-order-config/ cho UI trước khi đặt hàng."""
     return {
         "min_order_amount": MIN_ORDER_AMOUNT,
         "max_order_amount": MAX_ORDER_AMOUNT,
@@ -70,7 +70,7 @@ def get_purchase_order_config():
 
 
 def validate_order_amount(total_amount):
-    """Kiểm tra tổng tiền đơn nằm trong giới hạn hệ thống."""
+    """Kiểm tra tổng tiền đơn trong [MIN_ORDER_AMOUNT, MAX_ORDER_AMOUNT] — gọi sau build_order_items."""
     total = Decimal(total_amount)
     if MIN_ORDER_AMOUNT and total < Decimal(MIN_ORDER_AMOUNT):
         raise ValidationError(
@@ -109,7 +109,7 @@ def validate_requested_delivery_time(requested_delivery_time):
 
 
 def validate_deposit_percent(percent):
-    """Kiểm tra tỷ lệ cọc trong khoảng cấu hình."""
+    """Kiểm tra % cọc NCC chốt khi confirm — gọi từ supplier_confirm_order."""
     value = Decimal(percent)
     min_p = Decimal(MIN_DEPOSIT_PERCENT)
     max_p = Decimal(MAX_DEPOSIT_PERCENT)

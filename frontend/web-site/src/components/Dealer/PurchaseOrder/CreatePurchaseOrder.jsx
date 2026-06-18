@@ -80,7 +80,7 @@ export default function CreatePurchaseOrder({ onClose, onSuccess }) {
           slug: p.slug,
           unit: p.unit || "kg",
           code: p.slug ? p.slug.toUpperCase().slice(0, 10) : `PROD-${p.id}`,
-          price: p.wholesale_price  || Math.floor(Math.random() * 5 + 2) * 10000,
+          price: p.wholesale_price || Math.floor(Math.random() * 5 + 2) * 10000,
           stock: p.stock || Math.floor(Math.random() * 800 + 100),
           category: p.category || { id: 1, name: "Rau củ" },
           supplier: p.supplier || {
@@ -280,7 +280,7 @@ export default function CreatePurchaseOrder({ onClose, onSuccess }) {
    */
   const handleCreateOrder = () => {
     if (cartItems.length === 0) {
-      toast.error("Vui lòng thêm ít nhất một sản phẩm vào phiếu nhập!",  { position: "top-center", duration: 5000 },);
+      toast.error("Vui lòng thêm ít nhất một sản phẩm vào phiếu nhập!", { position: "top-center", duration: 5000 },);
       return;
     }
 

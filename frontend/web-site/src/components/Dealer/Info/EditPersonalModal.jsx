@@ -30,7 +30,7 @@ export default function EditPersonalModal({ account, onClose, onSave, isSaving }
       <div className="absolute inset-0 bg-black/40" onClick={!isSaving ? onClose : undefined} />
       <div className="relative bg-white rounded-xl shadow-2xl w-full max-w-md p-6 z-10">
         <h3 className="text-base font-semibold text-emerald-950 mb-5">Chỉnh sửa thông tin cá nhân</h3>
-        
+
         {/* Chọn ảnh đại diện (Avatar) */}
         <div className="flex flex-col items-center gap-2 mb-5">
           <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Ảnh đại diện</label>
@@ -77,14 +77,13 @@ export default function EditPersonalModal({ account, onClose, onSave, isSaving }
                 value={form[key]}
                 onChange={(e) => setForm((f) => ({ ...f, [key]: e.target.value }))}
                 disabled={isSaving}
-                className={`w-full px-3 py-2.5 rounded-lg border text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/20 transition-all ${
-                  form[key] !== initial[key] ? "border-emerald-600 focus:border-emerald-600" : "border-gray-200 focus:border-emerald-500"
-                }`}
+                className={`w-full px-3 py-2.5 rounded-lg border text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/20 transition-all ${form[key] !== initial[key] ? "border-emerald-600 focus:border-emerald-600" : "border-gray-200 focus:border-emerald-500"
+                  }`}
               />
             </div>
           ))}
         </div>
-        
+
         <div className="flex gap-3 mt-6">
           <button
             onClick={onClose}
@@ -96,9 +95,8 @@ export default function EditPersonalModal({ account, onClose, onSave, isSaving }
           <button
             onClick={handleSave}
             disabled={isSaving || !isDirty}
-            className={`flex-1 px-4 py-2.5 rounded-lg text-white text-sm font-medium transition-all flex items-center justify-center ${
-              isSaving ? "bg-emerald-400 cursor-not-allowed" : isDirty ? "bg-emerald-700 hover:bg-emerald-800 cursor-pointer" : "bg-emerald-300 cursor-not-allowed"
-            }`}
+            className={`flex-1 px-4 py-2.5 rounded-lg text-white text-sm font-medium transition-all flex items-center justify-center ${isSaving ? "bg-emerald-400 cursor-not-allowed" : isDirty ? "bg-emerald-700 hover:bg-emerald-800 cursor-pointer" : "bg-emerald-300 cursor-not-allowed"
+              }`}
           >
             {isSaving ? "Đang lưu..." : "Lưu thay đổi"}
           </button>

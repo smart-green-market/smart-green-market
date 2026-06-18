@@ -152,8 +152,8 @@ export default function CategoryViewModal({
 
     const createdByLabel = category.created_by
         ? category.created_by.profile_name ||
-          category.created_by.full_name ||
-          category.created_by.username
+        category.created_by.full_name ||
+        category.created_by.username
         : "—";
 
     return (

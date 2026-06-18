@@ -104,7 +104,7 @@ export default function PaymentQrSection({ orderId, paymentType, onSuccess }) {
             <CreditCard className="w-4 h-4 text-emerald-600" />
             QUÉT MÃ VIETQR {paymentType === "deposit" ? "ĐẶT CỌC" : "THANH TOÁN CUỐI"}
           </h3>
-          
+
           <div className="w-full max-w-[280px] aspect-square border border-neutral-100 rounded-3xl overflow-hidden p-3 bg-neutral-50 flex items-center justify-center shadow-inner mb-4">
             <img
               src={qrData.qr_image_url}
@@ -126,7 +126,7 @@ export default function PaymentQrSection({ orderId, paymentType, onSuccess }) {
               <CreditCard className="w-4 h-4 text-emerald-600" />
               THÔNG TIN CHUYỂN KHOẢN
             </h3>
-            
+
             <div className="w-full bg-neutral-50/80 rounded-2xl p-5 md:p-6 text-sm font-semibold text-neutral-600 flex flex-col gap-3.5 border border-neutral-100">
               <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-1">
                 <span className="text-neutral-500 text-xs uppercase tracking-wider font-bold">Ngân hàng:</span>

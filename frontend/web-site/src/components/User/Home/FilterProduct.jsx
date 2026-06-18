@@ -29,11 +29,10 @@ function TagButton({ active, onClick, children }) {
         <button
             type="button"
             onClick={onClick}
-            className={`rounded-md px-3 py-1.5 text-xs font-medium transition-colors ${
-                active
-                    ? "bg-emerald-700 text-white"
-                    : "bg-stone-100 text-neutral-600 hover:bg-emerald-50 hover:text-emerald-800"
-            }`}
+            className={`rounded-md px-3 py-1.5 text-xs font-medium transition-colors ${active
+                ? "bg-emerald-700 text-white"
+                : "bg-stone-100 text-neutral-600 hover:bg-emerald-50 hover:text-emerald-800"
+                }`}
         >
             {children}
         </button>
@@ -308,11 +307,10 @@ function Pagination({ page, totalPages, onChange }) {
                     key={p}
                     type="button"
                     onClick={() => onChange(p)}
-                    className={`flex h-9 w-9 items-center justify-center rounded-full text-sm font-semibold transition-colors ${
-                        p === page
-                            ? "bg-emerald-700 text-white"
-                            : "text-neutral-600 hover:bg-emerald-50 hover:text-emerald-800"
-                    }`}
+                    className={`flex h-9 w-9 items-center justify-center rounded-full text-sm font-semibold transition-colors ${p === page
+                        ? "bg-emerald-700 text-white"
+                        : "text-neutral-600 hover:bg-emerald-50 hover:text-emerald-800"
+                        }`}
                 >
                     {p}
                 </button>

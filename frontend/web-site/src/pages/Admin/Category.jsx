@@ -11,7 +11,7 @@ import {
     formatCategoryRow,
 } from "../../components/Admin/Category/categoryHelpers";
 import { appToast } from "../../components/common/toast";
-import { categoryService, handleApiError} from "../../services/api/categoryService";
+import { categoryService, handleApiError } from "../../services/api/categoryService";
 
 export default function CategoryPage() {
     const [data, setData] = useState([]);

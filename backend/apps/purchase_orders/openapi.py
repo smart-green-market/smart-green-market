@@ -4,6 +4,7 @@ from drf_spectacular.utils import OpenApiExample, inline_serializer
 from rest_framework import serializers
 
 from apps.purchase_orders.models import PurchaseOrderPaymentMethod
+from common.openapi_files import RECEIPT_FILE_HELP
 
 SubmitPaymentForm = inline_serializer(
     name="SubmitPaymentForm",
@@ -13,7 +14,7 @@ SubmitPaymentForm = inline_serializer(
             help_text="Thường dùng `bank_transfer` khi quét VietQR",
         ),
         "receipt_file": serializers.FileField(
-            help_text="Ảnh/PDF biên lai chuyển khoản — bắt buộc",
+            help_text=RECEIPT_FILE_HELP,
         ),
         "payment_provider": serializers.CharField(
             required=False,

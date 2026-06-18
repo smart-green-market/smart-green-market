@@ -180,8 +180,8 @@ export const orderService = {
     return res.data;
   },
   // orderService.js — fix confirmShipping
-confirmShipping: async (orderId, data) => {
-  const res = await axiosClient.post(`/purchase-orders/${orderId}/ship/`, data)
-  return res.data
-}
+  confirmShipping: async (orderId, data) => {
+    const res = await axiosClient.post(`/purchase-orders/${orderId}/ship/`, data)
+    return res.data
+  }
 };
