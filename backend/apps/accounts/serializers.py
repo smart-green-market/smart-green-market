@@ -38,6 +38,11 @@ class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
         reset_login_attempts(username)
 
         user = self.user
+        if user.role == AccountRole.BUYER and user.store_dealer_id is not None:
+            raise ValidationError(
+                "Buyer gian hàng đại lý vui lòng đăng nhập qua "
+                "POST /api/storefronts/{dealer_slug}/login/."
+            )
         if user.status == AccountStatus.BANNED:
             raise ValidationError("Tài khoản đã bị vô hiệu hóa.")
         if user.status == AccountStatus.INACTIVE:
@@ -76,6 +81,21 @@ class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
             if dealer
             else None
         )
+        if user.role == AccountRole.BUYER and user.store_dealer_id is None:
+            from apps.customers.serializers import CustomerProfileSerializer
+            from apps.customers.services import customer_profile_detail_queryset
+
+            customer = customer_profile_detail_queryset().filter(user=user).first()
+            data["customer_profile"] = (
+                CustomerProfileSerializer(
+                    customer,
+                    context={"request": request},
+                ).data
+                if customer
+                else None
+            )
+        else:
+            data["customer_profile"] = None
         return data
 
 
@@ -118,6 +138,28 @@ class RegisterSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError({
                 "repassword": "Mật khẩu xác nhận không khớp."
             })
+        if attrs.get("role") == AccountRole.BUYER:
+            raise serializers.ValidationError({
+                "role": (
+                    "Buyer đăng ký qua gian hàng đại lý: "
+                    "POST /api/storefronts/{dealer_slug}/register/"
+                ),
+            })
+        if attrs.get("role") in (
+            AccountRole.ADMIN,
+            AccountRole.SUPPLIER,
+            AccountRole.DEALER,
+        ):
+            email = attrs.get("email", "").strip()
+            if Account.objects.filter(
+                email__iexact=email,
+                role__in=(
+                    AccountRole.ADMIN,
+                    AccountRole.SUPPLIER,
+                    AccountRole.DEALER,
+                ),
+            ).exists():
+                raise serializers.ValidationError({"email": "Email đã được sử dụng."})
         return attrs
 
     def create(self, validated_data):
@@ -154,6 +196,7 @@ class LoginAccountSerializer(serializers.ModelSerializer):
             "avatar_url",
             "role",
             "status",
+            "store_dealer_id",
         ]
         extra_kwargs = {
             "id": {"help_text": "ID tài khoản"},
@@ -218,6 +261,11 @@ class LoginResponseSerializer(serializers.Serializer):
         allow_null=True,
         required=False,
         help_text="Hồ sơ đại lý + giấy tờ (null nếu không phải dealer hoặc chưa tạo hồ sơ)",
+    )
+    customer_profile = serializers.DictField(
+        allow_null=True,
+        required=False,
+        help_text="Hồ sơ buyer (null nếu không phải buyer hoặc chưa tạo hồ sơ)",
     )
 
 

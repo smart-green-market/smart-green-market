@@ -31,6 +31,7 @@ from rest_framework.response import Response
 from apps.accounts.models import AccountRole
 from apps.supplier_products.models import SupplierProductImage
 from common.openapi import PAGINATION_QUERY_HELP, paginated_response_schema
+from common.openapi_files import multipart_request
 from common.permission import IsAdmin, IsAdminOrSupplier, IsDealer, IsSupplier
 from common.querysets import ORDER_NEWEST, filter_purchase_orders
 
@@ -279,7 +280,7 @@ class PurchaseOrderViewSet(viewsets.GenericViewSet):
         tags=["Purchase Orders"],
         summary="Đại lý gửi xác nhận thanh toán cọc",
         description=SUBMIT_PAYMENT_MINIMAL_HELP,
-        request={"multipart/form-data": SubmitPaymentForm},
+        request=multipart_request(SubmitPaymentForm),
         responses={201: PurchaseOrderPaymentReadSerializer},
         examples=[SUBMIT_PAYMENT_EXAMPLE_NOTE],
     )
@@ -310,7 +311,7 @@ class PurchaseOrderViewSet(viewsets.GenericViewSet):
         tags=["Purchase Orders"],
         summary="Đại lý gửi xác nhận thanh toán cuối",
         description=SUBMIT_PAYMENT_MINIMAL_HELP,
-        request={"multipart/form-data": SubmitPaymentForm},
+        request=multipart_request(SubmitPaymentForm),
         responses={201: PurchaseOrderPaymentReadSerializer},
         examples=[SUBMIT_PAYMENT_EXAMPLE_NOTE],
     )

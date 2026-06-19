@@ -1,5 +1,6 @@
 """API ViewSet quản lý danh mục sản phẩm nông sản."""
 
+from django.db.models.deletion import ProtectedError
 from django.db.models import Count, F, Q
 from django.utils import timezone
 from drf_spectacular.utils import extend_schema, extend_schema_view
@@ -209,6 +210,21 @@ class CategoryViewSet(viewsets.ModelViewSet):
                     reference_id=category.id,
                     created_by=self.request.user,
                 )
+
+    def perform_destroy(self, instance):
+        """Xóa danh mục có kiểm quyền và trả lỗi rõ khi đang được sản phẩm dùng."""
+        self._ensure_can_edit(instance)
+        try:
+            instance.delete()
+        except ProtectedError as exc:
+            related_count = len(exc.protected_objects)
+            raise ValidationError({
+                "detail": (
+                    "Không thể xóa danh mục vì đang có sản phẩm sử dụng. "
+                    "Vui lòng chuyển sản phẩm sang danh mục khác hoặc xóa sản phẩm trước."
+                ),
+                "related_count": related_count,
+            }) from exc
 
     @extend_schema(
         tags=["Categories"],

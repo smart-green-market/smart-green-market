@@ -49,6 +49,9 @@ MIN_ORDER_AMOUNT = 500_000
 MAX_ORDER_AMOUNT = 500_000_000
 MIN_DELIVERY_LEAD_DAYS = 2
 
+# Đơn hàng buyer (B2C storefront)
+CUSTOMER_ORDER_SHIPPING_FEE = 10_000
+
 MAX_CATEGORIES_PER_SUPPLIER = 5
 MAX_PRODUCTS_PER_SUPPLIER = 100
 MAX_IMAGES_PER_PRODUCT = 5
@@ -66,6 +69,17 @@ def get_purchase_order_config():
         "max_deposit_percent": MAX_DEPOSIT_PERCENT,
         "min_delivery_lead_days": MIN_DELIVERY_LEAD_DAYS,
         "default_deposit_percent": DEFAULT_DEPOSIT_PERCENT,
+    }
+
+
+def get_customer_order_config():
+    """Cấu hình đơn buyer — phí ship cố định + khung giờ giao."""
+    from apps.orders.delivery_slots import get_delivery_slot_config
+
+    return {
+        "shipping_fee": CUSTOMER_ORDER_SHIPPING_FEE,
+        "payment_type": "cod",
+        **get_delivery_slot_config(),
     }
 
 
@@ -126,6 +140,8 @@ def validate_deposit_percent(percent):
 
 def get_public_config():
     """Trả dict cấu hình nghiệp vụ công khai cho API system-config."""
+    purchase_orders = get_purchase_order_config()
+    customer_orders = get_customer_order_config()
     return {
         "max_upload_image_size_mb": MAX_UPLOAD_IMAGE_SIZE_MB,
         "allowed_image_types": sorted(ALLOWED_IMAGE_EXTENSIONS),
@@ -135,5 +151,8 @@ def get_public_config():
         "max_images_per_certification": MAX_IMAGES_PER_CERTIFICATION,
         "max_login_attempts": MAX_LOGIN_ATTEMPTS,
         "login_lockout_minutes": LOGIN_LOCKOUT_MINUTES,
-        **get_purchase_order_config(),
+        "purchase_orders": purchase_orders,
+        "customer_orders": customer_orders,
+        **purchase_orders,
+        **customer_orders,
     }

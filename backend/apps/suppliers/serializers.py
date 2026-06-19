@@ -11,8 +11,10 @@ from apps.certifications.serializers import CertificationCatalogSerializer
 from apps.supplier_products.serializer import SupplierProductReadSerializer
 from common.approval_nested import ApprovalSupplierNestedSerializer
 from common.avatar import build_avatar_url
+from common.files import build_media_url
 from common.banks import BANKS_BY_BIN, get_bank_by_bin
 from common.openapi_enums import schema_choice_field
+from common.validators import validate_image_upload
 
 from .models import Supplier, SupplierVerificationStatus
 
@@ -51,6 +53,7 @@ class SupplierAccountNestedSerializer(serializers.ModelSerializer):
 class SupplierSerializer(serializers.ModelSerializer):
     """Serializer tạo và cập nhật hồ sơ nhà cung cấp."""
 
+    logo_url = serializers.SerializerMethodField(read_only=True)
     verification_status = schema_choice_field(
         choices=SupplierVerificationStatus.choices,
         read_only=True,
@@ -61,6 +64,7 @@ class SupplierSerializer(serializers.ModelSerializer):
         fields = "__all__"
         read_only_fields = [
             "account",
+            "logo_url",
             "verification_status",
             "verified_by",
             "verified_at",
@@ -74,6 +78,11 @@ class SupplierSerializer(serializers.ModelSerializer):
             "phone": {"help_text": "Hotline liên hệ công ty"},
             "address": {"help_text": "Địa chỉ trụ sở / kho hàng"},
             "description": {"help_text": "Giới thiệu ngắn về nhà cung cấp", "required": False},
+            "logo": {
+                "help_text": "Logo nhà cung cấp (JPG/PNG/WebP)",
+                "required": False,
+            },
+            "logo_url": {"help_text": "URL đầy đủ của logo", "read_only": True},
             "bank_name": {
                 "help_text": "Tên ngân hàng — lấy từ GET /api/banks/ (field name)",
                 "required": False,
@@ -97,6 +106,9 @@ class SupplierSerializer(serializers.ModelSerializer):
         }
 
     def validate(self, attrs):
+        logo = attrs.get("logo")
+        if logo:
+            validate_image_upload(logo)
         bank_bin = attrs.get("bank_bin") or getattr(self.instance, "bank_bin", "")
         bank_name = attrs.get("bank_name") or getattr(self.instance, "bank_name", "")
         if bank_bin and bank_bin not in BANKS_BY_BIN:
@@ -111,6 +123,10 @@ class SupplierSerializer(serializers.ModelSerializer):
                 )
             attrs["bank_name"] = bank["name"]
         return attrs
+
+    @extend_schema_field(serializers.URLField(allow_null=True))
+    def get_logo_url(self, obj):
+        return build_media_url(obj.logo, self.context.get("request"))
 
     def create(self, validated_data):
         request = self.context["request"]
@@ -155,6 +171,7 @@ class SupplierContactSerializer(serializers.ModelSerializer):
 class SupplierCatalogSerializer(serializers.ModelSerializer):
     """NCC catalog cho đại lý — không trả thông tin tài khoản ngân hàng."""
 
+    logo_url = serializers.SerializerMethodField(read_only=True)
     active_product_count = serializers.IntegerField(
         read_only=True,
         help_text="Số sản phẩm đang active của NCC",
@@ -168,6 +185,7 @@ class SupplierCatalogSerializer(serializers.ModelSerializer):
             "tax_code",
             "phone",
             "address",
+            "logo_url",
             "description",
             "active_product_count",
             "created_at",
@@ -183,6 +201,10 @@ class SupplierCatalogSerializer(serializers.ModelSerializer):
             },
             "created_at": {"help_text": "Thời điểm NCC tham gia hệ thống"},
         }
+
+    @extend_schema_field(serializers.URLField(allow_null=True))
+    def get_logo_url(self, obj):
+        return build_media_url(obj.logo, self.context.get("request"))
 
 
 class SupplierCatalogDetailSerializer(SupplierCatalogSerializer):
@@ -223,6 +245,7 @@ class SupplierListSerializer(serializers.ModelSerializer):
     """Nhà cung cấp kèm tài khoản — dùng cho danh sách chờ duyệt."""
 
     account = SupplierAccountNestedSerializer(read_only=True)
+    logo_url = serializers.SerializerMethodField(read_only=True)
     verification_status = schema_choice_field(
         choices=SupplierVerificationStatus.choices,
         read_only=True,
@@ -242,6 +265,8 @@ class SupplierListSerializer(serializers.ModelSerializer):
             "tax_code",
             "phone",
             "address",
+            "logo",
+            "logo_url",
             "description",
             "bank_name",
             "bank_bin",
@@ -261,10 +286,15 @@ class SupplierListSerializer(serializers.ModelSerializer):
             "verified_by_username": {"help_text": "Username admin duyệt"},
         }
 
+    @extend_schema_field(serializers.URLField(allow_null=True))
+    def get_logo_url(self, obj):
+        return build_media_url(obj.logo, self.context.get("request"))
+
 
 class SupplierLoginProfileSerializer(serializers.ModelSerializer):
     """Hồ sơ NCC kèm giấy tờ — dùng trong response login."""
 
+    logo_url = serializers.SerializerMethodField(read_only=True)
     documents = AccountDocumentReadSerializer(
         source="account.documents",
         many=True,
@@ -283,6 +313,8 @@ class SupplierLoginProfileSerializer(serializers.ModelSerializer):
             "tax_code",
             "phone",
             "address",
+            "logo",
+            "logo_url",
             "description",
             "bank_name",
             "bank_bin",
@@ -297,11 +329,16 @@ class SupplierLoginProfileSerializer(serializers.ModelSerializer):
             "documents",
         ]
 
+    @extend_schema_field(serializers.URLField(allow_null=True))
+    def get_logo_url(self, obj):
+        return build_media_url(obj.logo, self.context.get("request"))
+
 
 class SupplierDetailSerializer(serializers.ModelSerializer):
     """Chi tiết supplier kèm account, giấy tờ, chứng nhận và sản phẩm."""
 
     account = SupplierAccountNestedSerializer(read_only=True)
+    logo_url = serializers.SerializerMethodField(read_only=True)
     documents = AccountDocumentReadSerializer(
         source="account.documents",
         many=True,
@@ -323,6 +360,8 @@ class SupplierDetailSerializer(serializers.ModelSerializer):
             "tax_code",
             "phone",
             "address",
+            "logo",
+            "logo_url",
             "description",
             "bank_name",
             "bank_bin",
@@ -338,3 +377,7 @@ class SupplierDetailSerializer(serializers.ModelSerializer):
             "certifications",
             "products",
         ]
+
+    @extend_schema_field(serializers.URLField(allow_null=True))
+    def get_logo_url(self, obj):
+        return build_media_url(obj.logo, self.context.get("request"))

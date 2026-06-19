@@ -14,13 +14,23 @@ STATUS_VI = {
     "inactive": "Ngừng hoạt động",
     # Phiếu nhập hàng
     "pending_supplier_confirmation": "Chờ NCC xác nhận",
-    "confirmed": "NCC đã xác nhận",
+    "confirmed": "Đã xác nhận",
     "deposit_pending_verification": "Chờ xác nhận tiền cọc",
     "deposit_paid": "Đã thanh toán cọc",
-    "processing": "Đang chuẩn bị hàng",
-    "shipping": "Đang giao hàng",
-    "delivered": "Đã giao hàng",
+    "processing": "Đang chuẩn bị",
+    "shipping": "Đang giao",
+    "delivered": "Đã giao",
     "final_payment_pending_verification": "Chờ xác nhận thanh toán cuối",
+    "completed": "Hoàn tất",
+    "cancelled": "Đã hủy",
+}
+
+CUSTOMER_ORDER_STATUS_VI = {
+    "pending": "Chờ xác nhận",
+    "confirmed": "Đã xác nhận",
+    "processing": "Đang chuẩn bị",
+    "shipping": "Đang giao",
+    "delivered": "Đã giao",
     "completed": "Hoàn tất",
     "cancelled": "Đã hủy",
 }
@@ -28,6 +38,7 @@ STATUS_VI = {
 REFERENCE_TYPE_VI = {
     "account_document": "Giấy tờ tài khoản",
     "purchase_order": "Phiếu nhập hàng",
+    "customer_order": "Đơn hàng khách",
     "supplier_document": "Giấy tờ nhà cung cấp",
     "supplier": "Hồ sơ nhà cung cấp",
     "dealer": "Hồ sơ đại lý",
@@ -256,6 +267,35 @@ def purchase_order_status_updated(order, old_status=""):
 
     return (
         f"[Phiếu nhập] {order.order_code} — {new_label}",
+        content,
+        notif_type,
+    )
+
+
+def customer_order_status_updated(order, old_status=""):
+    """Trả (title, content, type) khi trạng thái đơn buyer thay đổi."""
+    new_label = CUSTOMER_ORDER_STATUS_VI.get(order.status, status_label(order.status))
+    old_label = (
+        CUSTOMER_ORDER_STATUS_VI.get(old_status, status_label(old_status))
+        if old_status
+        else ""
+    )
+    if old_status and old_status != order.status:
+        content = f"Đơn {order.order_code}: {old_label} → {new_label}."
+    else:
+        content = f"Đơn hàng {order.order_code} — {new_label}."
+
+    if order.status == "completed":
+        notif_type = "success"
+    elif order.status == "cancelled":
+        notif_type = "error"
+    elif order.status == "pending":
+        notif_type = "warning"
+    else:
+        notif_type = "info"
+
+    return (
+        f"[Đơn hàng] {order.order_code} — {new_label}",
         content,
         notif_type,
     )

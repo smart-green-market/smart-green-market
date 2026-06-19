@@ -1,6 +1,7 @@
 """API quản lý hồ sơ đại lý và luồng duyệt."""
 
-from django.db.models import Count, Prefetch, Q
+from django.conf import settings
+from django.db.models import Prefetch
 from django.utils import timezone
 from drf_spectacular.utils import OpenApiExample, extend_schema, extend_schema_view
 from rest_framework import viewsets
@@ -10,8 +11,8 @@ from rest_framework.response import Response
 
 from apps.accounts.document_serializers import AccountDocumentListSerializer
 from apps.accounts.models import AccountDocument, AccountDocumentStatus, AccountDocumentType, AccountStatus
-from apps.categories.models import Category, CategoryStatus, CategoryScope
 from apps.categories.serializers import DealerStoreCategorySerializer
+from apps.customers.catalog_services import get_storefront_categories_qs
 from apps.dealer_products.models import DealerProduct, DealerProductStatus
 from apps.dealer_products.serializers import DealerProductReadSerializer
 from common.notification_messages import dealer_verification_updated
@@ -22,6 +23,7 @@ from common.openapi import (
     VerifyDealerSerializer,
     paginated_response_schema,
 )
+from common.openapi_files import multipart_request
 from common.verify_openapi import (
     DEALER_VERIFY_APPROVE,
     DEALER_VERIFY_REJECT,
@@ -32,10 +34,16 @@ from common.permission import IsActive, IsAdmin, IsAdminOrDealer, IsDealer
 from common.querysets import ORDER_DOCUMENT, ORDER_NEWEST, _apply_order, filter_admin_or_dealer_account
 
 from .models import DealerProfile, DealerProfileStatus
+from .openapi import (
+    DEALER_PROFILE_WRITE_HELP,
+    DealerProfileCreateForm,
+    DealerProfileUpdateForm,
+)
 from .serializers import (
     DealerProfileDetailSerializer,
     DealerProfileListSerializer,
     DealerProfileSerializer,
+    DealerStorefrontLinkSerializer,
 )
 
 REQUIRED_DOCUMENT_TYPES = [choice[0] for choice in AccountDocumentType.choices]
@@ -100,14 +108,27 @@ def _validate_dealer_ready_for_approval(dealer):
         summary="Tạo hồ sơ đại lý",
         description=(
             "**Bước 2 onboarding** — sau `POST /api/register/` với `role=dealer`.\n\n"
+            f"{DEALER_PROFILE_WRITE_HELP}\n\n"
             "Mỗi account chỉ tạo **1** hồ sơ. `status` mặc định `pending`."
         ),
-        request=DealerProfileSerializer,
+        request=multipart_request(DealerProfileCreateForm),
         responses={201: DealerProfileSerializer},
         examples=[DEALER_CREATE_EXAMPLE],
     ),
-    update=extend_schema(tags=["Dealers"], summary="Cập nhật toàn bộ hồ sơ"),
-    partial_update=extend_schema(tags=["Dealers"], summary="Cập nhật một phần hồ sơ"),
+    update=extend_schema(
+        tags=["Dealers"],
+        summary="Cập nhật toàn bộ hồ sơ",
+        description=DEALER_PROFILE_WRITE_HELP,
+        request=multipart_request(DealerProfileUpdateForm),
+        responses={200: DealerProfileSerializer},
+    ),
+    partial_update=extend_schema(
+        tags=["Dealers"],
+        summary="Cập nhật một phần hồ sơ",
+        description=DEALER_PROFILE_WRITE_HELP,
+        request=multipart_request(DealerProfileUpdateForm),
+        responses={200: DealerProfileSerializer},
+    ),
     destroy=extend_schema(tags=["Dealers"], summary="Xóa hồ sơ đại lý"),
 )
 class DealerProfileViewSet(viewsets.ModelViewSet):
@@ -126,6 +147,8 @@ class DealerProfileViewSet(viewsets.ModelViewSet):
     def get_permissions(self):
         if self.action in ("verify", "account_status"):
             return [IsAdmin()]
+        if self.action in ("storefront_link", "me"):
+            return [IsDealer()]
         if self.action in ("create", "update", "partial_update", "destroy"):
             return [IsDealer()]
         if self.action in ("categories", "products"):
@@ -136,7 +159,7 @@ class DealerProfileViewSet(viewsets.ModelViewSet):
         qs = self.queryset
         if self.action in ("categories", "products"):
             return _active_dealer_catalog_qs()
-        if self.action in ("retrieve", "verify"):
+        if self.action in ("retrieve", "verify", "me"):
             qs = qs.select_related("account", "verified_by").prefetch_related(
                 Prefetch(
                     "account__documents",
@@ -169,6 +192,58 @@ class DealerProfileViewSet(viewsets.ModelViewSet):
             reference_type="dealer",
             reference_id=dealer.id,
             created_by=self.request.user,
+        )
+
+    @extend_schema(
+        tags=["Dealers"],
+        summary="Hồ sơ đại lý hiện tại",
+        description="Dealer lấy hồ sơ của mình kèm `documents[]` và `products[]`.",
+        responses={200: DealerProfileDetailSerializer},
+    )
+    @action(detail=False, methods=["get"], url_path="me")
+    def me(self, request):
+        try:
+            dealer = self.get_queryset().get(account=request.user)
+        except DealerProfile.DoesNotExist as exc:
+            raise ValidationError({"detail": "Tài khoản đại lý chưa có hồ sơ."}) from exc
+
+        return Response(
+            DealerProfileDetailSerializer(dealer, context={"request": request}).data
+        )
+
+    @extend_schema(
+        tags=["Dealers"],
+        summary="Link gian hàng của đại lý hiện tại",
+        description=(
+            "Dealer dùng endpoint này để lấy URL public gửi/PR cho buyer. "
+            "URL được sinh từ `STOREFRONT_BASE_URL` + `/cua-hang/{slug}`."
+        ),
+        responses={200: DealerStorefrontLinkSerializer},
+    )
+    @action(detail=False, methods=["get"], url_path="me/storefront-link")
+    def storefront_link(self, request):
+        try:
+            dealer = request.user.dealer_profile
+        except DealerProfile.DoesNotExist as exc:
+            raise ValidationError({"detail": "Tài khoản đại lý chưa có hồ sơ."}) from exc
+
+        storefront_path = f"/cua-hang/{dealer.slug}"
+        storefront_url = f"{settings.STOREFRONT_BASE_URL}{storefront_path}"
+        can_share = (
+            dealer.status == DealerProfileStatus.ACTIVE
+            and dealer.account.status == AccountStatus.ACTIVE
+        )
+
+        return Response(
+            {
+                "dealer_id": dealer.id,
+                "store_name": dealer.store_name,
+                "slug": dealer.slug,
+                "status": dealer.status,
+                "storefront_path": storefront_path,
+                "storefront_url": storefront_url,
+                "can_share": can_share,
+            }
         )
 
     @extend_schema(
@@ -305,8 +380,8 @@ class DealerProfileViewSet(viewsets.ModelViewSet):
         tags=["Dealers"],
         summary="Danh mục cửa hàng đại lý (buyer catalog)",
         description=(
-            "Buyer/dealer xem danh mục bán lẻ của cửa hàng đã duyệt. "
-            "Chỉ trả danh mục `active` có ít nhất một sản phẩm đại lý `active`."
+            "Buyer/dealer xem toàn bộ danh mục `active` của cửa hàng (system + custom), "
+            "kèm `product_count` — cùng logic với `GET /api/storefronts/{slug}/categories/`."
         ),
         responses={
             200: paginated_response_schema(
@@ -318,28 +393,7 @@ class DealerProfileViewSet(viewsets.ModelViewSet):
     @action(detail=True, methods=["get"], url_path="categories")
     def categories(self, request, pk=None):
         dealer = self.get_object()
-        categories_qs = (
-            Category.objects.filter(
-                status=CategoryStatus.ACTIVE,
-                dealer_store_products__dealer_profile=dealer,
-                dealer_store_products__status=DealerProductStatus.ACTIVE,
-            )
-            .filter(
-                Q(scope=CategoryScope.SYSTEM)
-                | Q(created_by=dealer.account, scope=CategoryScope.CUSTOM)
-            )
-            .distinct()
-            .annotate(
-                product_count=Count(
-                    "dealer_store_products",
-                    filter=Q(
-                        dealer_store_products__dealer_profile=dealer,
-                        dealer_store_products__status=DealerProductStatus.ACTIVE,
-                    ),
-                )
-            )
-            .order_by("sort_order", "name")
-        )
+        categories_qs = get_storefront_categories_qs(dealer)
 
         def serialize(page):
             return DealerStoreCategorySerializer(

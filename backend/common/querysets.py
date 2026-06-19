@@ -173,3 +173,18 @@ def filter_purchase_orders(qs, user, ordering=ORDER_NEWEST, pending_field="statu
         return qs.none()
     pending_values = PO_PENDING_STATUSES if pending_field else None
     return _apply_order(filtered, ordering, pending_field, pending_values)
+
+
+CUSTOMER_ORDER_PENDING_STATUSES = ("pending",)
+
+
+def filter_customer_orders(qs, user, ordering=ORDER_NEWEST, pending_field="status"):
+    """Admin: tất cả. Dealer: đơn buyer gửi tới cửa hàng mình."""
+    if is_admin(user):
+        filtered = qs
+    elif user.role == AccountRole.DEALER:
+        filtered = qs.filter(dealer__account=user)
+    else:
+        return qs.none()
+    pending_values = CUSTOMER_ORDER_PENDING_STATUSES if pending_field else None
+    return _apply_order(filtered, ordering, pending_field, pending_values)

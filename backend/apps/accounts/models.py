@@ -1,8 +1,8 @@
 """Mô hình dữ liệu tài khoản người dùng và theo dõi đăng nhập thất bại."""
 
-from django.db import models
-
 from django.contrib.auth.models import AbstractUser
+from django.db import models
+from django.db.models import Q
 
 
 class AccountRole(models.TextChoices):
@@ -27,10 +27,18 @@ class Account(AbstractUser):
     """Mô hình tài khoản người dùng mở rộng từ AbstractUser."""
 
     # AbstractAccount đã có: Accountname, email, password (hash), is_active, ...
-    email = models.EmailField(unique=True)
+    email = models.EmailField()
     full_name = models.CharField(max_length=255, blank=True)
     phone = models.CharField(max_length=20, blank=True)
     avatar = models.FileField(upload_to="avatars/", blank=True, null=True)
+    store_dealer = models.ForeignKey(
+        "dealers.DealerProfile",
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        related_name="storefront_buyers",
+        help_text="Buyer đăng ký qua gian hàng đại lý — mỗi dealer một account riêng",
+    )
 
     role = models.CharField(
         max_length=20,
@@ -51,6 +59,24 @@ class Account(AbstractUser):
         """Cấu hình bảng dữ liệu Accounts."""
 
         db_table = "Accounts"
+        constraints = [
+            models.UniqueConstraint(
+                fields=["email"],
+                condition=Q(
+                    role__in=[
+                        AccountRole.ADMIN,
+                        AccountRole.SUPPLIER,
+                        AccountRole.DEALER,
+                    ]
+                ),
+                name="unique_email_global_roles",
+            ),
+            models.UniqueConstraint(
+                fields=["store_dealer", "email"],
+                condition=Q(role=AccountRole.BUYER),
+                name="unique_buyer_email_per_dealer",
+            ),
+        ]
 
     def __str__(self):
         """Trả về tên đăng nhập để hiển thị."""

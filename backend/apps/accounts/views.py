@@ -45,6 +45,8 @@ from common.openapi import (
     TokenVerifyRequestSerializer,
 
 )
+from common.avatar import clear_account_avatar, save_account_avatar
+from common.openapi_files import MULTIPART_FILE_UPLOAD_NOTE, multipart_request
 
 from .serializers import (
 
@@ -412,9 +414,10 @@ class ProfileView(APIView):
 
         serializer.is_valid(raise_exception=True)
 
-        serializer.save()
+        user = serializer.save()
+        user = Account.objects.get(pk=user.pk)
 
-        return Response(ProfileSerializer(request.user, context={"request": request}).data)
+        return Response(ProfileSerializer(user, context={"request": request}).data)
 
 
 
@@ -485,11 +488,12 @@ class ChangePasswordView(APIView):
         tags=["Auth"],
         summary="Upload / cập nhật avatar",
         description=(
-            "Upload ảnh đại diện (multipart/form-data, field `avatar`).\n"
+            f"{MULTIPART_FILE_UPLOAD_NOTE}\n\n"
+            "Upload ảnh đại diện (field `avatar`).\n"
             "Định dạng: jpg, png, webp — tối đa 5MB.\n"
             "Thay avatar mới sẽ xóa file cũ trên server."
         ),
-        request={"multipart/form-data": AvatarUploadForm},
+        request=multipart_request(AvatarUploadForm),
         responses={200: ProfileSerializer},
     ),
     delete=extend_schema(
@@ -509,11 +513,10 @@ class AvatarView(APIView):
         """Upload ảnh đại diện mới, thay thế file cũ nếu đã tồn tại."""
         serializer = AvatarUploadSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        user = request.user
-        if user.avatar:
-            user.avatar.delete(save=False)
-        user.avatar = serializer.validated_data["avatar"]
-        user.save(update_fields=["avatar", "updated_at"])
+        user = save_account_avatar(
+            request.user,
+            serializer.validated_data["avatar"],
+        )
         return Response(
             ProfileSerializer(user, context={"request": request}).data,
             status=status.HTTP_200_OK,
@@ -521,11 +524,7 @@ class AvatarView(APIView):
 
     def delete(self, request):
         """Xóa ảnh đại diện hiện tại của user đang đăng nhập."""
-        user = request.user
-        if user.avatar:
-            user.avatar.delete(save=False)
-            user.avatar = None
-            user.save(update_fields=["avatar", "updated_at"])
+        user = clear_account_avatar(request.user)
         return Response(
             ProfileSerializer(user, context={"request": request}).data,
             status=status.HTTP_200_OK,

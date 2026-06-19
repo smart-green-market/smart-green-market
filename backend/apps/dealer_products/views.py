@@ -3,10 +3,12 @@
 from drf_spectacular.utils import extend_schema, extend_schema_view
 from rest_framework import viewsets
 from rest_framework.decorators import action
+from rest_framework.parsers import FormParser, MultiPartParser
 from rest_framework.response import Response
 
 from common.notifications import notify_account, notify_admins
 from common.openapi import PAGINATION_QUERY_HELP, paginated_response_schema
+from common.openapi_files import multipart_request
 from common.verify_openapi import (
     DEALER_PRODUCT_VERIFY_APPROVE,
     DEALER_PRODUCT_VERIFY_REJECT,
@@ -22,6 +24,11 @@ from .models import (
     DealerProductImage,
     DealerProductStatus,
 )
+from .openapi import (
+    DEALER_PRODUCT_IMAGE_HELP,
+    DealerProductImageCreateForm,
+    DealerProductImageUpdateForm,
+)
 from .serializers import (
     DealerInventoryBatchSerializer,
     DealerInventoryTransactionSerializer,
@@ -32,7 +39,7 @@ from .serializers import (
     RecordWastageSerializer,
     VerifyDealerProductSerializer,
 )
-from .services import record_wastage
+from .services import annotate_dealer_product_stock, record_wastage
 
 
 def _filter_dealer_product_scope(qs, user):
@@ -97,7 +104,10 @@ class DealerProductViewSet(viewsets.ModelViewSet):
         return [IsActive()]
 
     def get_queryset(self):
-        return _filter_dealer_product_scope(self.queryset, self.request.user)
+        qs = _filter_dealer_product_scope(self.queryset, self.request.user)
+        if self.action in ("list", "retrieve", "verify"):
+            qs = annotate_dealer_product_stock(qs)
+        return qs
 
     def perform_create(self, serializer):
         product = serializer.save()
@@ -158,9 +168,27 @@ class DealerProductViewSet(viewsets.ModelViewSet):
 @extend_schema_view(
     list=extend_schema(tags=["Dealer Product Images"], summary="Danh sách ảnh"),
     retrieve=extend_schema(tags=["Dealer Product Images"], summary="Chi tiết ảnh"),
-    create=extend_schema(tags=["Dealer Product Images"], summary="Thêm ảnh (URL)"),
-    update=extend_schema(tags=["Dealer Product Images"], summary="Cập nhật ảnh"),
-    partial_update=extend_schema(tags=["Dealer Product Images"], summary="Cập nhật một phần"),
+    create=extend_schema(
+        tags=["Dealer Product Images"],
+        summary="Thêm ảnh sản phẩm",
+        description=DEALER_PRODUCT_IMAGE_HELP,
+        request=multipart_request(DealerProductImageCreateForm),
+        responses={201: DealerProductImageSerializer},
+    ),
+    update=extend_schema(
+        tags=["Dealer Product Images"],
+        summary="Cập nhật ảnh",
+        description=DEALER_PRODUCT_IMAGE_HELP,
+        request=multipart_request(DealerProductImageUpdateForm),
+        responses={200: DealerProductImageSerializer},
+    ),
+    partial_update=extend_schema(
+        tags=["Dealer Product Images"],
+        summary="Cập nhật một phần",
+        description=DEALER_PRODUCT_IMAGE_HELP,
+        request=multipart_request(DealerProductImageUpdateForm),
+        responses={200: DealerProductImageSerializer},
+    ),
     destroy=extend_schema(tags=["Dealer Product Images"], summary="Xóa ảnh"),
 )
 class DealerProductImageViewSet(viewsets.ModelViewSet):
@@ -169,6 +197,7 @@ class DealerProductImageViewSet(viewsets.ModelViewSet):
         "dealer_product__dealer_profile",
     )
     serializer_class = DealerProductImageSerializer
+    parser_classes = [MultiPartParser, FormParser]
 
     def get_permissions(self):
         if self.action in ("list", "retrieve"):
@@ -189,12 +218,7 @@ class DealerProductImageViewSet(viewsets.ModelViewSet):
             from rest_framework.exceptions import PermissionDenied
 
             raise PermissionDenied("Không có quyền thêm ảnh cho sản phẩm này.")
-        image = serializer.save()
-        if image.is_thumbnail:
-            DealerProductImage.objects.filter(
-                dealer_product=product,
-                is_thumbnail=True,
-            ).exclude(pk=image.pk).update(is_thumbnail=False)
+        serializer.save()
 
 
 @extend_schema_view(
@@ -215,7 +239,10 @@ class DealerInventoryBatchViewSet(viewsets.ReadOnlyModelViewSet):
     permission_classes = [IsAdminOrDealer]
     queryset = DealerInventoryBatch.objects.select_related(
         "dealer_product",
+        "dealer_product__category",
         "dealer_product__dealer_profile",
+        "dealer_product__supplier_product",
+        "dealer_product__supplier_product__supplier",
         "purchase_order_item",
         "purchase_order_item__purchase_order",
     ).filter(deleted_at__isnull=True)

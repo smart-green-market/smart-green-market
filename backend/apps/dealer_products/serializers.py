@@ -6,8 +6,10 @@ from apps.dealers.models import DealerProfileStatus
 from apps.categories.utils import category_assignable_by_user
 from apps.supplier_products.models import SupplierProduct, SupplierProductStatus
 from common.approval_nested import ApprovalCategoryNestedSerializer, ApprovalDealerNestedSerializer
+from common.business_rules import MAX_IMAGES_PER_PRODUCT, allowed_image_extensions_label
+from common.files import build_media_url
 from common.openapi_enums import schema_choice_field
-from common.validators import require_rejection_reason
+from common.validators import require_rejection_reason, validate_image_upload
 
 from .models import (
     DealerInventoryBatch,
@@ -21,7 +23,19 @@ from .models import (
 )
 
 
+_IMAGE_FIELD_HELP = (
+    f"Ảnh sản phẩm đại lý ({allowed_image_extensions_label()} — tối đa 5MB/ảnh)"
+)
+
+
 class DealerProductImageSerializer(serializers.ModelSerializer):
+    """Upload và cập nhật ảnh sản phẩm đại lý (multipart field `image_url`)."""
+
+    image_url = serializers.FileField(
+        required=False,
+        help_text=_IMAGE_FIELD_HELP,
+    )
+
     class Meta:
         model = DealerProductImage
         fields = [
@@ -35,10 +49,55 @@ class DealerProductImageSerializer(serializers.ModelSerializer):
         read_only_fields = ["created_at"]
         extra_kwargs = {
             "dealer_product": {"help_text": "ID sản phẩm đại lý"},
-            "image_url": {"help_text": "URL ảnh (https://...)"},
             "is_thumbnail": {"help_text": "true = ảnh đại diện"},
             "sort_order": {"help_text": "Thứ tự hiển thị"},
         }
+
+    def validate_image_url(self, file):
+        if file and hasattr(file, "read"):
+            validate_image_upload(file)
+        return file
+
+    def validate(self, attrs):
+        product = attrs.get("dealer_product") or getattr(
+            self.instance, "dealer_product", None
+        )
+        if product and self.instance is None:
+            if product.images.count() >= MAX_IMAGES_PER_PRODUCT:
+                raise serializers.ValidationError(
+                    f"Mỗi sản phẩm tối đa {MAX_IMAGES_PER_PRODUCT} ảnh."
+                )
+        if self.instance is None and not attrs.get("image_url"):
+            raise serializers.ValidationError(
+                {"image_url": "Vui lòng chọn ảnh để upload."}
+            )
+        return attrs
+
+    def create(self, validated_data):
+        image = super().create(validated_data)
+        if image.is_thumbnail:
+            DealerProductImage.objects.filter(
+                dealer_product=image.dealer_product,
+                is_thumbnail=True,
+            ).exclude(pk=image.pk).update(is_thumbnail=False)
+        return image
+
+    def update(self, instance, validated_data):
+        new_file = validated_data.get("image_url")
+        if new_file and instance.image_url:
+            instance.image_url.delete(save=False)
+        image = super().update(instance, validated_data)
+        if image.is_thumbnail:
+            DealerProductImage.objects.filter(
+                dealer_product=image.dealer_product,
+                is_thumbnail=True,
+            ).exclude(pk=image.pk).update(is_thumbnail=False)
+        return image
+
+    def to_representation(self, instance):
+        data = super().to_representation(instance)
+        data["image_url"] = build_media_url(instance.image_url, self.context.get("request"))
+        return data
 
 
 class DealerProductReadSerializer(serializers.ModelSerializer):
@@ -55,6 +114,20 @@ class DealerProductReadSerializer(serializers.ModelSerializer):
         read_only=True,
         help_text="Đơn vị sản phẩm gốc",
     )
+    total_quantity = serializers.IntegerField(
+        read_only=True,
+        help_text="Tổng tồn hiện có (sum remaining_quantity các lô chưa xóa)",
+    )
+    available_quantity = serializers.IntegerField(
+        read_only=True,
+        help_text="Số lượng có thể bán (lô active, còn hạn, còn tồn)",
+    )
+    in_stock = serializers.SerializerMethodField(
+        help_text="true nếu available_quantity > 0",
+    )
+
+    def get_in_stock(self, obj):
+        return getattr(obj, "available_quantity", 0) > 0
 
     class Meta:
         model = DealerProduct
@@ -70,6 +143,9 @@ class DealerProductReadSerializer(serializers.ModelSerializer):
             "retail_price",
             "thumbnail",
             "status",
+            "total_quantity",
+            "available_quantity",
+            "in_stock",
             "created_at",
             "updated_at",
             "images",
@@ -203,6 +279,50 @@ class DealerInventoryBatchSerializer(serializers.ModelSerializer):
         read_only=True,
         allow_null=True,
     )
+    category = ApprovalCategoryNestedSerializer(
+        source="dealer_product.category",
+        read_only=True,
+        allow_null=True,
+    )
+    supplier_id = serializers.IntegerField(
+        source="dealer_product.supplier_product.supplier_id",
+        read_only=True,
+    )
+    supplier_name = serializers.CharField(
+        source="dealer_product.supplier_product.supplier.company_name",
+        read_only=True,
+    )
+    supplier_product = serializers.IntegerField(
+        source="dealer_product.supplier_product_id",
+        read_only=True,
+    )
+    supplier_product_name = serializers.CharField(
+        source="dealer_product.supplier_product.name",
+        read_only=True,
+    )
+    supplier_product_unit = serializers.CharField(
+        source="dealer_product.supplier_product.unit",
+        read_only=True,
+    )
+    storage_duration_days = serializers.IntegerField(
+        source="dealer_product.supplier_product.storage_duration_days",
+        read_only=True,
+        allow_null=True,
+    )
+    min_storage_temp = serializers.DecimalField(
+        source="dealer_product.supplier_product.min_storage_temp",
+        max_digits=5,
+        decimal_places=2,
+        read_only=True,
+        allow_null=True,
+    )
+    max_storage_temp = serializers.DecimalField(
+        source="dealer_product.supplier_product.max_storage_temp",
+        max_digits=5,
+        decimal_places=2,
+        read_only=True,
+        allow_null=True,
+    )
 
     class Meta:
         model = DealerInventoryBatch
@@ -210,14 +330,23 @@ class DealerInventoryBatchSerializer(serializers.ModelSerializer):
             "id",
             "dealer_product",
             "dealer_product_title",
+            "category",
             "purchase_order_item",
             "order_code",
+            "supplier_id",
+            "supplier_name",
+            "supplier_product",
+            "supplier_product_name",
+            "supplier_product_unit",
             "batch_number",
             "quantity",
             "remaining_quantity",
             "import_price",
             "import_date",
             "expiry_date",
+            "storage_duration_days",
+            "min_storage_temp",
+            "max_storage_temp",
             "status",
             "created_at",
             "updated_at",

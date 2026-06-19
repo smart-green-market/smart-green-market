@@ -24,6 +24,7 @@ class Supplier(models.Model):
     tax_code = models.CharField(max_length=50, unique=True)
     phone = models.CharField(max_length=20)
     address = models.TextField()
+    logo = models.FileField(upload_to="supplier_logos/", blank=True, null=True)
     description = models.TextField(blank=True)
 
     bank_name = models.CharField(max_length=255, blank=True)

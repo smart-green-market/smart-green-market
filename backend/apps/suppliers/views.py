@@ -29,6 +29,7 @@ from common.openapi import (
     VerifySupplierSerializer,
     paginated_response_schema,
 )
+from common.openapi_files import multipart_request
 from common.verify_openapi import (
     SUPPLIER_VERIFY_APPROVE,
     SUPPLIER_VERIFY_REJECT,
@@ -69,6 +70,9 @@ from .openapi import (
     SUPPLIER_CATEGORIES_BY_SUPPLIER_EXAMPLE,
     SUPPLIER_PRODUCTS_BY_SUPPLIER_EXAMPLE,
     SUPPLIER_PRODUCTS_CATALOG_HELP,
+    SUPPLIER_PROFILE_WRITE_HELP,
+    SupplierProfileCreateForm,
+    SupplierProfileUpdateForm,
 )
 from .serializers import (
     SupplierCatalogDetailSerializer,
@@ -165,6 +169,7 @@ def _supplier_catalog_product_q(supplier, *, dealer_catalog=False):
         summary="Tạo hồ sơ nhà cung cấp",
         description=(
             "**Bước 2 onboarding** — gọi ngay sau `POST /api/register/` với Bearer token.\n\n"
+            f"{SUPPLIER_PROFILE_WRITE_HELP}\n\n"
             "- Mỗi account chỉ tạo được **1** supplier profile.\n"
             "- `account` tự gắn theo JWT, không cần gửi.\n"
             "- `verification_status` mặc định `pending`.\n"
@@ -172,18 +177,22 @@ def _supplier_catalog_product_q(supplier, *, dealer_catalog=False):
             "gửi `bank_bin` + `bank_name` khớp; `account_number`, `account_name` "
             "(khuyến nghị không dấu, viết hoa cho VietQR)."
         ),
-        request=SupplierSerializer,
+        request=multipart_request(SupplierProfileCreateForm),
         responses={201: SupplierSerializer},
         examples=[SUPPLIER_CREATE_EXAMPLE],
     ),
     update=extend_schema(
         tags=["Suppliers"],
         summary="Cập nhật toàn bộ hồ sơ",
+        description=SUPPLIER_PROFILE_WRITE_HELP,
+        request=multipart_request(SupplierProfileUpdateForm),
         responses={200: SupplierSerializer},
     ),
     partial_update=extend_schema(
         tags=["Suppliers"],
         summary="Cập nhật một phần hồ sơ",
+        description=SUPPLIER_PROFILE_WRITE_HELP,
+        request=multipart_request(SupplierProfileUpdateForm),
         responses={200: SupplierSerializer},
     ),
     destroy=extend_schema(

@@ -25,7 +25,7 @@ from .models import Notification, NotificationReceipt
 from .serializers import NotificationSerializer
 
 
-def serialize_notification_receipt(receipt, purchase_orders_by_id=None):
+def serialize_notification_receipt(receipt, purchase_orders_by_id=None, customer_orders_by_id=None):
     """Chuyển biên nhận thông báo sang dict cho API."""
     notification = receipt.notification
     data = {
@@ -50,6 +50,13 @@ def serialize_notification_receipt(receipt, purchase_orders_by_id=None):
         if order is not None:
             data["reference_status"] = order.status
             data["reference_order_code"] = order.order_code
+    if notification.reference_type == "customer_order" and notification.reference_id:
+        order = None
+        if customer_orders_by_id is not None:
+            order = customer_orders_by_id.get(notification.reference_id)
+        if order is not None:
+            data["reference_status"] = order.status
+            data["reference_order_code"] = order.order_code
     return data
 
 
@@ -59,6 +66,11 @@ def serialize_notification_receipts(receipts):
         r.notification.reference_id
         for r in receipts
         if r.notification.reference_type == "purchase_order" and r.notification.reference_id
+    ]
+    co_ids = [
+        r.notification.reference_id
+        for r in receipts
+        if r.notification.reference_type == "customer_order" and r.notification.reference_id
     ]
     purchase_orders_by_id = {}
     if po_ids:
@@ -70,8 +82,22 @@ def serialize_notification_receipts(receipts):
                 "id", "status", "order_code"
             )
         }
+    customer_orders_by_id = {}
+    if co_ids:
+        from apps.orders.models import Order
+
+        customer_orders_by_id = {
+            o.id: o
+            for o in Order.objects.filter(id__in=co_ids).only(
+                "id", "status", "order_code"
+            )
+        }
     return [
-        serialize_notification_receipt(r, purchase_orders_by_id)
+        serialize_notification_receipt(
+            r,
+            purchase_orders_by_id,
+            customer_orders_by_id,
+        )
         for r in receipts
     ]
 
