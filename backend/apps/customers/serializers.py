@@ -5,6 +5,7 @@ from drf_spectacular.utils import extend_schema_field
 from rest_framework import serializers
 
 from apps.accounts.models import AccountRole, AccountStatus
+from apps.customers.storefront_catalog_serializers import StorefrontProductCategorySerializer
 from common.avatar import build_avatar_url, save_account_avatar
 from common.openapi_enums import schema_choice_field
 from common.validators import validate_image_upload
@@ -50,10 +51,29 @@ class CustomerAccountNestedSerializer(serializers.ModelSerializer):
         return build_avatar_url(obj, self.context.get("request"))
 
 
+class CustomerAddressReadSerializer(serializers.ModelSerializer):
+    """Địa chỉ nhận hàng — dùng khi nested trong hồ sơ buyer."""
+
+    class Meta:
+        model = CustomerAddress
+        fields = [
+            "id",
+            "receiver_name",
+            "receiver_phone",
+            "address",
+            "is_default",
+            "created_at",
+            "updated_at",
+        ]
+
+
 class CustomerProfileSerializer(serializers.ModelSerializer):
     """Hồ sơ buyer gắn account storefront."""
 
     user = CustomerAccountNestedSerializer(read_only=True)
+    favorite_category = StorefrontProductCategorySerializer(read_only=True)
+    addresses = CustomerAddressReadSerializer(many=True, read_only=True)
+    default_address = serializers.SerializerMethodField()
 
     class Meta:
         model = CustomerProfile
@@ -61,6 +81,8 @@ class CustomerProfileSerializer(serializers.ModelSerializer):
             "id",
             "user",
             "favorite_category",
+            "addresses",
+            "default_address",
             "total_orders",
             "total_spent",
             "loyalty_points",
@@ -71,6 +93,8 @@ class CustomerProfileSerializer(serializers.ModelSerializer):
         ]
         read_only_fields = [
             "user",
+            "addresses",
+            "default_address",
             "total_orders",
             "total_spent",
             "loyalty_points",
@@ -79,6 +103,16 @@ class CustomerProfileSerializer(serializers.ModelSerializer):
             "created_at",
             "updated_at",
         ]
+
+    @extend_schema_field(CustomerAddressReadSerializer(allow_null=True))
+    def get_default_address(self, obj):
+        addresses = list(obj.addresses.all())
+        default = next((item for item in addresses if item.is_default), None)
+        if default is None and addresses:
+            default = addresses[0]
+        if default is None:
+            return None
+        return CustomerAddressReadSerializer(default, context=self.context).data
 
 
 class CustomerProfileUpdateSerializer(serializers.ModelSerializer):

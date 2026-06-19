@@ -86,7 +86,7 @@ class DealerProductImage(models.Model):
         on_delete=models.CASCADE,
         related_name="images",
     )
-    image_url = models.CharField(max_length=500)
+    image_url = models.FileField(upload_to="dealer_product_images/")
     is_thumbnail = models.BooleanField(default=False)
     sort_order = models.IntegerField(default=0)
     created_at = models.DateTimeField(auto_now_add=True)

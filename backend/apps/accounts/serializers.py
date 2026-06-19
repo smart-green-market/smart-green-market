@@ -82,14 +82,10 @@ class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
             else None
         )
         if user.role == AccountRole.BUYER and user.store_dealer_id is None:
-            from apps.customers.models import CustomerProfile
             from apps.customers.serializers import CustomerProfileSerializer
+            from apps.customers.services import customer_profile_detail_queryset
 
-            customer = (
-                CustomerProfile.objects.filter(user=user)
-                .select_related("user", "user__store_dealer", "favorite_category")
-                .first()
-            )
+            customer = customer_profile_detail_queryset().filter(user=user).first()
             data["customer_profile"] = (
                 CustomerProfileSerializer(
                     customer,

@@ -12,7 +12,12 @@ from common.openapi_enums import schema_choice_field
 
 from .models import CustomerProfile
 from .serializers import CustomerProfileSerializer
-from .services import build_storefront_username, get_active_dealer_by_slug, storefront_buyer_exists
+from .services import (
+    build_storefront_username,
+    customer_profile_detail_queryset,
+    get_active_dealer_by_slug,
+    storefront_buyer_exists,
+)
 from .tokens import StorefrontRefreshToken
 
 Account = get_user_model()
@@ -116,12 +121,14 @@ def build_storefront_auth_response(account, request):
     """Tạo payload JWT + thông tin buyer/dealer cho response."""
     refresh = StorefrontRefreshToken.for_user(account)
     dealer = account.store_dealer
+    profile, _ = CustomerProfile.objects.get_or_create(user=account)
+    customer_profile = customer_profile_detail_queryset().get(pk=profile.pk)
     return {
         "access": str(refresh.access_token),
         "refresh": str(refresh),
         "account": LoginAccountSerializer(account, context={"request": request}).data,
         "customer_profile": CustomerProfileSerializer(
-            account.customer_profile,
+            customer_profile,
             context={"request": request},
         ).data,
         "store_dealer": {

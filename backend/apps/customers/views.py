@@ -23,15 +23,12 @@ from .serializers import (
     CustomerProfileSerializer,
     CustomerProfileUpdateSerializer,
 )
+from .services import customer_profile_detail_queryset
 from .storefront_serializers import DealerCustomerListSerializer, DealerCustomerNoteSerializer
 
 
 def _customer_profile_queryset():
-    return CustomerProfile.objects.select_related(
-        "user",
-        "user__store_dealer",
-        "favorite_category",
-    )
+    return customer_profile_detail_queryset()
 
 
 @extend_schema_view(
@@ -94,7 +91,8 @@ class DealerCustomerViewSet(viewsets.ModelViewSet):
         tags=["Storefront Customer"],
         summary="Hồ sơ buyer hiện tại",
         description=(
-            "Trả hồ sơ buyer kèm `user.avatar_url` (URL đọc-only, có `?v=` chống cache).\n\n"
+            "Trả hồ sơ buyer đầy đủ: `user`, `favorite_category`, `addresses[]`, "
+            "`default_address`, thống kê đơn hàng.\n\n"
             "Cập nhật: `PATCH /api/storefronts/{dealer_slug}/me/` (multipart, chọn file avatar)."
         ),
         responses={200: CustomerProfileSerializer},

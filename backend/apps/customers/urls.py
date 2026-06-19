@@ -7,6 +7,12 @@ from .storefront_catalog_views import (
     StorefrontProductDetailView,
     StorefrontProductListView,
 )
+from apps.orders.storefront_views import (
+    StorefrontDeliverySlotsView,
+    StorefrontOrderConfirmReceivedView,
+    StorefrontOrderDetailView,
+    StorefrontOrderListCreateView,
+)
 from .views import (
     DealerCustomerViewSet,
     StorefrontCustomerAddressViewSet,
@@ -72,6 +78,26 @@ urlpatterns = [
         "storefronts/<slug:dealer_slug>/addresses/<int:pk>/",
         storefront_address_detail,
         name="storefront-address-detail",
+    ),
+    path(
+        "storefronts/<slug:dealer_slug>/delivery-slots/",
+        StorefrontDeliverySlotsView.as_view(),
+        name="storefront-delivery-slots",
+    ),
+    path(
+        "storefronts/<slug:dealer_slug>/orders/",
+        StorefrontOrderListCreateView.as_view(),
+        name="storefront-orders",
+    ),
+    path(
+        "storefronts/<slug:dealer_slug>/orders/<int:pk>/",
+        StorefrontOrderDetailView.as_view(),
+        name="storefront-order-detail",
+    ),
+    path(
+        "storefronts/<slug:dealer_slug>/orders/<int:pk>/confirm-received/",
+        StorefrontOrderConfirmReceivedView.as_view(),
+        name="storefront-order-confirm-received",
     ),
     *router.urls,
 ]

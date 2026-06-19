@@ -1,6 +1,9 @@
 """Logic nghiệp vụ tồn kho đại lý."""
 
 from django.db import transaction
+from django.db.models import Q, Sum
+from django.db.models.functions import Coalesce
+from django.utils import timezone
 from rest_framework.exceptions import ValidationError
 
 from .models import (
@@ -10,6 +13,44 @@ from .models import (
     DealerInventoryTransactionType,
     DealerInventoryWastage,
 )
+
+
+def _sellable_batch_filter():
+    """Lô còn bán được: active, còn tồn, chưa xóa, chưa hết hạn."""
+    today = timezone.localdate()
+    return Q(
+        inventory_batches__status=DealerInventoryBatchStatus.ACTIVE,
+        inventory_batches__remaining_quantity__gt=0,
+        inventory_batches__deleted_at__isnull=True,
+    ) & (
+        Q(inventory_batches__expiry_date__isnull=True)
+        | Q(inventory_batches__expiry_date__gte=today)
+    )
+
+
+def _on_hand_batch_filter():
+    """Mọi lô chưa xóa — tổng tồn thực tế (kể cả hết hạn / depleted)."""
+    return Q(inventory_batches__deleted_at__isnull=True)
+
+
+def annotate_dealer_product_stock(qs):
+    """Gắn total_quantity (tồn hiện có) và available_quantity (bán được) lên queryset SP đại lý."""
+    return qs.annotate(
+        total_quantity=Coalesce(
+            Sum(
+                "inventory_batches__remaining_quantity",
+                filter=_on_hand_batch_filter(),
+            ),
+            0,
+        ),
+        available_quantity=Coalesce(
+            Sum(
+                "inventory_batches__remaining_quantity",
+                filter=_sellable_batch_filter(),
+            ),
+            0,
+        ),
+    )
 
 
 @transaction.atomic
