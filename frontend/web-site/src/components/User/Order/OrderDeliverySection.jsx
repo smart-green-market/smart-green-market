@@ -58,26 +58,45 @@ export default function OrderDeliverySection({
 
                     {activeDate ? (
                         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                            {activeDate.slots.map((slot) => (
-                                <button
-                                    key={slot.id}
-                                    type="button"
-                                    onClick={() => onSelectSlot?.(slot.id)}
-                                    disabled={!slot.available}
-                                    className={`rounded-xl border px-4 py-4 text-left transition-colors ${
-                                        selectedSlot === slot.id
-                                            ? "border-emerald-800 bg-emerald-50"
-                                            : "border-stone-200 bg-white hover:border-emerald-300"
-                                    } disabled:cursor-not-allowed disabled:opacity-50`}
-                                >
-                                    <p className="text-sm font-semibold text-emerald-950">
-                                        {slot.name}
-                                    </p>
-                                    <p className="mt-0.5 text-xs text-neutral-500">
-                                        {slot.available ? "Còn slot trống" : "Đã hết slot"}
-                                    </p>
-                                </button>
-                            ))}
+                            {activeDate.slots.map((slot) => {
+                                const isSelected =
+                                    selectedSlot === slot.id && slot.available;
+
+                                return (
+                                    <button
+                                        key={slot.id}
+                                        type="button"
+                                        onClick={() => {
+                                            if (!slot.available) return;
+                                            onSelectSlot?.(slot.id);
+                                        }}
+                                        disabled={!slot.available}
+                                        aria-disabled={!slot.available}
+                                        className={`rounded-xl border px-4 py-4 text-left transition-colors ${
+                                            isSelected
+                                                ? "border-emerald-800 bg-emerald-50"
+                                                : slot.available
+                                                  ? "border-stone-200 bg-white hover:border-emerald-300"
+                                                  : "cursor-not-allowed border-stone-200 bg-stone-50 opacity-70"
+                                        }`}
+                                    >
+                                        <p
+                                            className={`text-sm font-semibold ${
+                                                slot.available
+                                                    ? "text-emerald-950"
+                                                    : "text-neutral-500"
+                                            }`}
+                                        >
+                                            {slot.name}
+                                        </p>
+                                        <p className="mt-0.5 text-xs text-neutral-500">
+                                            {slot.available
+                                                ? "Còn slot trống"
+                                                : "Đã hết slot"}
+                                        </p>
+                                    </button>
+                                );
+                            })}
                         </div>
                     ) : null}
                 </div>
