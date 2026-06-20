@@ -12,7 +12,7 @@ const mapStatusToFrontend = (status) => {
         rejected: "Đã từ chối",
         confirmed: "Đã xác nhận",
         deposit_pending_verification: "Chờ duyệt cọc",
-        deposit_paid:"Đã thanh toán cọc",
+        deposit_paid: "Đã thanh toán cọc",
         processing: "Đang chuẩn bị hàng ",
         shipping: "Đang giao hàng",
         delivered: "Đã giao hàng",
@@ -34,11 +34,11 @@ export default function DealerPurchaseOrderPage() {
     const navigate = useNavigate();
     const location = useLocation();
 
-     // States cho phân trang backend
+    // States cho phân trang backend
     const [currentPage, setCurrentPage] = useState(1);
     const [totalPages, setTotalPages] = useState(1);
     const page_size = 10;
-    
+
     const filterOptions = [
         { label: "Tất cả", value: "", colorClass: "text-neutral-700" },
         { label: "Chờ xác nhận", value: "Chờ xác nhận", colorClass: "text-sky-700" },
@@ -80,8 +80,8 @@ export default function DealerPurchaseOrderPage() {
                     items: "Xem chi tiết đơn hàng",
                     amount: `${Number(item.total_amount).toLocaleString("vi-VN")} đ`,
                     status: mapStatusToFrontend(item.status),
-                    deliveryDate: item.requested_delivery_time 
-                        ? new Date(item.requested_delivery_time).toLocaleDateString("vi-VN") 
+                    deliveryDate: item.requested_delivery_time
+                        ? new Date(item.requested_delivery_time).toLocaleDateString("vi-VN")
                         : "Chưa xác định",
                 }));
                 //Check đơn mới đã tồn tại chưa để thêm lên đầu
@@ -115,10 +115,18 @@ export default function DealerPurchaseOrderPage() {
         const matchesSearch =
             supplierName.toLowerCase().includes(searchQuery.toLowerCase()) ||
             orderId.toLowerCase().includes(searchQuery.toLowerCase());
-        
+
         const matchesStatus = statusFilter === "" || supplierStatus === statusFilter;
         return matchesSearch && matchesStatus;
     });
+
+    if (loading) {
+        return (
+            <div className="p-6 bg-emerald-50/15 min-h-screen flex justify-center items-center">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-emerald-600"></div>
+            </div>
+        );
+    }
 
     return (
         <div className="p-6 bg-emerald-50/15 min-h-screen font-['Geist',sans-serif]">
@@ -132,7 +140,7 @@ export default function DealerPurchaseOrderPage() {
                         Theo dõi lịch sử mua và nhập nông sản từ nhà vườn về kho hàng của đại lý.
                     </p>
                 </div>
-                <button 
+                <button
                     onClick={() => navigate("/dai-ly/nhap-hang/tao-moi")}
                     className="h-10 px-4 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white font-bold text-xs transition-all flex items-center justify-center gap-1.5 shadow-md shadow-emerald-100 cursor-pointer self-start sm:self-auto"
                 >
@@ -151,22 +159,16 @@ export default function DealerPurchaseOrderPage() {
             />
 
             {/* List of orders */}
-
-
-            {loading ? (
-                <div className="text-center py-10">Đang tải dữ liệu...</div>
-            ) : (
-                <PurchaseOrderList
-                    purchaseOrders={filteredData}
-                    onViewDetail={handleViewDetail}
-                />
-            )}
+            <PurchaseOrderList
+                purchaseOrders={filteredData}
+                onViewDetail={handleViewDetail}
+            />
             <Pagination
                 currentPage={currentPage}
                 totalPages={totalPages}
                 onPageChange={setCurrentPage}
             />
-            
+
 
 
 
