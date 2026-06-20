@@ -4,7 +4,7 @@ import { useNavigate } from "react-router-dom";
 import SupplierFilter from "../../../components/Dealer/Supplier/SupplierFilter";
 import ProductStatsCards from "../../../components/Dealer/Product/ProductStatsCards";
 import ProductTable from "../../../components/Dealer/Product/ProductTable";
-import EditProductModal from "../../../components/Dealer/Product/EditProductModal";
+
 import ProductPreviewModal from "../../../components/Dealer/Product/ProductPreviewModal";
 import { dealerProductService } from "../../../services/api/dealerProductService";
 
@@ -15,7 +15,6 @@ export default function DealerProductManagementPage() {
   const [loading, setLoading] = useState(true);
 
   // Modals state
-  const [editingProduct, setEditingProduct] = useState(null);
   const [previewProduct, setPreviewProduct] = useState(null);
 
   const navigate = useNavigate();
@@ -54,9 +53,7 @@ export default function DealerProductManagementPage() {
     navigate(`/dai-ly/san-pham/${row.id}`);
   };
 
-  const handleSaveEdit = (updatedProduct) => {
-    setProducts(products.map(p => p.id === updatedProduct.id ? updatedProduct : p));
-  };
+
 
   return (
     <div className="p-6 bg-emerald-50/15 min-h-screen font-['Geist',sans-serif]">
@@ -93,20 +90,11 @@ export default function DealerProductManagementPage() {
           <ProductTable
             data={filteredProducts}
             onRowClick={handleRowClick}
-            onEditClick={(row) => setEditingProduct(row)}
-            onRefresh={fetchProducts}
           />
         </>
       )}
 
       {/* Modals */}
-      {editingProduct && (
-        <EditProductModal
-          data={editingProduct}
-          onClose={() => setEditingProduct(null)}
-          onSave={handleSaveEdit}
-        />
-      )}
 
       {/* Nếu muốn mở Preview từ một action nào đó thì dùng modal này, tạm thời đang chuyển hướng sang chi tiết */}
       {previewProduct && (

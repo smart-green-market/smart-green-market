@@ -73,7 +73,10 @@ export default function PrintInvoiceModal({ orders, isOpen, onClose }) {
           
           
           {orders.map((order, index) => {
-            const products = order.items?.split(',').map(i => i.trim()) || [];
+            const fullData = order.originalData || {};
+            const products = fullData.items || [];
+            const formatCurrency = (val) => new Intl.NumberFormat('vi-VN').format(Number(val || 0)) + ' đ';
+
             return (
               <div key={order.id} className={`bg-white p-8 w-full max-w-2xl shadow-sm border border-neutral-200 mx-auto ${index < orders.length - 1 ? 'page-break' : ''}`}>
                 
@@ -95,8 +98,8 @@ export default function PrintInvoiceModal({ orders, isOpen, onClose }) {
                 <div className="mb-6">
                   <h3 className="text-xs font-black text-neutral-400 uppercase tracking-widest mb-2 border-b border-neutral-100 pb-1">Giao đến</h3>
                   <p className="font-bold text-neutral-800 text-lg">{order.customer}</p>
-                  <p className="text-sm text-neutral-600 mt-1">SĐT khách hàng: (Đang cập nhật)</p>
-                  <p className="text-sm text-neutral-600 mt-0.5">Địa chỉ giao: (Đang cập nhật)</p>
+                  <p className="text-sm text-neutral-600 mt-1">SĐT khách hàng: {fullData.customer_phone || "(Đang cập nhật)"}</p>
+                  <p className="text-sm text-neutral-600 mt-0.5">Địa chỉ giao: {fullData.delivery_address || "(Đang cập nhật)"}</p>
                 </div>
 
                 {/* Items Table */}
@@ -104,22 +107,21 @@ export default function PrintInvoiceModal({ orders, isOpen, onClose }) {
                   <thead>
                     <tr className="border-b-2 border-neutral-800 text-left">
                       <th className="py-2 text-xs font-black text-neutral-600 uppercase tracking-wider">STT</th>
-                      <th className="py-2 text-xs font-black text-neutral-600 uppercase tracking-wider">Tên sản phẩm / Quy cách</th>
+                      <th className="py-2 text-xs font-black text-neutral-600 uppercase tracking-wider">Tên sản phẩm</th>
                       <th className="py-2 text-xs font-black text-neutral-600 uppercase tracking-wider text-right">SL</th>
+                      <th className="py-2 text-xs font-black text-neutral-600 uppercase tracking-wider text-right">Đơn giá</th>
+                      <th className="py-2 text-xs font-black text-neutral-600 uppercase tracking-wider text-right">Thành tiền</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-neutral-100">
                     {products.map((item, idx) => {
-                      // Extract qty if starts with number (e.g. "15kg Cải thìa")
-                      const match = item.match(/^(\d+(kg|g|thùng|hộp))\s+(.*)$/i);
-                      const qty = match ? match[1] : "-";
-                      const name = match ? match[3] : item;
-                      
                       return (
                         <tr key={idx}>
                           <td className="py-3 text-sm text-neutral-500 font-medium">{idx + 1}</td>
-                          <td className="py-3 text-sm font-bold text-neutral-800">{name}</td>
-                          <td className="py-3 text-sm font-black text-neutral-900 text-right">{qty}</td>
+                          <td className="py-3 text-sm font-bold text-neutral-800">{item.product_name}</td>
+                          <td className="py-3 text-sm font-black text-neutral-900 text-right">{item.quantity} {item.product_unit}</td>
+                          <td className="py-3 text-sm text-neutral-600 text-right">{formatCurrency(item.unit_price)}</td>
+                          <td className="py-3 text-sm font-bold text-emerald-700 text-right">{formatCurrency(item.subtotal)}</td>
                         </tr>
                       );
                     })}
@@ -128,14 +130,32 @@ export default function PrintInvoiceModal({ orders, isOpen, onClose }) {
 
                 {/* Totals */}
                 <div className="border-t-2 border-neutral-800 pt-4 flex justify-end">
-                  <div className="w-64">
-                    <div className="flex justify-between items-center mb-2">
+                  <div className="w-72">
+                    <div className="flex justify-between items-center mb-1">
                       <span className="text-sm text-neutral-600 font-bold">Thanh toán:</span>
-                      <span className="text-sm font-bold text-neutral-800 uppercase">{order.payment}</span>
+                      <span className="text-sm font-bold text-neutral-800 uppercase text-right truncate max-w-[150px]" title={fullData.payment_method}>{fullData.payment_method || order.payment}</span>
                     </div>
-                    <div className="flex justify-between items-center bg-neutral-50 p-3 rounded-lg border border-neutral-200">
+                    {Number(fullData.shipping_fee) > 0 && (
+                      <>
+                        <div className="flex justify-between items-center mb-1">
+                          <span className="text-sm text-neutral-600 font-bold">Tạm tính:</span>
+                          <span className="text-sm font-bold text-neutral-800">{formatCurrency(fullData.subtotal_amount)}</span>
+                        </div>
+                        <div className="flex justify-between items-center mb-1">
+                          <span className="text-sm text-neutral-600 font-bold">Phí vận chuyển:</span>
+                          <span className="text-sm font-bold text-neutral-800">{formatCurrency(fullData.shipping_fee)}</span>
+                        </div>
+                      </>
+                    )}
+                    {Number(fullData.discount_amount) > 0 && (
+                      <div className="flex justify-between items-center mb-2">
+                        <span className="text-sm text-neutral-600 font-bold">Giảm giá:</span>
+                        <span className="text-sm font-bold text-neutral-800">- {formatCurrency(fullData.discount_amount)}</span>
+                      </div>
+                    )}
+                    <div className="flex justify-between items-center bg-neutral-50 p-3 mt-2 rounded-lg border border-neutral-200">
                       <span className="text-sm text-neutral-800 font-black uppercase">Tổng tiền:</span>
-                      <span className="text-lg font-black text-emerald-700">{order.amount}</span>
+                      <span className="text-lg font-black text-emerald-700">{formatCurrency(fullData.total_amount)}</span>
                     </div>
                   </div>
                 </div>

@@ -119,11 +119,11 @@ export default function DealerProductDetailPage() {
           </div>
         </div>
 
-        {/* Hàng 2: Lô hàng & Lịch sử */}
+        {/* Hàng 2: Lô hàng & Lịch sử
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           <ProductInventoryBatches batches={batches} />
           <ProductSalesHistory transactions={transactions} />
-        </div>
+        </div> */}
       </div>
     </div>
   );

@@ -147,7 +147,7 @@ export default function ProductDetailInfo({ product, onUpdate }) {
               </select>
             ) : (
               <p className="text-sm font-medium text-neutral-800 px-3 py-2 bg-neutral-50 rounded-xl border border-transparent">
-                {product.category_name || "Chưa phân loại"}
+                {product.category?.name || "Chưa phân loại"}
               </p>
             )}
           </div>

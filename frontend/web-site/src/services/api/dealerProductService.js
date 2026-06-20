@@ -109,18 +109,11 @@ export const dealerProductService = {
       throw error;
     }
   },
-  toggleStatus: async (id, status) => {
-    try {
-      const res = await axiosClient.patch(`/dealer-products/${id}/`, { status });
-      return res.data;
-    } catch (error) {
-      console.error("Lỗi cập nhật trạng thái sản phẩm:", error);
-      throw error;
-    }
-  },
+
   uploadImage: async (id, formData) => {
     try {
-      const res = await axiosClient.post(`/dealer-products/${id}/images/`, formData, {
+      formData.append("dealer_product", id);
+      const res = await axiosClient.post(`/dealer-product-images/`, formData, {
         headers: { "Content-Type": "multipart/form-data" }
       });
       return res.data;
@@ -129,21 +122,35 @@ export const dealerProductService = {
       throw error;
     }
   },
-  deleteImage: async (productId, imageId) => {
+  deleteImage: async (imageId) => {
     try {
-      const res = await axiosClient.delete(`/dealer-products/${productId}/images/${imageId}/`);
+      const res = await axiosClient.delete(`/dealer-product-images/${imageId}/`);
       return res.data;
     } catch (error) {
       console.error("Lỗi xóa ảnh sản phẩm:", error);
       throw error;
     }
   },
-  setThumbnail: async (productId, imageId) => {
+  setThumbnail: async (imageId) => {
     try {
-      const res = await axiosClient.patch(`/dealer-products/${productId}/images/${imageId}/set-thumbnail/`);
+     
+      const res = await axiosClient.patch(`/dealer-product-images/${imageId}/`,  { is_thumbnail: true }, {
+        headers: { "Content-Type": "multipart/form-data" }
+      });
       return res.data;
     } catch (error) {
       console.error("Lỗi đặt ảnh chính:", error);
+      throw error;
+    }
+  },
+  unsetThumbnail: async (imageId) => {
+    try {
+      const res = await axiosClient.patch(`/dealer-product-images/${imageId}/`, { is_thumbnail: true }, {
+        headers: { "Content-Type": "multipart/form-data" }
+      });
+      return res.data;
+    } catch (error) {
+      console.error("Lỗi gỡ ảnh chính:", error);
       throw error;
     }
   },

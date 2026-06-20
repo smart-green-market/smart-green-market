@@ -81,13 +81,21 @@ const buildColumns = (onView, onDelete, onLockSelling, onUnlockSelling, toggling
   {
     name: "Hình ảnh",
     width: "110px",
-    cell: (row) => (
-      <img
-        src={(row.images.find((img) => img.is_thumbnail) || row.images[0])?.image_url}
-        alt={row.name}
-        className="w-16 h-16 rounded-lg border border-stone-300 object-cover"
-      />
-    ),
+    cell: (row) => {
+      const images = row.images || [];
+      const thumbnail = row.thumbnail || images.find((img) => img.is_thumbnail)?.image_url || images[0]?.image_url;
+      return thumbnail ? (
+        <img
+          src={thumbnail}
+          alt={row.name}
+          className="w-16 h-16 rounded-lg border border-stone-300 object-cover"
+        />
+      ) : (
+        <div className="w-16 h-16 rounded-lg border border-stone-300 bg-stone-50 flex items-center justify-center text-[10px] text-stone-400 font-medium">
+          N/A
+        </div>
+      );
+    },
   },
   {
     name: "Tên sản phẩm",

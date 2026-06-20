@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { ShoppingCart, Plus, CheckCircle2, Truck, Printer } from "lucide-react";
 import SupplierFilter from "../../../components/Dealer/Supplier/SupplierFilter";
 import SalesOrderList from "../../../components/Dealer/SalesOrder/SalesOrderList";
@@ -6,6 +6,7 @@ import SalesOrderStatsCards from "../../../components/Dealer/SalesOrder/SalesOrd
 import CreateSalesOrderModal from "../../../components/Dealer/SalesOrder/CreateSalesOrderModal";
 import SalesOrderDetailPanel from "../../../components/Dealer/SalesOrder/SalesOrderDetailPanel";
 import PrintInvoiceModal from "../../../components/Dealer/SalesOrder/PrintInvoiceModal";
+import { dealerOrderService } from "../../../services/api/dealerOrderService";
 
 export default function DealerSalesOrderPage() {
     const [searchQuery, setSearchQuery] = useState("");
@@ -19,74 +20,52 @@ export default function DealerSalesOrderPage() {
     const [isPrintModalOpen, setIsPrintModalOpen] = useState(false);
     const [ordersToPrint, setOrdersToPrint] = useState([]);
 
-    const initialSalesOrders = [
-        {
-            id: "BH-1092",
-            customer: "Cửa hàng Rau Sạch Quận 1",
-            address: "15 Nguyễn Đình Chiểu, Quận 1, TP.HCM",
-            date: "09/06/2026",
-            items: "15kg Cải thìa hữu cơ, 10kg Cà chua bi, 5kg Hành lá",
-            amount: "1,250,000 đ",
-            payment: "Đã thanh toán",
-            delivery: "Đã giao",
-            status: "Đã giao"
-        },
-        {
-            id: "BH-1091",
-            customer: "Siêu thị mini SafeFood",
-            address: "42 Lê Lợi, Quận 1, TP.HCM",
-            date: "09/06/2026",
-            items: "20kg Dâu tây Đà Lạt, 50kg Khoai tây vàng",
-            amount: "3,400,000 đ",
-            payment: "Chưa thanh toán",
-            delivery: "Đang giao hàng",
-            status: "Đang giao hàng"
-        },
-        {
-            id: "BH-1093",
-            customer: "Quán Ăn Sân Vườn",
-            address: "112 Võ Văn Tần, Quận 3, TP.HCM",
-            date: "10/06/2026",
-            items: "15kg Cải thìa hữu cơ, 10kg Cà chua bi",
-            amount: "650,000 đ",
-            payment: "Chưa thanh toán",
-            delivery: "Chờ xác nhận",
-            status: "Chờ xác nhận"
-        },
-        {
-            id: "BH-1094",
-            customer: "Cửa hàng Hữu Cơ xanh",
-            address: "88 Điện Biên Phủ, Bình Thạnh, TP.HCM",
-            date: "10/06/2026",
-            items: "20kg Dưa lưới, 10kg Xoài cát",
-            amount: "1,150,000 đ",
-            payment: "Đã thanh toán",
-            delivery: "Đang chuẩn bị hàng",
-            status: "Đang chuẩn bị hàng"
-        },
-        {
-            id: "BH-1090",
-            customer: "Hợp tác xã xanh Quận 3",
-            address: "15 Cống Quỳnh, Quận 1, TP.HCM",
-            date: "08/06/2026",
-            items: "10kg Nấm đùi gà hữu cơ, 5kg Ngò rí",
-            amount: "680,000 đ",
-            payment: "Đã thanh toán",
-            delivery: "Đã giao"
-        },
-        {
-            id: "BH-1089",
-            customer: "Nước ép Healthy Juice",
-            address: "223 Nguyễn Trãi, Quận 5, TP.HCM",
-            date: "08/06/2026",
-            items: "30kg Cần tây Tây Nguyên, 15kg Táo xanh hữu cơ",
-            amount: "1,850,000 đ",
-            payment: "Đã hủy",
-            delivery: "Đã hủy"
-        }
-    ];
+    const [salesOrders, setSalesOrders] = useState([]);
+    const [isLoading, setIsLoading] = useState(true);
 
-    const [salesOrders, setSalesOrders] = useState(initialSalesOrders);
+    const mapStatusToVietnamese = (status) => {
+        switch(status) {
+            case "pending": return "Chờ xác nhận";
+            case "confirmed": return "Đã xác nhận";
+            case "processing": return "Đang chuẩn bị hàng";
+            case "shipping": return "Đang giao hàng";
+            case "delivered": return "Đã giao";
+            case "completed": return "Hoàn tất";
+            case "cancelled": return "Đã hủy";
+            default: return status || "Chờ xác nhận";
+        }
+    };
+
+    const fetchOrders = async () => {
+        setIsLoading(true);
+        try {
+            const data = await dealerOrderService.getAll();
+            const results = data.results || (Array.isArray(data) ? data : []);
+            
+            const formattedOrders = results.map(order => ({
+                uniqueId: order.id,
+                id: order.order_code,
+                customer: order.customer_name,
+                address: "Chưa có địa chỉ", 
+                date: order.created_at ? new Date(order.created_at).toLocaleDateString('vi-VN') : (order.delivery_date || ""),
+                items: `${order.item_count || 1} sản phẩm`,
+                amount: new Intl.NumberFormat('vi-VN').format(Number(order.total_amount || 0)) + ' đ',
+                payment: order.payment_method,
+                delivery: mapStatusToVietnamese(order.status),
+                status: mapStatusToVietnamese(order.status),
+                originalData: order
+            }));
+            setSalesOrders(formattedOrders);
+        } catch (error) {
+            console.error("Lỗi lấy danh sách đơn hàng", error);
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
+    useEffect(() => {
+        fetchOrders();
+    }, []);
 
     const filteredOrders = salesOrders.filter((order) => {
         const matchesSearch =
@@ -101,26 +80,86 @@ export default function DealerSalesOrderPage() {
     const filterOptions = [
         { label: "Tất cả trạng thái", value: "", colorClass: "text-neutral-700" },
         { label: "Chờ xác nhận", value: "Chờ xác nhận", colorClass: "text-sky-700" },
-        { label: "Đang chuẩn bị", value: "Đang chuẩn bị hàng", colorClass: "text-indigo-700" },
-        { label: "Đang giao", value: "Đang giao hàng", colorClass: "text-amber-700" },
+        { label: "Đã xác nhận", value: "Đã xác nhận", colorClass: "text-indigo-700" },
+        { label: "Đang chuẩn bị", value: "Đang chuẩn bị hàng", colorClass: "text-amber-700" },
+        { label: "Đang giao", value: "Đang giao hàng", colorClass: "text-blue-700" },
         { label: "Đã giao", value: "Đã giao", colorClass: "text-emerald-700" },
         { label: "Đã huỷ", value: "Đã hủy", colorClass: "text-red-700" }
     ];
 
-    const handleViewDetail = (order) => {
-        setSelectedOrder(order);
+    const handleViewDetail = async (order) => {
+        try {
+            const detail = await dealerOrderService.getById(order.originalData.id);
+            setSelectedOrder({
+                ...order,
+                originalData: detail
+            });
+        } catch (error) {
+            console.error("Lỗi lấy chi tiết đơn hàng", error);
+            setSelectedOrder(order);
+        }
     };
 
-    const handleBulkConfirm = () => {
-        const selectedIds = selectedRows.map(r => r.id);
-        setSalesOrders(prev => prev.map(order => {
-            if (selectedIds.includes(order.id) && order.status === "Chờ xác nhận") {
-                return { ...order, status: "Đang chuẩn bị hàng", delivery: "Đang chuẩn bị hàng" };
-            }
-            return order;
-        }));
-        setClearSelectedToggle(!clearSelectedToggle);
-        setSelectedRows([]);
+    const handleBulkConfirm = async () => {
+        try {
+            const confirmPromises = selectedRows
+                .filter(row => row.status === "Chờ xác nhận")
+                .map(row => dealerOrderService.confirmOrder(row.originalData.id));
+                
+            await Promise.all(confirmPromises);
+            
+            await fetchOrders();
+            setClearSelectedToggle(!clearSelectedToggle);
+            setSelectedRows([]);
+        } catch (error) {
+            console.error("Lỗi khi xác nhận đơn hàng đồng loạt", error);
+            alert("Có lỗi xảy ra khi xác nhận đơn hàng");
+        }
+    };
+
+    const refreshDetailPanel = async (orderId) => {
+        try {
+            const detail = await dealerOrderService.getById(orderId);
+            setSelectedOrder(prev => ({
+                ...prev,
+                status: mapStatusToVietnamese(detail.status),
+                delivery: mapStatusToVietnamese(detail.status),
+                originalData: detail
+            }));
+        } catch {}
+    };
+
+    const handleSingleConfirm = async (order) => {
+        try {
+            await dealerOrderService.confirmOrder(order.originalData.id);
+            await fetchOrders();
+            await refreshDetailPanel(order.originalData.id);
+        } catch (error) {
+            console.error("Lỗi khi xác nhận đơn hàng", error);
+            alert("Có lỗi xảy ra khi xác nhận đơn hàng");
+        }
+    };
+
+    const handleStartProcessing = async (order) => {
+        try {
+            await dealerOrderService.startProcessing(order.originalData.id);
+            await fetchOrders();
+            await refreshDetailPanel(order.originalData.id);
+        } catch (error) {
+            console.error("Lỗi khi chuyển trạng thái đang chuẩn bị hàng", error);
+            alert("Có lỗi xảy ra khi chuyển trạng thái");
+        }
+    };
+
+    const handleShipOrder = async (order) => {
+        try {
+            await dealerOrderService.shipOrder(order.originalData.id);
+            await fetchOrders();
+            await refreshDetailPanel(order.originalData.id);
+        } catch (error) {
+            console.error("Lỗi khi chuyển trạng thái giao hàng", error);
+            alert("Có lỗi xảy ra khi chuyển trạng thái giao hàng");
+        }
     };
 
     const handleBulkDeliver = () => {
@@ -180,7 +219,13 @@ export default function DealerSalesOrderPage() {
 
             {/* Orders list & Detail Panel */}
             <div className="relative">
-                {selectedRows.length > 0 && (() => {
+                {isLoading ? (
+                    <div className="flex justify-center items-center py-20">
+                        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-emerald-600"></div>
+                    </div>
+                ) : (
+                    <>
+                        {selectedRows.length > 0 && (() => {
                     const hasPendingConfirmation = selectedRows.some(r => (r.status || r.delivery) === "Chờ xác nhận");
                     const hasPreparing = selectedRows.some(r => (r.status || r.delivery) === "Đang chuẩn bị hàng");
                     
@@ -203,7 +248,7 @@ export default function DealerSalesOrderPage() {
                                         onClick={handleBulkDeliver}
                                         className="px-4 py-2 bg-amber-500 hover:bg-amber-600 text-white rounded-xl text-xs font-bold transition-all shadow-sm flex items-center gap-2"
                                     >
-                                        <Truck className="w-4 h-4" /> Giao hàng đồng loạt
+                                        <Truck className="w-4 h-4" /> Giao hàng
                                     </button>
                                 )}
                                 <button 
@@ -216,12 +261,14 @@ export default function DealerSalesOrderPage() {
                         </div>
                     );
                 })()}
-                <SalesOrderList
-                    salesOrders={filteredOrders}
-                    onViewDetail={handleViewDetail}
-                    onSelectedRowsChange={({ selectedRows }) => setSelectedRows(selectedRows)}
-                    clearSelectedRows={clearSelectedToggle}
-                />
+                        <SalesOrderList
+                            salesOrders={filteredOrders}
+                            onViewDetail={handleViewDetail}
+                            onSelectedRowsChange={({ selectedRows }) => setSelectedRows(selectedRows)}
+                            clearSelectedRows={clearSelectedToggle}
+                        />
+                    </>
+                )}
             </div>
 
             {/* Overlay Detail Panel */}
@@ -236,6 +283,9 @@ export default function DealerSalesOrderPage() {
                             order={selectedOrder} 
                             onClose={() => setSelectedOrder(null)} 
                             onPrint={handleSinglePrint}
+                            onConfirm={handleSingleConfirm}
+                            onStartProcessing={handleStartProcessing}
+                            onShipOrder={handleShipOrder}
                         />
                     </div>
                 </div>

@@ -16,7 +16,7 @@ export default function ProductGallery({ product, onUpdate }) {
     setUploading(true);
     try {
       const formData = new FormData();
-      formData.append("image", file); // Tùy key backend yêu cầu
+      formData.append("image_url", file);
       await dealerProductService.uploadImage(product.id, formData);
       toast.success("Tải ảnh lên thành công!");
       onUpdate(); // Gọi hàm tải lại data từ component cha
@@ -30,7 +30,13 @@ export default function ProductGallery({ product, onUpdate }) {
 
   const handleSetThumbnail = async (imageId) => {
     try {
-      await dealerProductService.setThumbnail(product.id, imageId);
+      const oldThumbnails = images.filter((img) => img.is_thumbnail && img.id !== imageId);
+      
+      for (const old of oldThumbnails) {
+        await dealerProductService.unsetThumbnail(old.id);
+      }
+
+      await dealerProductService.setThumbnail(imageId);
       toast.success("Đã đổi ảnh chính!");
       onUpdate();
     } catch (error) {
@@ -41,7 +47,7 @@ export default function ProductGallery({ product, onUpdate }) {
   const handleDeleteImage = async (imageId) => {
     if (!window.confirm("Bạn có chắc chắn muốn xóa ảnh này?")) return;
     try {
-      await dealerProductService.deleteImage(product.id, imageId);
+      await dealerProductService.deleteImage(imageId);
       toast.success("Đã xóa ảnh!");
       onUpdate();
     } catch (error) {

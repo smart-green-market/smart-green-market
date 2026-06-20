@@ -1,21 +1,24 @@
 import DataTable from "react-data-table-component";
 import { tableStyles } from "../../common/TableStyles";
-import { Calendar, Package, ChevronRight, AlertCircle, CheckCircle2, Clock, Truck, MapPin } from "lucide-react";
+import { Calendar, Package, ChevronRight } from "lucide-react";
 
 export default function SalesOrderList({ salesOrders, onViewDetail, onSelectedRowsChange, clearSelectedRows }) {
   const getStatusConfig = (status) => {
     switch (status) {
-      case "Đã giao":
-        return { bg: "bg-emerald-50", text: "text-emerald-700", icon: <CheckCircle2 className="w-3.5 h-3.5" />, dot: "bg-emerald-500" };
-      case "Đang giao hàng":
-      case "Đang chuẩn bị hàng":
-        return { bg: "bg-blue-50", text: "text-blue-700", icon: <Truck className="w-3.5 h-3.5" />, dot: "bg-blue-500 animate-pulse" };
       case "Chờ xác nhận":
-        return { bg: "bg-amber-50", text: "text-amber-700", icon: <Clock className="w-3.5 h-3.5" />, dot: "bg-amber-500" };
+        return { bg: "bg-amber-50", text: "text-amber-700", dot: "bg-amber-500" };
+      case "Đã xác nhận":
+        return { bg: "bg-indigo-50", text: "text-indigo-700", dot: "bg-indigo-500" };
+      case "Đang chuẩn bị hàng":
+        return { bg: "bg-orange-50", text: "text-orange-700", dot: "bg-orange-500 animate-pulse" };
+      case "Đang giao hàng":
+        return { bg: "bg-blue-50", text: "text-blue-700", dot: "bg-blue-500 animate-pulse" };
+      case "Đã giao":
+        return { bg: "bg-emerald-50", text: "text-emerald-700", dot: "bg-emerald-500" };
       case "Đã hủy":
-        return { bg: "bg-rose-50", text: "text-rose-700", icon: <AlertCircle className="w-3.5 h-3.5" />, dot: "bg-rose-500" };
+        return { bg: "bg-rose-50", text: "text-rose-700", dot: "bg-rose-500" };
       default:
-        return { bg: "bg-neutral-50", text: "text-neutral-700", icon: <Clock className="w-3.5 h-3.5" />, dot: "bg-neutral-500" };
+        return { bg: "bg-neutral-50", text: "text-neutral-700", dot: "bg-neutral-500" };
     }
   };
 
@@ -44,12 +47,6 @@ export default function SalesOrderList({ salesOrders, onViewDetail, onSelectedRo
           <span className="font-bold text-sm text-neutral-800 leading-tight">
             {row.customer}
           </span>
-          {row.address && (
-            <div className="flex items-center gap-1.5 mt-0.5 text-[11px] text-neutral-500 font-medium">
-              <MapPin className="w-3 h-3 text-emerald-600/70 shrink-0" />
-              <span className="truncate max-w-[250px]" title={row.address}>{row.address}</span>
-            </div>
-          )}
           <div className="flex items-center gap-1.5 mt-0.5 text-[11px] text-neutral-400 font-medium">
             <Package className="w-3 h-3 text-neutral-300 shrink-0" />
             <span className="truncate max-w-[250px]" title={row.items}>{row.items}</span>
@@ -185,6 +182,7 @@ export default function SalesOrderList({ salesOrders, onViewDetail, onSelectedRo
         selectableRows
         onSelectedRowsChange={onSelectedRowsChange}
         clearSelectedRows={clearSelectedRows}
+        keyField="uniqueId"
       />
     </div>
   );
