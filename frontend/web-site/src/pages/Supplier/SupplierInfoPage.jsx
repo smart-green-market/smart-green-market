@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useLocation, useNavigate } from "react-router-dom";
 import { supplierService } from "../../services/api/suppilerService";
 import { accountService } from "../../services/api/accountService";
 import { bankService } from "../../services/api/bankService";
@@ -677,6 +678,8 @@ function EditCompanyModal({ supplier, onClose, onSave, isSaving }) {
 }
 
 export default function SupplierInfoPage() {
+  const location = useLocation();
+  const navigate = useNavigate();
   const [supplier, setSupplier] = useState(null);
   const [isLoadingSupplier, setIsLoadingSupplier] = useState(true);
   const [supplierError, setSupplierError] = useState("");
@@ -713,6 +716,13 @@ export default function SupplierInfoPage() {
 
     loadSupplierProfile();
   }, []);
+
+  useEffect(() => {
+    if (location.state?.openChangePassword) {
+      setShowChangePassword(true);
+      navigate(location.pathname, { replace: true, state: null });
+    }
+  }, [location.pathname, location.state, navigate]);
 
   const handlePickAvatar = (e) => {
     const file = e.target.files?.[0];

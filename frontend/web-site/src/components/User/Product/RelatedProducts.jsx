@@ -1,62 +1,74 @@
+import { useMemo, useRef } from "react";
 import { Link } from "react-router-dom";
-import { Heart } from "lucide-react";
+import { ChevronLeft, ChevronRight } from "lucide-react";
 import { useStorefrontPaths } from "../../../hooks/useStorefrontPaths";
-import {
-    formatProductPrice,
-    formatUnitLabel,
-    getProductPrice,
-} from "../../../utils/userProductUtils";
+import { toCardProduct } from "../../../utils/userProductUtils";
+import SuggestProductCard from "../Home/SuggestProductCard";
 
-function RelatedProductCard({ product }) {
+export default function RelatedProducts({ products = [], categoryName = "" }) {
+    const scrollRef = useRef(null);
     const paths = useStorefrontPaths();
 
+    const items = useMemo(() => products.map(toCardProduct), [products]);
+
+    const scroll = (dir) => {
+        const container = scrollRef.current;
+        if (container) {
+            const scrollAmount = dir === "left" ? -400 : 400;
+            container.scrollBy({ left: scrollAmount, behavior: "smooth" });
+        }
+    };
+
+    if (!items.length) return null;
+
     return (
-        <Link
-            to={paths.product(product.id)}
-            className="group flex flex-col gap-4 no-underline"
-        >
-            <div className="relative overflow-hidden rounded-2xl bg-zinc-100 shadow-sm">
-                <img
-                    src={product.thumbnail || "https://placehold.co/282x282"}
-                    alt={product.name}
-                    className="aspect-square w-full object-cover transition-transform duration-300 group-hover:scale-105"
-                />
+        <section className="mx-auto w-full max-w-[1280px] px-4 pb-16 pt-12 sm:px-10">
+            <div className="mb-6 flex items-center justify-between">
+                <h2 className="font-playfair text-2xl font-bold text-emerald-950">
+                    Sản phẩm liên quan
+                </h2>
+                <Link
+                    to={paths.search()}
+                    className="text-sm font-medium text-emerald-700 no-underline hover:underline"
+                >
+                    Xem tất cả →
+                </Link>
+            </div>
+
+            <div className="group relative">
                 <button
                     type="button"
-                    onClick={(e) => e.preventDefault()}
-                    className="absolute bottom-3 right-3 rounded-full bg-white/90 p-2 opacity-0 shadow-md backdrop-blur-sm transition-opacity group-hover:opacity-100"
-                    aria-label="Yêu thích"
+                    onClick={() => scroll("left")}
+                    aria-label="Cuộn trái"
+                    className="absolute left-0 top-1/2 z-10 flex h-12 w-12 -translate-x-2 -translate-y-1/2 cursor-pointer items-center justify-center rounded-full border border-stone-200 bg-white text-zinc-600 opacity-0 shadow-lg transition-all hover:border-emerald-300 hover:bg-emerald-50 group-hover:opacity-100 sm:-translate-x-5"
                 >
-                    <Heart className="h-4 w-4 text-zinc-900" />
+                    <ChevronLeft className="h-6 w-6" />
+                </button>
+
+                <div
+                    ref={scrollRef}
+                    className="flex gap-4 overflow-x-auto scroll-smooth [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+                >
+                    {items.map((product) => (
+                        <SuggestProductCard key={product.id} {...product} />
+                    ))}
+                </div>
+
+                <button
+                    type="button"
+                    onClick={() => scroll("right")}
+                    aria-label="Cuộn phải"
+                    className="absolute right-0 top-1/2 z-10 flex h-12 w-12 -translate-y-1/2 translate-x-2 cursor-pointer items-center justify-center rounded-full border border-stone-200 bg-white text-zinc-600 opacity-0 shadow-lg transition-all hover:border-emerald-300 hover:bg-emerald-50 group-hover:opacity-100 sm:translate-x-5"
+                >
+                    <ChevronRight className="h-6 w-6" />
                 </button>
             </div>
-            <div className="flex flex-col gap-1">
-                <span className="text-xs font-bold uppercase tracking-wide text-teal-800">
-                    {product.category_name || "Nông sản"}
-                </span>
-                <span className="line-clamp-2 text-base text-emerald-950">{product.name}</span>
-                <span className="text-sm font-semibold text-teal-800">
-                    {formatProductPrice(getProductPrice(product))}
-                    {formatUnitLabel(product.unit)}
-                </span>
-            </div>
-        </Link>
-    );
-}
 
-export default function RelatedProducts({ products = [] }) {
-    if (!products.length) return null;
-
-    return (
-        <section className="pt-12">
-            <h2 className="mb-8 font-['Noto_Serif',serif] text-3xl font-semibold text-emerald-950">
-                Sản phẩm liên quan
-            </h2>
-            <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4">
-                {products.map((product) => (
-                    <RelatedProductCard key={product.id} product={product} />
-                ))}
-            </div>
+            {categoryName ? (
+                <p className="mt-4 text-sm text-neutral-500">
+                    Cùng danh mục: {categoryName}
+                </p>
+            ) : null}
         </section>
     );
 }

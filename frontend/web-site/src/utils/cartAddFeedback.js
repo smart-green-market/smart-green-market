@@ -8,6 +8,11 @@ export function showAddToCartFeedback(result, { showToast = true } = {}) {
         return;
     }
 
+    if (result.reason === "auth_required") {
+        appToast.warning("Vui lòng đăng nhập để thêm sản phẩm vào giỏ hàng");
+        return;
+    }
+
     if (result.reason === "spam") {
         appToast.warning(
             "Bạn đang thao tác quá nhanh. Vui lòng dừng spam thêm giỏ hàng.",

@@ -77,24 +77,15 @@ export default function ProductDetailSpecs({ product }) {
                                 : null
                         }
                     />
-                    <SpecRow
-                        label="Nguồn hàng gốc"
-                        value={product.supplier_product_name}
-                    />
+                    <SpecRow label="Nguồn hàng gốc" value={product.supplier_product_name} />
                     <SpecRow label="Mã sản phẩm" value={product.slug || `#${product.id}`} />
                 </SpecSection>
 
                 <SpecSection title="Bảo quản & sử dụng">
                     <SpecRow label="Hạn sử dụng / bảo quản" value={storageLabel} highlight />
                     <SpecRow label="Nhiệt độ bảo quản" value={tempLabel} />
-                    <SpecRow
-                        label="Cập nhật lần cuối"
-                        value={formatDateVi(product.updated_at)}
-                    />
-                    <SpecRow
-                        label="Ngày đăng bán"
-                        value={formatDateVi(product.created_at)}
-                    />
+                    <SpecRow label="Cập nhật lần cuối" value={formatDateVi(product.updated_at)} />
+                    <SpecRow label="Ngày đăng bán" value={formatDateVi(product.created_at)} />
                     <SpecRow
                         label="Đã kiểm duyệt"
                         value={
@@ -108,11 +99,7 @@ export default function ProductDetailSpecs({ product }) {
 
             {product.dealer ? (
                 <SpecSection title="Cửa hàng đại lý">
-                    <SpecRow
-                        label="Tên cửa hàng"
-                        value={product.dealer.store_name}
-                        highlight
-                    />
+                    <SpecRow label="Tên cửa hàng" value={product.dealer.store_name} highlight />
                     <SpecRow label="Địa chỉ" value={product.dealer.store_address} />
                     <SpecRow label="Tài khoản" value={product.dealer.account_username} />
                     <SpecRow

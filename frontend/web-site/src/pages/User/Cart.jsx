@@ -1,5 +1,5 @@
 import { useMemo } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { ArrowLeft, ShoppingBag } from "lucide-react";
 import CartTable from "../../components/User/Cart/CartTable";
 import OrderSummary from "../../components/User/Cart/OrderSummary";
@@ -10,6 +10,7 @@ import { useStorefrontPaths } from "../../hooks/useStorefrontPaths";
 
 export default function CartPage() {
   const paths = useStorefrontPaths();
+  const navigate = useNavigate();
   const {
     items: cartItems,
     toggleAll,
@@ -33,7 +34,8 @@ export default function CartPage() {
   };
 
   const handleCheckout = () => {
-    console.log("Checkout payload:", selectedItems);
+    if (selectedCount === 0) return;
+    navigate(paths.checkout);
   };
 
   return (
@@ -87,7 +89,7 @@ export default function CartPage() {
             <OrderSummary
               selectedCount={selectedCount}
               subtotal={subtotal}
-              shippingFee={0}
+              shippingFee={10000}
               onCheckout={handleCheckout}
               sticky
             />

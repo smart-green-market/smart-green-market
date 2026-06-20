@@ -1,6 +1,7 @@
 import { Link } from "react-router-dom";
 import { Heart } from "lucide-react";
 import { useStorefrontPaths } from "../../../hooks/useStorefrontPaths";
+import ProductImage from "../Product/ProductImage";
 
 export default function FilterProductCard({
     id,
@@ -17,10 +18,10 @@ export default function FilterProductCard({
     const content = (
         <article className="flex h-full flex-col overflow-hidden rounded-lg border border-stone-200 bg-white shadow-sm transition-shadow hover:shadow-md">
             <div className="aspect-[4/3] overflow-hidden bg-stone-100">
-                <img
-                    src={image || "https://placehold.co/400x300"}
+                <ProductImage
+                    src={image}
                     alt={name}
-                    className="h-full w-full object-cover transition-transform duration-300 hover:scale-105"
+                    className="h-full w-full transition-transform duration-300 hover:scale-[1.03]"
                 />
             </div>
 

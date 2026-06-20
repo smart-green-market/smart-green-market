@@ -9,7 +9,7 @@ export default function UserLayout() {
         <CartProvider>
             <div className="min-h-screen flex flex-col bg-gray-50">
                 <Header />
-                <main className="flex-1 pt-[72px]">
+                <main className="flex-1 pt-[108px] md:pt-[72px]">
                     <Outlet />
                 </main>
                 <Footer />

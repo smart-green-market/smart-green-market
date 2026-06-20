@@ -21,7 +21,6 @@ const ORDER_STATUS_CONFIG = {
 const STATUS_FILTERS = [
   { key: "all",                              label: "Tất cả" },
   { key: "pending_supplier_confirmation",    label: "Chờ xác nhận" },
-  { key: "rejected",                         label: "Từ chối" },
   { key: "confirmed",                        label: "Đã xác nhận" },
   { key: "deposit_pending_verification",     label: "Chờ xác nhận cọc" },
   { key: "deposit_paid",                     label: "Đã cọc" },
@@ -30,7 +29,7 @@ const STATUS_FILTERS = [
   { key: "delivered",                        label: "Đã giao" },
   { key: "final_payment_pending_verification", label: "Chờ TT cuối" },
   { key: "completed",                        label: "Hoàn tất" },
-  { key: "cancelled",                        label: "Đã hủy" },
+  { key: "cancelled", label: "Hủy / Từ chối", statuses: ["cancelled", "rejected"] },
 ];
 
 function formatCurrency(value) {
@@ -136,7 +135,14 @@ export default function OrderTable({ data, search, loading, onView }) {
       !keyword ||
       row.order_code?.toLowerCase().includes(keyword) ||
       row.dealer_name?.toLowerCase().includes(keyword);
-    const matchStatus = statusFilter === "all" || row.status === statusFilter;
+
+    const activeFilter = STATUS_FILTERS.find((f) => f.key === statusFilter);
+    const matchStatus =
+      statusFilter === "all" ||
+      (activeFilter?.statuses
+        ? activeFilter.statuses.includes(row.status)
+        : row.status === statusFilter);
+
     return matchSearch && matchStatus;
   });
 
@@ -145,8 +151,10 @@ export default function OrderTable({ data, search, loading, onView }) {
       {/* Filter bar */}
       <div className="flex flex-wrap gap-2 items-center">
         <span className="text-sm text-neutral-500">Trạng thái:</span>
-        {STATUS_FILTERS.map(({ key, label }) => {
-          const st = ORDER_STATUS_CONFIG[key];
+        {STATUS_FILTERS.map(({ key, label, statuses }) => {
+          const st = statuses
+            ? { bg: "bg-red-100", text: "text-red-700" }
+            : ORDER_STATUS_CONFIG[key];
           const isActive = statusFilter === key;
           return (
             <button

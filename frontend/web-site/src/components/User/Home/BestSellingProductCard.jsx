@@ -1,6 +1,7 @@
 import { Link } from "react-router-dom";
 import AddToCartButton from "../Cart/AddToCartButton";
 import { useStorefrontPaths } from "../../../hooks/useStorefrontPaths";
+import ProductImage from "../Product/ProductImage";
 
 export default function BestSellingProductCard({
     id,
@@ -18,11 +19,11 @@ export default function BestSellingProductCard({
                 Bán chạy
             </span>
 
-            <div className="overflow-hidden">
-                <img
-                    src={image || "https://placehold.co/282x212"}
+            <div className="overflow-hidden bg-zinc-50">
+                <ProductImage
+                    src={image}
                     alt={name}
-                    className="h-60 w-full object-cover transition-transform duration-300 hover:scale-105"
+                    className="h-60 w-full transition-transform duration-300 hover:scale-[1.03]"
                 />
             </div>
 

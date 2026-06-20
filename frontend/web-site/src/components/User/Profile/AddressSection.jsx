@@ -23,14 +23,14 @@ export default function AddressSection({
                         Địa chỉ nhận hàng
                     </h2>
                     <p className="mt-1 text-sm text-neutral-500">
-                        Tối đa {maxAddresses} địa chỉ • Chọn radio để đặt mặc định
+                        Tối đa {maxAddresses} địa chỉ • Chọn để đặt làm địa chỉ mặc định
                     </p>
                 </div>
                 <button
                     type="button"
                     onClick={onAddAddress}
                     disabled={!canAddMore || saving}
-                    className="cursor-pointer inline-flex items-center gap-2 rounded-lg bg-green-700 px-6 py-2 text-sm font-semibold tracking-wide text-white transition-colors hover:bg-green-800 disabled:cursor-not-allowed disabled:bg-neutral-400"
+                    className="hover:scale-105 cursor-pointer inline-flex items-center gap-2 rounded-lg bg-green-700 px-6 py-2 text-sm font-semibold tracking-wide text-white transition-colors hover:bg-green-800 disabled:cursor-not-allowed disabled:bg-neutral-400"
                 >
                     <Plus className="h-3.5 w-3.5" />
                     Thêm địa chỉ mới

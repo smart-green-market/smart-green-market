@@ -6,7 +6,6 @@ import EditProfileModal from "../../../components/User/Profile/EditProfileModal"
 import PersonalInfoCard from "../../../components/User/Profile/PersonalInfoCard";
 import BuyerConfirmModal from "../../../components/User/Ui/BuyerConfirmModal";
 import { useBuyerAddresses } from "../../../hooks/useBuyerAddresses";
-import { useBuyerCatalog } from "../../../hooks/useBuyerCatalog";
 import { useBuyerProfile } from "../../../hooks/useBuyerProfile";
 import { appToast } from "../../../components/common/toast";
 
@@ -44,12 +43,6 @@ export default function UserProfilePage() {
         deleteAddress,
         setDefaultAddress,
     } = useBuyerAddresses();
-
-    const { categories } = useBuyerCatalog();
-
-    const visibleCategories = categories.filter(
-        (item) => item.status !== "inactive" && item.status !== "rejected",
-    );
 
     const openAddressModal = (mode, address = null) => {
         setAddressModal({ open: true, mode, address });
@@ -156,7 +149,6 @@ export default function UserProfilePage() {
             <EditProfileModal
                 open={isEditProfileOpen}
                 profile={profile}
-                categories={visibleCategories}
                 saving={profileSaving}
                 onClose={() => setIsEditProfileOpen(false)}
                 onSave={saveProfile}

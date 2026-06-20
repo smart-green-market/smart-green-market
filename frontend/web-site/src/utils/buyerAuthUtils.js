@@ -4,6 +4,11 @@ import { extractApiError } from "./extractApiError";
 
 export const STORE_DEALER_SLUG_KEY = "store_dealer_slug";
 
+export function isBuyerUser(user) {
+    if (!user) return false;
+    return user.role === "buyer" || user.auth_scope === "storefront";
+}
+
 export function getStoredDealerSlug() {
     return localStorage.getItem(STORE_DEALER_SLUG_KEY) || "";
 }

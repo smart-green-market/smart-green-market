@@ -5,6 +5,7 @@ import OrderProgressTracker from "../OrderStatus/OrderProgressTracker";
 import { fetchUserOrderById } from "../../../hooks/useUserOrders";
 import { formatCurrency } from "../../../utils/userOrderUtils";
 import { handleApiError } from "../../../services/api/userOrderService";
+import OrderHistory from "./OrderHistory";
 
 function InfoBlock({ icon: Icon, title, children }) {
     return (
@@ -224,6 +225,7 @@ export default function OrderDetailModal({ orderId, fallbackOrder, onClose }) {
                                             </div>
                                         ))}
                                     </div>
+                                    <OrderHistory history={order.statusHistories} />
                                 </div>
                             ) : null}
                         </div>

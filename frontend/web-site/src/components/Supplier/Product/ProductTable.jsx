@@ -120,17 +120,6 @@ const buildColumns = (onView, onDelete, onLockSelling, onUnlockSelling, toggling
       </span>
     ),
   },
-  // {
-  //   name: "Ngày tạo",
-  //   selector: (row) => row.created_at,
-  //   sortable: true,
-  //   width: "110px",
-  //   cell: (row) => (
-  //     <span className="text-emerald-950 text-sm font-['Geist',sans-serif]">
-  //       {new Date(row.created_at).toLocaleDateString("vi-VN")}
-  //     </span>
-  //   ),
-  // },
   {
     name: "Năng suất",
     selector: (row) => row.daily_production_capacity,

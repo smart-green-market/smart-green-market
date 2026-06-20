@@ -19,7 +19,7 @@ export default function PersonalInfoCard({ profile, onEdit }) {
                 <button
                     type="button"
                     onClick={onEdit}
-                    className="cursor-pointer rounded-lg bg-teal-800 px-6 py-2 text-sm font-semibold tracking-wide text-white hover:bg-teal-900"
+                    className="hover:scale-105 cursor-pointer rounded-lg bg-teal-800 px-6 py-2 text-sm font-semibold tracking-wide text-white hover:bg-teal-900"
                 >
                     Chỉnh sửa
                 </button>

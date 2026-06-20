@@ -1,6 +1,7 @@
 import { Link } from "react-router-dom";
 import AddToCartButton from "../Cart/AddToCartButton";
 import { useStorefrontPaths } from "../../../hooks/useStorefrontPaths";
+import ProductImage from "../Product/ProductImage";
 
 export default function SuggestProductCard({
     id,
@@ -14,11 +15,11 @@ export default function SuggestProductCard({
     const paths = useStorefrontPaths();
     const content = (
         <div className="mt-5 mb-5 relative flex w-64 shrink-0 flex-col overflow-hidden rounded-2xl border border-stone-100 bg-white shadow-sm transition-all duration-200 hover:-translate-y-1 hover:shadow-md">
-            <div className="overflow-hidden">
-                <img
-                    src={image || "https://placehold.co/282x212"}
+            <div className="overflow-hidden bg-zinc-50">
+                <ProductImage
+                    src={image}
                     alt={name}
-                    className="h-60 w-full object-cover transition-transform duration-300 hover:scale-105"
+                    className="h-60 w-full transition-transform duration-300 hover:scale-[1.03]"
                 />
             </div>
 

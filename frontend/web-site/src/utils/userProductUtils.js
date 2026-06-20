@@ -2,6 +2,8 @@ import { formatCurrency } from "../components/User/Cart/mockData";
 
 const API_ORIGIN = "https://smart-green-market-api.onrender.com";
 
+export const PRODUCT_IMAGE_FALLBACK = "https://placehold.co/600x750/e8f5ef/006c49?text=Nông+sản";
+
 export function resolveMediaUrl(url) {
   if (!url || typeof url !== "string") return null;
   if (/^https?:\/\//i.test(url)) return url;
@@ -10,10 +12,85 @@ export function resolveMediaUrl(url) {
   return url;
 }
 
+function extractImageUrl(source) {
+    if (!source) return null;
+    if (typeof source === "string") return resolveMediaUrl(source);
+    return resolveMediaUrl(
+        source.image_url ?? source.image ?? source.url ?? source.thumbnail ?? null,
+    );
+}
+
+function buildDealerImages(raw) {
+    const collected = [];
+    const seen = new Set();
+
+    const pushImage = (img, index) => {
+        const image_url = extractImageUrl(img);
+        if (!image_url || seen.has(image_url)) return;
+
+        seen.add(image_url);
+        collected.push({
+            id: img?.id ?? `img-${index}-${image_url}`,
+            image_url,
+            is_thumbnail: Boolean(img?.is_thumbnail),
+            sort_order: img?.sort_order ?? index,
+        });
+    };
+
+    if (Array.isArray(raw?.images)) {
+        raw.images.forEach((img, index) => pushImage(img, index));
+    }
+
+    if (Array.isArray(raw?.supplier_product?.images)) {
+        raw.supplier_product.images.forEach((img, index) => pushImage(img, index + 100));
+    }
+
+    const thumbnail = extractImageUrl(raw?.thumbnail);
+    if (thumbnail && !seen.has(thumbnail)) {
+        collected.unshift({
+            id: raw?.id ?? "thumbnail",
+            image_url: thumbnail,
+            is_thumbnail: true,
+            sort_order: -1,
+        });
+        seen.add(thumbnail);
+    }
+
+    return collected.sort((a, b) => {
+        if (a.is_thumbnail && !b.is_thumbnail) return -1;
+        if (!a.is_thumbnail && b.is_thumbnail) return 1;
+        return (a.sort_order ?? 0) - (b.sort_order ?? 0);
+    });
+}
+
+export function getProductImageUrl(primary, fallback = PRODUCT_IMAGE_FALLBACK) {
+    const extracted = extractImageUrl(primary);
+    if (extracted) return extracted;
+    if (fallback === null) return null;
+    return resolveMediaUrl(fallback) || PRODUCT_IMAGE_FALLBACK;
+}
+
+/** Ưu tiên ảnh gốc trong mảng images, tránh thumbnail nén thấp khi có ảnh lớn hơn */
+export function getBestProductImage(product) {
+    const images = product?.images ?? [];
+
+    const fullImages = images
+        .filter((img) => !img.is_thumbnail)
+        .map((img) => extractImageUrl(img))
+        .filter(Boolean);
+
+    if (fullImages.length) return fullImages[0];
+
+    const anyImage = images.map((img) => extractImageUrl(img)).find(Boolean);
+    if (anyImage) return anyImage;
+
+    return extractImageUrl(product?.thumbnail) || PRODUCT_IMAGE_FALLBACK;
+}
+
 export function parseProductList(response) {
-  if (Array.isArray(response)) return response;
-  if (Array.isArray(response?.results)) return response.results;
-  return [];
+    if (Array.isArray(response)) return response;
+    if (Array.isArray(response?.results)) return response.results;
+    return [];
 }
 
 export function parseDealerProductList(response) {
@@ -27,31 +104,6 @@ export function parseDealerProductList(response) {
   }
 
   return top;
-}
-
-function buildDealerImages(raw) {
-  if (Array.isArray(raw?.images) && raw.images.length) {
-    return [...raw.images]
-      .sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0))
-      .map((img) => ({
-        ...img,
-        image_url: resolveMediaUrl(img.image_url),
-      }));
-  }
-
-  const thumbnail = resolveMediaUrl(raw?.thumbnail);
-  if (thumbnail) {
-    return [
-      {
-        id: raw.id,
-        image_url: thumbnail,
-        is_thumbnail: true,
-        sort_order: 0,
-      },
-    ];
-  }
-
-  return [];
 }
 
 export function getProductPrice(product) {

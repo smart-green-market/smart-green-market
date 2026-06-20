@@ -16,6 +16,7 @@ import {
     resolveCartOwner,
     saveCartToSession,
 } from "../utils/cartUtils";
+import { isBuyerUser } from "../utils/buyerAuthUtils";
 import {
     clearProductSpamEntry,
     registerDuplicateAddAttempt,
@@ -52,30 +53,37 @@ export function CartProvider({ children }) {
         saveCartToSession(items, cartOwner.slug, cartOwner.buyerId);
     }, [items, cartOwner.slug, cartOwner.buyerId]);
 
-    const addToCart = useCallback((product, quantity = 1) => {
-        const productId = product?.id;
-        if (productId == null) {
-            return { added: false, reason: "invalid", showToast: false };
-        }
-
-        const nextItem = buildCartItemFromProduct(product, quantity);
-        let result = { added: true, showToast: true };
-
-        setItems((prev) => {
-            const exists = prev.some(
-                (item) => String(item.id) === String(productId),
-            );
-            if (exists) {
-                result = registerDuplicateAddAttempt(productId);
-                return prev;
+    const addToCart = useCallback(
+        (product, quantity = 1) => {
+            if (!isBuyerUser(user)) {
+                return { added: false, reason: "auth_required", showToast: true };
             }
 
-            clearProductSpamEntry(productId);
-            return [...prev, nextItem];
-        });
+            const productId = product?.id;
+            if (productId == null) {
+                return { added: false, reason: "invalid", showToast: false };
+            }
 
-        return result;
-    }, []);
+            const nextItem = buildCartItemFromProduct(product, quantity);
+            let result = { added: true, showToast: true };
+
+            setItems((prev) => {
+                const exists = prev.some(
+                    (item) => String(item.id) === String(productId),
+                );
+                if (exists) {
+                    result = registerDuplicateAddAttempt(productId);
+                    return prev;
+                }
+
+                clearProductSpamEntry(productId);
+                return [...prev, nextItem];
+            });
+
+            return result;
+        },
+        [user],
+    );
 
     const isInCart = useCallback(
         (productId) =>

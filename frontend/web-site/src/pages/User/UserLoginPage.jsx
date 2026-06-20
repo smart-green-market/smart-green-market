@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Link, useNavigate, useParams } from "react-router-dom";
+import { Link, useLocation, useNavigate, useParams } from "react-router-dom";
 import {
     ArrowLeft,
     Eye,
@@ -44,6 +44,7 @@ function BrandMark({ className = "h-11 w-11" }) {
 
 export default function UserLoginPage() {
     const navigate = useNavigate();
+    const location = useLocation();
     const { dealerSlug = "" } = useParams();
     const { syncSession } = useAuth();
 
@@ -76,7 +77,10 @@ export default function UserLoginPage() {
         }
 
         syncSession?.();
-        navigate(storefrontPath, { replace: true });
+        const redirectTo =
+            location.state?.from ||
+            `/cua-hang/${encodeURIComponent(dealerSlug)}/trang-chu`;
+        navigate(redirectTo, { replace: true });
         setLoading(false);
     };
 
