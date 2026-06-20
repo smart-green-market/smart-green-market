@@ -10,6 +10,12 @@ import {
 // ─────────────────────────────────────────────────────────────
 import { categoryService } from "../../../services/api/categoryService";
 import { productService } from "../../../services/api/productService";
+import {
+  parseSupplierApiErrors,
+  validateProductForm,
+  errorsToSummary,
+  extractSupplierApiMessage,
+} from "../../../utils/supplierValidation";
 // ─────────────────────────────────────────────────────────────
 // API response schema (để tham khảo, không cần sửa)
 // POST /supplier-products/  →  multipart/form-data
@@ -45,7 +51,8 @@ export default function CreateProductModal({ isOpen, onClose, onSuccess }) {
   const [form, setForm] = useState({
     name: "",                  // API: name
     category: "",              // API: category (integer ID)
-    unit: "kg",                // API: unit
+    wholesale_price: "",       // API: wholesale_price
+    daily_production_capacity: "", // API: daily_production_capacity
     description: "",           // API: description
     storage_duration_days: "", // API: storage_duration_days
     min_storage_temp: "",      // API: min_storage_temp  (decimal string)
@@ -59,6 +66,7 @@ export default function CreateProductModal({ isOpen, onClose, onSuccess }) {
   // ── misc ──
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState(null);
+  const [fieldErrors, setFieldErrors] = useState({});
   const [categories, setCategories] = useState([]); // fetch từ GET /categories/
 
   // Escape key
@@ -99,14 +107,18 @@ export default function CreateProductModal({ isOpen, onClose, onSuccess }) {
 
   if (!isOpen) return null;
 
-  const set = (k, v) => setForm((f) => ({ ...f, [k]: v }));
+  const set = (k, v) => {
+    setForm((f) => ({ ...f, [k]: v }));
+    if (fieldErrors[k]) setFieldErrors((e) => ({ ...e, [k]: "" }));
+    if (error) setError(null);
+  };
 
   // ── image handlers ──────────────────────────────────────────
   const handleImageUpload = (e) => {
     const files = Array.from(e.target.files);
     const toAdd = files.map((file) => ({ file, preview: URL.createObjectURL(file) }));
     setImages((prev) => {
-      const next = [...prev, ...toAdd].slice(0, 3);
+      const next = [...prev, ...toAdd].slice(0, 5);
       return next;
     });
   };
@@ -124,12 +136,13 @@ export default function CreateProductModal({ isOpen, onClose, onSuccess }) {
   // ── submit ──────────────────────────────────────────────────
   const handleSubmit = async () => {
     setError(null);
-
-    // Validate bắt buộc
-    if (!form.name.trim() || !form.category || !form.unit) {
-      setError("Vui lòng điền đầy đủ các trường bắt buộc (*).");
+    const errs = validateProductForm(form);
+    if (Object.keys(errs).length) {
+      setFieldErrors(errs);
+      setError(errorsToSummary(errs));
       return;
     }
+    setFieldErrors({});
 
     setSaving(true);
     try {
@@ -143,7 +156,8 @@ export default function CreateProductModal({ isOpen, onClose, onSuccess }) {
       productFd.append("name", name);
       productFd.append("slug", slug);
       productFd.append("category", parseInt(form.category, 10));
-      productFd.append("unit", form.unit);
+      productFd.append("wholesale_price", form.wholesale_price);
+      productFd.append("daily_production_capacity", parseFloat(form.daily_production_capacity));
       if (form.description.trim()) productFd.append("description", form.description.trim());
       if (form.storage_duration_days !== "") productFd.append("storage_duration_days", parseInt(form.storage_duration_days, 10));
       if (form.min_storage_temp !== "") productFd.append("min_storage_temp", form.min_storage_temp);
@@ -170,9 +184,7 @@ export default function CreateProductModal({ isOpen, onClose, onSuccess }) {
 
           // Gắn ID sản phẩm vào ảnh (Tên key 'supplier_product' phải khớp với Backend)
           imageFd.append("supplier_product", productId);
-
-          // Gắn file ảnh (Tên key 'image' phải khớp với Backend)
-          imageFd.append("images", img.file);
+          imageFd.append("images", img.file, img.file.name);
 
           // Đánh dấu ảnh nào là thumbnail (nếu BE có hỗ trợ trường này)
           imageFd.append("is_thumbnail", index === thumbnailIdx ? "true" : "false");
@@ -192,20 +204,11 @@ export default function CreateProductModal({ isOpen, onClose, onSuccess }) {
 
     } catch (err) {
       console.error("[CreateProductModal] submit error:", err);
-      const data = err?.response?.data;
-      let msg = "Lưu sản phẩm thất bại, vui lòng thử lại!";
-
-      if (data && typeof data === "object" && !Array.isArray(data)) {
-        const fieldErrors = Object.entries(data)
-          .filter(([k]) => k !== "detail" && k !== "message")
-          .map(([k, v]) => `${k}: ${Array.isArray(v) ? v.join(", ") : v}`)
-          .join(" | ");
-        msg = fieldErrors || data?.detail || data?.message || msg;
-      } else {
-        msg = data?.detail || data?.message || err?.message || msg;
-      }
-
-      setError(msg);
+      const parsed = parseSupplierApiErrors(err?.response?.data, {
+        fallback: "Lưu sản phẩm thất bại. Vui lòng kiểm tra lại thông tin.",
+      });
+      if (Object.keys(parsed.fieldErrors).length) setFieldErrors(parsed.fieldErrors);
+      setError(parsed.general || parsed.summary || extractSupplierApiMessage(err));
     } finally {
       setSaving(false);
     }
@@ -272,9 +275,10 @@ export default function CreateProductModal({ isOpen, onClose, onSuccess }) {
                     placeholder="Nhập tên sản phẩm (VD: Xà lách lụa)"
                     value={form.name}
                     onChange={(e) => set("name", e.target.value)}
-                    className={inputCls}
+                    className={`${inputCls} ${fieldErrors.name ? "border-red-400 bg-red-50" : ""}`}
                     disabled={saving}
                   />
+                  {fieldErrors.name && <p className="text-xs text-red-500 mt-1">{fieldErrors.name}</p>}
                 </div>
 
                 {/* category */}
@@ -283,7 +287,7 @@ export default function CreateProductModal({ isOpen, onClose, onSuccess }) {
                   <select
                     value={form.category}
                     onChange={(e) => set("category", e.target.value)}
-                    className={selectCls}
+                    className={`${selectCls} ${fieldErrors.category ? "border-red-400 bg-red-50" : ""}`}
                     disabled={saving}
                   >
                     <option value="">
@@ -297,6 +301,7 @@ export default function CreateProductModal({ isOpen, onClose, onSuccess }) {
                         </option>
                       ))}
                   </select>
+                  {fieldErrors.category && <p className="text-xs text-red-500 mt-1">{fieldErrors.category}</p>}
                 </div>
 
                 {/* description */}
@@ -313,26 +318,50 @@ export default function CreateProductModal({ isOpen, onClose, onSuccess }) {
                 </div>
               </Section>
 
-              {/* Phân loại */}
-              <Section icon={<Tag className="w-4 h-4 text-green-700" />} title="Phân loại & Đơn vị">
+              {/* Phân loại & Năng suất */}
+              <Section icon={<Tag className="w-4 h-4 text-green-700" />} title="Phân loại & Năng suất">
                 <div className="grid grid-cols-2 gap-3">
 
-                  {/* unit */}
+                  {/* wholesale_price */}
                   <div>
-                    <label className={labelCls}>Đơn vị tính (*)</label>
-                    <select
-                      value={form.unit}
-                      onChange={(e) => set("unit", e.target.value)}
-                      className={selectCls}
-                      disabled={saving}
-                    >
-                      <option>kg</option>
-                      <option>bó</option>
-                      <option>cái</option>
-                      <option>túi</option>
-                      <option>hộp</option>
-                      <option>thùng</option>
-                    </select>
+                    <label className={labelCls}>Giá sỉ (*)</label>
+                    <div className="relative">
+                      <input
+                        type="number"
+                        min="0"
+                        step="1"
+                        placeholder="VD: 15000"
+                        value={form.wholesale_price}
+                        onChange={(e) => set("wholesale_price", e.target.value)}
+                        className={`${inputCls} pr-8 ${fieldErrors.wholesale_price ? "border-red-400 bg-red-50" : ""}`}
+                        disabled={saving}
+                      />
+                      <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-zinc-400">đ</span>
+                    </div>
+                    {fieldErrors.wholesale_price && (
+                      <p className="text-xs text-red-500 mt-1">{fieldErrors.wholesale_price}</p>
+                    )}
+                  </div>
+
+                  {/* daily_production_capacity */}
+                  <div>
+                    <label className={labelCls}>Năng suất (*)</label>
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="number"
+                        min="0"
+                        step="0.01"
+                        placeholder="VD: 500"
+                        value={form.daily_production_capacity}
+                        onChange={(e) => set("daily_production_capacity", e.target.value)}
+                        className={`${inputCls} ${fieldErrors.daily_production_capacity ? "border-red-400 bg-red-50" : ""}`}
+                        disabled={saving}
+                      />
+                      <span className="text-xs text-zinc-400 whitespace-nowrap">kg/tháng</span>
+                    </div>
+                    {fieldErrors.daily_production_capacity && (
+                      <p className="text-xs text-red-500 mt-1">{fieldErrors.daily_production_capacity}</p>
+                    )}
                   </div>
 
                   {/* storage_duration_days */}
@@ -345,11 +374,14 @@ export default function CreateProductModal({ isOpen, onClose, onSuccess }) {
                         placeholder="Số ngày"
                         value={form.storage_duration_days}
                         onChange={(e) => set("storage_duration_days", e.target.value)}
-                        className={inputCls}
+                        className={`${inputCls} ${fieldErrors.storage_duration_days ? "border-red-400 bg-red-50" : ""}`}
                         disabled={saving}
                       />
                       <span className="text-xs text-zinc-400 whitespace-nowrap">ngày</span>
                     </div>
+                    {fieldErrors.storage_duration_days && (
+                      <p className="text-xs text-red-500 mt-1">{fieldErrors.storage_duration_days}</p>
+                    )}
                   </div>
                 </div>
               </Section>
@@ -368,11 +400,14 @@ export default function CreateProductModal({ isOpen, onClose, onSuccess }) {
                         placeholder="VD: 2"
                         value={form.min_storage_temp}
                         onChange={(e) => set("min_storage_temp", e.target.value)}
-                        className={`${inputCls} pr-8`}
+                        className={`${inputCls} pr-8 ${fieldErrors.min_storage_temp ? "border-red-400 bg-red-50" : ""}`}
                         disabled={saving}
                       />
                       <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-zinc-400">°C</span>
                     </div>
+                    {fieldErrors.min_storage_temp && (
+                      <p className="text-xs text-red-500 mt-1">{fieldErrors.min_storage_temp}</p>
+                    )}
                   </div>
 
                   {/* max_storage_temp */}
@@ -385,11 +420,14 @@ export default function CreateProductModal({ isOpen, onClose, onSuccess }) {
                         placeholder="VD: 8"
                         value={form.max_storage_temp}
                         onChange={(e) => set("max_storage_temp", e.target.value)}
-                        className={`${inputCls} pr-8`}
+                        className={`${inputCls} pr-8 ${fieldErrors.max_storage_temp ? "border-red-400 bg-red-50" : ""}`}
                         disabled={saving}
                       />
                       <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-zinc-400">°C</span>
                     </div>
+                    {fieldErrors.max_storage_temp && (
+                      <p className="text-xs text-red-500 mt-1">{fieldErrors.max_storage_temp}</p>
+                    )}
                   </div>
                 </div>
                 <p className="text-xs text-zinc-400 mt-2">
@@ -408,14 +446,14 @@ export default function CreateProductModal({ isOpen, onClose, onSuccess }) {
                     <ImageIcon className="w-4 h-4 text-green-700 flex-shrink-0" />
                     <span className="text-sm font-semibold text-zinc-800">Hình ảnh</span>
                   </div>
-                  <span className="text-xs text-zinc-400">{images.length}/3 ảnh</span>
+                  <span className="text-xs text-zinc-400">{images.length}/5 ảnh</span>
                 </div>
 
                 {/* Drop zone */}
                 <label
                   className={`border-2 border-dashed border-zinc-200 rounded-lg p-4 text-center cursor-pointer
                     hover:border-green-400 hover:bg-green-50 transition-colors block mb-3 group
-                    ${saving || images.length >= 3 ? "opacity-50 pointer-events-none" : ""}`}
+                    ${saving || images.length >= 5 ? "opacity-50 pointer-events-none" : ""}`}
                 >
                   <input
                     type="file"
@@ -465,7 +503,7 @@ export default function CreateProductModal({ isOpen, onClose, onSuccess }) {
                   ))}
 
                   {/* Add slot */}
-                  {images.length < 3 && (
+                  {images.length < 5 && (
                     <label
                       className={`aspect-square rounded-lg border-2 border-dashed border-zinc-200 flex items-center justify-center
                         cursor-pointer hover:border-green-400 hover:bg-green-50 transition-colors

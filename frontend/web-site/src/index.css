@@ -1,2 +1,10 @@
 @import "tailwindcss";
 @plugin "tailwind-scrollbar";
+
+@layer utilities {
+    .product-img {
+        image-rendering: auto;
+        -webkit-backface-visibility: hidden;
+        backface-visibility: hidden;
+    }
+}

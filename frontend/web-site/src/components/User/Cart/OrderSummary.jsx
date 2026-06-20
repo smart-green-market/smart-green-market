@@ -1,5 +1,6 @@
 import { Link } from "react-router-dom";
 import { formatCurrency } from "./mockData";
+import { useStorefrontPaths } from "../../../hooks/useStorefrontPaths";
 
 export default function OrderSummary({
   selectedCount,
@@ -8,13 +9,13 @@ export default function OrderSummary({
   onCheckout,
   sticky = false,
 }) {
+  const paths = useStorefrontPaths();
   const total = subtotal + shippingFee;
 
   return (
     <section
-      className={`rounded-xl border border-stone-200 bg-white p-6 shadow-sm ${
-        sticky ? "lg:sticky lg:top-[88px]" : ""
-      }`}
+      className={`rounded-xl border border-stone-200 bg-white p-6 shadow-sm ${sticky ? "lg:sticky lg:top-[88px]" : ""
+        }`}
     >
       <h2 className="text-lg font-semibold text-emerald-950">Tóm tắt đơn hàng</h2>
 
@@ -54,7 +55,7 @@ export default function OrderSummary({
       </button>
 
       <Link
-        to="/trang-chu"
+        to={paths.home}
         className="mt-4 block text-center text-sm text-teal-800 no-underline hover:text-teal-900"
       >
         Tiếp tục mua sắm

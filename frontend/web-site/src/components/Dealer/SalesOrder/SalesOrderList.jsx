@@ -1,82 +1,189 @@
-import { Calendar } from "lucide-react";
+import DataTable from "react-data-table-component";
+import { tableStyles } from "../../common/TableStyles";
+import { Calendar, Package, ChevronRight } from "lucide-react";
 
-export default function SalesOrderList({ salesOrders, onViewDetail }) {
-  if (salesOrders.length === 0) {
-    return (
-      <div className="py-16 bg-white border border-neutral-100 rounded-2xl text-center text-sm font-semibold text-neutral-400 font-['Geist',sans-serif]">
-        Không tìm thấy đơn bán hàng nào.
-      </div>
-    );
-  }
+export default function SalesOrderList({ salesOrders, onViewDetail, onSelectedRowsChange, clearSelectedRows }) {
+  const getStatusConfig = (status) => {
+    switch (status) {
+      case "Chờ xác nhận":
+        return { bg: "bg-amber-50", text: "text-amber-700", dot: "bg-amber-500" };
+      case "Đã xác nhận":
+        return { bg: "bg-indigo-50", text: "text-indigo-700", dot: "bg-indigo-500" };
+      case "Đang chuẩn bị hàng":
+        return { bg: "bg-orange-50", text: "text-orange-700", dot: "bg-orange-500 animate-pulse" };
+      case "Đang giao hàng":
+        return { bg: "bg-blue-50", text: "text-blue-700", dot: "bg-blue-500 animate-pulse" };
+      case "Đã giao":
+        return { bg: "bg-emerald-50", text: "text-emerald-700", dot: "bg-emerald-500" };
+      case "Đã hủy":
+        return { bg: "bg-rose-50", text: "text-rose-700", dot: "bg-rose-500" };
+      default:
+        return { bg: "bg-neutral-50", text: "text-neutral-700", dot: "bg-neutral-500" };
+    }
+  };
 
-  return (
-    <div className="space-y-4">
-      {salesOrders.map((order, idx) => (
-        <div
-          key={idx}
-          onClick={() => onViewDetail && onViewDetail(order)}
-          className="bg-white border border-neutral-100 rounded-2xl p-5 shadow-xs hover:shadow-md transition-all duration-300 cursor-pointer"
+  const columns = [
+    {
+      name: "Mã Đơn",
+      selector: (row) => row.id,
+      sortable: true,
+      width: "140px",
+      cell: (row) => (
+        <span
+          onClick={() => onViewDetail && onViewDetail(row)}
+          className="text-xs font-extrabold text-emerald-800 hover:text-emerald-950 cursor-pointer hover:underline underline-offset-2 transition-colors uppercase tracking-wider"
         >
-          <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-4 pb-4 border-b border-neutral-50">
-            {/* Left Meta info */}
-            <div className="flex items-center gap-3">
-              <span className="text-xs font-extrabold text-emerald-800 bg-emerald-50 px-3 py-1.5 rounded-lg border border-emerald-100/50">
-                {order.id}
-              </span>
-              <div>
-                <h4 className="text-xs font-bold text-neutral-800">{order.customer}</h4>
-                <div className="flex items-center gap-1 text-[10px] text-neutral-400 mt-0.5">
-                  <Calendar className="w-3 h-3" />
-                  <span>Ngày đặt: {order.date}</span>
-                </div>
-              </div>
-            </div>
-
-            {/* Right Status / Price */}
-            <div className="flex items-center gap-4 self-end md:self-auto">
-              <div className="text-right">
-                <p className="text-[10px] text-neutral-400 font-semibold uppercase tracking-wider">
-                  Tổng đơn bán
-                </p>
-                <p className="text-sm font-black text-emerald-700">{order.amount}</p>
-              </div>
-
-              <div className="flex flex-col items-end gap-1">
-                <span
-                  className={`inline-block px-2 py-0.5 rounded text-[9px] font-bold ${
-                    order.payment === "Đã thanh toán"
-                      ? "bg-emerald-50 text-emerald-700 border border-emerald-100"
-                      : order.payment === "Chưa thanh toán"
-                      ? "bg-amber-50 text-amber-700 border border-amber-100"
-                      : "bg-neutral-50 text-neutral-400 border border-neutral-100"
-                  }`}
-                >
-                  {order.payment}
-                </span>
-                <span
-                  className={`inline-block px-2.5 py-0.5 rounded-full text-[9px] font-bold ${
-                    order.delivery === "Đã giao"
-                      ? "bg-emerald-100 text-emerald-800"
-                      : order.delivery === "Đang giao hàng"
-                      ? "bg-amber-100 text-amber-800"
-                      : "bg-red-100 text-red-800"
-                  }`}
-                >
-                  {order.delivery}
-                </span>
-              </div>
-            </div>
-          </div>
-
-          {/* Order details and delivery */}
-          <div className="flex flex-col sm:flex-row justify-between gap-4 text-xs text-neutral-500">
-            <div>
-              <span className="font-bold text-neutral-700">Sản phẩm xuất bán: </span>
-              <span className="font-medium text-neutral-600">{order.items}</span>
-            </div>
+          {row.id}
+        </span>
+      ),
+    },
+    {
+      name: "Khách Hàng",
+      selector: (row) => row.customer,
+      sortable: true,
+      grow: 2,
+      cell: (row) => (
+        <div className="flex flex-col py-2 gap-0.5">
+          <span className="font-bold text-sm text-neutral-800 leading-tight">
+            {row.customer}
+          </span>
+          <div className="flex items-center gap-1.5 mt-0.5 text-[11px] text-neutral-400 font-medium">
+            <Package className="w-3 h-3 text-neutral-300 shrink-0" />
+            <span className="truncate max-w-[250px]" title={row.items}>{row.items}</span>
           </div>
         </div>
-      ))}
+      ),
+    },
+    {
+      name: "Thời Gian",
+      selector: (row) => row.date,
+      sortable: true,
+      width: "220px",
+      cell: (row) => (
+        <div className="flex flex-col gap-1.5 py-2">
+          <div className="flex items-center gap-1.5 text-xs text-neutral-600 font-medium whitespace-nowrap">
+            <Calendar className="w-3.5 h-3.5 text-emerald-600/70" />
+            <span><span className="text-neutral-400">Ngày đặt:</span> {row.date}</span>
+          </div>
+        </div>
+      ),
+    },
+    {
+      name: "Tổng Tiền",
+      selector: (row) => row.amount,
+      sortable: true,
+      right: true,
+      cell: (row) => (
+        <span className="font-extrabold text-sm text-emerald-700 whitespace-nowrap">
+          {row.amount}
+        </span>
+      ),
+    },
+    {
+      name: "Trạng Thái",
+      selector: (row) => row.status || row.delivery,
+      sortable: true,
+      center: true,
+      width: "200px",
+      cell: (row) => {
+        const statusStr = row.status || row.delivery;
+        const config = getStatusConfig(statusStr);
+        return (
+          <div className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-white/50 shadow-sm ${config.bg}`}>
+            <span className={`w-1.5 h-1.5 rounded-full ${config.dot}`} />
+            <span className={`text-[11px] font-bold ${config.text} whitespace-nowrap`}>
+              {statusStr}
+            </span>
+          </div>
+        );
+      },
+    },
+    {
+      name: "",
+      width: "50px",
+      cell: (row) => (
+        <button
+          onClick={(e) => {
+            e.stopPropagation();
+            onViewDetail && onViewDetail(row);
+          }}
+          className="w-8 h-8 rounded-lg hover:bg-emerald-50 flex items-center justify-center transition-colors cursor-pointer group"
+        >
+          <ChevronRight className="w-4 h-4 text-neutral-300 group-hover:text-emerald-600 transition-colors" />
+        </button>
+      ),
+    },
+  ];
+
+  return (
+    <div className="w-full rounded-2xl border border-neutral-100 overflow-hidden bg-white shadow-xs font-['Geist',sans-serif]">
+      <DataTable
+        columns={columns}
+        data={salesOrders}
+        customStyles={{
+          ...tableStyles,
+          headRow: {
+            style: {
+              ...tableStyles?.headRow?.style,
+              backgroundColor: "#f9fafb",
+              borderBottom: "1px solid #f3f4f6",
+              minHeight: "48px",
+            },
+          },
+          headCells: {
+            style: {
+              ...tableStyles?.headCells?.style,
+              fontSize: "11px",
+              fontWeight: "700",
+              color: "#9ca3af",
+              textTransform: "uppercase",
+              letterSpacing: "0.05em",
+              paddingLeft: "16px",
+              paddingRight: "16px",
+            },
+          },
+          rows: {
+            style: {
+              ...tableStyles?.rows?.style,
+              minHeight: "72px",
+              borderBottom: "1px solid #f9fafb",
+              "&:hover": {
+                backgroundColor: "#f0fdf4",
+                cursor: "pointer",
+              },
+              transition: "background-color 0.15s ease",
+            },
+          },
+          cells: {
+            style: {
+              ...tableStyles?.cells?.style,
+              paddingLeft: "16px",
+              paddingRight: "16px",
+            },
+          },
+        }}
+        noDataComponent={
+          <div className="py-16 text-center">
+            <div className="w-16 h-16 rounded-2xl bg-neutral-50 flex items-center justify-center mx-auto mb-4 border border-neutral-100">
+              <Package className="w-7 h-7 text-neutral-300" />
+            </div>
+            <p className="text-sm text-neutral-500 font-bold mb-1">
+              Không tìm thấy đơn bán hàng nào.
+            </p>
+            <p className="text-xs text-neutral-400 font-medium">
+              Thử thay đổi bộ lọc hoặc tạo đơn mới.
+            </p>
+          </div>
+        }
+        highlightOnHover
+        responsive
+        pointerOnHover
+        onRowClicked={onViewDetail}
+        selectableRows
+        onSelectedRowsChange={onSelectedRowsChange}
+        clearSelectedRows={clearSelectedRows}
+        keyField="uniqueId"
+      />
     </div>
   );
 }

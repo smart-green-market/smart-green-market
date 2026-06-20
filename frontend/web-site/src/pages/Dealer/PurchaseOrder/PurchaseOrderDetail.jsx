@@ -51,6 +51,9 @@ export default function DealerPurchaseOrderDetailPage() {
         deliveryDate: data.requested_delivery_time
           ? new Date(data.requested_delivery_time).toLocaleDateString("vi-VN")
           : "Chưa xác định",
+        completedAt: data.completed_at
+          ? new Date(data.completed_at).toLocaleString("vi-VN")
+          : null,
         status: mapStatusToFrontend(data.status),
         rawStatus: data.status,
         dealer: {
@@ -160,10 +163,8 @@ export default function DealerPurchaseOrderDetailPage() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-screen bg-neutral-50/50">
-        <div className="text-neutral-500 font-medium">
-          Đang tải chi tiết đơn nhập hàng...
-        </div>
+      <div className="flex items-center justify-center min-h-screen bg-emerald-50/15">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-emerald-600"></div>
       </div>
     );
   }

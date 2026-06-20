@@ -1,17 +1,23 @@
 import { useMemo, useRef } from "react";
+import { Link } from "react-router-dom";
 import { ChevronLeft, ChevronRight, Loader2 } from "lucide-react";
-import { useDealerProducts } from "../../../hooks/useDealerProducts";
+import { useBuyerCatalog } from "../../../hooks/useBuyerCatalog";
+import { useStorefrontPaths } from "../../../hooks/useStorefrontPaths";
 import { toCardProduct } from "../../../utils/userProductUtils";
 import BestSellingProductCard from "./BestSellingProductCard";
 
 export default function BestSellingProduct() {
     const scrollRef = useRef(null);
-    const { products, loading } = useDealerProducts();
+    const paths = useStorefrontPaths();
+    const { products, loading } = useBuyerCatalog();
 
     const items = useMemo(
         () =>
             [...products]
-                .sort((a, b) => (b.sold ?? 0) - (a.sold ?? 0))
+                .sort(
+                    (a, b) =>
+                        (b.available_quantity ?? 0) - (a.available_quantity ?? 0),
+                )
                 .slice(0, 10)
                 .map(toCardProduct),
         [products],
@@ -31,15 +37,20 @@ export default function BestSellingProduct() {
                 <h2 className="font-playfair text-2xl font-bold text-emerald-950">
                     Bán Chạy Nhất
                 </h2>
-                <a href="#" className="text-sm font-medium text-emerald-700 hover:underline">
+                <Link
+                    to={paths.search("", { ordering: "-stock" })}
+                    className="text-sm font-medium text-emerald-700 no-underline hover:underline"
+                >
                     Xem tất cả →
-                </a>
+                </Link>
             </div>
 
             {loading ? (
                 <div className="flex h-48 items-center justify-center">
                     <Loader2 className="h-7 w-7 animate-spin text-emerald-700" />
                 </div>
+            ) : items.length === 0 ? (
+                <p className="text-sm text-neutral-500">Chưa có sản phẩm nào.</p>
             ) : (
                 <div className="group relative">
                     <button

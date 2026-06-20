@@ -15,25 +15,37 @@ export const purchaseOrderService = {
 
   // Hủy phiếu nhập hàng
   cancel: (id, data) =>
-    axiosClient.post(`/purchase-orders/${id}/cancel/`, data).then((res) => res.data),
+    axiosClient
+      .post(`/purchase-orders/${id}/cancel/`, data)
+      .then((res) => res.data),
 
   // Xác nhận đã nhận hàng (đối với đại lý khi đơn đang giao)
   confirmDelivery: (id, data) =>
-    axiosClient.post(`/purchase-orders/${id}/confirm-delivery/`, data).then((res) => res.data),
+    axiosClient
+      .post(`/purchase-orders/${id}/confirm-delivery/`, data)
+      .then((res) => res.data),
 
   // Lấy thông tin tài khoản và mã QR thanh toán (deposit hoặc final_payment)
   getPaymentQr: (id, paymentType) =>
-    axiosClient.get(`/purchase-orders/${id}/payment-qr/`, { params: { payment_type: paymentType } }).then((res) => res.data),
+    axiosClient
+      .get(`/purchase-orders/${id}/payment-qr/`, {
+        params: { payment_type: paymentType },
+      })
+      .then((res) => res.data),
 
   // Nộp minh chứng thanh toán đặt cọc (FormData có receipt_file)
   submitDeposit: (id, formData) =>
-    axiosClient.post(`/purchase-orders/${id}/submit-deposit/`, formData, {
-      headers: { "Content-Type": "multipart/form-data" }
-    }).then((res) => res.data),
+    axiosClient
+      .post(`/purchase-orders/${id}/submit-deposit/`, formData, {
+        headers: { "Content-Type": "multipart/form-data" },
+      })
+      .then((res) => res.data),
 
   // Nộp minh chứng thanh toán cuối (FormData có receipt_file)
   submitFinalPayment: (id, formData) =>
-    axiosClient.post(`/purchase-orders/${id}/submit-final-payment/`, formData, {
-      headers: { "Content-Type": "multipart/form-data" }
-    }).then((res) => res.data),
+    axiosClient
+      .post(`/purchase-orders/${id}/submit-final-payment/`, formData, {
+        headers: { "Content-Type": "multipart/form-data" },
+      })
+      .then((res) => res.data),
 };

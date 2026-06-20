@@ -1,24 +1,24 @@
 import { useState, useEffect } from "react";
 import Filter from "../../components/Admin/UI/Filter";
 import CategoryTable from "../../components/Supplier/Category/CategoryTable";
-import DeleteConfirmModal from "../../components/common/DeleteConfirmModal";
 import AddCategoryModal from "../../components/Supplier/Category/CreateCategoryModal";
 import { categoryService } from "../../services/api/categoryService";
+import DeleteConfirmModal from "../../components/common/DeleteConfirmModal";
+import SupplierPageHeader, { SUPPLIER_PAGE_CLASS } from "../../components/Supplier/UI/SupplierPageHeader";
+
 export default function CategorySupplierPage() {
-  const [data,         setData]         = useState([]);
-  const [search,       setSearch]       = useState("");
+  const [data, setData] = useState([]);
+  const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
 
   // Modal states
-  const [deleteRow,       setDeleteRow]       = useState(null); // row | null
-  const [createRow,       setCreateRow]       = useState(null); // row | null
-  const [detailRow,       setDetailRow]       = useState(null); // row | null
+  const [deleteRow, setDeleteRow] = useState(null); // row | null
   const [showAddCategory, setShowAddCategory] = useState(false);
 
   /* ── Fetch ── */
   const fetchProducts = async () => {
     try {
-      const response    = await categoryService.getAll();
+      const response = await categoryService.getAll();
       const productList = Array.isArray(response) ? response : (response?.results || []);
       setData(productList);
     } catch (error) {
@@ -35,7 +35,7 @@ export default function CategorySupplierPage() {
     if (!deleteRow) return;
     try {
       setDeleting(true);
-      await productService.deleteProduct(deleteRow.id);
+      await categoryService.delete(deleteRow.id);
       setData(prev => prev.filter(row => row.id !== deleteRow.id));
       setDeleteRow(null);
     } catch (error) {
@@ -65,9 +65,11 @@ export default function CategorySupplierPage() {
   };
 
   return (
-    <div className="flex flex-col gap-6 px-8 pt-6 pb-10">
-      <h1 className="text-2xl font-bold text-gray-900 mb-1">Quản lý danh mục</h1>
-      <p className="text-sm text-gray-500">Theo dõi và quản lý các danh mục sản phẩm đã và đang niêm yết trên hệ thống</p>
+    <div className={SUPPLIER_PAGE_CLASS}>
+      <SupplierPageHeader
+        title="Quản lý danh mục"
+        description="Theo dõi và quản lý các danh mục sản phẩm đã và đang niêm yết trên hệ thống"
+      />
 
       {/* Toolbar */}
       <div className="flex justify-between items-center">
@@ -119,7 +121,7 @@ export default function CategorySupplierPage() {
         itemType="sản phẩm"
         loading={deleting}
       />
-{/* 
+      {/* 
       <DetailProductModal
         isOpen={detailRow !== null}
         onClose={() => setDetailRow(null)}
