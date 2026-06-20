@@ -32,7 +32,7 @@ export default function PurchaseOrderList({ purchaseOrders, onViewDetail }) {
       sortable: true,
       width: "140px",
       cell: (row) => (
-        <span 
+        <span
           onClick={() => onViewDetail && onViewDetail(row)}
           className="text-xs font-extrabold text-emerald-800 hover:text-emerald-950 cursor-pointer hover:underline underline-offset-2 transition-colors uppercase tracking-wider"
         >
@@ -61,16 +61,16 @@ export default function PurchaseOrderList({ purchaseOrders, onViewDetail }) {
       name: "Thời Gian",
       selector: (row) => row.date,
       sortable: true,
-      width: "180px",
+      width: "220px",
       cell: (row) => (
         <div className="flex flex-col gap-1.5 py-2">
-          <div className="flex items-center gap-1.5 text-xs text-neutral-600 font-medium">
+          <div className="flex items-center gap-1.5 text-xs text-neutral-600 font-medium whitespace-nowrap">
             <Calendar className="w-3.5 h-3.5 text-emerald-600/70" />
             <span><span className="text-neutral-400">Đặt:</span> {row.date}</span>
           </div>
-          <div className="flex items-center gap-1.5 text-xs text-neutral-600 font-medium">
+          <div className="flex items-center gap-1.5 text-xs text-neutral-600 font-medium whitespace-nowrap">
             <Truck className="w-3.5 h-3.5 text-amber-600/70" />
-            <span><span className="text-neutral-400">Giao:</span> {row.deliveryDate}</span>
+            <span><span className="text-neutral-400">Giao dự kiến:</span> {row.deliveryDate}</span>
           </div>
         </div>
       ),

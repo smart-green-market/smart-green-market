@@ -80,7 +80,7 @@ export default function CreatePurchaseOrder({ onClose, onSuccess }) {
           slug: p.slug,
           unit: p.unit || "kg",
           code: p.slug ? p.slug.toUpperCase().slice(0, 10) : `PROD-${p.id}`,
-          price: p.wholesale_price  || Math.floor(Math.random() * 5 + 2) * 10000,
+          price: p.wholesale_price || Math.floor(Math.random() * 5 + 2) * 10000,
           stock: p.stock || Math.floor(Math.random() * 800 + 100),
           category: p.category || { id: 1, name: "Rau củ" },
           supplier: p.supplier || {
@@ -229,14 +229,28 @@ export default function CreatePurchaseOrder({ onClose, onSuccess }) {
 
   // --- LỌC SẢN PHẨM THEO BỘ LỌC ---
   const filteredProducts = products.filter((p) => {
+    const selectedSupObj = suppliers.find(s => String(s.id) === String(selectedSupplier));
+    const selectedSupName = selectedSupObj ? (selectedSupObj.company_name || selectedSupObj.name) : "";
+
     const matchesSupplier =
       selectedSupplier === "" ||
-      String(p.supplier?.id) === String(selectedSupplier) ||
-      p.supplier?.company_name === selectedSupplier;
+      (p.supplier && (
+        String(p.supplier?.id || p.supplier) === String(selectedSupplier) ||
+        String(p.supplier?.company_name || p.supplier?.name || p.supplier) === String(selectedSupplier) ||
+        (selectedSupName && String(p.supplier?.company_name || p.supplier?.name || p.supplier).toLowerCase() === selectedSupName.toLowerCase())
+      ));
+
+    const selectedCatObj = categories.find(c => String(c.id) === String(selectedCategory));
+    const selectedCatName = selectedCatObj ? selectedCatObj.name : "";
+
     const matchesCategory =
       selectedCategory === "" ||
-      String(p.category?.id) === String(selectedCategory) ||
-      p.category?.name === selectedCategory;
+      (p.category && (
+        String(p.category?.id || p.category) === String(selectedCategory) ||
+        String(p.category?.name || p.category) === String(selectedCategory) ||
+        (selectedCatName && String(p.category?.name || p.category).toLowerCase() === selectedCatName.toLowerCase())
+      ));
+
     const matchesSearch =
       searchQuery === "" ||
       p.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -257,10 +271,7 @@ export default function CreatePurchaseOrder({ onClose, onSuccess }) {
     .filter((item) => item.product !== undefined);
 
   //Tổng số lượng sản phẩm
-  const totalItemsCount = cartItems.reduce(
-    (acc, curr) => acc + curr.quantity,
-    0,
-  );
+  const totalItemsCount = cartItems.length;
   //Tổng tiền
   const rawSubtotal = cartItems.reduce((acc, curr) => acc + curr.subtotal, 0);
   const finalTotal = rawSubtotal;
@@ -269,7 +280,7 @@ export default function CreatePurchaseOrder({ onClose, onSuccess }) {
    */
   const handleCreateOrder = () => {
     if (cartItems.length === 0) {
-      toast.error("Vui lòng thêm ít nhất một sản phẩm vào phiếu nhập!",  { position: "top-center", duration: 5000 },);
+      toast.error("Vui lòng thêm ít nhất một sản phẩm vào phiếu nhập!", { position: "top-center", duration: 5000 },);
       return;
     }
 

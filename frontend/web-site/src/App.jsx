@@ -1,50 +1,68 @@
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AuthProvider } from "./contexts/authProvider";
-    //Protected Routes
+//Protected Routes
 import AdminProtectedRoute from "./contexts/adminProtectedRoute";
 import SupplierProtectedRoute from "./contexts/supplierProtectedRoute";
 import DealerProtectedRoute from "./contexts/dealerProtectedRoute";
+import BuyerRouteProtect from "./contexts/buyerRouteProtect";
     //Layouts
 import UserLayout from "./layouts/UserLayout";
+import StorefrontSlugSync from "./layouts/StorefrontSlugSync";
 import AdminLayout from "./layouts/AdminLayout";
 import SupplierLayout from "./layouts/SupplierLayout";
 import UserProfileLayout from "./layouts/UserProfileLayout";
 import DealerLayout from "./layouts/DealerLayout";
-    //User Pages
-import {HomePage, ProductDetailPage, CartPage, OrderPage, PaymentPage, OrderStatusPage, UserProfilePage, ChangePasswordPage, OrderHistoryPage}  from "./pages/User";
-    //Supplier Pages
-import { OrderSupplierPage, ProductSupplierPage, CertificationSupplierPage, RegisterPage, SupplierLoginPage, SupplierInfoPage, CategorySupplierPage, CultivationSupplierPage,DashboardSupplierPage } from "./pages/Supplier";
-    //Admin Pages
-import { AdminLoginPage, SettingPage, SupplierPage, CategoryPage, ProductPage, CertificationPage, DocumentPage, NotificationPage, DealerPage,} from "./pages/Admin";
-    //Dealer Pages
-import { RegisterDealerPage, DealerLoginPage, DealerDashboardPage, DealerInventoryPage, DealerSupplierPage, DealerCategoryPage, DealerSalesOrderPage, DealerPurchaseOrderPage, DealerCreatePurchaseOrderPage, DealerPurchaseOrderDetailPage,DealerSupplierDetailPage,DealerCategoryDetail, DealerInfoPage,} from "./pages/Dealer";
 
+
+
+import StorefrontEntryRedirect from "./components/User/StorefrontEntryRedirect";
+//User Pages
+import {HomePage, ProductDetailPage, CartPage, OrderPage, PaymentPage, OrderStatusPage, UserProfilePage, ChangePasswordPage, OrderHistoryPage, UserLoginPage, UserRegisterPage, SearchProductPage, DealerSlugEntryPage, CheckoutPage, OrderTrackingPage, PoliciesPage, SupportPage}  from "./pages/User";
+//Supplier Pages
+import { OrderSupplierPage, ProductSupplierPage, CertificationSupplierPage, RegisterPage, SupplierLoginPage, SupplierInfoPage, CategorySupplierPage, CultivationSupplierPage,DashboardSupplierPage } from "./pages/Supplier";
+//Admin Pages
+import { AdminLoginPage, SettingPage, SupplierPage, CategoryPage, ProductPage, CertificationPage, DocumentPage, NotificationPage, DealerPage, } from "./pages/Admin";
+//Dealer Pages
+import { RegisterDealerPage, DealerLoginPage, DealerDashboardPage, DealerInventoryPage, DealerSupplierPage, DealerCategoryPage, DealerSalesOrderPage, DealerPurchaseOrderPage, DealerCreatePurchaseOrderPage, DealerPurchaseOrderDetailPage, DealerSupplierDetailPage, DealerCategoryDetail, DealerInfoPage, DealerCustomerPage, DealerProductManagementPage, DealerProductDetailPage } from "./pages/Dealer";
 export default function App() {
     return (
         <BrowserRouter>
             <AuthProvider>
                 <Routes>
                     {/* User */}
-                    <Route path="/" element={<UserLayout />}>
-                        <Route index element={<HomePage />} />
-                        <Route path="trang-chu" element={<HomePage />} />
-                        <Route path="san-pham/:id" element={<ProductDetailPage />} />
-                        <Route path="gio-hang" element={<CartPage />} />
-                        <Route path="dat-hang" element={<OrderPage />} />
-                        <Route path="thanh-toan" element={<PaymentPage />} />
-                        <Route path="theo-doi-don-hang" element={<OrderStatusPage />} />
-                        <Route path="tai-khoan" element={<UserProfileLayout />}>
-                            <Route path="" element={<UserProfilePage />} />
-                            <Route path="doi-mat-khau" element={<ChangePasswordPage />} />
-                            <Route path="lich-su-don-hang" element={<OrderHistoryPage />} />
+                    <Route path="/" element={<DealerSlugEntryPage />} />
+                    <Route path="cua-hang/:dealerSlug/dang-nhap" element={<UserLoginPage />} />
+                    <Route path="cua-hang/:dealerSlug/dang-ky" element={<UserRegisterPage />} />
+                    <Route path="cua-hang/:dealerSlug" element={<StorefrontSlugSync />}>
+                        <Route element={<UserLayout />}>
+                            <Route index element={<HomePage />} />
+                            <Route path="trang-chu" element={<HomePage />} />
+                            <Route path="san-pham/:id" element={<ProductDetailPage />} />
+                            <Route path="tim-kiem" element={<SearchProductPage />} />
+                            <Route path="chinh-sach" element={<PoliciesPage />} />
+                            <Route path="ho-tro" element={<SupportPage />} />
+
+                            <Route element={<BuyerRouteProtect />}>
+                                <Route path="gio-hang" element={<CartPage />} />
+                                <Route path="dat-hang" element={<OrderPage />} />
+                                <Route path="thanh-toan" element={<PaymentPage />} />
+                                <Route path="theo-doi-don-hang" element={<OrderTrackingPage />} />
+                                <Route path="tai-khoan" element={<UserProfileLayout />}>
+                                    <Route path="" element={<UserProfilePage />} />
+                                    <Route path="doi-mat-khau" element={<ChangePasswordPage />} />
+                                    <Route path="lich-su-don-hang" element={<OrderHistoryPage />} />
+                                </Route>
+                                <Route path="dat-hang-1" element={<CheckoutPage />} />
+                            </Route>
                         </Route>
                     </Route>
+
                     {/* Supplier */}
                     <Route element={<SupplierProtectedRoute />}>
                         <Route path="/nha-cung-cap" element={<SupplierLayout />}>
-                            <Route index element={ <DashboardSupplierPage />} />
+                            <Route index element={<DashboardSupplierPage />} />
                             <Route path="san-pham" element={<ProductSupplierPage />} />
-                            <Route path="don-hang" element={<OrderSupplierPage/>} />
+                            <Route path="don-hang" element={<OrderSupplierPage />} />
                             <Route path="chung-nhan" element={<CertificationSupplierPage />} />
                             <Route path="thong-tin-ca-nhan" element={<SupplierInfoPage />} />
                             <Route path="danh-muc" element={<CategorySupplierPage />} />
@@ -87,6 +105,9 @@ export default function App() {
                             <Route path="nha-cung-cap/:id" element={<DealerSupplierDetailPage />} />
                             <Route path="danh-muc/:id" element={<DealerCategoryDetail />} />
                             <Route path="cau-hinh" element={<DealerInfoPage />} />
+                            <Route path="khach-hang" element={<DealerCustomerPage />} />
+                            <Route path="san-pham" element={<DealerProductManagementPage />} />
+                            <Route path="san-pham/:id" element={<DealerProductDetailPage />} />
                         </Route>
                     </Route>
                     <Route path="dai-ly/dang-nhap" element={<DealerLoginPage />} />

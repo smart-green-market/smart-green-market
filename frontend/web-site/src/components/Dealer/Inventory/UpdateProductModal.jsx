@@ -1,6 +1,8 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Tag, X, ClipboardList } from "lucide-react";
 import { toast } from "sonner";
+import { categoryService } from "../../../services/api/categoryService";
+import { dealerProductService } from "../../../services/api/dealerProductService";
 
 export default function UpdateProductModal({ data, onClose, onSave }) {
 
@@ -10,8 +12,26 @@ export default function UpdateProductModal({ data, onClose, onSave }) {
   const [note, setNote] = useState("");
   const [discount, setDiscount] = useState(data.discount === undefined ? "" : data.discount);
   const [discountDate, setDiscountDate] = useState(data.discountDate || "");
+  const [categories, setCategories] = useState([]);
+  const [loadingCategories, setLoadingCategories] = useState(false);
+  const [selectedCategory, setSelectedCategory] = useState(data.category || "");
 
-  const handleSubmit = () => {
+  useEffect(() => {
+    const fetchCats = async () => {
+      setLoadingCategories(true);
+      try {
+        const cats = await categoryService.getAll();
+        setCategories(cats || []);
+      } catch (err) {
+        console.error("Lỗi tải danh mục:", err);
+      } finally {
+        setLoadingCategories(false);
+      }
+    };
+    fetchCats();
+  }, []);
+
+  const handleSubmit = async () => {
     const parsedShrinkage = parseInt(adjustment, 10) || 0;
 
     if (parsedShrinkage > 0) {
@@ -25,14 +45,40 @@ export default function UpdateProductModal({ data, onClose, onSave }) {
       }
     }
 
+    // Lấy ID lô hàng và ID sản phẩm đại lý
+    const batchId = data.originalData?.id;
+    const dealerProductId = data.originalData?.dealer_product || data.originalData?.dealer_product_id;
+    console.log("Shipment (lô hàng) ID:", batchId);
+    console.log("Dealer Product ID:", dealerProductId);
+
+    // Kiểm tra và thực hiện cập nhật danh mục nếu có thay đổi
+    const categoryChanged = selectedCategory !== data.category;
+    if (categoryChanged && selectedCategory) {
+      const chosenCat = categories.find(c => c.name === selectedCategory);
+      const categoryId = chosenCat ? chosenCat.id : null;
+
+      if (dealerProductId && categoryId) {
+        try {
+          await dealerProductService.update(dealerProductId, {
+            category: categoryId
+          });
+          toast.success("Cập nhật danh mục sản phẩm thành công!");
+        } catch (error) {
+          console.error("Lỗi khi cập nhật danh mục sản phẩm:", error);
+          toast.error("Không thể cập nhật danh mục cho sản phẩm.");
+          return; // Dừng xử lý nếu gọi API lỗi
+        }
+      }
+    }
+
     const finalStock = Math.max(0, data.stock - parsedShrinkage);
-    
+
     const finalStatus =
       finalStock === 0
         ? "Hết hàng"
         : finalStock <= 10
-        ? "Sắp hết hàng"
-        : "Còn hàng";
+          ? "Sắp hết hàng"
+          : "Còn hàng";
 
     let finalFreshness = data.freshness;
     let finalFreshnessColor = data.freshnessColor;
@@ -47,6 +93,7 @@ export default function UpdateProductModal({ data, onClose, onSave }) {
       status: finalStatus,
       freshness: finalFreshness,
       freshnessColor: finalFreshnessColor,
+      category: selectedCategory,
       discount: parseInt(discount, 10) || 0,
       discountDate: discountDate || "",
       wastageData: parsedShrinkage > 0 ? {
@@ -90,6 +137,29 @@ export default function UpdateProductModal({ data, onClose, onSave }) {
             <p className="font-bold text-emerald-900 text-sm">{data.productName}</p>
             <p className="text-neutral-500 font-semibold mt-1">Phân loại: {data.category}</p>
             <p className="text-neutral-400 mt-0.5">Nhà cung cấp: {data.supplier}</p>
+          </div>
+
+          {/* Section: Chọn danh mục */}
+          <div className="mb-5">
+            <label className="text-xs font-bold text-neutral-600 mb-1.5 block">
+              Danh mục của lô hàng
+            </label>
+            {loadingCategories ? (
+              <div className="text-xs text-neutral-400 font-medium">Đang tải danh mục...</div>
+            ) : (
+              <select
+                value={selectedCategory}
+                onChange={(e) => setSelectedCategory(e.target.value)}
+                className="w-full border border-neutral-200 rounded-xl px-3 py-2.5 text-xs focus:outline-none focus:border-emerald-600 focus:ring-2 focus:ring-emerald-500/10 font-medium text-neutral-700 bg-white"
+              >
+                <option value="">-- Chọn danh mục --</option>
+                {categories.map((cat) => (
+                  <option key={cat.id} value={cat.name}>
+                    {cat.name}
+                  </option>
+                ))}
+              </select>
+            )}
           </div>
 
           {/* Section: Cập nhật tồn kho & Hao hụt */}

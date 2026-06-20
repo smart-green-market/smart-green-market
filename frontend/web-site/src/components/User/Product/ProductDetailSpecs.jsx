@@ -14,9 +14,8 @@ function SpecRow({ label, value, highlight = false }) {
         <div className="flex flex-col gap-1 border-b border-stone-100 py-3 last:border-b-0 sm:flex-row sm:items-start sm:gap-6">
             <dt className="w-full shrink-0 text-sm font-medium text-neutral-500 sm:w-44">{label}</dt>
             <dd
-                className={`text-sm leading-6 ${
-                    highlight ? "font-semibold text-emerald-950" : "text-zinc-800"
-                }`}
+                className={`text-sm leading-6 ${highlight ? "font-semibold text-emerald-950" : "text-zinc-800"
+                    }`}
             >
                 {value}
             </dd>
@@ -69,24 +68,24 @@ export default function ProductDetailSpecs({ product }) {
                         value={`${formatProductPrice(getProductPrice(product))}${formatUnitLabel(product.unit)}`}
                         highlight
                     />
+                    <SpecRow label="Nhà cung cấp gốc" value={product.supplier_name} />
                     <SpecRow
-                        label="Nguồn hàng gốc"
-                        value={product.supplier_product_name}
+                        label="Tồn kho"
+                        value={
+                            product.available_quantity != null
+                                ? `${product.available_quantity} ${product.unit || ""}`.trim()
+                                : null
+                        }
                     />
+                    <SpecRow label="Nguồn hàng gốc" value={product.supplier_product_name} />
                     <SpecRow label="Mã sản phẩm" value={product.slug || `#${product.id}`} />
                 </SpecSection>
 
                 <SpecSection title="Bảo quản & sử dụng">
                     <SpecRow label="Hạn sử dụng / bảo quản" value={storageLabel} highlight />
                     <SpecRow label="Nhiệt độ bảo quản" value={tempLabel} />
-                    <SpecRow
-                        label="Cập nhật lần cuối"
-                        value={formatDateVi(product.updated_at)}
-                    />
-                    <SpecRow
-                        label="Ngày đăng bán"
-                        value={formatDateVi(product.created_at)}
-                    />
+                    <SpecRow label="Cập nhật lần cuối" value={formatDateVi(product.updated_at)} />
+                    <SpecRow label="Ngày đăng bán" value={formatDateVi(product.created_at)} />
                     <SpecRow
                         label="Đã kiểm duyệt"
                         value={
@@ -100,11 +99,7 @@ export default function ProductDetailSpecs({ product }) {
 
             {product.dealer ? (
                 <SpecSection title="Cửa hàng đại lý">
-                    <SpecRow
-                        label="Tên cửa hàng"
-                        value={product.dealer.store_name}
-                        highlight
-                    />
+                    <SpecRow label="Tên cửa hàng" value={product.dealer.store_name} highlight />
                     <SpecRow label="Địa chỉ" value={product.dealer.store_address} />
                     <SpecRow label="Tài khoản" value={product.dealer.account_username} />
                     <SpecRow
@@ -113,8 +108,8 @@ export default function ProductDetailSpecs({ product }) {
                             product.dealer.status === "approved"
                                 ? "Đã xác minh"
                                 : product.dealer.status === "pending"
-                                  ? "Đang xác minh"
-                                  : product.dealer.status
+                                    ? "Đang xác minh"
+                                    : product.dealer.status
                         }
                     />
                 </SpecSection>
@@ -136,8 +131,8 @@ export default function ProductDetailSpecs({ product }) {
                             product.supplier.verification_status === "approved"
                                 ? "Đã xác minh"
                                 : product.supplier.verification_status === "pending"
-                                  ? "Đang xác minh"
-                                  : product.supplier.verification_status
+                                    ? "Đang xác minh"
+                                    : product.supplier.verification_status
                         }
                     />
                 </SpecSection>

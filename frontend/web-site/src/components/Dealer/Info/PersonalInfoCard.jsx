@@ -20,9 +20,17 @@ export default function PersonalInfoCard({ profile, onEdit }) {
       </div>
       <div className="p-6">
         <div className="flex items-center gap-4 mb-6 pb-6 border-b border-neutral-100">
-          <div className="w-16 h-16 rounded-full bg-emerald-100 text-emerald-700 font-bold text-xl flex items-center justify-center shrink-0">
-            {profile.account?.full_name ? profile.account.full_name.charAt(0).toUpperCase() : "U"}
-          </div>
+          {(profile.account?.avatar_url || profile.account?.avatar) ? (
+            <img
+              src={profile.account.avatar_url || profile.account.avatar}
+              alt="Avatar"
+              className="w-16 h-16 rounded-full object-cover shrink-0 border border-neutral-200"
+            />
+          ) : (
+            <div className="w-16 h-16 rounded-full bg-emerald-100 text-emerald-700 font-bold text-xl flex items-center justify-center shrink-0">
+              {profile.account?.full_name ? profile.account.full_name.charAt(0).toUpperCase() : "U"}
+            </div>
+          )}
           <div>
             <p className="font-bold text-emerald-950 text-lg">{profile.account?.full_name || "Chưa cập nhật"}</p>
             <p className="text-sm text-neutral-500 mb-2">@{profile.account?.username}</p>

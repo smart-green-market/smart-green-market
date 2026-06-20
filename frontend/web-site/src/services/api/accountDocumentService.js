@@ -46,24 +46,6 @@ export const accountDocumentService = {
       .then((res) => res.data);
   },
 
-  // business_license (file)
-  // id_card (file)
-  // tax_certificate (file)
-
-  // [
-  //   {
-  //     "id": 0,
-  //     "document_type": "business_license",
-  //     "file_url": "string",
-  //     "status": "pending",
-  //     "verified_by": 0,
-  //     "verified_by_username": "string",
-  //     "verified_at": "2026-06-07T07:47:24.652Z",
-  //     "created_at": "2026-06-07T07:47:24.652Z"
-  //   }
-  // ]
-
-  // --- ADMIN
   verify: (id, payload) => {
     const formData = new FormData();
     const status = typeof payload === "string" ? payload : payload.status;
@@ -75,18 +57,9 @@ export const accountDocumentService = {
     }
 
     return axiosClient
-      .post(`/account-documents/${id}/verify/`, formData, {
-        headers: {
-          "Content-Type": "multipart/form-data",
-        },
-      })
+      .post(`/account-documents/${id}/verify/`, formData)
       .then((res) => res.data);
   },
-
-  //   {
-  //     "status": "approved / rejected",
-  //     "rejection_reason": "string"
-  //     }
 };
 
 // Xử lý bug
