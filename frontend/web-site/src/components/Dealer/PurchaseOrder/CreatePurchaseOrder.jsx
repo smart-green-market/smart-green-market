@@ -18,12 +18,37 @@ export default function CreatePurchaseOrder({ onClose, onSuccess }) {
   const [selectedSupplier, setSelectedSupplier] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
-  const [orderNote, setOrderNote] = useState(""); // Ghi chú của đại lý
-  const [deliveryInfo, setDeliveryInfo] = useState({
-    receiverName: "",
-    receiverPhone: "",
-    deliveryAddress: "",
-    requestedDeliveryTime: "",
+
+  const location = useLocation();
+  const savedDraft = location.state?.draftData;
+
+  // Ghi chú đơn hàng — khôi phục từ draftData nếu back từ trang preview
+  const [orderNote, setOrderNote] = useState(() => savedDraft?.note ?? "");
+
+  // Thông tin giao hàng — khôi phục từ draftData nếu back từ trang preview
+  const [deliveryInfo, setDeliveryInfo] = useState(() => {
+    if (savedDraft) {
+      // Chuyển ISO string về định dạng datetime-local (yyyy-MM-ddTHH:mm)
+      let deliveryTime = "";
+      if (savedDraft.requested_delivery_time) {
+        const dt = new Date(savedDraft.requested_delivery_time);
+        // Offset sang giờ local để datetime-local input hiển thị đúng
+        const offset = dt.getTimezoneOffset() * 60000;
+        deliveryTime = new Date(dt - offset).toISOString().slice(0, 16);
+      }
+      return {
+        receiverName: savedDraft.receiver_name ?? "",
+        receiverPhone: savedDraft.receiver_phone ?? "",
+        deliveryAddress: savedDraft.delivery_address ?? "",
+        requestedDeliveryTime: deliveryTime,
+      };
+    }
+    return {
+      receiverName: "",
+      receiverPhone: "",
+      deliveryAddress: "",
+      requestedDeliveryTime: "",
+    };
   });
 
   // --- STATE QUẢN LÝ DỮ LIỆU TỪ API ---
@@ -34,14 +59,11 @@ export default function CreatePurchaseOrder({ onClose, onSuccess }) {
 
   // --- STATE QUẢN LÝ GIỎ HÀNG NHÁP (DRAFT CART) ---
   // cart: { [productId]: quantity } là 1 object rỗng
-  // const [cart, setCart] = useState({});
   // cardQuantities: Lưu số lượng nhập tạm thời hiển thị trên từng thẻ sản phẩm
   const [cardQuantities, setCardQuantities] = useState({});
 
-  const location = useLocation();
   // Khởi tạo state cart từ draftData truyền về (nếu có)
   const [cart, setCart] = useState(() => {
-    const savedDraft = location.state?.draftData;
     if (savedDraft && savedDraft.items) {
       const initialCart = {};
       savedDraft.items.forEach((item) => {

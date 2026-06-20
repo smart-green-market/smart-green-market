@@ -73,7 +73,7 @@ export const categoryService = {
   //   "products": "string"
   // }
 
-  createSystem: (data) => axiosClient.post("/categories/", data).then((res) => res.data.data),
+  createSystem: (data) => axiosClient.post("/categories/", data).then((res) => res.data),
   
   //Admin tạo scope=system (active ngay). Supplier/Dealer tạo danh mục riêng (custom) → status=pending, chờ Admin duyệt. Tối đa danh mục riêng theo /api/system-config/.
   // {
@@ -84,7 +84,7 @@ export const categoryService = {
   // }
 
   create: (data) =>
-    axiosClient.post("/categories/", data).then((res) => res.data.data),
+    axiosClient.post("/categories/", data).then((res) => res.data),
 
    // {
   //   "scope": "custom",
