@@ -4,13 +4,13 @@ import { ChevronLeft, ChevronRight } from "lucide-react";
 const SLIDES = [
     {
         id: 1,
-        image: "./public/images/banner1.jpg",
+        image: "../../public/images/banner1.jpg",
         title: "Mua rau tại vườn",
         subtitle: "Rau sạch tươi ngon, thu hoạch mỗi ngày từ nông trại của chúng tôi.",
     },
     {
         id: 2,
-        image: "./public/images/banner2.jpg",
+        image: "../../public/images/banner2.jpg",
         title: "Giảm giá cuối tuần",
         subtitle: "100% không thuốc trừ sâu, an toàn cho cả gia đình bạn.",
     },

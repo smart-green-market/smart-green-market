@@ -103,6 +103,69 @@ export const dealerProductService = {
       throw error;
     }
   },
+  update: async (id, data) => {
+    try {
+      const res = await axiosClient.patch(`/dealer-products/${id}/`, data);
+      return res.data;
+    } catch (error) {
+      console.error("Lỗi cập nhật sản phẩm đại lý:", error);
+      throw error;
+    }
+  },
+
+  uploadImage: async (id, formData) => {
+    try {
+      formData.append("dealer_product", id);
+      const res = await axiosClient.post(`/dealer-product-images/`, formData, {
+        headers: { "Content-Type": "multipart/form-data" },
+      });
+      return res.data;
+    } catch (error) {
+      console.error("Lỗi tải lên ảnh sản phẩm:", error);
+      throw error;
+    }
+  },
+  deleteImage: async (imageId) => {
+    try {
+      const res = await axiosClient.delete(
+        `/dealer-product-images/${imageId}/`,
+      );
+      return res.data;
+    } catch (error) {
+      console.error("Lỗi xóa ảnh sản phẩm:", error);
+      throw error;
+    }
+  },
+  setThumbnail: async (imageId) => {
+    try {
+      const res = await axiosClient.patch(
+        `/dealer-product-images/${imageId}/`,
+        { is_thumbnail: true },
+        {
+          headers: { "Content-Type": "multipart/form-data" },
+        },
+      );
+      return res.data;
+    } catch (error) {
+      console.error("Lỗi đặt ảnh chính:", error);
+      throw error;
+    }
+  },
+  unsetThumbnail: async (imageId) => {
+    try {
+      const res = await axiosClient.patch(
+        `/dealer-product-images/${imageId}/`,
+        { is_thumbnail: true },
+        {
+          headers: { "Content-Type": "multipart/form-data" },
+        },
+      );
+      return res.data;
+    } catch (error) {
+      console.error("Lỗi gỡ ảnh chính:", error);
+      throw error;
+    }
+  },
 };
 
 export const handleApiError = (error, defaultMessage = "Có lỗi xảy ra") => {

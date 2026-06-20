@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import  { useState, useEffect } from "react";
 import { CreditCard, Upload, RefreshCw, AlertCircle, FileText, Check } from "lucide-react";
 import { purchaseOrderService } from "../../../services/api/purchaseOrderService";
 import { toast } from "sonner";
@@ -104,7 +104,7 @@ export default function PaymentQrSection({ orderId, paymentType, onSuccess }) {
             <CreditCard className="w-4 h-4 text-emerald-600" />
             QUÉT MÃ VIETQR {paymentType === "deposit" ? "ĐẶT CỌC" : "THANH TOÁN CUỐI"}
           </h3>
-          
+
           <div className="w-full max-w-[280px] aspect-square border border-neutral-100 rounded-3xl overflow-hidden p-3 bg-neutral-50 flex items-center justify-center shadow-inner mb-4">
             <img
               src={qrData.qr_image_url}
@@ -119,60 +119,53 @@ export default function PaymentQrSection({ orderId, paymentType, onSuccess }) {
       )}
 
       {/* CỘT PHẢI: THÔNG TIN & FORM */}
-      <div className="flex-1 w-full flex flex-col min-w-0">
+      <div className="flex-1 w-full grid grid-cols-1 lg:grid-cols-2 gap-8 min-w-0">
         {qrData && (
-          <div className="w-full bg-neutral-50/80 rounded-2xl p-5 md:p-6 text-sm font-semibold text-neutral-600 flex flex-col gap-3.5 border border-neutral-100 mb-8">
-            <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-1">
-              <span className="text-neutral-500 text-xs uppercase tracking-wider font-bold">Ngân hàng:</span>
-              <span className="text-neutral-800 font-bold">{qrData.bank_name}</span>
-            </div>
-            <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-1">
-              <span className="text-neutral-500 text-xs uppercase tracking-wider font-bold">Chủ tài khoản:</span>
-              <span className="text-neutral-800 font-bold uppercase">{qrData.account_name}</span>
-            </div>
-            <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-1">
-              <span className="text-neutral-500 text-xs uppercase tracking-wider font-bold">Số tài khoản:</span>
-              <span className="text-emerald-700 font-extrabold text-base select-all">{qrData.account_number}</span>
-            </div>
-            <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-1 pt-3 mt-1 border-t border-neutral-200">
-              <span className="text-neutral-500 text-xs uppercase tracking-wider font-bold">Số tiền chuyển:</span>
-              <span className="text-emerald-700 font-extrabold text-lg">
-                {Number(qrData.amount).toLocaleString("vi-VN")} VNĐ
-              </span>
-            </div>
-            <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-1 pt-3 border-t border-neutral-200">
-              <span className="text-neutral-500 text-xs uppercase tracking-wider font-bold">Nội dung chuyển khoản:</span>
-              <span className="text-emerald-800 font-extrabold bg-emerald-100 px-3 py-1.5 rounded-lg border border-emerald-200/60 select-all">
-                {qrData.transfer_content}
-              </span>
+          <div className="flex flex-col">
+            <h3 className="font-bold text-neutral-800 text-sm uppercase tracking-wider mb-5 flex items-center gap-2">
+              <CreditCard className="w-4 h-4 text-emerald-600" />
+              THÔNG TIN CHUYỂN KHOẢN
+            </h3>
+
+            <div className="w-full bg-neutral-50/80 rounded-2xl p-5 md:p-6 text-sm font-semibold text-neutral-600 flex flex-col gap-3.5 border border-neutral-100">
+              <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-1">
+                <span className="text-neutral-500 text-xs uppercase tracking-wider font-bold">Ngân hàng:</span>
+                <span className="text-neutral-800 font-bold">{qrData.bank_name}</span>
+              </div>
+              <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-1">
+                <span className="text-neutral-500 text-xs uppercase tracking-wider font-bold">Chủ tài khoản:</span>
+                <span className="text-neutral-800 font-bold uppercase">{qrData.account_name}</span>
+              </div>
+              <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-1">
+                <span className="text-neutral-500 text-xs uppercase tracking-wider font-bold">Số tài khoản:</span>
+                <span className="text-emerald-700 font-extrabold text-base select-all">{qrData.account_number}</span>
+              </div>
+              <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-1 pt-3 mt-1 border-t border-neutral-200">
+                <span className="text-neutral-500 text-xs uppercase tracking-wider font-bold">Số tiền chuyển:</span>
+                <span className="text-emerald-700 font-extrabold text-lg">
+                  {Number(qrData.amount).toLocaleString("vi-VN")} VNĐ
+                </span>
+              </div>
+              <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-1 pt-3 border-t border-neutral-200">
+                <span className="text-neutral-500 text-xs uppercase tracking-wider font-bold">Nội dung chuyển khoản:</span>
+                <span className="text-emerald-800 font-extrabold bg-emerald-100 px-3 py-1.5 rounded-lg border border-emerald-200/60 select-all">
+                  {qrData.transfer_content}
+                </span>
+              </div>
             </div>
           </div>
         )}
 
         {/* THÊM MINH CHỨNG */}
-        <div>
+        <div className="flex flex-col">
           <h3 className="font-bold text-neutral-800 text-sm uppercase tracking-wider mb-5 flex items-center gap-2">
             <Upload className="w-4 h-4 text-emerald-600" />
             GỬI MINH CHỨNG CHUYỂN KHOẢN
           </h3>
 
-          <form onSubmit={handleSubmit} className="flex flex-col gap-5">
-            <div className="grid grid-cols-1 md:grid-cols-1 gap-5">
-              {/* Ghi chú */}
-              <div className="flex flex-col gap-1.5">
-                <label className="text-xs font-bold text-neutral-500 uppercase tracking-wider">Ghi chú thêm</label>
-                <input
-                  type="text"
-                  placeholder="Nhập ghi chú (tùy chọn)..."
-                  value={note}
-                  onChange={(e) => setNote(e.target.value)}
-                  className="h-11 px-4 rounded-xl border border-neutral-200 text-sm font-semibold text-neutral-700 focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500/20 bg-neutral-50/50 hover:bg-white transition-all"
-                />
-              </div>
-            </div>
-
+          <form onSubmit={handleSubmit} className="flex flex-col gap-5 flex-1 justify-between">
             {/* Tải lên ảnh biên lai */}
-            <div className="flex flex-col gap-1.5 mt-1">
+            <div className="flex flex-col gap-1.5">
               <label className="text-xs font-bold text-neutral-500 uppercase tracking-wider">Ảnh biên lai / hóa đơn <span className="text-red-500">*</span></label>
               <div className="relative border-2 border-dashed border-neutral-200 rounded-2xl hover:border-emerald-400 hover:bg-emerald-50/30 transition-all flex flex-col items-center justify-center p-6 min-h-32 cursor-pointer group">
                 <input
@@ -199,8 +192,20 @@ export default function PaymentQrSection({ orderId, paymentType, onSuccess }) {
               </div>
             </div>
 
+            {/* Ghi chú */}
+            <div className="flex flex-col gap-1.5">
+              <label className="text-xs font-bold text-neutral-500 uppercase tracking-wider">Ghi chú thêm</label>
+              <input
+                type="text"
+                placeholder="Nhập ghi chú (tùy chọn)..."
+                value={note}
+                onChange={(e) => setNote(e.target.value)}
+                className="h-11 px-4 rounded-xl border border-neutral-200 text-sm font-semibold text-neutral-700 focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500/20 bg-neutral-50/50 hover:bg-white transition-all"
+              />
+            </div>
+
             {/* Nút gửi */}
-            <div className="flex justify-end mt-2">
+            <div className="flex justify-center mt-2">
               <button
                 type="submit"
                 disabled={submitting || !receiptFile}

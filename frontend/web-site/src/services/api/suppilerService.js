@@ -44,6 +44,9 @@ export const supplierService = {
   // ]
 
   getById: (id) => axiosClient.get(`/suppliers/${id}/`).then((res) => res.data),
+  getProductById: (id) =>
+    axiosClient.get(`/suppliers/${id}/products/`).then((res) => res.data),
+
   // {
   //   "id": 0,
   //   "account": {

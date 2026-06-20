@@ -1,6 +1,8 @@
 import { useState } from "react";
-import { Link } from "react-router-dom";
 import { useAuth } from "../../contexts/authProvider";
+import { Leaf, Lock, User, Loader2, Eye, EyeOff } from "lucide-react";
+
+// Thêm state
 
 export default function DealerLoginPage() {
     const { login } = useAuth();
@@ -8,139 +10,131 @@ export default function DealerLoginPage() {
     const [password, setPassword] = useState("");
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState("");
+    const [showPassword, setShowPassword] = useState(false);
+
 
     const handleSubmit = async (e) => {
         e.preventDefault();
         setLoading(true);
         setError("");
 
+        // Truyền role "dealer" để AuthProvider kiểm tra phân quyền
         const result = await login(username, password, "dealer");
 
         if (!result.success) {
             setError(result.message);
         }
-
         setLoading(false);
     };
 
     return (
-        <div className="flex min-h-screen w-full">
-            <div className="relative hidden flex-1 overflow-hidden bg-[#006c49] lg:flex lg:flex-col lg:justify-between lg:p-12">
-                <div
-                    className="absolute inset-0 bg-cover bg-center opacity-50"
-                    style={{
-                        backgroundImage:
-                            "url('https://vietpatservice.com/wp-content/uploads/2015/01/rau-cu-sach.jpg')",
-                        mixBlendMode: "overlay",
-                    }}
-                />
-                <div
-                    className="absolute inset-0"
-                    style={{
-                        background:
-                            "linear-gradient(0deg, rgba(0,108,73,0.92) 0%, rgba(0,108,73,0.25) 100%)",
-                    }}
-                />
+        <div className="min-h-screen flex items-center justify-center bg-gradient-to-tr from-emerald-100/40 via-stone-50 to-green-100/30 px-4 font-['Geist',sans-serif]">
 
-                <div className="relative z-10 flex items-center gap-3">
-                    <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-white">
-                        <span className="text-lg">🏪</span>
+            {/* Login Card */}
+            <div className="w-full max-w-md bg-white rounded-3xl shadow-xl border border-emerald-100/40 p-8 relative overflow-hidden">
+                {/* Decorative top green glow */}
+                <div className="absolute top-0 left-0 right-0 h-1.5 bg-gradient-to-r from-emerald-500 via-green-500 to-lime-500" />
+
+                <div className="text-center mb-8">
+                    {/* Icon leaf representing veggie green */}
+                    <div className="w-12 h-12 bg-emerald-50 rounded-2xl flex items-center justify-center mx-auto mb-4 border border-emerald-100">
+                        <Leaf className="w-6 h-6 text-emerald-600" />
                     </div>
-                    <span className="text-[20px] font-bold tracking-tight text-white">
-                        Smart Green Market
-                    </span>
-                </div>
 
-                <div className="relative z-10 max-w-md">
-                    <h1 className="mb-4 text-[34px] font-extrabold leading-tight tracking-tight text-white">
-                        Khu vực đại lý
+                    <span className="text-[10px] font-bold bg-emerald-100 text-emerald-800 px-3 py-1 rounded-full uppercase tracking-wider">
+                        Đại lý nông sản
+                    </span>
+                    <h1 className="text-2xl font-extrabold mt-3 text-emerald-950 tracking-tight">
+                        Đăng Nhập Đại Lý
                     </h1>
-                    <p className="text-sm leading-relaxed text-[#9df4c9] opacity-90">
-                        Quản lý cửa hàng, sản phẩm bán lẻ và theo dõi hoạt động
-                        kinh doanh của bạn trên nền tảng Smart Green Market.
+                    <p className="text-xs text-emerald-800/60 mt-1.5">
+                        Quản lý cửa hàng phân phối sản phẩm hữu cơ
                     </p>
                 </div>
 
-                <div className="relative z-10 text-[11px] text-white/40">
-                    © 2025 Smart Green Market
-                </div>
-            </div>
-
-            <div className="flex flex-1 items-center justify-center bg-neutral-50 px-4 py-12">
-                <form
-                    onSubmit={handleSubmit}
-                    className="w-full max-w-md rounded-2xl border border-neutral-200 bg-white p-8 shadow-xl"
-                >
-                    <div className="mb-8 text-center">
-                        <h1 className="text-3xl font-bold text-[#141b2b]">
-                            Đăng nhập
-                        </h1>
-                    </div>
-
-                    <div className="flex flex-col gap-5">
-                        <div>
-                            <label className="block text-sm font-medium text-neutral-700">
-                                Tên đăng nhập
-                            </label>
+                <form onSubmit={handleSubmit} className="space-y-5">
+                    {/* Username Input */}
+                    <div>
+                        <label className="block text-xs font-bold text-emerald-900/80 uppercase tracking-wider">
+                            Tên đăng nhập
+                        </label>
+                        <div className="relative mt-2">
+                            <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-neutral-400">
+                                <User className="w-4 h-4" />
+                            </div>
                             <input
                                 type="text"
                                 value={username}
                                 onChange={(e) => setUsername(e.target.value)}
-                                className="mt-2 h-12 w-full rounded-xl border border-neutral-300 px-4 outline-none focus:border-emerald-600 focus:ring-1 focus:ring-emerald-600"
-                                placeholder="Nhập tên đăng nhập"
+                                className="w-full h-11 pl-10 pr-4 rounded-xl border border-neutral-200 outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 transition-all text-xs text-neutral-800 font-medium"
+                                placeholder="Nhập tên đăng nhập của đại lý"
                                 required
                             />
                         </div>
+                    </div>
 
-                        <div>
-                            <label className="block text-sm font-medium text-neutral-700">
-                                Mật khẩu
-                            </label>
+                    {/* Password Input */}
+                    <div>
+                        <label className="block text-xs font-bold text-emerald-900/80 uppercase tracking-wider">
+                            Mật khẩu
+                        </label>
+                        <div className="relative mt-2">
+                            <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-neutral-400">
+                                <Lock className="w-4 h-4" />
+                            </div>
                             <input
-                                type="password"
+                                type={showPassword ? "text" : "password"}
                                 value={password}
                                 onChange={(e) => setPassword(e.target.value)}
-                                className="mt-2 h-12 w-full rounded-xl border border-neutral-300 px-4 outline-none focus:border-emerald-600 focus:ring-1 focus:ring-emerald-600"
+                                className="w-full h-11 pl-10 pr-4 rounded-xl border border-neutral-200 outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 transition-all text-xs text-neutral-800 font-medium"
                                 placeholder="Nhập mật khẩu"
                                 required
                             />
+                            {/* Icon mắt */}
+                            <button
+                                type="button"
+                                onClick={() => setShowPassword(!showPassword)}
+                                className="absolute inset-y-0 right-0 pr-3.5 flex items-center text-neutral-400 hover:text-neutral-600"
+                            >
+                                {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                            </button>
                         </div>
 
-                        {error ? (
-                            <div className="rounded-lg bg-red-50 p-3 text-center text-sm text-red-600">
-                                {error}
-                            </div>
-                        ) : null}
-
-                        <button
-                            type="submit"
-                            disabled={loading}
-                            className={`h-12 rounded-xl font-semibold text-white transition-colors ${
-                                loading
-                                    ? "cursor-not-allowed bg-emerald-400"
-                                    : "bg-emerald-700 hover:bg-emerald-800"
-                            }`}
-                        >
-                            {loading ? "Đang xử lý..." : "Đăng nhập"}
-                        </button>
                     </div>
 
-                    <p className="mt-6 text-center text-sm text-neutral-500">
-                        Chưa có tài khoản?{" "}
-                        <Link
-                            to="/dai-ly/dang-ky"
-                            className="font-semibold text-emerald-700 no-underline hover:text-emerald-800"
-                        >
-                            Đăng ký đại lý
-                        </Link>
-                    </p>
+                    {/* Error Message */}
+                    {error && (
+                        <div className="text-xs text-red-600 bg-red-50 border border-red-100 p-3.5 rounded-xl text-center font-bold">
+                            {error}
+                        </div>
+                    )}
 
-                    <p className="mt-3 text-center text-sm text-neutral-400">
-                        <Link to="/" className="text-neutral-500 no-underline hover:text-neutral-700">
-                            ← Về trang chủ
-                        </Link>
-                    </p>
+                    {/* Login Button */}
+                    <button
+                        type="submit"
+                        disabled={loading}
+                        className={`w-full h-11 rounded-xl text-white font-bold transition-all shadow-md active:scale-[0.98] cursor-pointer flex items-center justify-center gap-2 ${loading
+                            ? "bg-emerald-600/50 cursor-not-allowed"
+                            : "bg-emerald-700 hover:bg-emerald-800 shadow-emerald-100"
+                            }`}
+                    >
+                        {loading ? (
+                            <>
+                                <Loader2 className="w-4 h-4 animate-spin" />
+                                Đang xử lý...
+                            </>
+                        ) : (
+                            "Đăng nhập"
+                        )}
+                    </button>
                 </form>
+
+                {/* Footer note */}
+                <div className="mt-8 text-center border-t border-neutral-100 pt-6">
+                    <p className="text-[10px] text-neutral-400">
+                        Hệ thống cung ứng thực phẩm an toàn GreenMarket
+                    </p>
+                </div>
             </div>
         </div>
     );

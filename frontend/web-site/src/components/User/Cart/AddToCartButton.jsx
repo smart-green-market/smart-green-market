@@ -1,6 +1,6 @@
 import { ShoppingCart } from "lucide-react";
 import { useCart } from "../../../contexts/cartProvider";
-import { appToast } from "../../common/toast";
+import { showAddToCartFeedback } from "../../../utils/cartAddFeedback";
 
 export default function AddToCartButton({
     product,
@@ -15,11 +15,13 @@ export default function AddToCartButton({
     const handleClick = (event) => {
         event.preventDefault();
         event.stopPropagation();
-        addToCart(product, quantity);
-        if (showToast) {
-            appToast.success("Đã thêm vào giỏ hàng");
+
+        const result = addToCart(product, quantity);
+        showAddToCartFeedback(result, { showToast });
+
+        if (result.added) {
+            onAdded?.();
         }
-        onAdded?.();
     };
 
     return (

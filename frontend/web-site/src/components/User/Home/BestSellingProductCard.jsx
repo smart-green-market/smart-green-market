@@ -1,5 +1,7 @@
 import { Link } from "react-router-dom";
 import AddToCartButton from "../Cart/AddToCartButton";
+import { useStorefrontPaths } from "../../../hooks/useStorefrontPaths";
+import ProductImage from "../Product/ProductImage";
 
 export default function BestSellingProductCard({
     id,
@@ -10,17 +12,18 @@ export default function BestSellingProductCard({
     priceValue = 0,
     unitKey = "kg",
 }) {
+    const paths = useStorefrontPaths();
     const content = (
         <div className="mt-5 mb-5 relative flex w-64 shrink-0 flex-col overflow-hidden rounded-2xl border border-stone-100 bg-white shadow-sm transition-all duration-200 hover:-translate-y-1 hover:shadow-md">
             <span className="absolute left-3 top-3 z-10 rounded-full bg-orange-400 px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-white">
                 Bán chạy
             </span>
 
-            <div className="overflow-hidden">
-                <img
-                    src={image || "https://placehold.co/282x212"}
+            <div className="overflow-hidden bg-zinc-50">
+                <ProductImage
+                    src={image}
                     alt={name}
-                    className="h-60 w-full object-cover transition-transform duration-300 hover:scale-105"
+                    className="h-60 w-full transition-transform duration-300 hover:scale-[1.03]"
                 />
             </div>
 
@@ -42,7 +45,7 @@ export default function BestSellingProductCard({
 
     if (id) {
         return (
-            <Link to={`/san-pham/${id}`} className="no-underline">
+            <Link to={paths.product(id)} className="no-underline">
                 {content}
             </Link>
         );

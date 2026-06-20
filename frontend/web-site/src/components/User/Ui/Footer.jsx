@@ -1,50 +1,85 @@
+import { Link } from "react-router-dom";
 import { FaFacebook, FaInstagram, FaYoutube } from "react-icons/fa";
+import { useStorefrontPaths } from "../../../hooks/useStorefrontPaths";
 
 export default function Footer() {
-    return (
-        <footer className="w-full bg-white border-t border-stone-200 mt-16">
-            <div className="max-w-[1280px] mx-auto px-10 py-12 flex flex-wrap justify-between gap-10">
+    const paths = useStorefrontPaths();
 
-                {/* Brand */}
-                <div className="max-w-xs flex flex-col gap-4">
-                    <span className="text-emerald-950 text-2xl font-bold font-serif">GreenMarket</span>
+    const policyLinks = [
+        { label: "Chính sách đổi trả", hash: "doi-tra" },
+        { label: "Chính sách bảo mật", hash: "bao-mat" },
+        { label: "Điều khoản sử dụng", hash: "dieu-khoan" },
+    ];
+
+    const supportLinks = [
+        { label: "Hotline CSKH", hash: "hotline" },
+        { label: "Hướng dẫn mua hàng", hash: "huong-dan-mua-hang" },
+        { label: "FAQ", hash: "faq" },
+    ];
+
+    return (
+        <footer className="mt-16 w-full border-t border-stone-200 bg-white">
+            <div className="mx-auto flex max-w-[1280px] flex-wrap justify-between gap-10 px-4 py-12 sm:px-10">
+                <div className="flex max-w-xs flex-col gap-4">
+                    <span className="font-serif text-2xl font-bold text-emerald-950">
+                        GreenMarket
+                    </span>
                     © 2026 Smart Green Market
-                    <p className="text-neutral-600 text-sm leading-6">
+                    <p className="text-sm leading-6 text-neutral-600">
                         Nền tảng mua bán rau sạch trực tiếp từ vườn đến bàn ăn của bạn.
                     </p>
                     <div className="flex gap-3 pt-1">
-                        <a href="#" className="w-9 h-9 bg-zinc-100 rounded-full flex items-center justify-center hover:bg-emerald-100 hover:text-emerald-700 transition-colors text-zinc-600">
-                            <FaFacebook className="w-4 h-4" />
+                        <a
+                            href="#"
+                            className="flex h-9 w-9 items-center justify-center rounded-full bg-zinc-100 text-zinc-600 transition-colors hover:bg-emerald-100 hover:text-emerald-700"
+                        >
+                            <FaFacebook className="h-4 w-4" />
                         </a>
-                        <a href="#" className="w-9 h-9 bg-zinc-100 rounded-full flex items-center justify-center hover:bg-emerald-100 hover:text-emerald-700 transition-colors text-zinc-600">
-                            <FaInstagram className="w-4 h-4" />
+                        <a
+                            href="#"
+                            className="flex h-9 w-9 items-center justify-center rounded-full bg-zinc-100 text-zinc-600 transition-colors hover:bg-emerald-100 hover:text-emerald-700"
+                        >
+                            <FaInstagram className="h-4 w-4" />
                         </a>
-                        <a href="#" className="w-9 h-9 bg-zinc-100 rounded-full flex items-center justify-center hover:bg-emerald-100 hover:text-emerald-700 transition-colors text-zinc-600">
-                            <FaYoutube className="w-4 h-4" />
+                        <a
+                            href="#"
+                            className="flex h-9 w-9 items-center justify-center rounded-full bg-zinc-100 text-zinc-600 transition-colors hover:bg-emerald-100 hover:text-emerald-700"
+                        >
+                            <FaYoutube className="h-4 w-4" />
                         </a>
                     </div>
                 </div>
 
-                {/* Links */}
-                <div className="flex gap-16">
+                <div className="flex gap-12 sm:gap-16">
                     <div className="flex flex-col gap-3">
-                        <span className="text-emerald-950 text-sm font-bold">Chính sách</span>
-                        <a href="#" className="text-neutral-600 text-sm hover:text-emerald-700 transition-colors">Chính sách đổi trả</a>
-                        <a href="#" className="text-neutral-600 text-sm hover:text-emerald-700 transition-colors">Chính sách bảo mật</a>
-                        <a href="#" className="text-neutral-600 text-sm hover:text-emerald-700 transition-colors">Điều khoản sử dụng</a>
+                        <span className="text-sm font-bold text-emerald-950">Chính sách</span>
+                        {policyLinks.map((item) => (
+                            <Link
+                                key={item.hash}
+                                to={`${paths.policies}#${item.hash}`}
+                                className="text-sm text-neutral-600 no-underline transition-colors hover:text-emerald-700"
+                            >
+                                {item.label}
+                            </Link>
+                        ))}
                     </div>
                     <div className="flex flex-col gap-3">
-                        <span className="text-emerald-950 text-sm font-bold">Hỗ Trợ</span>
-                        <a href="#" className="text-neutral-600 text-sm hover:text-emerald-700 transition-colors">Hotline CSKH</a>
-                        <a href="#" className="text-neutral-600 text-sm hover:text-emerald-700 transition-colors">Hướng dẫn mua hàng</a>
-                        <a href="#" className="text-neutral-600 text-sm hover:text-emerald-700 transition-colors">FAQ</a>
+                        <span className="text-sm font-bold text-emerald-950">Hỗ Trợ</span>
+                        {supportLinks.map((item) => (
+                            <Link
+                                key={item.hash}
+                                to={`${paths.support}#${item.hash}`}
+                                className="text-sm text-neutral-600 no-underline transition-colors hover:text-emerald-700"
+                            >
+                                {item.label}
+                            </Link>
+                        ))}
                     </div>
                 </div>
             </div>
 
-            {/* Copyright */}
             <div className="border-t border-stone-200 py-5 text-center">
-                <span className="text-neutral-400 text-sm">Smart Green Market</span>
+                <span className="text-sm text-neutral-400">Smart Green Market</span>
             </div>
         </footer>
     );
