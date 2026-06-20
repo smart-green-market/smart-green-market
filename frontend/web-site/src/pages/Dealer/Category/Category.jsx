@@ -79,7 +79,7 @@ export default function DealerCategoryPage() {
             };
             const response = await categoryService.create(dataToCreate);
             const newCat = response?.data || response;
-            
+
             const mappedCat = {
                 ...newCat,
                 code: newCat.id ? `CAT-${newCat.id}` : `CAT-${Math.floor(Math.random() * 1000)}`,
@@ -110,14 +110,22 @@ export default function DealerCategoryPage() {
         try {
             await categoryService.delete(id);
             toast.success("Xóa danh mục thành công!");
-            
+
             fetchCategories();
         } catch (error) {
             console.log(error);
             toast.error(handleApiError(error, "Không thể xóa danh mục"));
-            
+
         }
     };
+
+    if (isLoading) {
+        return (
+            <div className="p-6 bg-emerald-50/15 min-h-screen flex justify-center items-center">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-emerald-600"></div>
+            </div>
+        );
+    }
 
     return (
         <div className="p-6 bg-emerald-50/15 min-h-screen font-['Geist',sans-serif]">
@@ -155,19 +163,13 @@ export default function DealerCategoryPage() {
                 </div>
             )}
 
-            {isLoading ? (
-                <div className="flex justify-center items-center py-16">
-                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-emerald-600"></div>
-                </div>
-            ) : (
-                /* Grid layout for categories */
-                <CategoryGrid
-                    categories={filteredCategories}
-                    onViewDetail={handleViewDetail}
-                    onUpdate={(cat) => setCategoryToUpdate(cat)}
-                    onDelete={handleDeleteCategory}
-                />
-            )}
+            {/* Grid layout for categories */}
+            <CategoryGrid
+                categories={filteredCategories}
+                onViewDetail={handleViewDetail}
+                onUpdate={(cat) => setCategoryToUpdate(cat)}
+                onDelete={handleDeleteCategory}
+            />
 
             {/* Create Category Modal */}
             {isCreateModalOpen && (

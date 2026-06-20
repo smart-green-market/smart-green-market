@@ -34,7 +34,9 @@ export const dealerOrderService = {
 
   startProcessing: async (id) => {
     try {
-      const res = await axiosClient.post(`/customer-orders/${id}/start-processing/`);
+      const res = await axiosClient.post(
+        `/customer-orders/${id}/start-processing/`,
+      );
       return res.data;
     } catch (error) {
       console.error("Lỗi chuyển trạng thái đang chuẩn bị hàng", error);
@@ -50,7 +52,7 @@ export const dealerOrderService = {
       console.error("Lỗi chuyển trạng thái giao hàng", error);
       throw error;
     }
-  }
+  },
 };
 
 export const handleApiError = (error, defaultMessage = "Có lỗi xảy ra") => {

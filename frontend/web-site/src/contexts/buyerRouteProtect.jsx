@@ -22,7 +22,10 @@ export default function BuyerRouteProtect() {
             <Navigate
                 to={paths.login}
                 replace
-                state={{ from: `${location.pathname}${location.search}` }}
+                state={{
+                    from: `${location.pathname}${location.search}`,
+                    buyNow: location.state?.buyNow,
+                }}
             />
         );
     }

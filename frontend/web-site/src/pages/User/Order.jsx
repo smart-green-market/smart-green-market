@@ -1,11 +1,12 @@
 import { useEffect, useMemo, useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import { ArrowLeft } from "lucide-react";
 import OrderInfoCard from "../../components/User/Order/OrderInfoCard";
 import CheckoutAddressSection from "../../components/User/Order/CheckoutAddressSection";
 import OrderDeliverySection from "../../components/User/Order/OrderDeliverySection";
 import OrderVoucherSection from "../../components/User/Order/OrderVoucherSection";
 import OrderNoteSection from "../../components/User/Order/OrderNoteSection";
+import OrderConfirmModal from "../../components/User/Order/OrderConfirmModal";
 import PaymentSummaryCard from "../../components/User/Order/PaymentSummaryCard";
 import AddressFormModal from "../../components/User/Profile/AddressFormModal";
 import { appToast } from "../../components/common/toast";
@@ -19,18 +20,23 @@ import {
 import {
     buildCreateOrderPayload,
     CHECKOUT_SHIPPING_FEE,
+    findFirstAvailableDeliverySelection,
+    isDeliverySlotAvailable,
     parseDeliverySlots,
 } from "../../utils/buyerOrderUtils";
 
 export default function OrderPage() {
     const navigate = useNavigate();
+    const location = useLocation();
     const paths = useStorefrontPaths();
     const { items: cartItems, removeItem } = useCart();
 
-    const checkoutItems = useMemo(
-        () => cartItems.filter((item) => item.selected),
-        [cartItems],
-    );
+    const buyNowItem = location.state?.buyNow ?? null;
+
+    const checkoutItems = useMemo(() => {
+        if (buyNowItem) return [buyNowItem];
+        return cartItems.filter((item) => item.selected);
+    }, [buyNowItem, cartItems]);
 
     const {
         addresses,
@@ -54,6 +60,7 @@ export default function OrderPage() {
     const [submitting, setSubmitting] = useState(false);
     const [pageError, setPageError] = useState("");
     const [addressModalOpen, setAddressModalOpen] = useState(false);
+    const [confirmOpen, setConfirmOpen] = useState(false);
 
     const subtotal = useMemo(
         () =>
@@ -76,6 +83,21 @@ export default function OrderPage() {
             })),
         [checkoutItems],
     );
+
+    const selectedAddress = useMemo(
+        () => addresses.find((item) => item.id === selectedAddressId) ?? null,
+        [addresses, selectedAddressId],
+    );
+
+    const selectedDeliveryDate = useMemo(
+        () => deliveryDates.find((item) => item.date === selectedDate) ?? null,
+        [deliveryDates, selectedDate],
+    );
+
+    const selectedDeliverySlotName = useMemo(() => {
+        const slot = selectedDeliveryDate?.slots?.find((item) => item.id === selectedSlot);
+        return slot?.name ?? "";
+    }, [selectedDeliveryDate, selectedSlot]);
 
     useEffect(() => {
         if (checkoutItems.length === 0) return;
@@ -110,8 +132,9 @@ export default function OrderPage() {
                 setDeliveryError("");
 
                 if (dates.length) {
-                    setSelectedDate(dates[0].date);
-                    setSelectedSlot(dates[0].slots[0]?.id ?? "");
+                    const { date, slotId } = findFirstAvailableDeliverySelection(dates);
+                    setSelectedDate(date);
+                    setSelectedSlot(slotId);
                 }
             })
             .catch((err) => {
@@ -133,7 +156,8 @@ export default function OrderPage() {
     const handleSelectDate = (date) => {
         setSelectedDate(date);
         const entry = deliveryDates.find((item) => item.date === date);
-        setSelectedSlot(entry?.slots[0]?.id ?? "");
+        const firstAvailable = entry?.slots.find((slot) => slot.available);
+        setSelectedSlot(firstAvailable?.id ?? entry?.slots[0]?.id ?? "");
     };
 
     const handleCreateAddress = async (form) => createAddress(form);
@@ -143,7 +167,13 @@ export default function OrderPage() {
         selectedAddressId != null &&
         selectedDate &&
         selectedSlot &&
+        isDeliverySlotAvailable(deliveryDates, selectedDate, selectedSlot) &&
         !submitting;
+
+    const handleOpenConfirm = () => {
+        if (!canSubmit) return;
+        setConfirmOpen(true);
+    };
 
     const handlePlaceOrder = async () => {
         if (!canSubmit || !paths.slug) return;
@@ -162,8 +192,14 @@ export default function OrderPage() {
 
             const order = await buyerOrder.create(paths.slug, payload);
 
-            checkoutItems.forEach((item) => removeItem(item.id));
+            checkoutItems.forEach((item) => {
+                const inCart = cartItems.some(
+                    (cartItem) => String(cartItem.id) === String(item.id),
+                );
+                if (inCart) removeItem(item.id);
+            });
 
+            setConfirmOpen(false);
             appToast.success("Đặt hàng thành công");
             navigate(paths.orderStatus, {
                 replace: true,
@@ -173,6 +209,7 @@ export default function OrderPage() {
             const message = handleOrderApiError(err, "Đặt hàng không thành công");
             setPageError(message);
             appToast.warning(message);
+            throw err;
         } finally {
             setSubmitting(false);
         }
@@ -221,11 +258,11 @@ export default function OrderPage() {
                     </p>
                 </div>
                 <Link
-                    to={paths.cart}
+                    to={buyNowItem ? paths.product(buyNowItem.id) : paths.cart}
                     className="inline-flex items-center gap-2 text-sm font-semibold text-teal-800 no-underline hover:text-teal-900"
                 >
                     <ArrowLeft className="h-4 w-4" />
-                    Quay lại giỏ hàng
+                    {buyNowItem ? "Quay lại sản phẩm" : "Quay lại giỏ hàng"}
                 </Link>
             </div>
 
@@ -284,10 +321,26 @@ export default function OrderPage() {
                         discount={0}
                         submitting={submitting}
                         disabled={!canSubmit}
-                        onPay={handlePlaceOrder}
+                        onPay={handleOpenConfirm}
                     />
                 </div>
             </div>
+
+            <OrderConfirmModal
+                open={confirmOpen}
+                onClose={() => {
+                    if (!submitting) setConfirmOpen(false);
+                }}
+                onConfirm={handlePlaceOrder}
+                submitting={submitting}
+                itemCount={checkoutItems.length}
+                subtotal={subtotal}
+                shippingFee={CHECKOUT_SHIPPING_FEE}
+                deliveryLabel={selectedDeliveryDate?.label ?? ""}
+                deliverySlotName={selectedDeliverySlotName}
+                address={selectedAddress}
+                note={note}
+            />
 
             <AddressFormModal
                 open={addressModalOpen}

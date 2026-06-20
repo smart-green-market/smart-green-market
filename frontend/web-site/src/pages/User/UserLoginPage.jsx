@@ -77,10 +77,14 @@ export default function UserLoginPage() {
         }
 
         syncSession?.();
+        const buyNow = location.state?.buyNow;
         const redirectTo =
             location.state?.from ||
             `/cua-hang/${encodeURIComponent(dealerSlug)}/trang-chu`;
-        navigate(redirectTo, { replace: true });
+        navigate(redirectTo, {
+            replace: true,
+            ...(buyNow ? { state: { buyNow } } : {}),
+        });
         setLoading(false);
     };
 
