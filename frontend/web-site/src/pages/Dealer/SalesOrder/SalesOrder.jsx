@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { ShoppingCart, Plus, CheckCircle2, Truck, Printer } from "lucide-react";
+import { ShoppingCart, Plus, CheckCircle2, Truck, Printer, Package } from "lucide-react";
 import SupplierFilter from "../../../components/Dealer/Supplier/SupplierFilter";
 import SalesOrderList from "../../../components/Dealer/SalesOrder/SalesOrderList";
 import SalesOrderStatsCards from "../../../components/Dealer/SalesOrder/SalesOrderStatsCards";
@@ -162,17 +162,38 @@ export default function DealerSalesOrderPage() {
         }
     };
 
-    const handleBulkDeliver = () => {
-        const selectedIds = selectedRows.map(r => r.id);
-        setSalesOrders(prev => prev.map(order => {
-            // "Đang chuẩn bị hàng" -> "Đang giao hàng"
-            if (selectedIds.includes(order.id) && (order.status === "Đang chuẩn bị hàng" || order.status === "Chờ xác nhận")) {
-                return { ...order, status: "Đang giao hàng", delivery: "Đang giao hàng" };
-            }
-            return order;
-        }));
-        setClearSelectedToggle(!clearSelectedToggle);
-        setSelectedRows([]);
+    const handleBulkStartProcessing = async () => {
+        try {
+            const processPromises = selectedRows
+                .filter(row => row.status === "Đã xác nhận")
+                .map(row => dealerOrderService.startProcessing(row.originalData.id));
+                
+            await Promise.all(processPromises);
+            
+            await fetchOrders();
+            setClearSelectedToggle(!clearSelectedToggle);
+            setSelectedRows([]);
+        } catch (error) {
+            console.error("Lỗi khi chuẩn bị hàng đồng loạt", error);
+            alert("Có lỗi xảy ra khi chuyển trạng thái chuẩn bị hàng");
+        }
+    };
+
+    const handleBulkDeliver = async () => {
+        try {
+            const shipPromises = selectedRows
+                .filter(row => row.status === "Đang chuẩn bị hàng")
+                .map(row => dealerOrderService.shipOrder(row.originalData.id));
+                
+            await Promise.all(shipPromises);
+            
+            await fetchOrders();
+            setClearSelectedToggle(!clearSelectedToggle);
+            setSelectedRows([]);
+        } catch (error) {
+            console.error("Lỗi khi giao hàng đồng loạt", error);
+            alert("Có lỗi xảy ra khi bắt đầu giao hàng đồng loạt");
+        }
     };
 
     const handleBulkPrint = () => {
@@ -227,6 +248,7 @@ export default function DealerSalesOrderPage() {
                     <>
                         {selectedRows.length > 0 && (() => {
                     const hasPendingConfirmation = selectedRows.some(r => (r.status || r.delivery) === "Chờ xác nhận");
+                    const hasConfirmed = selectedRows.some(r => (r.status || r.delivery) === "Đã xác nhận");
                     const hasPreparing = selectedRows.some(r => (r.status || r.delivery) === "Đang chuẩn bị hàng");
                     
                     return (
@@ -243,10 +265,18 @@ export default function DealerSalesOrderPage() {
                                         <CheckCircle2 className="w-4 h-4" /> Xác nhận đơn hàng
                                     </button>
                                 )}
+                                {hasConfirmed && (
+                                    <button 
+                                        onClick={handleBulkStartProcessing}
+                                        className="px-4 py-2 bg-amber-500 hover:bg-amber-600 text-white rounded-xl text-xs font-bold transition-all shadow-sm flex items-center gap-2"
+                                    >
+                                        <Package className="w-4 h-4" /> Chuẩn bị hàng
+                                    </button>
+                                )}
                                 {hasPreparing && (
                                     <button 
                                         onClick={handleBulkDeliver}
-                                        className="px-4 py-2 bg-amber-500 hover:bg-amber-600 text-white rounded-xl text-xs font-bold transition-all shadow-sm flex items-center gap-2"
+                                        className="px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-xl text-xs font-bold transition-all shadow-sm flex items-center gap-2"
                                     >
                                         <Truck className="w-4 h-4" /> Giao hàng
                                     </button>
