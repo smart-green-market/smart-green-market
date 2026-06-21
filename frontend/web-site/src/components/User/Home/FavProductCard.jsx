@@ -1,6 +1,8 @@
 import { Link } from "react-router-dom";
 import AddToCartButton from "../Cart/AddToCartButton";
 import { useStorefrontPaths } from "../../../hooks/useStorefrontPaths";
+import ProductCardMeta from "../Product/ProductCardMeta";
+import ProductCardCategoryLabel from "../Product/ProductCardCategoryLabel";
 
 export default function FavProductCard({
     id,
@@ -10,6 +12,9 @@ export default function FavProductCard({
     image,
     priceValue = 0,
     unitKey = "kg",
+    category_name = "",
+    available_quantity = 0,
+    in_stock = true,
 }) {
     const paths = useStorefrontPaths();
     const content = (
@@ -24,8 +29,17 @@ export default function FavProductCard({
             </div>
 
             <div className="flex flex-col gap-2 p-4">
+                <ProductCardCategoryLabel label={category_name} />
                 <span className="line-clamp-2 text-sm font-medium text-zinc-800">{name}</span>
+                <ProductCardMeta
+                    availableQuantity={available_quantity}
+                    unit={unit}
+                    inStock={in_stock}
+                />
                 <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3 text-xs text-neutral-500">
+                    <span>{rating} ★</span>
+                </div>
                     <div className="flex items-baseline gap-1">
                         <span className="text-base font-bold text-emerald-800">{price}</span>
                         <span className="text-xs text-neutral-400">{unit}</span>

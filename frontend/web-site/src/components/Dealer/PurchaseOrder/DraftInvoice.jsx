@@ -49,9 +49,7 @@ export default function DraftInvoice({
                 </div>
                 <div className="flex flex-col items-end gap-1">
                   <span className="font-bold text-neutral-800 text-xs">
-                    {subtotal >= 1000000
-                      ? `${(subtotal / 1000000).toFixed(2)}M`
-                      : `${subtotal.toLocaleString("vi-VN")} đ`}
+                    {subtotal.toLocaleString("vi-VN")} đ
                   </span>
                   <button
                     onClick={() => onRemoveItem(product.id)}

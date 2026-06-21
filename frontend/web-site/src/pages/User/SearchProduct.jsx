@@ -135,10 +135,12 @@ export default function SearchProductPage() {
                             key={product.id}
                             id={product.id}
                             brand={product.brand}
+                            categoryName={product.category_name}
                             name={product.name}
                             price={product.price}
                             rating={product.rating}
-                            sold={product.available_quantity}
+                            availableQuantity={product.available_quantity}
+                            unit={product.unit}
                             inStock={product.in_stock}
                             image={product.image}
                         />
