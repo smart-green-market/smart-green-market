@@ -48,14 +48,14 @@ function ProductActionCell({
         )}
       </div>
 
-      <div className={ACTION_SLOT_CLASS}>
+      {/* <div className={ACTION_SLOT_CLASS}>
         <SupplierActionButton
           label="Xóa"
           variant="danger"
           onClick={() => onDelete(row)}
           className="w-full"
         />
-      </div>
+      </div> */}
     </div>
   );
 }
