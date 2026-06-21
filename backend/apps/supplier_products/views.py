@@ -1,7 +1,7 @@
 """API ViewSet quản lý sản phẩm, ảnh sản phẩm và quy trình canh tác."""
 
 from django.utils import timezone
-from drf_spectacular.utils import OpenApiParameter, extend_schema, extend_schema_view
+from drf_spectacular.utils import OpenApiExample, OpenApiParameter, extend_schema, extend_schema_view
 from rest_framework import status, viewsets
 from rest_framework.exceptions import ValidationError
 from rest_framework.decorators import action
@@ -69,7 +69,49 @@ from .serializer import (
         summary="Chi tiết sản phẩm",
         responses={200: SupplierProductListSerializer},
     ),
-    create=extend_schema(tags=["Supplier Products"], summary="Tạo sản phẩm mới"),
+    create=extend_schema(
+        tags=["Supplier Products"],
+        summary="Tạo sản phẩm mới",
+        description=(
+            "### Trường hợp 1 — Danh mục hệ thống\n"
+            "1. `GET /api/product-masters/?category_id=` — chọn sản phẩm chuẩn\n"
+            "2. Gửi `category` (system) + `product_master` + giá/ảnh/mô tả\n"
+            "3. **Không** gửi `name`/`unit` — backend lấy từ master\n\n"
+            "### Trường hợp 2 — Danh mục riêng\n"
+            "1. Gửi `category` (custom) + `name` + `unit` + giá/ảnh/mô tả\n"
+            "2. `product_master` **tuỳ chọn** (link catalog để thống kê/so sánh giá)\n"
+            "3. Dealer catalog hiển thị **`name`** NCC\n\n"
+            "**Dropdown master trống?** Dùng trường hợp 2 — admin tự thêm master qua "
+            "`POST /api/product-masters/` khi cần chuẩn hóa.\n\n"
+            "`daily_production_capacity` = năng lực SX/ngày — **không phải tồn kho**."
+        ),
+        examples=[
+            OpenApiExample(
+                "Trường hợp 1 — danh mục system + Product Master",
+                value={
+                    "category": 1,
+                    "product_master": 5,
+                    "wholesale_price": "20000.00",
+                    "daily_production_capacity": "100.00",
+                    "description": "Cà chua nhà kính",
+                },
+                request_only=True,
+            ),
+            OpenApiExample(
+                "Trường hợp 2 — danh mục riêng + tên tự do",
+                value={
+                    "category": 12,
+                    "name": "Cà chua bi nhà kính loại A",
+                    "unit": "kg",
+                    "product_master": 5,
+                    "wholesale_price": "35000.00",
+                    "daily_production_capacity": "50.00",
+                    "description": "Giống cherry",
+                },
+                request_only=True,
+            ),
+        ],
+    ),
     update=extend_schema(tags=["Supplier Products"], summary="Cập nhật sản phẩm"),
     partial_update=extend_schema(tags=["Supplier Products"], summary="Cập nhật một phần"),
     destroy=extend_schema(tags=["Supplier Products"], summary="Xóa sản phẩm"),

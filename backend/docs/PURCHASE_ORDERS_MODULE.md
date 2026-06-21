@@ -180,7 +180,7 @@ Migrations:
 | Method | Endpoint | Role | Mô tả |
 |--------|----------|------|--------|
 | GET | `/api/purchase-orders/` | Admin / Supplier / Dealer | Danh sách (lọc theo role) |
-| POST | `/api/purchase-orders/` | Dealer | Tạo phiếu nhập |
+| POST | `/api/purchase-orders/` | Dealer | Tạo phiếu nhập (tự tách theo NCC nếu giỏ nhiều NCC) |
 | GET | `/api/purchase-orders/{id}/` | Admin / Supplier / Dealer | Chi tiết (+ bank NCC, items, payments, history) |
 | POST | `/api/purchase-orders/{id}/confirm/` | Supplier | Xác nhận (+ `deposit_percent`, mặc định 30%) |
 | POST | `/api/purchase-orders/{id}/reject/` | Supplier | Từ chối (`rejection_reason`) |
@@ -207,7 +207,6 @@ Migrations:
 
 ```json
 {
-  "supplier_id": 1,
   "delivery_address": "123 Kho DL, Q1, HCM",
   "requested_delivery_time": "2026-06-15T08:00:00+07:00",
   "receiver_name": "Nguyen Van A",
@@ -215,10 +214,12 @@ Migrations:
   "note": "Giao buổi sáng",
   "items": [
     { "supplier_product_id": 5, "quantity": "50", "note": "" },
-    { "supplier_product_id": 8, "quantity": "100" }
+    { "supplier_product_id": 12, "quantity": "30", "note": "" }
   ]
 }
 ```
+
+Response: `{ "orders": [ {...}, {...} ] }` — mỗi NCC một phiếu. `supplier_id` optional (legacy một NCC).
 
 ## 7. Tài liệu UI & VietQR
 

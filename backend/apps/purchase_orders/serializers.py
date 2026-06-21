@@ -30,7 +30,7 @@ from .models import (
 
 class PurchaseOrderItemWriteSerializer(serializers.Serializer):
     supplier_product_id = serializers.IntegerField(
-        help_text="ID sản phẩm NCC (SupplierProduct) — phải thuộc supplier được chọn",
+        help_text="ID từ `GET /api/supplier-products/` — backend tự nhóm theo NCC",
     )
     quantity = serializers.DecimalField(
         max_digits=12,
@@ -384,7 +384,9 @@ class PurchaseOrderDetailSerializer(serializers.ModelSerializer):
 
 class PurchaseOrderCreateSerializer(serializers.Serializer):
     supplier_id = serializers.IntegerField(
-        help_text="ID hồ sơ NCC — đại lý chọn nhà cung cấp",
+        required=False,
+        allow_null=True,
+        help_text="Không bắt buộc — bỏ trống khi giỏ có nhiều NCC",
     )
     delivery_address = serializers.CharField(
         help_text="Địa chỉ nhận hàng đầy đủ",
@@ -411,7 +413,7 @@ class PurchaseOrderCreateSerializer(serializers.Serializer):
     )
     items = PurchaseOrderItemWriteSerializer(
         many=True,
-        help_text="Danh sách sản phẩm — ít nhất 1 dòng",
+        help_text="Giỏ hàng — có thể trộn SP nhiều NCC; mỗi NCC thành 1 phiếu riêng",
     )
 
     def validate_items(self, value):
@@ -420,6 +422,8 @@ class PurchaseOrderCreateSerializer(serializers.Serializer):
         return value
 
     def validate_supplier_id(self, value):
+        if value is None:
+            return None
         try:
             supplier = Supplier.objects.select_related("account").get(pk=value)
         except Supplier.DoesNotExist as exc:
@@ -464,13 +468,20 @@ class PurchaseOrderCreateSerializer(serializers.Serializer):
                 "note",
             )
         }
-        return services.create_purchase_order(
+        return services.create_purchase_orders(
             dealer_profile=user.dealer_profile,
-            supplier=Supplier.objects.get(pk=validated_data["supplier_id"]),
             delivery_data=delivery_data,
             items_data=items_data,
             user=user,
+            forced_supplier_id=validated_data.get("supplier_id"),
         )
+
+
+class PurchaseOrderBatchCreateResponseSerializer(serializers.Serializer):
+    orders = PurchaseOrderDetailSerializer(
+        many=True,
+        help_text="Mỗi phần tử = 1 phiếu / 1 NCC — xử lý luồng confirm/TT riêng theo `id`",
+    )
 
 
 class SupplierConfirmSerializer(serializers.Serializer):

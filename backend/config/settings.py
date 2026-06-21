@@ -105,6 +105,7 @@ INSTALLED_APPS = [
     "apps.accounts",
     "apps.suppliers",
     "apps.categories",
+    "apps.product_catalog",
     "apps.supplier_products",
     "apps.dealers",
     "apps.dealer_products",
@@ -149,6 +150,12 @@ SIMPLE_JWT = {
     "AUTH_HEADER_TYPES": ("Bearer",),
 }
 
+from common.purchase_orders_swagger import PURCHASE_ORDERS_TAG_DESCRIPTION
+from common.reviews_swagger import (
+    DEALER_PRODUCT_REVIEWS_TAG_DESCRIPTION,
+    STOREFRONT_REVIEWS_TAG_DESCRIPTION,
+)
+
 SPECTACULAR_SETTINGS = {
     "TITLE": "Smart Green Market API",
     "DESCRIPTION": (
@@ -176,13 +183,11 @@ SPECTACULAR_SETTINGS = {
         "2. Duyệt giấy tờ từng file\n"
         "3. `POST /api/dealers/{id}/verify/` với `{ \"status\": \"active\" }`\n\n"
         "## Luồng đại lý tạo phiếu nhập\n"
-        "1. `GET /api/suppliers/` — danh sách NCC đã duyệt (dealer catalog)\n"
-        "2. `GET /api/suppliers/{supplier_id}/` — chi tiết NCC (liên hệ, chứng nhận, quy mô)\n"
-        "3. `GET /api/suppliers/{supplier_id}/products/` — chọn sản phẩm đặt hàng\n"
-        "4. `GET /api/purchase-order-config/` — min/max tiền đơn, % cọc, ngày giao\n"
-        "5. `POST /api/purchase-orders/` — gửi phiếu nhập\n"
-        "6. NCC `POST .../confirm/` → dealer `GET .../payment-qr/?payment_type=deposit` → "
-        "`POST .../submit-deposit/`\n\n"
+        "1. `GET /api/supplier-products/` — chọn SP (có thể nhiều NCC trong một giỏ)\n"
+        "2. `GET /api/purchase-order-config/` — min/max tiền, ngày giao\n"
+        "3. `POST /api/purchase-orders/` — gửi một lần → response `{ orders: [...] }` (1 phiếu/NCC)\n"
+        "4. Mỗi phiếu: NCC confirm → QR cọc → submit-deposit → verify → ship → "
+        "confirm-delivery → TT cuối → completed\n\n"
         "## Vai trò (role)\n"
         "| Role | Mô tả |\n"
         "|------|-------|\n"
@@ -212,6 +217,7 @@ SPECTACULAR_SETTINGS = {
                     "Storefront Auth",
                     "Storefront Customer",
                     "Storefront Addresses",
+                    "Storefront Reviews",
                 ],
             },
             {
@@ -235,6 +241,7 @@ SPECTACULAR_SETTINGS = {
                     "Dealer Product Images",
                     "Dealer Inventory",
                     "Purchase Orders",
+                    "Dealer Product Reviews",
                 ],
             },
             {
@@ -312,6 +319,10 @@ SPECTACULAR_SETTINGS = {
             "name": "Storefront Addresses",
             "description": "Buyer quản lý địa chỉ nhận hàng trong gian hàng đại lý.",
         },
+        {
+            "name": "Storefront Reviews",
+            "description": STOREFRONT_REVIEWS_TAG_DESCRIPTION,
+        },
         # --- 3. Nhà cung cấp (B2B) ---
         {
             "name": "Suppliers",
@@ -323,9 +334,21 @@ SPECTACULAR_SETTINGS = {
             ),
         },
         {
+            "name": "Product Catalog",
+            "description": (
+                "**Product Master** — catalog sản phẩm chuẩn do **admin tạo**, gắn danh mục system.\n\n"
+                "NCC: `GET /api/product-masters/?category_id=` → chọn master → "
+                "`POST /api/supplier-products/` (trường hợp 1).\n\n"
+                "Thiếu master trong dropdown → NCC dùng danh mục riêng (trường hợp 2) "
+                "hoặc admin thêm master tại đây."
+            ),
+        },
+        {
             "name": "Supplier Products",
             "description": (
                 "Sản phẩm do supplier đăng bán. Chỉ supplier đã được duyệt mới tạo được. "
+                "**Trường hợp 1:** danh mục system + `product_master` bắt buộc. "
+                "**Trường hợp 2:** danh mục riêng + tên tự do + `product_master` tuỳ chọn. "
                 "Sản phẩm mới ở trạng thái pending, chờ admin duyệt."
             ),
         },
@@ -389,14 +412,11 @@ SPECTACULAR_SETTINGS = {
         },
         {
             "name": "Purchase Orders",
-            "description": (
-                "Phiếu nhập hàng đại lý → NCC. Trước khi tạo đơn: "
-                "`GET /api/suppliers/{id}/products/` để lấy `supplier_product_id`. "
-                "Cấu hình đơn: `GET /api/purchase-order-config/`. "
-                "Luồng: tạo đơn → NCC xác nhận → cọc → chuẩn bị → giao hàng → "
-                "thanh toán cuối → hoàn tất. "
-                "VietQR: `GET /api/purchase-orders/{id}/payment-qr/`."
-            ),
+            "description": PURCHASE_ORDERS_TAG_DESCRIPTION,
+        },
+        {
+            "name": "Dealer Product Reviews",
+            "description": DEALER_PRODUCT_REVIEWS_TAG_DESCRIPTION,
         },
         # --- 5. Thông báo ---
         {

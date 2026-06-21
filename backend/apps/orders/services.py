@@ -17,6 +17,7 @@ from rest_framework.exceptions import ValidationError
 
 from apps.customers.models import CustomerAddress
 from apps.customers.services import update_favorite_category_from_order
+from apps.marketing.services import track_purchase_interactions_for_order
 from apps.dealer_products.models import (
     DealerInventoryBatch,
     DealerInventoryBatchStatus,
@@ -301,6 +302,11 @@ def create_customer_order(
     _build_order_items(order, validated_items, user)
     _create_cod_payment(order)
     update_favorite_category_from_order(customer, validated_items)
+    track_purchase_interactions_for_order(
+        customer=customer,
+        dealer=dealer,
+        validated_items=validated_items,
+    )
 
     OrderStatusHistory.objects.create(
         order=order,
