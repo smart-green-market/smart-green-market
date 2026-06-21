@@ -27,20 +27,6 @@ export default function PurchaseOrderList({ purchaseOrders, onViewDetail }) {
 
   const columns = [
     {
-      name: "Mã Đơn",
-      selector: (row) => row.id,
-      sortable: true,
-      width: "140px",
-      cell: (row) => (
-        <span
-          onClick={() => onViewDetail && onViewDetail(row)}
-          className="text-xs font-extrabold text-emerald-800 hover:text-emerald-950 cursor-pointer hover:underline underline-offset-2 transition-colors uppercase tracking-wider"
-        >
-          {row.id}
-        </span>
-      ),
-    },
-    {
       name: "Nhà Cung Cấp",
       selector: (row) => row.supplier,
       sortable: true,

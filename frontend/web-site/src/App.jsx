@@ -23,7 +23,7 @@ import { OrderSupplierPage, ProductSupplierPage, CertificationSupplierPage, Regi
 //Admin Pages
 import { AdminLoginPage, SettingPage, SupplierPage, CategoryPage, ProductPage, CertificationPage, DocumentPage, NotificationPage, DealerPage, } from "./pages/Admin";
 //Dealer Pages
-import { RegisterDealerPage, DealerLoginPage, DealerDashboardPage, DealerInventoryPage, DealerSupplierPage, DealerCategoryPage, DealerSalesOrderPage, DealerPurchaseOrderPage, DealerCreatePurchaseOrderPage, DealerPurchaseOrderDetailPage, DealerSupplierDetailPage, DealerCategoryDetail, DealerInfoPage, DealerCustomerPage, DealerProductManagementPage, DealerProductDetailPage } from "./pages/Dealer";
+import { RegisterDealerPage, DealerLoginPage, DealerDashboardPage, DealerInventoryPage, DealerSupplierPage, DealerCategoryPage, DealerSalesOrderPage, DealerPurchaseOrderPage, DealerCreatePurchaseOrderPage, DealerPurchaseOrderDetailPage, DealerDraftOrderPreviewPage, DealerSupplierDetailPage, DealerCategoryDetail, DealerInfoPage, DealerCustomerPage, DealerProductManagementPage, DealerProductDetailPage } from "./pages/Dealer";
 export default function App() {
     return (
         <BrowserRouter>
@@ -101,6 +101,7 @@ export default function App() {
                             <Route path="nhap-hang" element={<DealerPurchaseOrderPage />} />
                             <Route path="nhap-hang/tao-moi" element={<DealerCreatePurchaseOrderPage />} />
                             <Route path="nhap-hang/tao-phieu-nhap" element={<DealerPurchaseOrderDetailPage />} />
+                            <Route path="nhap-hang/xem-truoc" element={<DealerDraftOrderPreviewPage />} />
                             <Route path="nhap-hang/chi-tiet/:id" element={<DealerPurchaseOrderDetailPage />} />
                             <Route path="nha-cung-cap/:id" element={<DealerSupplierDetailPage />} />
                             <Route path="danh-muc/:id" element={<DealerCategoryDetail />} />
