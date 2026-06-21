@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useLayoutEffect, useMemo, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { ChevronRight, Loader2 } from "lucide-react";
 import {
@@ -14,6 +14,10 @@ import ProductDetailSpecs from "../../components/User/Product/ProductDetailSpecs
 import ProductReviews from "../../components/User/Product/ProductReviews";
 import RelatedProducts from "../../components/User/Product/RelatedProducts";
 
+function scrollToPageTop() {
+    window.scrollTo({ top: 0, left: 0, behavior: "auto" });
+}
+
 export default function ProductDetailPage() {
     const { id } = useParams();
     const paths = useStorefrontPaths();
@@ -21,6 +25,16 @@ export default function ProductDetailPage() {
     const [related, setRelated] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState("");
+
+    useLayoutEffect(() => {
+        scrollToPageTop();
+    }, [id]);
+
+    useEffect(() => {
+        if (!loading) {
+            scrollToPageTop();
+        }
+    }, [loading, id]);
 
     useEffect(() => {
         let cancelled = false;
