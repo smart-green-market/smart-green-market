@@ -3,15 +3,11 @@ import { useState } from "react";
 import { toast } from "sonner";
 import { XCircle, CheckCircle, ArrowLeft } from "lucide-react";
 import { purchaseOrderService } from "../../../services/api/purchaseOrderService";
-import { useAuth } from "../../../contexts/authProvider";
-import OrderDetailInfoCards from "../../../components/Dealer/PurchaseOrderDetail/OrderDetailInfoCards";
 import OrderDetailItemsTable from "../../../components/Dealer/PurchaseOrderDetail/OrderDetailItemsTable";
-import { formatDateTime } from "../../../components/common/formatDateTime";
 
 export default function DraftOrderPreviewPage() {
   const location = useLocation();
   const navigate = useNavigate();
-  const { user } = useAuth();
   const [loading, setLoading] = useState(false);
 
   // Lấy dữ liệu draftData từ state
@@ -35,7 +31,6 @@ export default function DraftOrderPreviewPage() {
       let successCount = 0;
       for (const draft of draftList) {
         const payload = {
-          supplier_id: draft.supplier_id,
           delivery_address: draft.delivery_address,
           requested_delivery_time: draft.requested_delivery_time,
           receiver_name: draft.receiver_name,
@@ -67,11 +62,30 @@ export default function DraftOrderPreviewPage() {
     }
   };
 
+  const handleBack = () => {
+    if (draftList.length === 0) {
+      navigate("/dai-ly/nhap-hang/tao-moi");
+      return;
+    }
+
+    const firstDraft = draftList[0];
+    const combinedDraft = {
+      requested_delivery_time: firstDraft.requested_delivery_time,
+      receiver_name: firstDraft.receiver_name,
+      receiver_phone: firstDraft.receiver_phone,
+      delivery_address: firstDraft.delivery_address,
+      note: firstDraft.note,
+      items: draftList.flatMap((draft) => draft.items),
+    };
+
+    navigate("/dai-ly/nhap-hang/tao-moi", { state: { draftData: combinedDraft } });
+  };
+
   return (
     <div className="font-['Geist',sans-serif] pb-12 px-4 sm:px-8 md:px-16 lg:px-24 bg-emerald-50/15 min-h-screen pt-6">
       <div className="flex items-center gap-3 mb-6">
         <button
-          onClick={() => navigate("/dai-ly/nhap-hang/tao-moi", { state: { draftData: rawData } })}
+          onClick={handleBack}
           className="p-2 hover:bg-neutral-200 rounded-full transition-colors cursor-pointer"
         >
           <ArrowLeft className="w-5 h-5 text-neutral-600" />
@@ -81,34 +95,12 @@ export default function DraftOrderPreviewPage() {
 
       <div className="flex flex-col gap-8">
         {draftList.map((draft, index) => {
-          const mappedOrderData = {
-            dealer: {
-              name: user?.dealer_profile?.store_name || user?.full_name || "Đại lý đối tác",
-              code: user?.dealer_profile?.id ? `DL${String(user.dealer_profile.id).padStart(4, "0")}` : "DL-NEW",
-              phone: user?.phone || draft.receiver_phone || "Chưa cung cấp",
-              email: user?.email || "Chưa cung cấp",
-            },
-            supplier: {
-              name: draft.supplier_name,
-              code: `NCC${String(draft.supplier_id).padStart(4, "0")}`,
-              phone: "Chưa cung cấp",
-              email: "Chưa cung cấp",
-            },
-            delivery: {
-              recipient: draft.receiver_name,
-              phone: draft.receiver_phone,
-              address: draft.delivery_address,
-              slot: draft.requested_delivery_time ? formatDateTime(draft.requested_delivery_time) : "Trong giờ hành chính",
-            }
-          };
 
           return (
           <div key={index} className="bg-white rounded-2xl p-6 shadow-sm border border-neutral-100">
             <h2 className="text-lg font-bold text-emerald-800 mb-4 border-b border-emerald-50 pb-2">
               Phiếu {draftList.length > 1 ? `#${index + 1}` : ""} - {draft.supplier_name}
             </h2>
-{/*             
-            <OrderDetailInfoCards orderData={mappedOrderData} /> */}
 
             {/* Danh sách sản phẩm */}
             <OrderDetailItemsTable items={draft.items} />

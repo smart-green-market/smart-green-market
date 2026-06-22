@@ -4,7 +4,6 @@ import { supplierService } from "../../../services/api/suppilerService";
 import { categoryService } from "../../../services/api/categoryService";
 import { productService } from "../../../services/api/productService";
 import { dealerService } from "../../../services/api/dealerService";
-import { purchaseOrderService } from "../../../services/api/purchaseOrderService";
 import { toast } from "sonner";
 import FiltersBar from "./FiltersBar";
 import ProductCard from "./ProductCard";
@@ -139,7 +138,7 @@ export default function CreatePurchaseOrder({ onClose, onSuccess }) {
           setDeliveryInfo((prev) => {
             if (!savedDraft) {
               const dt = new Date();
-              dt.setDate(dt.getDate() + 2);
+              dt.setDate(dt.getDate() + 3);
               const offset = dt.getTimezoneOffset() * 60000;
               const deliveryTime = new Date(dt.getTime() - offset).toISOString().slice(0, 16);
 
@@ -164,11 +163,7 @@ export default function CreatePurchaseOrder({ onClose, onSuccess }) {
     fetchData();
   }, []);
 
-  // --- POPULATE MẶC ĐỊNH DELIVERY INFO KHI CÓ USER ---
-  // Đã bỏ mặc định điền thông tin giao hàng theo yêu cầu
-  // useEffect(() => {
-  //   if (user) { ... }
-  // }, [user]);
+ 
 
 
   /**
