@@ -10,15 +10,18 @@ export default function DealerSupplierPage() {
   const [statusFilter, setStatusFilter] = useState("");
   const [suppliers, setSuppliers] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
   const navigate = useNavigate();
 
   // Gọi API lấy danh sách nhà cung cấp
   const fetchSuppliers = async () => {
     try {
       setLoading(true);
-      const data = await supplierService.getAll();
-      console.log(data);
-      setSuppliers(data || []);
+      const data = await supplierService.getAll({ page: currentPage, page_size: 10, search: searchQuery, status: statusFilter });
+      const results = data?.results || data || [];
+      setSuppliers(results);
+      setTotalPages(Math.max(1, Math.ceil((data?.count || results.length) / 10)));
     } catch (error) {
       console.error("Lỗi khi tải danh sách nhà cung cấp:", error);
     } finally {
@@ -31,21 +34,10 @@ export default function DealerSupplierPage() {
 
   useEffect(() => {
     fetchSuppliers();
-  }, []);
+  }, [currentPage, searchQuery, statusFilter]);
 
   // Tìm kiếm và lọc theo trạng thái
-  const filteredInventory = suppliers.filter((item) => {
-    // API trả về company_name thay vì name, kiểm tra dữ liệu trả về từ API
-    const supplierName = item.company_name || item.name || "";
-    const supplierStatus = item.verification_status || item.status || "";
-
-    const matchesSearch =
-      supplierName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      supplierStatus.toLowerCase().includes(searchQuery.toLowerCase());
-
-    const matchesStatus = statusFilter === "" || supplierStatus === statusFilter;
-    return matchesSearch && matchesStatus;
-  });
+  const filteredInventory = suppliers; // Đã đẩy việc filter lên API, ở đây chỉ render data.
 
 
 
@@ -79,6 +71,9 @@ export default function DealerSupplierPage() {
         onRowClick={(row) => {
           navigate(`/dai-ly/nha-cung-cap/${row.id}`);
         }}
+        currentPage={currentPage}
+        totalPages={totalPages}
+        onPageChange={setCurrentPage}
       />
     </div>
   );

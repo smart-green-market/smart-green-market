@@ -10,16 +10,7 @@ const AVATAR_COLORS = [
   "from-emerald-600 to-green-700",
 ];
 
-export default function SupplierTable({ filteredInventory, onRowClick }) {
-  const [currentPage, setCurrentPage] = useState(1);
-  const itemsPerPage = 10;
-  
-  // Xử lý phân trang ở phía Client
-  const totalItems = filteredInventory?.length || 0;
-  const totalPages = Math.max(1, Math.ceil(totalItems / itemsPerPage));
-  const startIndex = (currentPage - 1) * itemsPerPage;
-  const paginatedData = filteredInventory?.slice(startIndex, startIndex + itemsPerPage) || [];
-
+export default function SupplierTable({ filteredInventory, onRowClick, currentPage = 1, totalPages = 1, onPageChange }) {
   if (!filteredInventory || filteredInventory.length === 0) {
     return (
       <div className="w-full rounded-2xl border border-neutral-100 overflow-hidden bg-white shadow-xs font-['Geist',sans-serif] py-16 text-center">
@@ -56,7 +47,7 @@ export default function SupplierTable({ filteredInventory, onRowClick }) {
               </tr>
             </thead>
             <tbody className="divide-y divide-neutral-100">
-              {paginatedData.map((row) => {
+              {filteredInventory.map((row) => {
                 const initials = (row.company_name || "")
                   .split(" ")
                   .slice(-2)
@@ -136,7 +127,7 @@ export default function SupplierTable({ filteredInventory, onRowClick }) {
         <Pagination
           currentPage={currentPage}
           totalPages={totalPages}
-          onPageChange={setCurrentPage}
+          onPageChange={onPageChange}
         />
       )}
     </div>

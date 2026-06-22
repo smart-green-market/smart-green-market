@@ -2,15 +2,7 @@ import { useState } from "react";
 import { Eye } from "lucide-react";
 import Pagination from "../../common/Pagination";
 
-export default function InventoryTable({ data, onRowClick }) {
-  const [currentPage, setCurrentPage] = useState(1);
-  const itemsPerPage = 5;
-
-  const totalItems = data?.length || 0;
-  const totalPages = Math.max(1, Math.ceil(totalItems / itemsPerPage));
-  const startIndex = (currentPage - 1) * itemsPerPage;
-  const paginatedData = data?.slice(startIndex, startIndex + itemsPerPage) || [];
-
+export default function InventoryTable({ data, onRowClick, currentPage, totalPages, onPageChange }) {
   if (!data || data.length === 0) {
     return (
       <div className="w-full rounded-2xl border border-neutral-200 overflow-hidden bg-white shadow-xs font-['Geist',sans-serif] py-16 text-center">
@@ -40,7 +32,7 @@ export default function InventoryTable({ data, onRowClick }) {
               </tr>
             </thead>
             <tbody className="divide-y divide-neutral-100">
-              {paginatedData.map((row, index) => {
+              {data.map((row, index) => {
                 const statusClass =
                   row.status === "Còn hàng"
                     ? "bg-emerald-100 text-emerald-800"
@@ -115,7 +107,7 @@ export default function InventoryTable({ data, onRowClick }) {
         <Pagination
           currentPage={currentPage}
           totalPages={totalPages}
-          onPageChange={setCurrentPage}
+          onPageChange={onPageChange}
         />
       )}
     </div>

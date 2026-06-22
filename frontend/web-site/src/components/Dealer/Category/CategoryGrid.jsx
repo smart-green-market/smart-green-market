@@ -2,10 +2,7 @@ import { useState } from "react";
 import { BookOpen, Layers, Trash2, Edit } from "lucide-react";
 import Pagination from "../../common/Pagination";
 
-export default function CategoryGrid({ categories, onViewDetail, onDelete, onUpdate }) {
-  const [currentPage, setCurrentPage] = useState(1);
-  const itemsPerPage = 9;
-
+export default function CategoryGrid({ categories, onViewDetail, onDelete, onUpdate, currentPage = 1, totalPages = 1, onPageChange }) {
   if (!categories || categories.length === 0) {
     return (
       <div className="col-span-full py-16 bg-white border border-neutral-150 rounded-2xl text-center text-sm font-semibold text-neutral-400 font-['Geist',sans-serif]">
@@ -14,15 +11,10 @@ export default function CategoryGrid({ categories, onViewDetail, onDelete, onUpd
     );
   }
 
-  const totalItems = categories.length;
-  const totalPages = Math.max(1, Math.ceil(totalItems / itemsPerPage));
-  const startIndex = (currentPage - 1) * itemsPerPage;
-  const paginatedData = categories.slice(startIndex, startIndex + itemsPerPage);
-
   return (
     <div className="flex flex-col gap-6">
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {paginatedData.map((cat, idx) => (
+        {categories.map((cat, idx) => (
           <div
             key={cat.id || idx}
             className="bg-white border border-neutral-100 rounded-2xl p-6 shadow-xs hover:shadow-md hover:-translate-y-0.5 transition-all duration-300 flex flex-col justify-between"
@@ -87,7 +79,7 @@ export default function CategoryGrid({ categories, onViewDetail, onDelete, onUpd
         <Pagination
           currentPage={currentPage}
           totalPages={totalPages}
-          onPageChange={setCurrentPage}
+          onPageChange={onPageChange}
         />
       )}
     </div>

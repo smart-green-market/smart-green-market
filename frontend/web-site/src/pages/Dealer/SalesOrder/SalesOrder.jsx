@@ -22,6 +22,8 @@ export default function DealerSalesOrderPage() {
 
     const [salesOrders, setSalesOrders] = useState([]);
     const [isLoading, setIsLoading] = useState(true);
+    const [currentPage, setCurrentPage] = useState(1);
+    const [totalPages, setTotalPages] = useState(1);
 
     const mapStatusToVietnamese = (status) => {
         switch(status) {
@@ -39,8 +41,9 @@ export default function DealerSalesOrderPage() {
     const fetchOrders = async () => {
         setIsLoading(true);
         try {
-            const data = await dealerOrderService.getAll();
+            const data = await dealerOrderService.getAll({ page: currentPage, page_size: 10, search: searchQuery, status: statusFilter });
             const results = data.results || (Array.isArray(data) ? data : []);
+            setTotalPages(Math.max(1, Math.ceil((data.count || results.length) / 10)));
             
             const formattedOrders = results.map(order => ({
                 uniqueId: order.id,
@@ -65,17 +68,9 @@ export default function DealerSalesOrderPage() {
 
     useEffect(() => {
         fetchOrders();
-    }, []);
+    }, [currentPage, searchQuery, statusFilter]);
 
-    const filteredOrders = salesOrders.filter((order) => {
-        const matchesSearch =
-            order.id.toLowerCase().includes(searchQuery.toLowerCase()) ||
-            order.customer.toLowerCase().includes(searchQuery.toLowerCase()) ||
-            order.items.toLowerCase().includes(searchQuery.toLowerCase());
-        const statusVal = order.status || order.delivery;
-        const matchesStatus = statusFilter === "" || statusVal === statusFilter;
-        return matchesSearch && matchesStatus;
-    });
+    const filteredOrders = salesOrders; // Nếu backend đã filter thì bỏ qua. Nhưng tạm giữ lại data trả về. (Đã pass search param cho API)
 
     const filterOptions = [
         { label: "Tất cả trạng thái", value: "", colorClass: "text-neutral-700" },
@@ -296,6 +291,9 @@ export default function DealerSalesOrderPage() {
                             onViewDetail={handleViewDetail}
                             onSelectedRowsChange={({ selectedRows }) => setSelectedRows(selectedRows)}
                             clearSelectedRows={clearSelectedToggle}
+                            currentPage={currentPage}
+                            totalPages={totalPages}
+                            onPageChange={setCurrentPage}
                         />
                     </>
                 )}

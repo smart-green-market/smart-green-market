@@ -2,19 +2,12 @@ import { useState, useEffect } from "react";
 import { Calendar, Package, ChevronRight } from "lucide-react";
 import Pagination from "../../common/Pagination";
 
-export default function SalesOrderList({ salesOrders, onViewDetail, onSelectedRowsChange, clearSelectedRows }) {
-  const [currentPage, setCurrentPage] = useState(1);
+export default function SalesOrderList({ salesOrders, onViewDetail, onSelectedRowsChange, clearSelectedRows, currentPage = 1, totalPages = 1, onPageChange }) {
   const [selectedIds, setSelectedIds] = useState(new Set());
-  const itemsPerPage = 10;
 
   useEffect(() => {
     setSelectedIds(new Set());
   }, [clearSelectedRows]);
-
-  const totalItems = salesOrders?.length || 0;
-  const totalPages = Math.max(1, Math.ceil(totalItems / itemsPerPage));
-  const startIndex = (currentPage - 1) * itemsPerPage;
-  const paginatedData = salesOrders?.slice(startIndex, startIndex + itemsPerPage) || [];
 
   const handleSelectAll = (e) => {
     if (e.target.checked) {
@@ -103,7 +96,7 @@ export default function SalesOrderList({ salesOrders, onViewDetail, onSelectedRo
               </tr>
             </thead>
             <tbody className="divide-y divide-neutral-100">
-              {paginatedData.map((row) => {
+              {salesOrders.map((row) => {
                 const statusStr = row.status || row.delivery;
                 const config = getStatusConfig(statusStr);
                 const isSelected = selectedIds.has(row.uniqueId);
@@ -184,7 +177,7 @@ export default function SalesOrderList({ salesOrders, onViewDetail, onSelectedRo
         <Pagination
           currentPage={currentPage}
           totalPages={totalPages}
-          onPageChange={setCurrentPage}
+          onPageChange={onPageChange}
         />
       )}
     </div>

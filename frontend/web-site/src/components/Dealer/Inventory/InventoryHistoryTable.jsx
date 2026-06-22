@@ -2,14 +2,7 @@ import { useState } from "react";
 import { ArrowUpRight, ArrowDownLeft, Calendar, History } from "lucide-react";
 import Pagination from "../../common/Pagination";
 
-export default function InventoryHistoryTable({ data }) {
-  const [currentPage, setCurrentPage] = useState(1);
-  const itemsPerPage = 5;
-
-  const totalItems = data?.length || 0;
-  const totalPages = Math.max(1, Math.ceil(totalItems / itemsPerPage));
-  const startIndex = (currentPage - 1) * itemsPerPage;
-  const paginatedData = data?.slice(startIndex, startIndex + itemsPerPage) || [];
+export default function InventoryHistoryTable({ data, currentPage, totalPages, onPageChange }) {
 
   return (
     <>
@@ -41,7 +34,7 @@ export default function InventoryHistoryTable({ data }) {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-neutral-100">
-                  {paginatedData.map((row, index) => {
+                  {data.map((row, index) => {
                     const isImport = row.isImport;
                     return (
                       <tr
@@ -106,7 +99,7 @@ export default function InventoryHistoryTable({ data }) {
                 <Pagination
                   currentPage={currentPage}
                   totalPages={totalPages}
-                  onPageChange={setCurrentPage}
+                  onPageChange={onPageChange}
                 />
               </div>
             )}

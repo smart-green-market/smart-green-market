@@ -9,15 +9,7 @@ const STATUS_MAP = {
   rejected: { label: "Từ chối", cls: "bg-red-50 text-red-600" },
 };
 
-export default function ProductTable({ data, onRowClick }) {
-  const [currentPage, setCurrentPage] = useState(1);
-  const itemsPerPage = 10;
-
-  const totalItems = data?.length || 0;
-  const totalPages = Math.max(1, Math.ceil(totalItems / itemsPerPage));
-  const startIndex = (currentPage - 1) * itemsPerPage;
-  const paginatedData = data?.slice(startIndex, startIndex + itemsPerPage) || [];
-
+export default function ProductTable({ data, onRowClick, currentPage, totalPages, onPageChange }) {
   if (!data || data.length === 0) {
     return (
       <div className="w-full rounded-2xl border border-neutral-200 overflow-hidden bg-white shadow-xs font-['Geist',sans-serif] py-16 text-center">
@@ -43,7 +35,7 @@ export default function ProductTable({ data, onRowClick }) {
               </tr>
             </thead>
             <tbody className="divide-y divide-neutral-100">
-              {paginatedData.map((row, index) => {
+              {data.map((row, index) => {
                 const images = row.images || [];
                 const thumbnail = row.thumbnail || images.find(img => img.is_thumbnail)?.image_url || images[0]?.image_url;
                 const info = STATUS_MAP[row.status] || { label: row.status, cls: "bg-neutral-100 text-neutral-500" };
@@ -108,7 +100,7 @@ export default function ProductTable({ data, onRowClick }) {
         <Pagination
           currentPage={currentPage}
           totalPages={totalPages}
-          onPageChange={setCurrentPage}
+          onPageChange={onPageChange}
         />
       )}
     </div>

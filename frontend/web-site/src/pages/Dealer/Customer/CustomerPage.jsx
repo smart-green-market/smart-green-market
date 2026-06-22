@@ -13,7 +13,7 @@ export default function DealerCustomerPage() {
   const [pagination, setPagination] = useState({
     count: 0,
     page: 1,
-    pageSize: 20,
+    pageSize: 10,
     hasMore: false,
   });
 
@@ -25,12 +25,12 @@ export default function DealerCustomerPage() {
     try {
       setLoading(true);
       setError(null);
-      const data = await customerService.getAll({ page, page_size: 20 });
+      const data = await customerService.getAll({ page, page_size: 10 });
       setCustomers(data.results || []);
       setPagination({
         count: data.count || 0,
         page: data.page || 1,
-        pageSize: data.page_size || 20,
+        pageSize: data.page_size || 10,
         hasMore: data.has_more || false,
       });
     } catch (err) {

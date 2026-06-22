@@ -17,6 +17,8 @@ export default function DealerCategoryPage() {
     const [statusFilter, setStatusFilter] = useState("");
     const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
     const [categoryToUpdate, setCategoryToUpdate] = useState(null);
+    const [currentPage, setCurrentPage] = useState(1);
+    const [totalPages, setTotalPages] = useState(1);
 
     const mapCategoryStatus = (status) => {
         const statusMap = {
@@ -31,14 +33,16 @@ export default function DealerCategoryPage() {
     const fetchCategories = async () => {
         setIsLoading(true);
         try {
-            const data = await categoryService.getAll();
-            const mappedData = data.map(cat => ({
+            const data = await categoryService.getAll({ page: currentPage, page_size: 10, search: searchQuery, status: statusFilter });
+            const results = data?.results || data || [];
+            const mappedData = results.map(cat => ({
                 ...cat,
                 code: cat.code || `CAT-${cat.id}`,
                 status: mapCategoryStatus(cat.status),
                 count: "0 sản phẩm",
             }));
             setCategoryList(mappedData);
+            setTotalPages(Math.max(1, Math.ceil((data?.count || results.length) / 10)));
         } catch (err) {
             setError(handleApiError(err, "Không thể tải danh sách danh mục"));
         } finally {
@@ -48,15 +52,9 @@ export default function DealerCategoryPage() {
 
     useEffect(() => {
         fetchCategories();
-    }, []);
+    }, [currentPage, searchQuery, statusFilter]);
 
-    const filteredCategories = categoryList.filter((cat) => {
-        const matchesSearch =
-            (cat.name || "").toLowerCase().includes(searchQuery.toLowerCase()) ||
-            (cat.code || "").toLowerCase().includes(searchQuery.toLowerCase());
-        const matchesStatus = statusFilter === "" || cat.status === statusFilter;
-        return matchesSearch && matchesStatus;
-    });
+    const filteredCategories = categoryList; // Đã filter trên API
 
     const filterOptions = [
         { label: "Tất cả", value: "", colorClass: "text-neutral-700" },
@@ -170,6 +168,9 @@ export default function DealerCategoryPage() {
                 onViewDetail={handleViewDetail}
                 onUpdate={(cat) => setCategoryToUpdate(cat)}
                 onDelete={handleDeleteCategory}
+                currentPage={currentPage}
+                totalPages={totalPages}
+                onPageChange={setCurrentPage}
             />
 
             {/* Create Category Modal */}

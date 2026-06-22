@@ -5,7 +5,7 @@ export default function CategoryProductList({ products = [] }) {
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
-  const itemsPerPage = 5; // Hiển thị 5 sản phẩm trên 1 trang
+  const itemsPerPage = 10; // Hiển thị 10 sản phẩm trên 1 trang
 
   // Bộ lọc sản phẩm
   const filteredProducts = products.filter((prod) => {

@@ -16,33 +16,33 @@ export default function DealerInventoryPage() {
   const [selectedRow, setSelectedRow] = useState(null); // Lô hàng đang được chọn để cập nhật (mở modal)
   const [loading, setLoading] = useState(true); // Trạng thái tải dữ liệu
 
-  // Tải dữ liệu ban đầu khi component mount
+  const [inventoryPage, setInventoryPage] = useState(1);
+  const [inventoryTotalPages, setInventoryTotalPages] = useState(1);
+  const [transactionPage, setTransactionPage] = useState(1);
+  const [transactionTotalPages, setTransactionTotalPages] = useState(1);
+
+  // Gọi API danh sách lô hàng
   useEffect(() => {
-    const loadData = async () => {
-      setLoading(true);
-      try {
-        // Tải song song danh sách lô hàng và lịch sử giao dịch
-        await Promise.all([fetchInventory(), fetchTransactions()]);
-      } catch (error) {
-        console.error("Failed to load inventory data:", error);
-      } finally {
-        setLoading(false);
-      }
-    };
-    loadData();
-  }, []);
+    fetchInventory();
+  }, [inventoryPage, searchQuery, statusFilter]);
+
+  // Gọi API lịch sử giao dịch
+  useEffect(() => {
+    fetchTransactions();
+  }, [transactionPage]);
 
   /**
    * Tải danh sách lô hàng tồn kho từ backend và map thêm dữ liệu từ danh mục sản phẩm đại lý
    */
   const fetchInventory = async () => {
     try {
-      // Gọi song song API lấy danh sách lô hàng và danh sách sản phẩm của đại lý
+      setLoading(true);
       const [data, productsData] = await Promise.all([
-        dealerInventoryService.getBatches(),
-        dealerProductService.getAll().catch(() => []) // Fallback mảng rỗng nếu lỗi
+        dealerInventoryService.getBatches({ page: inventoryPage, page_size: 10, search: searchQuery, status: statusFilter }),
+        dealerProductService.getAll().catch(() => []) 
       ]);
       const batches = data.results || data || [];
+      setInventoryTotalPages(Math.max(1, Math.ceil((data.count || batches.length) / 10)));
 
       // Ánh xạ dữ liệu lô hàng với sản phẩm đại lý tương ứng để hiển thị thông tin đầy đủ nhất
       const mappedInventory = batches.map(batch => {
@@ -82,6 +82,8 @@ export default function DealerInventoryPage() {
       setInventoryList(mappedInventory);
     } catch (error) {
       console.error("Failed to fetch inventory:", error);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -90,8 +92,9 @@ export default function DealerInventoryPage() {
    */
   const fetchTransactions = async () => {
     try {
-      const data = await dealerInventoryService.getTransactions();
+      const data = await dealerInventoryService.getTransactions({ page: transactionPage, page_size: 10 });
       const transactions = data.results || data;
+      setTransactionTotalPages(Math.max(1, Math.ceil((data.count || transactions.length) / 10)));
 
       // Định nghĩa tên loại giao dịch sang tiếng Việt hiển thị trên UI
       const typeMapping = {
@@ -124,8 +127,7 @@ export default function DealerInventoryPage() {
     }
   };
 
-  // --- Logic lọc dữ liệu ---
-  // Tìm kiếm lô hàng dựa trên: Tên nông sản, Mã lô, Tên nhà cung cấp, hoặc Danh mục
+  // Logic lọc dữ liệu cục bộ (chỉ áp dụng trên kết quả của trang hiện tại nếu backend chưa hỗ trợ query param search/status)
   const filteredInventory = inventoryList.filter((item) => {
     const matchesSearch =
       item.productName.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -133,7 +135,6 @@ export default function DealerInventoryPage() {
       item.supplier.toLowerCase().includes(searchQuery.toLowerCase()) ||
       item.category.toLowerCase().includes(searchQuery.toLowerCase());
 
-    // Lọc theo trạng thái tồn kho (Còn hàng, Sắp hết hàng, Hết hàng...)
     const matchesStatus = statusFilter === "" || item.status === statusFilter;
     return matchesSearch && matchesStatus;
   });
@@ -197,7 +198,10 @@ export default function DealerInventoryPage() {
       <div className="mb-8">
         <InventoryTable
           data={filteredInventory}
-          onRowClick={(row) => setSelectedRow(row)} // Click dòng sẽ kích hoạt mở modal
+          onRowClick={(row) => setSelectedRow(row)}
+          currentPage={inventoryPage}
+          totalPages={inventoryTotalPages}
+          onPageChange={setInventoryPage}
         />
 
         {/* Modal Cập nhật Lô hàng (chỉ mở khi có lô hàng được chọn) */}
@@ -211,7 +215,12 @@ export default function DealerInventoryPage() {
       </div>
 
       {/* 4. Bảng danh sách ghi nhận lịch sử nhập xuất hao hụt kho */}
-      <InventoryHistoryTable data={transactionList} />
+      <InventoryHistoryTable 
+        data={transactionList} 
+        currentPage={transactionPage}
+        totalPages={transactionTotalPages}
+        onPageChange={setTransactionPage}
+      />
 
     </div>
   );

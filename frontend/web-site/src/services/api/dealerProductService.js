@@ -24,9 +24,12 @@ function useMockFallback(error) {
 }
 
 export const dealerProductService = {
-  getAll: async () => {
+  getAll: async (params) => {
     try {
-      const res = await axiosClient.get("/dealer-products/");
+      const res = await axiosClient.get("/dealer-products/", { params });
+      if (params && params.page) {
+        return res.data;
+      }
       const list = flattenDealerProductResults(res.data);
       return list.length ? list : MOCK_DEALER_PRODUCTS;
     } catch (error) {

@@ -13,6 +13,8 @@ export default function DealerProductManagementPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
   const [loading, setLoading] = useState(true);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
 
   // Modals state
   const [previewProduct, setPreviewProduct] = useState(null);
@@ -22,8 +24,10 @@ export default function DealerProductManagementPage() {
   const fetchProducts = async () => {
     setLoading(true);
     try {
-      const data = await dealerProductService.getAll();
-      setProducts(data || []);
+      const data = await dealerProductService.getAll({ page: currentPage, page_size: 10, search: searchQuery, status: statusFilter });
+      const results = data?.results || data || [];
+      setProducts(results);
+      setTotalPages(Math.max(1, Math.ceil((data?.count || results.length) / 10)));
     } catch (error) {
       console.error("Lỗi tải danh sách sản phẩm", error);
     } finally {
@@ -33,15 +37,10 @@ export default function DealerProductManagementPage() {
 
   useEffect(() => {
     fetchProducts();
-  }, []);
+  }, [currentPage, searchQuery, statusFilter]);
 
-  const filteredProducts = products.filter((item) => {
-    const matchesSearch =
-      (item.title || "").toLowerCase().includes(searchQuery.toLowerCase()) ||
-      (item.supplier_product_name || "").toLowerCase().includes(searchQuery.toLowerCase());
-    const matchesStatus = statusFilter === "" || item.status === statusFilter;
-    return matchesSearch && matchesStatus;
-  });
+  const filteredProducts = products; // Lọc ở API rồi nên không cần lọc local nữa (nếu API có hỗ trợ), nhưng tạm để nguyên danh sách data trả về. Nếu cần lọc local thêm:
+  // (Đã dời logic query search lên API params)
 
   const filterOptions = [
     { label: "Tất cả", value: "", colorClass: "text-neutral-700" },
@@ -90,6 +89,9 @@ export default function DealerProductManagementPage() {
           <ProductTable
             data={filteredProducts}
             onRowClick={handleRowClick}
+            currentPage={currentPage}
+            totalPages={totalPages}
+            onPageChange={setCurrentPage}
           />
         </>
       )}

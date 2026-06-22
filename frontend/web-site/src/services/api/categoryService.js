@@ -2,7 +2,10 @@ import axiosClient from "./axiosClient";
 
 export const categoryService = {
   // USER
-  getAll: () => axiosClient.get("/categories/").then((res) => res.data.results),
+  getAll: (params) => axiosClient.get("/categories/", { params }).then((res) => {
+    if (params && params.page) return res.data;
+    return res.data.results || res.data;
+  }),
 
   // {
   //   "count": 123,
