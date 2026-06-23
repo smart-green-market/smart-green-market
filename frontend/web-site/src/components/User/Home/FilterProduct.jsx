@@ -7,7 +7,7 @@ import {
     Loader2,
 } from "lucide-react";
 import { useBuyerCatalog } from "../../../hooks/useBuyerCatalog";
-import { buildUnitFilterOptions, toCardProduct } from "../../../utils/userProductUtils";
+import { buildUnitFilterOptions, buildSupplierFilterOptions, toCardProduct } from "../../../utils/userProductUtils";
 import FilterProductCard from "./FilterProductCard";
 
 const PAGE_SIZE = 8;
@@ -50,16 +50,25 @@ export default function FilterProduct() {
 
     const [selectedCategories, setSelectedCategories] = useState([]);
     const [selectedUnits, setSelectedUnits] = useState([]);
+    const [selectedSuppliers, setSelectedSuppliers] = useState([]);
+    const [stockFilter, setStockFilter] = useState("all");
     const [draftMinPrice, setDraftMinPrice] = useState("");
     const [draftMaxPrice, setDraftMaxPrice] = useState("");
+    const [draftMinQuantity, setDraftMinQuantity] = useState("");
 
     const [appliedMinPrice, setAppliedMinPrice] = useState(null);
     const [appliedMaxPrice, setAppliedMaxPrice] = useState(null);
+    const [appliedMinQuantity, setAppliedMinQuantity] = useState(null);
 
     const [page, setPage] = useState(1);
 
     const availableUnits = useMemo(
         () => buildUnitFilterOptions(products),
+        [products],
+    );
+
+    const availableSuppliers = useMemo(
+        () => buildSupplierFilterOptions(products),
         [products],
     );
 
@@ -78,9 +87,19 @@ export default function FilterProduct() {
         setPage(1);
     };
 
+    const toggleSupplier = (supplier) => {
+        setSelectedSuppliers((prev) =>
+            prev.includes(supplier)
+                ? prev.filter((item) => item !== supplier)
+                : [...prev, supplier],
+        );
+        setPage(1);
+    };
+
     const handleApplyFilter = () => {
         setAppliedMinPrice(parseInputPrice(draftMinPrice));
         setAppliedMaxPrice(parseInputPrice(draftMaxPrice));
+        setAppliedMinQuantity(parseInputPrice(draftMinQuantity));
         setPage(1);
     };
 
@@ -106,9 +125,40 @@ export default function FilterProduct() {
             const matchMax =
                 appliedMaxPrice == null || product.priceValue <= appliedMaxPrice;
 
-            return matchCategory && matchUnit && matchMin && matchMax;
+            const supplierName = product.supplier_name || "";
+            const matchSupplier =
+                selectedSuppliers.length === 0 ||
+                selectedSuppliers.includes(supplierName);
+
+            const matchStock =
+                stockFilter === "all" ||
+                (stockFilter === "in_stock" && product.in_stock) ||
+                (stockFilter === "out_of_stock" && !product.in_stock);
+
+            const matchMinQuantity =
+                appliedMinQuantity == null ||
+                Number(product.available_quantity ?? 0) >= appliedMinQuantity;
+
+            return (
+                matchCategory &&
+                matchUnit &&
+                matchMin &&
+                matchMax &&
+                matchSupplier &&
+                matchStock &&
+                matchMinQuantity
+            );
         });
-    }, [catalog, selectedCategories, selectedUnits, appliedMinPrice, appliedMaxPrice]);
+    }, [
+        catalog,
+        selectedCategories,
+        selectedUnits,
+        selectedSuppliers,
+        stockFilter,
+        appliedMinPrice,
+        appliedMaxPrice,
+        appliedMinQuantity,
+    ]);
 
     const totalPages = Math.max(1, Math.ceil(filteredProducts.length / PAGE_SIZE));
 
@@ -208,6 +258,53 @@ export default function FilterProduct() {
                             </div>
                         </FilterSection>
 
+                        <FilterSection title="Tồn kho">
+                            <div className="flex flex-wrap gap-2">
+                                <TagButton
+                                    active={stockFilter === "all"}
+                                    onClick={() => {
+                                        setStockFilter("all");
+                                        setPage(1);
+                                    }}
+                                >
+                                    Tất cả
+                                </TagButton>
+                                <TagButton
+                                    active={stockFilter === "in_stock"}
+                                    onClick={() => {
+                                        setStockFilter("in_stock");
+                                        setPage(1);
+                                    }}
+                                >
+                                    Còn hàng
+                                </TagButton>
+                                <TagButton
+                                    active={stockFilter === "out_of_stock"}
+                                    onClick={() => {
+                                        setStockFilter("out_of_stock");
+                                        setPage(1);
+                                    }}
+                                >
+                                    Hết hàng
+                                </TagButton>
+                            </div>
+                            <div className="mt-3">
+                                <label className="mb-1.5 block text-xs text-neutral-500">
+                                    Số lượng tối thiểu
+                                </label>
+                                <input
+                                    type="text"
+                                    inputMode="numeric"
+                                    placeholder="VD: 10"
+                                    value={draftMinQuantity}
+                                    onChange={(e) =>
+                                        setDraftMinQuantity(e.target.value)
+                                    }
+                                    className="w-full rounded-md border border-stone-200 px-3 py-2 text-sm outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-200"
+                                />
+                            </div>
+                        </FilterSection>
+
                         <FilterSection title="Khoảng giá">
                             <div className="flex items-center gap-2">
                                 <input
@@ -258,10 +355,12 @@ export default function FilterProduct() {
                                     key={product.id}
                                     id={product.id}
                                     brand={product.brand}
+                                    categoryName={product.category_name}
                                     name={product.name}
                                     price={product.price}
                                     rating={product.rating}
-                                    sold={product.available_quantity}
+                                    availableQuantity={product.available_quantity}
+                                    unit={product.unit}
                                     inStock={product.in_stock}
                                     image={product.image}
                                 />

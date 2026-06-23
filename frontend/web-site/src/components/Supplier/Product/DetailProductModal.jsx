@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import {
   X, Check, ChevronLeft, ChevronRight, ZoomIn,
   Package, Tag, Thermometer, ShieldCheck,
@@ -282,38 +282,29 @@ export default function DetailProductModal({
     return () => { document.body.style.overflow = ""; };
   }, [isOpen]);
 
+  const refreshCultivationSteps = useCallback(async () => {
+    if (!product?.id) return;
+
+    setLoadingCultivation(true);
+    try {
+      const res = await farmingProcessService.getAll({ supplier_product: product.id });
+      const steps = parseCultivationList(res)
+        .filter((s) => Number(s.supplier_product) === Number(product.id))
+        .sort((a, b) => a.step_order - b.step_order);
+      setCultivationSteps(steps);
+    } catch (err) {
+      console.error("Lỗi tải quy trình canh tác:", err);
+      setCultivationSteps([]);
+    } finally {
+      setLoadingCultivation(false);
+    }
+  }, [product?.id]);
+
   useEffect(() => {
     if (!isOpen || !product?.id) return;
+    refreshCultivationSteps();
+  }, [isOpen, product?.id, refreshCultivationSteps]);
 
-    const fetchCultivation = async () => {
-      setLoadingCultivation(true);
-      try {
-        const res = await farmingProcessService.getAll({ supplier_product: product.id });
-        const steps = parseCultivationList(res)
-          .filter((s) => Number(s.supplier_product) === Number(product.id))
-          .sort((a, b) => a.step_order - b.step_order);
-        setCultivationSteps(steps);
-      } catch (err) {
-        console.error("Lỗi tải quy trình canh tác:", err);
-        setCultivationSteps([]);
-      } finally {
-        setLoadingCultivation(false);
-      }
-    };
-
-    fetchCultivation();
-  }, [isOpen, product?.id]);
-  const fetchData = async () => {
-    try {
-      setLoading(true);
-      const res = await farmingProcessService.getAll();
-      setData(parseCultivationList(res));
-    } catch (err) {
-      console.error("Lỗi khi tải quy trình canh tác:", err);
-    } finally {
-      setLoading(false);
-    }
-  };
   if (!isOpen || !product) return null;
 
   const field = (key) => product[key] ?? "";
@@ -527,7 +518,7 @@ export default function DetailProductModal({
                     <div className="text-xs text-zinc-400 mb-2">Trạng thái bán hàng</div>
                     <div className="flex flex-wrap items-center gap-2">
                       <StatusBadge status={product.status} />
-                      {canLockProduct(product.status) && (
+                      {/* {canLockProduct(product.status) && (
                         <button
                           type="button"
                           onClick={() => onLockSelling?.(product)}
@@ -538,8 +529,8 @@ export default function DetailProductModal({
                           <Lock className="w-3.5 h-3.5" />
                           Khóa bán
                         </button>
-                      )}
-                      {canUnlockProduct(product.status) && (
+                      )} */}
+                      {/* {canUnlockProduct(product.status) && (
                         <button
                           type="button"
                           onClick={() => onUnlockSelling?.(product)}
@@ -550,7 +541,7 @@ export default function DetailProductModal({
                           <LockOpen className="w-3.5 h-3.5" />
                           Mở khóa bán
                         </button>
-                      )}
+                      )} */}
                       {!canLockProduct(product.status) && !canUnlockProduct(product.status) && (
                         <span className="text-xs text-zinc-400">
                           Chỉ khóa/mở khóa khi sản phẩm đang bán hoặc đã tạm ngừng bán.
@@ -732,16 +723,16 @@ export default function DetailProductModal({
       <CreateCultivationModal
         isOpen={createRow !== null}
         onClose={() => setCreateRow(null)}
-        onSuccess={fetchData}
+        onSuccess={refreshCultivationSteps}
         productId={product.id}
       />
       <EditCultivationModal
-              isOpen={editRow !== null}
-              onClose={() => setEditRow(null)}
-              process={editRow}
-              onSuccess={fetchData}
-              productId={product.id}
-            />
+        isOpen={editRow !== null}
+        onClose={() => setEditRow(null)}
+        process={editRow}
+        onSuccess={refreshCultivationSteps}
+        productId={product.id}
+      />
       <style>{`
         @keyframes modalIn {
           from { opacity: 0; transform: scale(0.96) translateY(10px); }

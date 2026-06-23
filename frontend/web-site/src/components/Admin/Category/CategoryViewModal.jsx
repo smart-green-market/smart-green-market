@@ -214,21 +214,6 @@ export default function CategoryViewModal({
                                         className="resize-none rounded-xl border border-neutral-200 px-4 py-3 text-sm outline-none focus:border-emerald-600 focus:ring-2 focus:ring-emerald-500/10"
                                     />
                                 </FormField>
-
-                                <FormField label="Thứ tự hiển thị">
-                                    <input
-                                        type="number"
-                                        min="0"
-                                        value={form.sort_order}
-                                        onChange={(e) =>
-                                            setForm((prev) => ({
-                                                ...prev,
-                                                sort_order: e.target.value,
-                                            }))
-                                        }
-                                        className="rounded-xl border border-neutral-200 px-4 py-3 text-sm outline-none focus:border-emerald-600 focus:ring-2 focus:ring-emerald-500/10"
-                                    />
-                                </FormField>
                             </>
                         ) : (
                             <>

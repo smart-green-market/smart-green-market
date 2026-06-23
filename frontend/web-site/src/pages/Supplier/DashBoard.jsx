@@ -1,420 +1,645 @@
-import { useState } from "react";
-import {
-  TrendingUp, ShoppingBag, Package, Users, BadgeDollarSign,
-  ChevronRight, Eye, ArrowUpRight, SlidersHorizontal,
-} from "lucide-react";
-import SupplierPageHeader from "../../components/Supplier/UI/SupplierPageHeader";
-// ─── MOCK DATA ────────────────────────────────────────────────────────────────
-const REVENUE_DATA = [
-  { date: "01/10", value: 18200000 },
-  { date: "05/10", value: 22500000 },
-  { date: "10/10", value: 19800000 },
-  { date: "15/10", value: 35400000 },
-  { date: "20/10", value: 48200000 },
-  { date: "25/10", value: 31600000 },
-  { date: "30/10", value: 800000 },
-];
-
-const ORDER_WEEK = [
-  { day: "T2", count: 38 },
-  { day: "T3", count: 52 },
-  { day: "T4", count: 44 },
-  { day: "T5", count: 71 },
-  { day: "T6", count: 58 },
-  { day: "T7", count: 33 },
-  { day: "CN", count: 500 },
-];
-
-const ORDER_STATUS = [
-  { name: "Hoàn thành", value: 65, color: "#2D6A4F" },
-  { name: "Đang giao",  value: 25, color: "#52B788" },
-  { name: "Đã hủy",    value: 20, color: "#F87171" },
-];
-
-const TOP_PRODUCTS = [
-  { id: 1, name: "Rau cải chíp hữu cơ", supplier: "Farm Fresh",      category: "Rau củ",   qty: 450, unit: "kg", revenue: 12450000, img: "https://images.unsplash.com/photo-1618512496248-a07fe83aa8cb?w=80&h=80&fit=crop" },
-  { id: 2, name: "Táo Envy loại 1",      supplier: "Global Fresh",    category: "Trái cây", qty: 320, unit: "kg", revenue: 45600000, img: "https://images.unsplash.com/photo-1567306226416-28f0efdc88ce?w=80&h=80&fit=crop" },
-  { id: 3, name: "Cà rốt Đà Lạt",        supplier: "Green Valley",    category: "Củ quả",   qty: 280, unit: "kg", revenue: 8200000,  img: "https://images.unsplash.com/photo-1598170845058-32b9d6a5da37?w=80&h=80&fit=crop" },
-  { id: 4, name: "Bơ Booth 034",          supplier: "Tây Nguyên Farm", category: "Trái cây", qty: 190, unit: "kg", revenue: 28500000, img: "https://images.unsplash.com/photo-1523049673857-eb18f1d7b578?w=80&h=80&fit=crop" },
-];
-
-const STAT_CARDS = [
-  { key: "revenue",   label: "Doanh thu",    value: "120.500.000₫", delta: 12,  icon: BadgeDollarSign, iconCls: "text-emerald-700", bgCls: "bg-emerald-50" },
-  { key: "orders",    label: "Đơn hàng",     value: "1.240",         delta: 8.5, icon: ShoppingBag,     iconCls: "text-blue-600",    bgCls: "bg-blue-50"    },
-  { key: "products",  label: "Sản phẩm",     value: "850",           delta: 4.2, icon: Package,         iconCls: "text-violet-600",  bgCls: "bg-violet-50"  },
-  { key: "suppliers", label: "Đại lý", value: "120",           delta: 2.1, icon: Users,           iconCls: "text-amber-600",   bgCls: "bg-amber-50"   },
- ];
-
-const CATEGORY_STYLE = {
-  "Rau củ":   "bg-emerald-50 text-emerald-700 border border-emerald-200",
-  "Trái cây": "bg-amber-50   text-amber-700   border border-amber-200",
-  "Củ quả":   "bg-orange-50  text-orange-700  border border-orange-200",
+import { useState, useEffect, useMemo } from "react";
+import { orderService, parseOrderList } from "../../services/api/orderService";
+import { NavLink, Link } from "react-router-dom";
+// ─── HELPERS ──────────────────────────────────────────────────────────────────
+const fmtMoney = (n) => {
+  const num = parseFloat(n) || 0;
+  if (num >= 1e9) return (num / 1e9).toFixed(1) + " tỷ";
+  if (num >= 1e6) return (num / 1e6).toFixed(1) + "tr";
+  if (num >= 1e3) return Math.round(num / 1e3) + "k";
+  return num.toLocaleString("vi-VN");
 };
 
-// ─── HELPERS ──────────────────────────────────────────────────────────────────
-const fmtPrice = (n) => n.toLocaleString("vi-VN") + "₫";
-const fmtShort = (n) =>
-  n >= 1e9 ? (n / 1e9).toFixed(1) + " tỷ"
-  : n >= 1e6 ? (n / 1e6).toFixed(0) + " tr"
-  : n.toLocaleString("vi-VN");
+const fmtDate = (str) => {
+  if (!str) return "";
+  const d = new Date(str);
+  if (isNaN(d)) return str;
+  return `${String(d.getDate()).padStart(2, "0")}/${String(d.getMonth() + 1).padStart(2, "0")}/${d.getFullYear()}`;
+};
 
-// ─── SVG AREA / LINE CHART ────────────────────────────────────────────────────
-function AreaLineChart({ data, mode = "area" }) {
-  const [hoverIdx, setHoverIdx] = useState(null);
-  const W = 560, H = 180, PL = 44, PR = 12, PT = 10, PB = 32;
-  const cW = W - PL - PR, cH = H - PT - PB;
+function getGreeting() {
+  const h = new Date().getHours();
+  if (h < 12) return "Chào buổi sáng";
+  if (h < 18) return "Chào buổi chiều";
+  return "Chào buổi tối";
+}
 
-  const vals = data.map(d => d.value);
-  const minV = Math.min(...vals), maxV = Math.max(...vals);
-  const range = maxV - minV || 1;
+function getLiveDate() {
+  const d = new Date();
+  const days = ["Chủ nhật", "Thứ hai", "Thứ ba", "Thứ tư", "Thứ năm", "Thứ sáu", "Thứ bảy"];
+  return `${days[d.getDay()]}, ${d.getDate()} tháng ${d.getMonth() + 1} · ${d.getFullYear()}`;
+}
 
-  const toX = (i) => PL + (i / (data.length - 1)) * cW;
-  const toY = (v) => PT + cH - ((v - minV) / range) * cH;
+// Map API status → display label + pill style
+const STATUS_CONFIG = {
+  pending_supplier_confirmation: { label: "Chờ duyệt", cls: "pill-blue" },
+  pending: { label: "Chờ duyệt", cls: "pill-blue" },
+  confirmed: { label: "Đã duyệt", cls: "pill-green" },
+  rejected: { label: "Đã từ chối", cls: "pill-red" },
+  deposit_pending: { label: "Chờ cọc", cls: "pill-amber" },
+  deposit_pending_verification: { label: "Chờ xác nhận cọc", cls: "pill-amber" },
+  processing: { label: "Đang xử lý", cls: "pill-blue" },
+  shipping: { label: "Đang giao", cls: "pill-amber" },
+  final_payment_pending: { label: "Chờ TT cuối", cls: "pill-amber" },
+  final_payment_pending_verification: { label: "Chờ xác nhận TT", cls: "pill-amber" },
+  completed: { label: "Hoàn thành", cls: "pill-green" },
+  cancelled: { label: "Đã hủy", cls: "pill-gray" },
+};
 
-  // smooth path via cardinal spline
-  const points = data.map((d, i) => [toX(i), toY(d.value)]);
-  const linePath = points.reduce((acc, [x, y], i) => {
-    if (i === 0) return `M ${x},${y}`;
-    const [px, py] = points[i - 1];
-    const cpx = (px + x) / 2;
-    return `${acc} C ${cpx},${py} ${cpx},${y} ${x},${y}`;
-  }, "");
-  const areaPath = `${linePath} L ${points[points.length-1][0]},${PT + cH} L ${PL},${PT + cH} Z`;
+const ACTIVE_STATUSES = new Set(["pending_supplier_confirmation", "pending", "shipping"]);
 
-  // y-axis ticks
-  const yTicks = [0, 0.25, 0.5, 0.75, 1].map(t => minV + t * range);
+// ─── SPARKLINE DATA (mock revenue 6 months) ───────────────────────────────────
+const REVENUE_DATA = [
+  { label: "T1", val: 8.2 },
+  { label: "T2", val: 7.5 },
+  { label: "T3", val: 9.8 },
+  { label: "T4", val: 10.4 },
+  { label: "T5", val: 10.5 },
+  { label: "T6", val: 12.4 },
+];
 
+// ─── TOP PRODUCTS (mock) ──────────────────────────────────────────────────────
+const TOP_PRODUCTS = [
+  { name: "Rau cải thìa hữu cơ", pct: 88 },
+  { name: "Cà chua bi Đà Lạt", pct: 72 },
+  { name: "Dâu tây hữu cơ", pct: 60 },
+  { name: "Súp lơ xanh sạch", pct: 45 },
+];
+
+// ─── SPARKLINE CHART ──────────────────────────────────────────────────────────
+function Sparkline({ data }) {
+  const max = Math.max(...data.map((d) => d.val));
   return (
-    <svg viewBox={`0 0 ${W} ${H}`} className="w-full h-full" style={{ overflow: "visible" }}
-      onMouseLeave={() => setHoverIdx(null)}>
-      <defs>
-        <linearGradient id="aGrad" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%"   stopColor="#52B788" stopOpacity="0.22" />
-          <stop offset="100%" stopColor="#52B788" stopOpacity="0.01" />
-        </linearGradient>
-        <clipPath id="chartClip">
-          <rect x={PL} y={PT} width={cW} height={cH} />
-        </clipPath>
-      </defs>
-
-      {/* Y gridlines + labels */}
-      {yTicks.map((v, i) => {
-        const y = toY(v);
-        return (
-          <g key={i}>
-            <line x1={PL} y1={y} x2={PL + cW} y2={y} stroke="#F3F4F6" strokeWidth="1" />
-            <text x={PL - 6} y={y + 4} textAnchor="end" fontSize="10" fill="#9CA3AF">{fmtShort(v)}</text>
-          </g>
-        );
-      })}
-
-      {/* X labels */}
-      {data.map((d, i) => (
-        <text key={i} x={toX(i)} y={H - 4} textAnchor="middle" fontSize="10" fill="#9CA3AF">{d.date}</text>
-      ))}
-
-      {/* Area fill */}
-      {mode === "area" && (
-        <path d={areaPath} fill="url(#aGrad)" clipPath="url(#chartClip)" />
-      )}
-
-      {/* Line */}
-      <path d={linePath} fill="none" stroke="#2D6A4F" strokeWidth="2" strokeLinejoin="round" clipPath="url(#chartClip)" />
-
-      {/* Hover zones + dots */}
+    <div className="spk">
       {data.map((d, i) => {
-        const x = toX(i), y = toY(d.value);
-        const isHov = hoverIdx === i;
+        const h = Math.round((d.val / max) * 44) + 8;
+        const isHi = i === data.length - 1;
         return (
-          <g key={i}>
-            {/* invisible hit area */}
-            <rect
-              x={x - cW / data.length / 2} y={PT}
-              width={cW / data.length} height={cH}
-              fill="transparent"
-              onMouseEnter={() => setHoverIdx(i)}
+          <div key={i} className="spk-col">
+            <div
+              className={`spk-bar${isHi ? " hi" : ""}`}
+              style={{ height: h }}
+              title={`${d.label}: ${d.val}tr đ`}
             />
-            {isHov && (
-              <>
-                <line x1={x} y1={PT} x2={x} y2={PT + cH} stroke="#D1FAE5" strokeWidth="1.5" strokeDasharray="4 3" />
-                <circle cx={x} cy={y} r={4} fill="#2D6A4F" stroke="white" strokeWidth="2" />
-                {/* Tooltip */}
-                <g transform={`translate(${Math.min(x - 36, W - PL - 72)}, ${Math.max(y - 44, PT)})`}>
-                  <rect rx="8" ry="8" width="72" height="34" fill="white" stroke="#E5E7EB" strokeWidth="1" filter="drop-shadow(0 2px 6px rgba(0,0,0,0.08))" />
-                  <text x="36" y="13" textAnchor="middle" fontSize="9" fill="#9CA3AF" fontWeight="500">{d.date}</text>
-                  <text x="36" y="27" textAnchor="middle" fontSize="11" fill="#111827" fontWeight="700">{fmtShort(d.value)}</text>
-                </g>
-              </>
-            )}
-            {!isHov && <circle cx={x} cy={y} r={2.5} fill="#2D6A4F" />}
-          </g>
+            <span className="spk-lbl">{d.label}</span>
+          </div>
         );
       })}
-    </svg>
-  );
-}
-
-// ─── SVG BAR CHART ────────────────────────────────────────────────────────────
-function BarChartSvg({ data }) {
-  const [hoverIdx, setHoverIdx] = useState(null);
-  const W = 260, H = 160, PL = 28, PR = 8, PT = 8, PB = 28;
-  const cW = W - PL - PR, cH = H - PT - PB;
-  const maxV = Math.max(...data.map(d => d.count));
-  const barW = (cW / data.length) * 0.5;
-  const gap  = cW / data.length;
-
-  return (
-    <svg viewBox={`0 0 ${W} ${H}`} className="w-full h-full" style={{ overflow: "visible" }}
-      onMouseLeave={() => setHoverIdx(null)}>
-
-      {/* Y gridlines */}
-      {[0, 0.5, 1].map((t, i) => {
-        const y = PT + cH - t * cH;
-        return (
-          <g key={i}>
-            <line x1={PL} y1={y} x2={PL + cW} y2={y} stroke="#F3F4F6" strokeWidth="1" />
-            <text x={PL - 4} y={y + 4} textAnchor="end" fontSize="9" fill="#9CA3AF">{Math.round(maxV * t)}</text>
-          </g>
-        );
-      })}
-
-      {data.map((d, i) => {
-        const x    = PL + i * gap + gap / 2 - barW / 2;
-        const barH = (d.count / maxV) * cH;
-        const y    = PT + cH - barH;
-        const isHov = hoverIdx === i;
-        const isTop = d.day === "T5";
-        return (
-          <g key={i} onMouseEnter={() => setHoverIdx(i)}>
-            {/* hover bg */}
-            <rect x={PL + i * gap + gap * 0.05} y={PT} width={gap * 0.9} height={cH} fill={isHov ? "#F9FAFB" : "transparent"} rx="4" />
-            {/* bar */}
-            <rect x={x} y={y} width={barW} height={barH}
-              fill={isTop ? "#2D6A4F" : isHov ? "#52B788" : "#D8F3DC"}
-              rx="4" style={{ transition: "fill 0.15s" }} />
-            {/* x label */}
-            <text x={PL + i * gap + gap / 2} y={H - 4} textAnchor="middle" fontSize="9" fill={isTop ? "#2D6A4F" : "#9CA3AF"} fontWeight={isTop ? "700" : "400"}>{d.day}</text>
-            {/* value tooltip */}
-            {isHov && (
-              <g transform={`translate(${PL + i * gap + gap / 2 - 18}, ${y - 30})`}>
-                <rect rx="6" ry="6" width="36" height="22" fill="white" stroke="#E5E7EB" strokeWidth="1" filter="drop-shadow(0 2px 4px rgba(0,0,0,0.08))" />
-                <text x="18" y="15" textAnchor="middle" fontSize="10" fill="#111827" fontWeight="700">{d.count}</text>
-              </g>
-            )}
-          </g>
-        );
-      })}
-    </svg>
-  );
-}
-
-// ─── SVG DONUT CHART ──────────────────────────────────────────────────────────
-function DonutChart({ data, total }) {
-  const R = 68, r = 48, cx = 90, cy = 90;
-  let startAngle = -Math.PI / 2;
-
-  const slices = data.map(d => {
-    const angle = (d.value / 100) * 2 * Math.PI;
-    const x1 = cx + R * Math.cos(startAngle);
-    const y1 = cy + R * Math.sin(startAngle);
-    const x2 = cx + R * Math.cos(startAngle + angle);
-    const y2 = cy + R * Math.sin(startAngle + angle);
-    const ix1 = cx + r * Math.cos(startAngle);
-    const iy1 = cy + r * Math.sin(startAngle);
-    const ix2 = cx + r * Math.cos(startAngle + angle);
-    const iy2 = cy + r * Math.sin(startAngle + angle);
-    const large = angle > Math.PI ? 1 : 0;
-    const path = `M ${x1} ${y1} A ${R} ${R} 0 ${large} 1 ${x2} ${y2} L ${ix2} ${iy2} A ${r} ${r} 0 ${large} 0 ${ix1} ${iy1} Z`;
-    startAngle += angle;
-    return { ...d, path };
-  });
-
-  return (
-    <svg viewBox="0 0 180 180" className="w-40 h-40">
-      {slices.map((s, i) => (
-        <path key={i} d={s.path} fill={s.color} className="transition-opacity hover:opacity-80" />
-      ))}
-      {/* gap rings */}
-      <circle cx={cx} cy={cy} r={r - 1} fill="white" />
-      {/* center text */}
-      <text x={cx} y={cy - 6} textAnchor="middle" fontSize="18" fontWeight="800" fill="#111827">{total}</text>
-      <text x={cx} y={cy + 11} textAnchor="middle" fontSize="9" fontWeight="600" fill="#9CA3AF" letterSpacing="0.05em">TỔNG ĐƠN</text>
-    </svg>
-  );
-}
-
-// ─── SECTION HEADER ───────────────────────────────────────────────────────────
-function SectionHeader({ icon, title, subtitle, action }) {
-  return (
-    <div className="flex items-center justify-between px-6 py-4 border-b border-neutral-100">
-      <div className="flex items-center gap-2">
-        {icon}
-        <div>
-          <h2 className="font-bold text-gray-900 text-sm">{title}</h2>
-          {subtitle && <p className="text-xs text-neutral-400 mt-0.5">{subtitle}</p>}
-        </div>
-      </div>
-      {action}
     </div>
   );
 }
 
-// ─── MAIN ─────────────────────────────────────────────────────────────────────
-export default function DashboardPage() {
-  const [chartMode, setChartMode]       = useState("area");
-  const [periodFilter, setPeriodFilter] = useState("month");
+// ─── STATUS PILL ──────────────────────────────────────────────────────────────
+function StatusPill({ status }) {
+  const cfg = STATUS_CONFIG[status] ?? { label: status, cls: "pill-gray" };
+  return <span className={`pill ${cfg.cls}`}>{cfg.label}</span>;
+}
+
+// ─── ORDER ROW ────────────────────────────────────────────────────────────────
+function OrderRow({ order }) {
+  const code = order.order_code ?? order.id ?? "—";
+  const date = fmtDate(order.created_at ?? order.order_date);
+  const items = order.items ?? [];
+  const itemSummary = items.length
+    ? items.map((it) => `${it.product_name ?? "SP"} x${it.quantity ?? 1}`).join(", ")
+    : order.items_summary ?? "—";
+  const total = order.total_amount ?? order.total ?? order.amount ?? 0;
+  const qty = items.reduce((s, it) => s + (parseInt(it.quantity) || 0), 0) || order.total_items || "—";
+  const buyer = order.dealer_name ?? order.store_name ?? order.buyer_name ?? order.customer_name ?? "—";
 
   return (
-    <div className="min-h-screen bg-neutral-50">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 py-8 flex flex-col gap-6">
+    <div className="plr">
+      <div className="oc-id">
+        <div className="o-code">{code}</div>
+        <div className="o-date">{date}</div>
+      </div>
+      <div className="oc-cust">{buyer}</div>
+      <div className="oc-items">{itemSummary}</div>
+      <div className="oc-qty">{qty}</div>
+      <div className="oc-amt">{fmtMoney(total)}</div>
+      <div className="oc-status">
+        <StatusPill status={order.status} />
+      </div>
+      <div className="oc-act">
+        <div className="p-actions">
+          <button className="p-act" title="Xem chi tiết">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" /><circle cx="12" cy="12" r="3" />
+            </svg>
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+// ─── MAIN DASHBOARD ───────────────────────────────────────────────────────────
+// Các status KHÔNG được tính vào đơn hàng tháng
+const EXCLUDED_STATUSES = new Set([
+  "pending_supplier_confirmation",
+  "cancelled",
+  "rejected",
+]);
 
-        {/* ── Page header ── */}
-        <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4">
-        <SupplierPageHeader
-        title="Tổng quan"
-        description="Theo dõi hiệu quả kinh doanh và hoạt động của hệ thống"
-      />
-          <div className="flex items-center gap-2 flex-wrap">
-            <div className="flex items-center border border-neutral-200 rounded-xl overflow-hidden bg-white text-xs font-semibold">
-              {[{ key: "week", label: "Tuần này" }, { key: "month", label: "Tháng này" }, { key: "year", label: "Năm nay" }].map(o => (
-                <button key={o.key} onClick={() => setPeriodFilter(o.key)}
-                  className={`px-3 py-2 transition-colors ${periodFilter === o.key ? "bg-emerald-800 text-white" : "text-neutral-500 hover:bg-neutral-50"}`}>
-                  {o.label}
-                </button>
-              ))}
+export default function DashboardPage() {
+  const [liveDate, setLiveDate] = useState(getLiveDate());
+  const [allOrders, setAllOrders] = useState([]); // toàn bộ — để count
+  const [orders, setOrders] = useState([]); // pending + shipping — để hiển thị
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+  useEffect(() => {
+    const t = setInterval(() => setLiveDate(getLiveDate()), 60_000);
+    return () => clearInterval(t);
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    setLoading(true);
+    setError(null);
+
+    orderService
+      .getAll()
+      .then((data) => {
+        if (cancelled) return;
+        const list = parseOrderList(data);
+        setAllOrders(list);                                              // ← lưu toàn bộ
+        setOrders(list.filter((o) => ACTIVE_STATUSES.has(o.status)));   // ← chỉ active
+      })
+      .catch((err) => {
+        if (!cancelled) setError(err.message ?? "Không thể tải đơn hàng");
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+
+    return () => { cancelled = true; };
+  }, []);
+
+  const pendingCount = orders.filter((o) => o.status === "pending_supplier_confirmation" || o.status === "pending").length;
+  const shippingCount = orders.filter((o) => o.status === "shipping").length;
+
+  const count_order_month = useMemo(() => {
+    const now = new Date();
+    return allOrders.filter((o) => {
+      if (EXCLUDED_STATUSES.has(o.status)) return false;
+      if (!o.created_at) return false;
+      const d = new Date(o.created_at);
+      return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
+    }).length;
+  }, [allOrders]);
+
+  return (
+    <>
+      <style>{`
+        /* ── Design tokens (match supplier_dashboard_v2.html) ── */
+        :root {
+          --bg:       #f3f4f6;
+          --surface:  #ffffff;
+          --surface2: #f9fafb;
+          --border:   #e5e7eb;
+          --text1:    #111827;
+          --text2:    #565f6b;
+          --text3:    #80899a;
+          --green9:   #0f3d20;
+          --green8:   #1a5c2a;
+          --green7:   #166534;
+          --green3:   #6ee7b7;
+          --green1:   #d1fae5;
+          --green0:   #EAF3DE;
+          --amber0:   #FAEEDA;
+          --amber8:   #854F0B;
+          --blue0:    #E6F1FB;
+          --blue8:    #185FA5;
+          --purple0:  #EEEDFE;
+          --purple8:  #534AB7;
+          --red0:     #FCEBEB;
+          --red8:     #A32D2D;
+          --white1:     white;
+        }
+
+        /* ── Banner ── */
+        .db-banner {
+          background: var(--green9);
+          border-radius: 14px;
+          padding: 18px 20px;
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          flex-wrap: wrap;
+          gap: 12px;
+        }
+        .db-banner-greeting { font-size: 11px; color: white; margin-bottom: 3px; }
+        .db-banner-title    { font-size: 17px; font-weight: 500; color: var(--green1); }
+        .db-banner-sub      { font-size: 12px; color: white; margin-top: 3px; }
+        .db-banner-stats    { display: flex; gap: 8px; }
+        .bstat {
+          background: var(--green8);
+          border-radius: 10px;
+          padding: 9px 16px;
+          text-align: center;
+          min-width: 64px;
+        }
+        .bstat-val   { font-size: 20px; font-weight: 500; color: var(--white1); }
+        .bstat-label { font-size: 10px; color: #4d8a5e; margin-top: 2px; }
+
+        /* ── Metric cards ── */
+        .db-metrics {
+          display: grid;
+          grid-template-columns: repeat(3, minmax(0,1fr));
+          gap: 10px;
+        }
+        .mc {
+          background: var(--surface);
+          border: 0.5px solid var(--border);
+          border-radius: 12px;
+          padding: 14px 16px;
+        }
+        .mc-top {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          margin-bottom: 10px;
+        }
+        .mc-icon {
+          width: 32px; height: 32px; border-radius: 8px;
+          display: flex; align-items: center; justify-content: center;
+          font-size: 16px;
+        }
+        .mc-icon.g { background: var(--green0); color: #3B6D11; }
+        .mc-icon.a { background: var(--amber0); color: var(--amber8); }
+        .mc-icon.b { background: var(--blue0);  color: var(--blue8);  }
+        .mc-icon.p { background: var(--purple0);color: var(--purple8);}
+        .mc-delta { font-size: 10px; padding: 2px 7px; border-radius: 20px; font-weight: 500; }
+        .mc-delta.up  { background: var(--green0); color: #3B6D11; }
+        .mc-delta.neu { background: #f3f4f6; color: var(--text2); }
+        .mc-val   { font-size: 24px; font-weight: 500; color: var(--text1); line-height: 1; }
+        .mc-label { font-size: 11px; color: var(--text3); margin-top: 4px; }
+
+        /* ── Two column ── */
+        .db-two {
+          display: grid;
+          grid-template-columns: 1fr 1fr;
+          gap: 12px;
+        }
+
+        /* ── Cards ── */
+        .card {
+          background: var(--surface);
+          border: 0.5px solid var(--border);
+          border-radius: 12px;
+          overflow: hidden;
+        }
+        .ch {
+          display: flex; align-items: center;
+          justify-content: space-between;
+          padding: 12px 16px;
+          border-bottom: 0.5px solid var(--border);
+        }
+        .ch-left { display: flex; align-items: center; gap: 8px; }
+        .ch-ico {
+          width: 28px; height: 28px; border-radius: 8px;
+          display: flex; align-items: center; justify-content: center;
+          font-size: 14px;
+        }
+        .ch-ico.g { background: var(--green0); color: #3B6D11; }
+        .ch-ico.a { background: var(--amber0); color: var(--amber8); }
+        .ch-ico.b { background: var(--blue0);  color: var(--blue8); }
+        .ch-title { font-size: 13px; font-weight: 500; color: var(--text1); }
+        .ch-link  { font-size: 11px; color: var(--green8); cursor: pointer; }
+        .cb { padding: 0 16px; }
+
+        /* ── Recent order rows ── */
+        .or {
+          display: flex; align-items: center; gap: 8px;
+          padding: 9px 0; border-bottom: 0.5px solid var(--border);
+        }
+        .or:last-child { border: none; }
+        .or-info { flex: 1; min-width: 0; }
+        .or-code { font-size: 12px; font-weight: 500; color: var(--text1); white-space: nowrap; }
+        .or-dealer { font-size: 10px; color: var(--text3); margin-top: 1px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .or-amt  { font-size: 12px; font-weight: 500; color: var(--text1); white-space: nowrap; flex-shrink: 0; text-align: right; }
+
+        /* ── Pills ── */
+        .pill {
+          display: inline-flex; align-items: center;
+          padding: 2px 8px; border-radius: 20px;
+          font-size: 10px; font-weight: 500; white-space: nowrap; flex-shrink: 0;
+        }
+        .pill-green  { background: var(--green0); color: #3B6D11; }
+        .pill-amber  { background: var(--amber0); color: var(--amber8); }
+        .pill-blue   { background: var(--blue0);  color: var(--blue8); }
+        .pill-gray   { background: #f3f4f6;        color: var(--text2); }
+        .pill-red    { background: var(--red0);    color: var(--red8); }
+
+        /* ── Sparkline ── */
+        .spk { display: flex; align-items: flex-end; gap: 5px; padding: 12px 16px 10px; }
+        .spk-col { display: flex; flex-direction: column; align-items: center; gap: 4px; flex: 1; }
+        .spk-bar {
+          width: 100%; border-radius: 3px 3px 0 0;
+          background: var(--green0); transition: background .12s; cursor: pointer;
+        }
+        .spk-bar:hover { background: #3B6D11; }
+        .spk-bar.hi    { background: var(--green8); }
+        .spk-lbl { font-size: 9px; color: var(--text3); }
+
+        /* ── Progress bars (top products) ── */
+        .pr {
+          display: flex; align-items: center; gap: 8px;
+          padding: 8px 0; border-bottom: 0.5px solid var(--border);
+        }
+        .pr:last-child { border: none; }
+        .pr-name  { font-size: 12px; color: var(--text1); flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .pr-track { flex: 1; height: 4px; background: var(--surface2); border-radius: 2px; overflow: hidden; }
+        .pr-fill  { height: 100%; border-radius: 2px; background: var(--green8); }
+        .pr-pct   { font-size: 11px; color: var(--text3); width: 28px; text-align: right; flex-shrink: 0; }
+
+        /* ── Orders table ── */
+        .db-orders-card { margin-top: 2px; }
+        .pl-wrap { overflow-x: auto; }
+        .plh, .plr {
+          display: flex; align-items: center; gap: 10px;
+          min-width: 780px; padding: 0 16px;
+        }
+        .plh {
+          padding: 10px 16px;
+          font-size: 10px; color: var(--text3);
+          text-transform: uppercase; letter-spacing: .6px;
+          border-bottom: 0.5px solid var(--border);
+        }
+        .plr {
+          padding: 10px 16px;
+          border-bottom: 0.5px solid var(--border);
+          transition: background .1s;
+        }
+        .plr:last-child { border: none; }
+        .plr:hover { background: var(--surface2); }
+
+        .oc-id     { width: 180px; flex-shrink: 0; }
+        .oc-cust   { width: 140px; flex-shrink: 0; font-size: 12px; color: var(--text2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .oc-items  { flex: 1; min-width: 0; font-size: 12px; color: var(--text2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .oc-qty    { width: 32px; flex-shrink: 0; font-size: 12px; color: var(--text2); text-align: center; }
+        .oc-amt    { width: 72px; flex-shrink: 0; font-size: 12px; font-weight: 500; color: var(--text1); text-align: right; }
+        .oc-status { width: 110px; flex-shrink: 0; text-align: center; }
+        .oc-act    { width: 36px; flex-shrink: 0; text-align: right; }
+
+        .o-code { font-size: 12px; font-weight: 500; color: var(--text1); white-space: nowrap; }
+        .o-date { font-size: 10px; color: var(--text3); margin-top: 1px; }
+
+        .p-actions { display: flex; gap: 3px; justify-content: flex-end; }
+        .p-act {
+          width: 28px; height: 28px; border-radius: 7px;
+          display: flex; align-items: center; justify-content: center;
+          color: var(--text3); cursor: pointer; border: 0.5px solid transparent;
+          background: transparent; transition: background .1s, border-color .1s;
+        }
+        .p-act:hover { background: var(--surface2); border-color: var(--border); color: var(--text2); }
+
+        /* ── Empty / loading state ── */
+        .db-empty {
+          padding: 28px 16px;
+          text-align: center;
+          font-size: 12px;
+          color: var(--text3);
+        }
+        .db-spinner {
+          display: inline-block;
+          width: 16px; height: 16px;
+          border: 2px solid var(--border);
+          border-top-color: var(--green8);
+          border-radius: 50%;
+          animation: spin .7s linear infinite;
+          margin-right: 6px;
+          vertical-align: middle;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        /* ── Section wrapper ── */
+        .db-page {
+          display: flex;
+          flex-direction: column;
+          gap: 14px;
+          padding: 18px 20px;
+          background: var(--bg);
+          min-height: 100%;
+        }
+
+        @media (max-width: 640px) {
+          .db-two { grid-template-columns: 1fr; }
+          .db-metrics { grid-template-columns: repeat(2, 1fr); }
+        }
+      `}</style>
+
+      <div className="db-page">
+
+        {/* ── BANNER ── */}
+        <div className="db-banner">
+          <div>
+            <div className="db-banner-greeting">{liveDate}</div>
+            <div className="db-banner-title">{getGreeting()}, Vườn Nhà Sạch 👋</div>
+            <div className="db-banner-sub">
+              {loading
+                ? "Đang tải đơn hàng…"
+                : `Hiện có ${pendingCount} đơn chờ duyệt · ${shippingCount} đơn đang giao`}
             </div>
-            <button className="flex items-center gap-1.5 px-3 py-2 border border-neutral-200 rounded-xl bg-white text-xs font-semibold text-neutral-600 hover:border-neutral-300 transition-colors">
-              <SlidersHorizontal size={13} /> Lọc dữ liệu
-            </button>
+          </div>
+          <div className="db-banner-stats">
+            <div className="bstat">
+              <div className="bstat-val">{loading ? "…" : pendingCount}</div>
+              <div className="bstat-label">Chờ duyệt</div>
+            </div>
+            <div className="bstat">
+              <div className="bstat-val">{loading ? "…" : shippingCount}</div>
+              <div className="bstat-label">Đang giao</div>
+            </div>
           </div>
         </div>
 
-        {/* ── Stat cards ── */}
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
-          {STAT_CARDS.map(card => {
-            const Icon = card.icon;
-            return (
-              <div key={card.key} className="bg-white rounded-2xl border border-neutral-200 p-4 flex flex-col gap-3 hover:shadow-sm transition-shadow">
-                <div className="flex items-center justify-between">
-                  <div className={`w-9 h-9 rounded-xl flex items-center justify-center ${card.bgCls}`}>
-                    <Icon size={17} className={card.iconCls} />
-                  </div>
-                </div>
-                <div>
-                  <p className="text-[11px] text-neutral-400 uppercase tracking-wide font-medium">{card.label}</p>
-                  <p className="text-lg font-extrabold text-gray-900 leading-tight mt-0.5">{card.value}</p>
+        {/* ── METRIC CARDS ── */}
+        <div className="db-metrics">
+          <Link to="/nha-cung-cap/doanh-thu">
+            <div className="mc">
+              <div className="mc-top">
+                <div className="mc-icon g">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <circle cx="12" cy="12" r="10" /><path d="M12 6v6l4 2" />
+                  </svg>
                 </div>
               </div>
-            );
-          })}
+              <div className="mc-val">12.4tr</div>
+              <div className="mc-label">Doanh thu tháng 6</div>
+            </div>
+          </Link>
+
+
+          <Link to="/nha-cung-cap/don-hang">
+            <div className="mc">
+              <div className="mc-top">
+                <div className="mc-icon a">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2" /><rect x="9" y="3" width="6" height="4" rx="2" /><path d="M9 12h6M9 16h4" />
+                  </svg>
+                </div>
+              </div>
+              <div className="mc-val">{count_order_month}</div>
+              <div className="mc-label">Đơn hàng tháng này</div>
+            </div>
+          </Link>
+
+          <Link to="/nha-cung-cap/san-pham">
+            <div className="mc">
+              <div className="mc-top">
+                <div className="mc-icon b">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z" /><path d="m3.3 7 8.7 5 8.7-5M12 22V12" />
+                  </svg>
+                </div>
+              </div>
+              <div className="mc-val">36</div>
+              <div className="mc-label">Sản phẩm đang bán</div>
+            </div>
+          </Link>
+
         </div>
 
-        {/* ── Charts row ── */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
+        {/* ── TWO COL: Orders + Charts ── */}
+        <div className="db-two">
 
-          {/* Revenue chart */}
-          <div className="lg:col-span-2 bg-white rounded-2xl border border-neutral-200 overflow-hidden">
-            <SectionHeader
-              icon={<TrendingUp size={15} className="text-emerald-700" />}
-              title="Biểu đồ doanh thu"
-              subtitle="Thống kê theo thời gian (30 ngày gần nhất)"
-              action={
-                <div className="flex items-center border border-neutral-200 rounded-lg overflow-hidden text-xs font-semibold">
-                  {["area", "line"].map(m => (
-                    <button key={m} onClick={() => setChartMode(m)}
-                      className={`px-3 py-1.5 transition-colors ${chartMode === m ? "bg-emerald-800 text-white" : "text-neutral-500 hover:bg-neutral-50"}`}>
-                      {m === "area" ? "Area" : "Line"}
-                    </button>
-                  ))}
+          {/* Left: Active orders from API */}
+          <div className="card">
+            <div className="ch">
+              <div className="ch-left">
+                <div className="ch-ico a">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2" /><rect x="9" y="3" width="6" height="4" rx="2" />
+                  </svg>
                 </div>
-              }
-            />
-            <div className="px-4 py-5" style={{ height: 230 }}>
-              <AreaLineChart data={REVENUE_DATA} mode={chartMode} />
+                <span className="ch-title">Đơn cần xử lý</span>
+              </div>
+              <span className="ch-link">
+                <Link to="/nha-cung-cap/don-hang"> {!loading && `${shippingCount} đơn`}</Link>
+              </span>
+            </div>
+            <div className="cb">
+              {loading && (
+                <div className="db-empty">
+                  <span className="db-spinner" />Đang tải…
+                </div>
+              )}
+              {!loading && error && (
+                <div className="db-empty" style={{ color: "var(--red8)" }}>
+                  {error}
+                </div>
+              )}
+              {!loading && !error && orders.length === 0 && (
+                <div className="db-empty">Không có đơn nào cần xử lý.</div>
+              )}
+              {!loading && !error && orders.map((order) => {
+                if (order.status === "pending_supplier_confirmation") {
+                  const code = order.order_code ?? order.id ?? "—";
+                  const total = order.total_amount ?? order.total ?? order.amount ?? 0;
+                  const dealer = order.dealer_name ?? order.store_name ?? order.buyer_name ?? order.customer_name ?? "—";
+                  return (
+                    <div key={order.id ?? code} className="or">
+                      <div className="or-info">
+                        <div className="or-code">{code}</div>
+                        <div className="or-dealer">{dealer}</div>
+                      </div>
+                      <StatusPill status={order.status} />
+                      <span className="or-amt">{fmtMoney(total)}</span>
+                    </div>
+                  )
+                };
+              })}
             </div>
           </div>
 
-          {/* Donut */}
-          <div className="bg-white rounded-2xl border border-neutral-200 overflow-hidden flex flex-col">
-            <SectionHeader
-              icon={<ShoppingBag size={15} className="text-emerald-700" />}
-              title="Trạng thái đơn hàng"
-              subtitle="Tháng này"
-            />
-            <div className="flex-1 flex flex-col items-center justify-center px-6 py-5 gap-5">
-              <DonutChart data={ORDER_STATUS} total="1.240" />
-              <div className="w-full flex flex-col gap-2.5">
-                {ORDER_STATUS.map(s => (
-                  <div key={s.name} className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <span className="w-2 h-2 rounded-full shrink-0" style={{ background: s.color }} />
-                      <span className="text-sm text-neutral-600">{s.name}</span>
+          {/* Right: Revenue sparkline + top products */}
+          <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+
+            <div className="card">
+              <div className="ch">
+                <div className="ch-left">
+                  <div className="ch-ico g">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <polyline points="22 12 18 12 15 21 9 3 6 12 2 12" />
+                    </svg>
+                  </div>
+                  <span className="ch-title">Doanh thu 6 tháng</span>
+                </div>
+                <span style={{ fontSize: 13, fontWeight: 500, color: "#1a5c2a" }}>12.4tr đ</span>
+              </div>
+              <Sparkline data={REVENUE_DATA} />
+            </div>
+
+            <div className="card" style={{ flex: 1 }}>
+              <div className="ch">
+                <div className="ch-left">
+                  <div className="ch-ico b">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="m3 17 2 2 4-4" /><path d="m3 7 2 2 4-4" /><path d="M13 6h8" /><path d="M13 12h8" /><path d="M13 18h8" />
+                    </svg>
+                  </div>
+                  <span className="ch-title">Sản phẩm bán chạy</span>
+                </div>
+                <span className="ch-link">Chi tiết →</span>
+              </div>
+              <div className="cb">
+                {TOP_PRODUCTS.map((p) => (
+                  <div key={p.name} className="pr">
+                    <span className="pr-name">{p.name}</span>
+                    <div className="pr-track">
+                      <div className="pr-fill" style={{ width: `${p.pct}%` }} />
                     </div>
-                    <span className="text-sm font-bold text-gray-900">{s.value}%</span>
+                    <span className="pr-pct">{p.pct}%</span>
                   </div>
                 ))}
               </div>
             </div>
+
           </div>
         </div>
 
-        {/* ── Bottom row ── */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
-
-          {/* Weekly bar */}
-          <div className="bg-white rounded-2xl border border-neutral-200 overflow-hidden">
-            <SectionHeader
-              icon={<Package size={15} className="text-emerald-700" />}
-              title="Số lượng đơn hàng"
-              subtitle="Theo tuần"
-            />
-            <div className="px-4 py-5" style={{ height: 200 }}>
-              <BarChartSvg data={ORDER_WEEK} />
+        {/* ── FULL ORDERS TABLE ── */}
+        <div className="card db-orders-card">
+          <div className="ch">
+            <div className="ch-left">
+              <div className="ch-ico a">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2" /><rect x="9" y="3" width="6" height="4" rx="2" />
+                </svg>
+              </div>
+              <span className="ch-title">Danh sách đơn hàng — Chờ duyệt &amp; Đang giao</span>
             </div>
+            <span className="ch-link"><Link to="/nha-cung-cap/don-hang"> {!loading && `${orders.length} đơn hàng`} </Link></span>
           </div>
+          <div className="pl-wrap">
+            <div className="plh">
+              <div className="oc-id">Đơn hàng</div>
+              <div className="oc-cust">Khách hàng</div>
+              <div className="oc-items">Sản phẩm</div>
+              <div className="oc-qty">SL</div>
+              <div className="oc-amt">Tổng tiền</div>
+              <div className="oc-status">Trạng thái</div>
+              <div className="oc-act" />
+            </div>
 
-          {/* Top products */}
-          <div className="lg:col-span-2 bg-white rounded-2xl border border-neutral-200 overflow-hidden flex flex-col">
-            <SectionHeader
-              icon={<BadgeDollarSign size={15} className="text-emerald-700" />}
-              title="Sản phẩm bán chạy"
-              action={
-                <button className="flex items-center gap-1 text-xs font-semibold text-emerald-700 hover:text-emerald-800 transition-colors">
-                  Xem tất cả <ChevronRight size={13} />
-                </button>
-              }
-            />
-            {/* Table head */}
-            <div className="grid grid-cols-[2fr_1fr_1fr_1fr_36px] gap-2 px-6 py-2.5 border-b border-neutral-100">
-              {["Sản phẩm", "Phân loại", "Số lượng", "Doanh thu", ""].map((h, i) => (
-                <span key={i} className={`text-[11px] font-semibold text-neutral-400 uppercase tracking-wide ${i === 2 || i === 3 ? "text-right" : ""}`}>{h}</span>
-              ))}
-            </div>
-            <div className="divide-y divide-neutral-100 flex-1">
-              {TOP_PRODUCTS.map(p => (
-                <div key={p.id} className="grid grid-cols-[2fr_1fr_1fr_1fr_36px] gap-2 items-center px-6 py-3.5 hover:bg-neutral-50 transition-colors">
-                  <div className="flex items-center gap-3 min-w-0">
-                    <img src={p.img} alt={p.name} className="w-10 h-10 rounded-xl object-cover shrink-0 border border-neutral-100" />
-                    <div className="min-w-0">
-                      <p className="text-sm font-semibold text-gray-900 truncate">{p.name}</p>
-                      <p className="text-[11px] text-neutral-400 truncate">{p.supplier}</p>
-                    </div>
-                  </div>
-                  <span className={`text-[11px] font-bold px-2 py-0.5 rounded-full w-fit ${CATEGORY_STYLE[p.category] ?? "bg-neutral-100 text-neutral-600"}`}>
-                    {p.category}
-                  </span>
-                  <p className="text-sm font-medium text-gray-800 text-right">{p.qty} {p.unit}</p>
-                  <p className="text-sm font-bold text-emerald-700 text-right">{fmtPrice(p.revenue)}</p>
-                  <button className="flex items-center justify-center w-8 h-8 rounded-lg hover:bg-neutral-100 text-neutral-400 hover:text-neutral-600 transition-colors">
-                    <Eye size={14} />
-                  </button>
-                </div>
-              ))}
-            </div>
+            {loading && (
+              <div className="db-empty">
+                <span className="db-spinner" />Đang tải đơn hàng…
+              </div>
+            )}
+            {!loading && error && (
+              <div className="db-empty" style={{ color: "var(--red8)" }}>{error}</div>
+            )}
+            {!loading && !error && orders.length === 0 && (
+              <div className="db-empty">Không có đơn hàng nào cần xử lý.</div>
+            )}
+            {!loading && !error && orders.map((order) => (
+              <OrderRow key={order.id ?? order.order_code} order={order} />
+            ))}
           </div>
         </div>
-
       </div>
-    </div>
+    </>
   );
 }

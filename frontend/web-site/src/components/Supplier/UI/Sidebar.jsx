@@ -1,68 +1,98 @@
-import { NavLink, useNavigate } from "react-router-dom";
-import {
-    LayoutDashboard,
-    Settings,
-    ShieldCheck,
-    Store,
-    ShoppingCart,
-    Tag,
-    Package,
-    LogOut,
-    Tractor
-} from "lucide-react";
-import { useAuth } from "../../../contexts/authProvider"
-const NAV_ITEMS = [
-    { label: "Trang chủ",            icon: LayoutDashboard, to: "/nha-cung-cap",              end: true },
-    { label: "Quản lý thông tin cá nhân",     icon: Settings,        to: "/nha-cung-cap/thong-tin-ca-nhan" },
-    { label: "Quản lý danh mục",   icon: Tag, to: "/nha-cung-cap/danh-muc" },
-    { label: "Quản lý sản phẩm", icon: Store,           to: "/nha-cung-cap/san-pham" },
-    // { label: "Quy trình canh tác",   icon: Tractor, to: "/nha-cung-cap/canh-tac" },
-    { label: "Quản lý chứng nhận", icon: ShieldCheck,     to: "/nha-cung-cap/chung-nhan" },
-    { label: "Quản lý đơn hàng",    icon: Package,         to: "/nha-cung-cap/don-hang" },
-    
-];
+import { NavLink } from "react-router-dom";
+import { useSidebar } from "../../../contexts/Supplier/supplierContext";
+import { NAV_SECTIONS } from "./navConfig";
 
-export default function SideBar() {
-    const navigate = useNavigate();
+function getInitials(name = "") {
+    const initials = name
+        .trim()
+        .split(/\s+/)
+        .slice(0, 2)
+        .map((w) => w[0]?.toUpperCase())
+        .join("");
+    return initials || "NC";
+}
 
-    // Thay bằng useAuth() nếu có AuthProvider
-    const { logout } = useAuth();
-        const handleLogout = async () => {
-            await logout();
-        };
+export default function SideBar({ supplier }) {
+    const { open, width } = useSidebar();
+
     return (
-        <aside className="fixed left-0 top-16 bottom-0 w-64 bg-stone-50 border-r border-neutral-200 flex flex-col z-40">
-            {/* Nav items */}
-            <nav className="flex-1 px-4 py-6 flex flex-col gap-1 overflow-y-auto">
-                {NAV_ITEMS.map(({ label, icon: Icon, to, end }) => (
-                    <NavLink
-                        key={to}
-                        to={to}
-                        end={end}
-                        className={({ isActive }) =>
-                            `relative flex items-center gap-3 px-4 py-3 rounded-lg text-xs font-semibold transition-all duration-150
-                            ${isActive
-                                ? "bg-green-200 border-l-4 border-emerald-800 text-emerald-700 pl-3"
-                                : "text-neutral-600 hover:bg-neutral-100 hover:text-neutral-800"
-                            }`
-                        }
-                    >
-                        <Icon className="w-4 h-4 shrink-0" />
-                        <span className="tracking-wide">{label}</span>
-                    </NavLink>
+        <aside
+            style={{ width }}
+            className="h-full flex flex-col flex-shrink-0 bg-emerald-900 overflow-hidden py-4 transition-[width] duration-200"
+        >
+            {/* ── Logo + tên + vai trò của nhà cung cấp ── */}
+            <div className={`flex items-center gap-3 mb-4 flex-shrink-0 ${open ? "px-3" : "justify-center px-0"}`}>
+                <div className="w-10 h-10 rounded-xl bg-emerald-900 flex items-center justify-center flex-shrink-0 overflow-hidden">
+                    {supplier?.logo_url ? (
+                        <img
+                            src={supplier.logo_url}
+                            alt={supplier.company_name}
+                            className="w-full h-full object-cover"
+                        />
+                    ) : (
+                        <span className="text-emerald-300 text-sm font-semibold">
+                            {getInitials(supplier?.company_name)}
+                        </span>
+                    )}
+                </div>
+                {open && (
+                    <div className="min-w-0">
+                        <p className="text-sm font-semibold text-white truncate">
+                            {supplier?.company_name ?? "Đang tải..."}
+                        </p>
+                        <p className="text-xs text-emerald-400">Nhà cung cấp</p>
+                    </div>
+                )}
+            </div>
+
+            <div className={`h-px bg-emerald-800 mb-3 flex-shrink-0 ${open ? "w-full" : "w-8 mx-auto"}`} />
+
+            {/* ── Điều hướng ── */}
+            <nav className={`flex flex-col flex-1 overflow-y-auto ${open ? "px-3" : "items-center px-0"}`}>
+                {NAV_SECTIONS.map((section, si) => (
+                    <div key={section.label} className="w-full flex flex-col">
+                        {si > 0 && (
+                            <div className={`h-px bg-emerald-800 my-2 ${open ? "w-full" : "w-8 mx-auto"}`} />
+                        )}
+
+                        {open && (
+                            <div className="text-[10px] uppercase tracking-wider text-emerald-600 px-2 pt-2 pb-1 whitespace-nowrap">
+                                {section.label}
+                            </div>
+                        )}
+
+                        {section.items.map((item) => {
+                            const Icon = item.icon;
+                            return (
+                                <NavLink
+                                    key={item.to}
+                                    to={item.to}
+                                    end={item.end}
+                                    className={({ isActive }) =>
+                                        `relative flex items-center rounded-lg mb-0.5 transition-colors ${
+                                            open ? "gap-3 px-2.5 h-10 w-full" : "h-10 w-10 justify-center mx-auto"
+                                        } ${
+                                            isActive
+                                                ? "bg-emerald-700 text-emerald-50"
+                                                : "text-emerald-100 hover:bg-emerald-700/60"
+                                        }`
+                                    }
+                                >
+                                    <Icon size={18} className="flex-shrink-0" />
+                                    {open && <span className="text-sm whitespace-nowrap">{item.label}</span>}
+                                    {item.dot && (
+                                        <span
+                                            className={`absolute w-1.5 h-1.5 rounded-full bg-emerald-400 ring-2 ring-emerald-950 ${
+                                                open ? "top-2.5 right-2.5" : "top-1.5 right-1.5"
+                                            }`}
+                                        />
+                                    )}
+                                </NavLink>
+                            );
+                        })}
+                    </div>
                 ))}
             </nav>
-
-            {/* Logout */}
-            <div className="px-4 py-4 border-t border-neutral-200">
-                <button
-                    onClick={handleLogout}
-                    className="w-full flex items-center gap-3 px-4 py-3 rounded-lg text-xs font-semibold text-neutral-500 hover:bg-red-50 hover:text-red-600 transition-all duration-150 group"
-                >
-                    <LogOut className="w-4 h-4 shrink-0 text-neutral-400 group-hover:text-red-500" />
-                    <span className="tracking-wide">Đăng xuất</span>
-                </button>
-            </div>
         </aside>
     );
 }

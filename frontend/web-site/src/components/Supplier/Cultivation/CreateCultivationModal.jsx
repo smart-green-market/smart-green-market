@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { X } from "lucide-react";
 import { farmingProcessService } from "../../../services/api/cultivationService";
 import { productService } from "../../../services/api/productService";
@@ -13,7 +13,8 @@ import { errorsToSummary } from "../../../utils/supplierValidation";
 
 const EMPTY = { supplier_product: "", step_order: "", process_name: "", description: "" };
 
-export default function CreateCultivationModal({ isOpen, onClose, onSuccess,productId }) {
+export default function CreateCultivationModal({ isOpen, onClose, onSuccess, productId }) {
+  const isFixedProduct = productId != null && productId !== "";
   const [form, setForm] = useState(EMPTY);
   const [errors, setErrors] = useState({});
   const [apiError, setApiError] = useState("");
@@ -23,24 +24,31 @@ export default function CreateCultivationModal({ isOpen, onClose, onSuccess,prod
 
   useEffect(() => {
     if (isOpen) {
-      setForm(EMPTY);
+      setForm({
+        ...EMPTY,
+        supplier_product: isFixedProduct ? String(productId) : "",
+      });
       setErrors({});
       setApiError("");
     }
-  }, [isOpen]);
+  }, [isOpen, productId, isFixedProduct]);
 
   useEffect(() => {
     if (!isOpen) return;
 
     async function fetchProducts() {
+      setProductsLoading(true);
       try {
-        setProductsLoading(true);
-        const res = await productService.getById(productId);
-        console.log(res)
-        setProducts(res)
-        setProductsLoading(true)
+        if (isFixedProduct) {
+          const product = await productService.getById(productId);
+          setProducts(product ? [product] : []);
+        } else {
+          const res = await productService.getAll();
+          setProducts(getActiveProducts(parseProductList(res)));
+        }
       } catch (err) {
         console.error("Lỗi khi tải danh sách sản phẩm:", err);
+        setProducts([]);
         setApiError("Không thể tải danh sách sản phẩm. Vui lòng thử lại!");
       } finally {
         setProductsLoading(false);
@@ -48,7 +56,21 @@ export default function CreateCultivationModal({ isOpen, onClose, onSuccess,prod
     }
 
     fetchProducts();
-  }, [isOpen]);
+  }, [isOpen, productId, isFixedProduct]);
+
+  const activeProductIds = useMemo(() => {
+    const ids = getActiveProducts(products).map((p) => Number(p.id));
+    if (isFixedProduct) {
+      const pid = Number(productId);
+      if (!ids.includes(pid)) ids.push(pid);
+    }
+    return ids;
+  }, [products, isFixedProduct, productId]);
+
+  const selectedProduct = useMemo(
+    () => products.find((p) => String(p.id) === String(form.supplier_product)),
+    [products, form.supplier_product],
+  );
 
   const set = (field) => (e) => {
     setForm((prev) => ({ ...prev, [field]: e.target.value }));
@@ -63,7 +85,6 @@ export default function CreateCultivationModal({ isOpen, onClose, onSuccess,prod
       setApiError(errorsToSummary(errs));
       return;
     }
-    setApiError("");
 
     setLoading(true);
     try {
@@ -95,7 +116,9 @@ export default function CreateCultivationModal({ isOpen, onClose, onSuccess,prod
           <div>
             <h2 className="text-lg font-bold text-gray-900">Thêm quy trình canh tác</h2>
             <p className="text-xs text-gray-400 mt-0.5">
-              Chỉ thêm quy trình cho sản phẩm đang được bán
+              {isFixedProduct
+                ? "Thêm bước quy trình cho sản phẩm đang xem"
+                : "Chỉ thêm quy trình cho sản phẩm đang được bán"}
             </p>
           </div>
           <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-neutral-100 transition-colors">
@@ -106,21 +129,37 @@ export default function CreateCultivationModal({ isOpen, onClose, onSuccess,prod
         <div className="px-6 py-5 flex flex-col gap-4 overflow-y-auto">
           {apiError && <ApiErrorBanner message={apiError} />}
 
-          {!productsLoading && products === null && (
+          {!productsLoading && products.length === 0 && (
             <div className="text-xs bg-amber-50 border border-amber-200 text-amber-700 rounded-lg px-3 py-2">
               Không có sản phẩm đang hoạt động. Vui lòng niêm yết sản phẩm trước khi thêm quy trình.
             </div>
           )}
 
           <Field label="Sản phẩm" required error={errors.supplier_product}>
-            <input 
-              type="text" 
-              value= {productsLoading ? "Đang tải sản phẩm..." : products.name} 
-              onChange={false}
-              onClick={false}
-              readOnly
-              className={inputCls(errors.supplier_product)}
+            {isFixedProduct ? (
+              <input
+                type="text"
+                value={productsLoading ? "Đang tải sản phẩm..." : (selectedProduct?.name ?? "—")}
+                readOnly
+                className={inputCls(errors.supplier_product)}
               />
+            ) : (
+              <select
+                value={form.supplier_product}
+                onChange={set("supplier_product")}
+                disabled={productsLoading}
+                className={inputCls(errors.supplier_product)}
+              >
+                <option value="">
+                  {productsLoading ? "Đang tải sản phẩm..." : "Chọn sản phẩm"}
+                </option>
+                {products.map((p) => (
+                  <option key={p.id} value={p.id}>
+                    {p.name}
+                  </option>
+                ))}
+              </select>
+            )}
           </Field>
 
           <div className="grid grid-cols-3 gap-4">
@@ -189,7 +228,7 @@ function ApiErrorBanner({ message }) {
 export function Overlay({ children, onClose }) {
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/40"
+      className="fixed inset-0 z-[60] flex items-center justify-center bg-black/40"
       onMouseDown={(e) => {
         if (e.target === e.currentTarget) onClose();
       }}

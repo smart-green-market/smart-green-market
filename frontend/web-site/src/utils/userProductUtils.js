@@ -330,6 +330,34 @@ export function buildUnitFilterOptions(products = []) {
   );
 }
 
+export function buildSupplierFilterOptions(products) {
+  const map = new Map();
+
+  for (const product of products) {
+    const name = String(
+      product.supplier_name || product.dealer_name || "",
+    ).trim();
+    if (!name) continue;
+
+    map.set(name, (map.get(name) ?? 0) + 1);
+  }
+
+  return Array.from(map.entries())
+    .map(([value, count]) => ({ value, label: value, count }))
+    .sort((a, b) => a.label.localeCompare(b.label, "vi"));
+}
+
+export function formatAvailableQuantityLabel(quantity, unit, inStock = true) {
+  if (!inStock) return "Hết hàng";
+
+  const unitText = String(unit ?? "")
+    .replace(/^\//, "")
+    .trim();
+  const qty = quantity ?? 0;
+
+  return unitText ? `Còn ${qty} ${unitText}` : `Còn ${qty}`;
+}
+
 export function toCardProduct(product) {
   const inStock = isProductInStock(product);
   const rawUnit = product.unit ?? "";
@@ -345,6 +373,9 @@ export function toCardProduct(product) {
     unitFilterKey,
     image: product.thumbnail,
     brand: product.category_name || product.supplier_name || "GreenMarket",
+    category_name: product.category_name || product.brand || "Nông sản",
+    supplier_name:
+      product.supplier_name || product.dealer_name || product.brand || "",
     rating: product.rating,
     sold: product.sold,
     in_stock: inStock,

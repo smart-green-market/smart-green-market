@@ -63,12 +63,6 @@ export default function RelatedProducts({ products = [], categoryName = "" }) {
                     <ChevronRight className="h-6 w-6" />
                 </button>
             </div>
-
-            {categoryName ? (
-                <p className="mt-4 text-sm text-neutral-500">
-                    Cùng danh mục: {categoryName}
-                </p>
-            ) : null}
         </section>
     );
 }

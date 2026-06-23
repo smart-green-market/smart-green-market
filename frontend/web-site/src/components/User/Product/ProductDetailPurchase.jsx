@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import {
     BadgeCheck,
     Building2,
@@ -13,8 +13,11 @@ import {
     Zap,
 } from "lucide-react";
 import { useCart } from "../../../contexts/cartProvider";
+import { useAuth } from "../../../contexts/authProvider";
 import { useStorefrontPaths } from "../../../hooks/useStorefrontPaths";
 import { showAddToCartFeedback } from "../../../utils/cartAddFeedback";
+import { isBuyerUser } from "../../../utils/buyerAuthUtils";
+import { buildCartItemFromProduct } from "../../../utils/cartUtils";
 import {
     formatProductPrice,
     formatStorageDuration,
@@ -47,6 +50,7 @@ export default function ProductDetailPurchase({
     const [quantity, setQuantity] = useState(1);
     const navigate = useNavigate();
     const paths = useStorefrontPaths();
+    const { user } = useAuth();
     const { addToCart } = useCart();
     const inStock = isProductInStock(product);
     const storageLabel = formatStorageDuration(product.storage_duration_days);
@@ -58,19 +62,70 @@ export default function ProductDetailPurchase({
             ? `${product.available_quantity} ${product.unit || ""}`.trim()
             : null;
 
-    const adjustQuantity = (delta) => {
-        setQuantity((prev) => Math.max(1, prev + delta));
+    const maxQuantity =
+        product.available_quantity != null && Number(product.available_quantity) > 0
+            ? Number(product.available_quantity)
+            : null;
+
+    const normalizeQuantity = (value) => {
+        const parsed = Number.parseInt(String(value).replace(/\D/g, ""), 10);
+        let next = Number.isNaN(parsed) || parsed < 1 ? 1 : parsed;
+        if (maxQuantity != null) next = Math.min(next, maxQuantity);
+        return next;
     };
 
-    const weightHint =
-        product.unit === "kg"
-            ? `Khoảng ${quantity * 2}–${quantity * 3} kg`
-            : `${quantity} ${product.unit || "đơn vị"}`;
+    const adjustQuantity = (delta) => {
+        setQuantity((prev) => normalizeQuantity(normalizeQuantity(prev) + delta));
+    };
+
+    const handleQuantityChange = (event) => {
+        const raw = event.target.value;
+        if (raw === "") {
+            setQuantity("");
+            return;
+        }
+
+        const parsed = Number.parseInt(raw, 10);
+        if (Number.isNaN(parsed)) return;
+
+        if (maxQuantity != null) {
+            setQuantity(Math.min(parsed, maxQuantity));
+            return;
+        }
+
+        setQuantity(Math.max(1, parsed));
+    };
+
+    const handleQuantityBlur = () => {
+        setQuantity((prev) => normalizeQuantity(prev));
+    };
+
+    const effectiveQuantity = normalizeQuantity(quantity);
+
+    const handleBuyNow = () => {
+        if (!inStock) return;
+
+        const buyNowItem = buildCartItemFromProduct(product, effectiveQuantity);
+
+        if (!isBuyerUser(user)) {
+            showAddToCartFeedback({
+                added: false,
+                reason: "auth_required",
+                showToast: true,
+            });
+            navigate(paths.login, {
+                state: { from: paths.checkout, buyNow: buyNowItem },
+            });
+            return;
+        }
+
+        navigate(paths.checkout, { state: { buyNow: buyNowItem } });
+    };
 
     const handleAddToCart = () => {
         if (!inStock) return;
 
-        const result = addToCart(product, quantity);
+        const result = addToCart(product, effectiveQuantity);
         showAddToCartFeedback(result);
 
         if (result.added) {
@@ -160,39 +215,59 @@ export default function ProductDetailPurchase({
                             <button
                                 type="button"
                                 onClick={() => adjustQuantity(-1)}
-                                disabled={!inStock || quantity <= 1}
+                                disabled={
+                                    !inStock ||
+                                    normalizeQuantity(quantity) <= 1
+                                }
                                 className="rounded-l-xl p-2.5 text-emerald-900 transition-colors hover:bg-stone-100 disabled:opacity-40"
                                 aria-label="Giảm số lượng"
                             >
                                 <Minus className="h-4 w-4" />
                             </button>
-                            <span className="min-w-10 border-x border-stone-200 px-3 py-2 text-center text-base font-medium text-zinc-900">
-                                {quantity}
-                            </span>
+                            <input
+                                type="number"
+                                min={1}
+                                max={maxQuantity ?? undefined}
+                                value={quantity}
+                                onChange={handleQuantityChange}
+                                onBlur={handleQuantityBlur}
+                                disabled={!inStock}
+                                inputMode="numeric"
+                                aria-label="Số lượng sản phẩm"
+                                className="min-w-14 max-w-20 border-x border-stone-200 bg-white px-2 py-2 text-center text-base font-medium text-zinc-900 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none focus:outline-none focus:ring-2 focus:ring-emerald-500/30 disabled:cursor-not-allowed disabled:opacity-50"
+                            />
                             <button
                                 type="button"
                                 onClick={() => adjustQuantity(1)}
-                                disabled={!inStock}
+                                disabled={
+                                    !inStock ||
+                                    (maxQuantity != null &&
+                                        normalizeQuantity(quantity) >= maxQuantity)
+                                }
                                 className="rounded-r-xl p-2.5 text-emerald-900 transition-colors hover:bg-stone-100 disabled:opacity-40"
                                 aria-label="Tăng số lượng"
                             >
                                 <Plus className="h-4 w-4" />
                             </button>
                         </div>
-                        <span className="text-sm text-neutral-500">{weightHint}</span>
                     </div>
                 </div>
 
                 <div className="flex flex-col gap-3">
                     <div className="flex gap-3">
-                        <Link
-                            to="/dat-hang"
-                            className={`flex flex-1 items-center justify-center gap-3 rounded-lg bg-orange-500 px-4 py-4 text-base text-white no-underline transition-colors ${inStock ? "hover:bg-orange-600" : "pointer-events-none opacity-50"
-                                }`}
+                        <button
+                            type="button"
+                            onClick={handleBuyNow}
+                            disabled={!inStock}
+                            className={`flex flex-1 items-center justify-center gap-3 rounded-lg bg-orange-500 px-4 py-4 text-base text-white transition-colors ${
+                                inStock
+                                    ? "hover:bg-orange-600"
+                                    : "cursor-not-allowed opacity-50"
+                            }`}
                         >
                             <Zap className="h-4 w-4" />
                             MUA NGAY
-                        </Link>
+                        </button>
                     </div>
 
                     <button

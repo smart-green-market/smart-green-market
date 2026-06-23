@@ -109,24 +109,6 @@ export default function CategoryFormModal({
                                 className="resize-none rounded-xl border border-neutral-200 px-4 py-3 text-sm outline-none focus:border-emerald-600 focus:ring-2 focus:ring-emerald-500/10"
                             />
                         </div>
-
-                        <div className="flex flex-col gap-2">
-                            <label className="text-sm font-semibold text-neutral-700">
-                                Thứ tự hiển thị
-                            </label>
-                            <input
-                                type="number"
-                                min="0"
-                                value={form.sort_order}
-                                onChange={(e) =>
-                                    setForm((prev) => ({
-                                        ...prev,
-                                        sort_order: e.target.value,
-                                    }))
-                                }
-                                className="rounded-xl border border-neutral-200 px-4 py-3 text-sm outline-none focus:border-emerald-600 focus:ring-2 focus:ring-emerald-500/10"
-                            />
-                        </div>
                     </div>
 
                     <div className="flex justify-end gap-3 border-t border-neutral-200 px-6 py-4">

@@ -216,7 +216,7 @@ export const buyerOrder = {
     //Khung giờ giao hàng
     
     getDelivery: (dealer_slug) => axiosClient.get(`/storefronts/${dealer_slug}/delivery-slots/`).then((res) => res.data),
-    //Trả danh sách ngày (2 ngày: hôm nay và ngày mai) và slot Sáng/Chiều. FE không tự tính — chỉ render slot available=true và gửi lại delivery_date+delivery_slot hoặc delivery_time khi đặt hàng.
+    //Trả danh sách ngày (2 ngày: hôm nay và ngày mai) và slot Sáng/Chiều. FE hiển thị toàn bộ slot; slot available=false thì disable nhưng vẫn hiển thị.
 };
 
 export const handleApiError = (error, defaultMessage = "Có lỗi xảy ra") => {

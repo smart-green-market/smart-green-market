@@ -71,7 +71,11 @@ export function useBuyerCatalog() {
     return { slug, categories, products, loading, error };
 }
 
-export function useBuyerProductSearch({ search = "", ordering = "-updated_at" } = {}) {
+export function useBuyerProductSearch({
+    search = "",
+    ordering = "-updated_at",
+    category = "",
+} = {}) {
     const slug = useDealerSlug();
     const [products, setProducts] = useState([]);
     const [loading, setLoading] = useState(true);
@@ -93,6 +97,7 @@ export function useBuyerProductSearch({ search = "", ordering = "-updated_at" } 
         const params = { ordering };
         const trimmed = String(search).trim();
         if (trimmed) params.search = trimmed;
+        if (category) params.category = category;
 
         buyerCatalogService
             .getProduct(slug, params)
@@ -112,7 +117,7 @@ export function useBuyerProductSearch({ search = "", ordering = "-updated_at" } 
         return () => {
             cancelled = true;
         };
-    }, [slug, search, ordering]);
+    }, [slug, search, ordering, category]);
 
     return { slug, products, loading, error };
 }

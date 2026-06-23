@@ -1,17 +1,20 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import {
     addRecentlyViewed,
     getRecentlyViewed,
+    mergeRecentlyViewedWithCatalog,
     RECENTLY_VIEWED_UPDATED_EVENT,
 } from "../utils/recentlyViewedUtils";
+import { useBuyerCatalog } from "./useBuyerCatalog";
 import { useDealerSlug } from "./useStorefrontPaths";
 
 export function useRecentlyViewed() {
     const slug = useDealerSlug();
-    const [items, setItems] = useState([]);
+    const { products } = useBuyerCatalog();
+    const [storedItems, setStoredItems] = useState([]);
 
     const refresh = useCallback(() => {
-        setItems(getRecentlyViewed(slug));
+        setStoredItems(getRecentlyViewed(slug));
     }, [slug]);
 
     useEffect(() => {
@@ -29,6 +32,11 @@ export function useRecentlyViewed() {
             window.removeEventListener("storage", handleUpdate);
         };
     }, [refresh]);
+
+    const items = useMemo(
+        () => mergeRecentlyViewedWithCatalog(storedItems, products),
+        [storedItems, products],
+    );
 
     const trackView = useCallback(
         (product) => {

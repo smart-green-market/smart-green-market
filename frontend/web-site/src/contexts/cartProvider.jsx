@@ -22,6 +22,7 @@ import {
     registerDuplicateAddAttempt,
     resetCartSpamGuard,
 } from "../utils/cartSpamGuard";
+import { recordAddToCartInteraction } from "../utils/buyerInteractionUtils";
 
 const CartContext = createContext(null);
 
@@ -56,6 +57,7 @@ export function CartProvider({ children }) {
     const addToCart = useCallback(
         (product, quantity = 1) => {
             if (!isBuyerUser(user)) {
+                recordAddToCartInteraction(dealerSlug, product, user);
                 return { added: false, reason: "auth_required", showToast: true };
             }
 
@@ -77,12 +79,14 @@ export function CartProvider({ children }) {
                 }
 
                 clearProductSpamEntry(productId);
+                result = { added: true, showToast: true };
+                recordAddToCartInteraction(dealerSlug, product, user);
                 return [...prev, nextItem];
             });
 
             return result;
         },
-        [user],
+        [user, dealerSlug],
     );
 
     const isInCart = useCallback(

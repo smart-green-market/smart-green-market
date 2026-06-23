@@ -1,61 +1,101 @@
 import { useEffect, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
-import { Loader2, Search } from "lucide-react";
+import { Loader2 } from "lucide-react";
 import FilterProductCard from "../../components/User/Home/FilterProductCard";
+import SearchProductFilter from "../../components/User/Search/SearchProductFilter";
 import { useBuyerProductSearch } from "../../hooks/useBuyerCatalog";
 import { useStorefrontPaths } from "../../hooks/useStorefrontPaths";
+import { buyerCatalogService } from "../../services/api/Buyer/buyerCatalogService";
 import { toCardProduct } from "../../utils/userProductUtils";
-
-const ORDER_OPTIONS = [
-    { value: "-updated_at", label: "Mới nhất" },
-    { value: "name", label: "Tên A → Z" },
-    { value: "-name", label: "Tên Z → A" },
-    { value: "price", label: "Giá thấp → cao" },
-    { value: "-price", label: "Giá cao → thấp" },
-    { value: "stock", label: "Tồn kho tăng dần" },
-    { value: "-stock", label: "Tồn kho giảm dần" },
-];
 
 export default function SearchProductPage() {
     const [searchParams, setSearchParams] = useSearchParams();
     const paths = useStorefrontPaths();
     const query = searchParams.get("q") ?? "";
     const ordering = searchParams.get("ordering") ?? "-updated_at";
+    const category = searchParams.get("category") ?? "";
     const [input, setInput] = useState(query);
+    const [categories, setCategories] = useState([]);
+    const [loadingCategories, setLoadingCategories] = useState(true);
 
     useEffect(() => {
         setInput(query);
     }, [query]);
 
+    useEffect(() => {
+        let cancelled = false;
+
+        if (!paths.slug) {
+            setCategories([]);
+            setLoadingCategories(false);
+            return;
+        }
+
+        setLoadingCategories(true);
+        buyerCatalogService
+            .getCategory(paths.slug)
+            .then((rows) => {
+                if (!cancelled) {
+                    setCategories(
+                        (rows ?? []).filter(
+                            (item) =>
+                                item.status !== "inactive" &&
+                                item.status !== "rejected",
+                        ),
+                    );
+                }
+            })
+            .finally(() => {
+                if (!cancelled) setLoadingCategories(false);
+            });
+
+        return () => {
+            cancelled = true;
+        };
+    }, [paths.slug]);
+
     const { products, loading, error } = useBuyerProductSearch({
         search: query,
         ordering,
+        category,
     });
     const items = products.map(toCardProduct);
 
-    const updateParams = (nextQuery, nextOrdering) => {
+    const updateParams = (nextQuery, nextOrdering, nextCategory) => {
         const params = new URLSearchParams();
         const trimmed = String(nextQuery).trim();
         if (trimmed) params.set("q", trimmed);
         if (nextOrdering && nextOrdering !== "-updated_at") {
             params.set("ordering", nextOrdering);
         }
+        if (nextCategory) params.set("category", nextCategory);
         setSearchParams(params);
     };
 
     const handleSubmit = (event) => {
         event.preventDefault();
-        updateParams(input, ordering);
+        updateParams(input, ordering, category);
     };
 
-    const handleOrderingChange = (event) => {
-        updateParams(query, event.target.value);
+    const handleOrderingChange = (nextOrdering) => {
+        updateParams(query, nextOrdering, category);
     };
+
+    const handleCategoryChange = (nextCategory) => {
+        updateParams(query, ordering, nextCategory);
+    };
+
+    const selectedCategoryName =
+        categories.find((item) => String(item.id) === String(category))?.name ??
+        "";
 
     return (
         <div className="mx-auto w-full max-w-[1280px] px-4 py-8 sm:px-10 sm:py-12">
             <nav className="mb-6 text-sm text-neutral-500">
-                <Link to={paths.home} className="text-emerald-800 no-underline hover:underline">
+                <Link
+                    to={paths.home}
+                    className="text-emerald-800 no-underline hover:underline"
+                >
                     Cửa hàng
                 </Link>
                 <span className="mx-2">/</span>
@@ -71,42 +111,34 @@ export default function SearchProductPage() {
                 </p>
             </div>
 
-            <form
-                onSubmit={handleSubmit}
-                className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-center"
-            >
-                <div className="relative flex-1">
-                    <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-neutral-400" />
-                    <input
-                        type="search"
-                        value={input}
-                        onChange={(event) => setInput(event.target.value)}
-                        placeholder="Tìm kiếm thực phẩm sạch..."
-                        className="w-full rounded-xl border border-stone-200 bg-white py-3 pl-10 pr-4 text-sm outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100"
-                    />
-                </div>
-                <select
-                    value={ordering}
-                    onChange={handleOrderingChange}
-                    className="rounded-xl border border-stone-200 bg-white px-4 py-3 text-sm outline-none focus:border-emerald-500"
-                >
-                    {ORDER_OPTIONS.map((option) => (
-                        <option key={option.value} value={option.value}>
-                            {option.label}
-                        </option>
-                    ))}
-                </select>
-                <button
-                    type="submit"
-                    className="rounded-xl bg-emerald-800 px-6 py-3 text-sm font-semibold text-white transition-colors hover:bg-emerald-900"
-                >
-                    Tìm kiếm
-                </button>
-            </form>
+            <div className="mb-6">
+                <SearchProductFilter
+                    input={input}
+                    onInputChange={setInput}
+                    ordering={ordering}
+                    onOrderingChange={handleOrderingChange}
+                    category={category}
+                    onCategoryChange={handleCategoryChange}
+                    categories={categories}
+                    loadingCategories={loadingCategories}
+                    onSubmit={handleSubmit}
+                />
+            </div>
 
-            {query ? (
+            {query || category ? (
                 <p className="mb-6 text-sm text-neutral-600">
-                    Kết quả cho &quot;{query}&quot; — {items.length} sản phẩm
+                    {query ? (
+                        <>
+                            Kết quả cho &quot;{query}&quot;
+                            {selectedCategoryName
+                                ? ` trong danh mục "${selectedCategoryName}"`
+                                : ""}
+                        </>
+                    ) : (
+                        <>Danh mục &quot;{selectedCategoryName}&quot;</>
+                    )}
+                    {" — "}
+                    {items.length} sản phẩm
                 </p>
             ) : (
                 <p className="mb-6 text-sm text-neutral-600">
@@ -135,10 +167,12 @@ export default function SearchProductPage() {
                             key={product.id}
                             id={product.id}
                             brand={product.brand}
+                            categoryName={product.category_name}
                             name={product.name}
                             price={product.price}
                             rating={product.rating}
-                            sold={product.available_quantity}
+                            availableQuantity={product.available_quantity}
+                            unit={product.unit}
                             inStock={product.in_stock}
                             image={product.image}
                         />

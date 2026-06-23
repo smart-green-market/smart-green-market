@@ -1,6 +1,6 @@
 // src/components/User/OrderTracking/OrderTrackingCard.jsx
 import React from "react";
-import { formatCurrency, formatDateTime, getStatusCfg } from "../../../utils/orderUtils";
+import { formatCurrency, formatDateTime, formatEstimatedDeliveryTime, getStatusCfg } from "../../../utils/orderUtils";
 
 /**
  * =========================================================================
@@ -37,6 +37,8 @@ export default function OrderTrackingCard({ order, onViewDetail }) {
     created_at,
   } = order;
 
+  const estimatedDeliveryTime = formatEstimatedDeliveryTime(order);
+
   return (
     <div className="bg-white rounded-2xl border border-gray-200 px-5 py-4 hover:shadow-sm transition-shadow">
       {/* Mã đơn + trạng thái + ngày đặt */}
@@ -54,7 +56,7 @@ export default function OrderTrackingCard({ order, onViewDetail }) {
 
       {/* Lịch giao hàng */}
       {(delivery_date || delivery_slot_name) && (
-        <div className="flex items-center gap-1.5 text-[13px] text-gray-500 mb-4">
+        <div className="flex items-center gap-1.5 text-[13px] text-gray-500 mb-2">
           <svg className="w-3.5 h-3.5 text-gray-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
               d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
@@ -66,6 +68,20 @@ export default function OrderTrackingCard({ order, onViewDetail }) {
         </div>
       )}
 
+      {estimatedDeliveryTime ? (
+        <div className="flex items-center gap-1.5 text-[13px] text-emerald-700 mb-4">
+          <svg className="w-3.5 h-3.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+              d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+          </svg>
+          <span>
+            Dự kiến giao: <span className="font-medium">{estimatedDeliveryTime}</span>
+          </span>
+        </div>
+      ) : (
+        <div className="mb-4" />
+      )}
+
       {/* Tổng tiền + nút xem chi tiết */}
       <div className="flex items-center justify-between pt-3 border-t border-gray-100">
         <div>
@@ -74,7 +90,7 @@ export default function OrderTrackingCard({ order, onViewDetail }) {
         </div>
         <button
           onClick={() => onViewDetail(id)}
-          className="px-3.5 py-1.5 rounded-lg text-[13px] font-medium text-emerald-700 bg-emerald-50
+          className="hover:scale-105 cursor-pointer px-3.5 py-1.5 rounded-lg text-[13px] font-medium text-emerald-700 bg-emerald-50
             hover:bg-emerald-100 transition-colors"
         >
           Xem chi tiết

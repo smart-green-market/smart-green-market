@@ -53,11 +53,6 @@ export default function CultivationSupplierPage() {
 
   return (
     <div className={SUPPLIER_PAGE_CLASS}>
-      <SupplierPageHeader
-        title="Quy trình canh tác"
-        description="Quản lý các bước quy trình canh tác theo từng sản phẩm của nhà cung cấp"
-      />
-
       <div className="flex items-center justify-between">
         <input
           type="text"

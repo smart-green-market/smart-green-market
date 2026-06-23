@@ -39,11 +39,6 @@ export default function OrderSupplierPage() {
 
   return (
     <div className={SUPPLIER_PAGE_CLASS}>
-      <SupplierPageHeader
-        title="Quản lý đơn hàng"
-        description="Theo dõi các phiếu nhập hàng từ đại lý gửi tới nhà cung cấp"
-      />
-
       <OrderStatusStats orders={data} />
 
       <div className="flex justify-between items-center">

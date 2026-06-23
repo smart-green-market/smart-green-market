@@ -45,15 +45,30 @@ export function buildRecentlyViewedEntry(product) {
     const card = toCardProduct(product);
 
     return {
-        id: card.id,
-        name: card.name,
-        price: card.price,
-        unit: card.unit,
-        image: card.image,
-        priceValue: card.priceValue,
-        unitKey: card.unitKey,
+        ...card,
         viewedAt: Date.now(),
     };
+}
+
+export function mergeRecentlyViewedWithCatalog(storedItems, products = []) {
+    if (!Array.isArray(storedItems) || storedItems.length === 0) return [];
+
+    const catalogMap = new Map(
+        products.map((product) => [String(product.id), toCardProduct(product)]),
+    );
+
+    return storedItems.map((item) => {
+        const live = catalogMap.get(String(item.id));
+        const merged = live ? { ...item, ...live } : item;
+
+        return {
+            ...merged,
+            viewedAt: item.viewedAt,
+            available_quantity: merged.available_quantity ?? 0,
+            supplier_name: merged.supplier_name ?? "",
+            in_stock: merged.in_stock ?? true,
+        };
+    });
 }
 
 export function getRecentlyViewed(dealerSlug) {
