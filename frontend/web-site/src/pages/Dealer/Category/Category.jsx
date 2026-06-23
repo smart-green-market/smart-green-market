@@ -23,9 +23,10 @@ export default function DealerCategoryPage() {
     const mapCategoryStatus = (status) => {
         const statusMap = {
             pending: "Chờ duyệt",
-            active: "Hoạt động",
-            inactive: "Đã khóa",
+            active: "Đang bán",
+            inactive: "Ngừng bán",
             rejected: "Từ chối",
+            deleted: "Đã xóa",
         };
         return statusMap[status] || status;
     };
@@ -58,10 +59,11 @@ export default function DealerCategoryPage() {
 
     const filterOptions = [
         { label: "Tất cả", value: "", colorClass: "text-neutral-700" },
-        { label: "Hoạt động", value: "Hoạt động", colorClass: "text-emerald-700" },
-        { label: "Chờ duyệt", value: "Chờ duyệt", colorClass: "text-amber-700" },
-        { label: "Đã khóa", value: "Đã khóa", colorClass: "text-neutral-500" },
-        { label: "Từ chối", value: "Từ chối", colorClass: "text-red-700" }
+        { label: "Chờ duyệt", value: "pending", colorClass: "text-amber-700" },
+        { label: "Đang bán", value: "active", colorClass: "text-emerald-700" },
+        { label: "Ngừng bán", value: "inactive", colorClass: "text-neutral-500" },
+        { label: "Từ chối", value: "rejected", colorClass: "text-red-600" },
+        { label: "Đã xóa", value: "deleted", colorClass: "text-red-900" },
     ];
 
     const handleViewDetail = (cat) => {
@@ -118,13 +120,7 @@ export default function DealerCategoryPage() {
         }
     };
 
-    if (isLoading) {
-        return (
-            <div className="p-6 bg-emerald-50/15 min-h-screen flex justify-center items-center">
-                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-emerald-600"></div>
-            </div>
-        );
-    }
+
 
     return (
         <div className="p-6 bg-emerald-50/15 min-h-screen font-['Geist',sans-serif]">
@@ -149,9 +145,9 @@ export default function DealerCategoryPage() {
             {/* Filter */}
             <SupplierFilter
                 searchQuery={searchQuery}
-                onSearchChange={setSearchQuery}
+                onSearchChange={(val) => { setSearchQuery(val); setCurrentPage(1); }}
                 statusFilter={statusFilter}
-                onStatusChange={setStatusFilter}
+                onStatusChange={(val) => { setStatusFilter(val); setCurrentPage(1); }}
                 filterOptions={filterOptions}
                 placeholder="Tìm kiếm danh mục..."
             />

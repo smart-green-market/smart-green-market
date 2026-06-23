@@ -29,7 +29,12 @@ export default function DealerSupplierPage() {
     }
   };
   const filterOptions = [
-
+    { label: "Tất cả", value: "", colorClass: "text-neutral-700" },
+    { label: "Chờ duyệt", value: "pending", colorClass: "text-amber-700" },
+    { label: "Đang hoạt động", value: "active", colorClass: "text-emerald-700" },
+    { label: "Ngừng hoạt động", value: "inactive", colorClass: "text-neutral-500" },
+    { label: "Từ chối", value: "rejected", colorClass: "text-red-600" },
+    { label: "Đã xóa", value: "deleted", colorClass: "text-red-900" },
   ];
 
   useEffect(() => {
@@ -41,13 +46,7 @@ export default function DealerSupplierPage() {
 
 
 
-  if (loading) {
-    return (
-      <div className="p-6 bg-emerald-50/15 min-h-screen flex justify-center items-center">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-emerald-600"></div>
-      </div>
-    );
-  }
+
 
   return (
     <div className="p-6 bg-emerald-50/15 min-h-screen font-['Geist',sans-serif]">
@@ -57,9 +56,9 @@ export default function DealerSupplierPage() {
       {/* Bộ lọc và Tìm kiếm */}
       <SupplierFilter
         searchQuery={searchQuery}
-        onSearchChange={setSearchQuery}
+        onSearchChange={(val) => { setSearchQuery(val); setCurrentPage(1); }}
         statusFilter={statusFilter}
-        onStatusChange={setStatusFilter}
+        onStatusChange={(val) => { setStatusFilter(val); setCurrentPage(1); }}
         filterOptions={filterOptions}
         placeholder="Tìm kiếm nhà cung cấp..."
 

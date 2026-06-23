@@ -74,12 +74,13 @@ export default function DealerSalesOrderPage() {
 
     const filterOptions = [
         { label: "Tất cả trạng thái", value: "", colorClass: "text-neutral-700" },
-        { label: "Chờ xác nhận", value: "Chờ xác nhận", colorClass: "text-sky-700" },
-        { label: "Đã xác nhận", value: "Đã xác nhận", colorClass: "text-indigo-700" },
-        { label: "Đang chuẩn bị", value: "Đang chuẩn bị hàng", colorClass: "text-amber-700" },
-        { label: "Đang giao", value: "Đang giao hàng", colorClass: "text-blue-700" },
-        { label: "Đã giao", value: "Đã giao", colorClass: "text-emerald-700" },
-        { label: "Đã huỷ", value: "Đã hủy", colorClass: "text-red-700" }
+        { label: "Chờ xác nhận", value: "pending", colorClass: "text-sky-700" },
+        { label: "Đã xác nhận", value: "confirmed", colorClass: "text-indigo-700" },
+        { label: "Đang chuẩn bị", value: "processing", colorClass: "text-amber-700" },
+        { label: "Đang giao", value: "shipping", colorClass: "text-blue-700" },
+        { label: "Đã giao", value: "delivered", colorClass: "text-emerald-700" },
+        { label: "Hoàn tất", value: "completed", colorClass: "text-teal-700" },
+        { label: "Đã huỷ", value: "cancelled", colorClass: "text-red-700" }
     ];
 
     const handleViewDetail = async (order) => {
@@ -226,9 +227,9 @@ export default function DealerSalesOrderPage() {
             {/* Filter */}
             <SupplierFilter
                 searchQuery={searchQuery}
-                onSearchChange={setSearchQuery}
+                onSearchChange={(val) => { setSearchQuery(val); setCurrentPage(1); }}
                 statusFilter={statusFilter}
-                onStatusChange={setStatusFilter}
+                onStatusChange={(val) => { setStatusFilter(val); setCurrentPage(1); }}
                 filterOptions={filterOptions}
                 placeholder="Tìm kiếm đơn bán hàng (Mã đơn, Khách hàng...)"
             />

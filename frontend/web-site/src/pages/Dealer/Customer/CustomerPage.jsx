@@ -18,14 +18,14 @@ export default function DealerCustomerPage() {
   });
 
   useEffect(() => {
-    fetchCustomers();
-  }, []);
+    fetchCustomers(1);
+  }, [searchQuery, statusFilter]);
 
   const fetchCustomers = async (page = 1) => {
     try {
       setLoading(true);
       setError(null);
-      const data = await customerService.getAll({ page, page_size: 10 });
+      const data = await customerService.getAll({ page, page_size: 10, search: searchQuery, status: statusFilter });
       setCustomers(data.results || []);
       setPagination({
         count: data.count || 0,
@@ -50,23 +50,14 @@ export default function DealerCustomerPage() {
   };
 
   const filterOptions = [
-    { label: "Tất cả trạng thái", value: "", colorClass: "text-neutral-700" },
+    { label: "Tất cả", value: "", colorClass: "text-neutral-700" },
     { label: "Hoạt động", value: "active", colorClass: "text-emerald-700" },
-    { label: "Ngừng hoạt động", value: "inactive", colorClass: "text-neutral-600" },
-    { label: "Bị khóa", value: "banned", colorClass: "text-red-700" },
+    { label: "Không hoạt động", value: "inactive", colorClass: "text-neutral-600" },
+    { label: "Bị cấm", value: "banned", colorClass: "text-red-700" },
+    { label: "Chờ duyệt", value: "pending", colorClass: "text-amber-700" },
   ];
 
-  const filteredCustomers = customers.filter(customer => {
-    const name = customer.full_name || "";
-    const phone = customer.phone || "";
-    const email = customer.email || "";
-    const matchesSearch =
-      name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      phone.includes(searchQuery) ||
-      email.toLowerCase().includes(searchQuery.toLowerCase());
-    const matchesStatus = statusFilter === "" || customer.status === statusFilter;
-    return matchesSearch && matchesStatus;
-  });
+  const filteredCustomers = customers;
 
   return (
     <div className="p-6 bg-neutral-50/50 min-h-screen font-['Geist',sans-serif]">

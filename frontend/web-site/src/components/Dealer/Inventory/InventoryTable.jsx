@@ -34,13 +34,15 @@ export default function InventoryTable({ data, onRowClick, currentPage, totalPag
             <tbody className="divide-y divide-neutral-100">
               {data.map((row, index) => {
                 const statusClass =
-                  row.status === "Còn hàng"
+                  row.status === "Đang hoạt động"
                     ? "bg-emerald-100 text-emerald-800"
-                    : row.status === "Sắp hết hàng"
+                    : row.status === "Hết hàng"
                       ? "bg-amber-100 text-amber-800"
-                      : row.status === "Hết hàng"
+                      : row.status === "Hết hạn"
                         ? "bg-red-100 text-red-800"
-                        : "bg-red-200 text-red-900 border border-red-300";
+                        : row.status === "Đã hủy"
+                          ? "bg-neutral-200 text-neutral-700"
+                          : "bg-neutral-100 text-neutral-600";
 
                 return (
                   <tr

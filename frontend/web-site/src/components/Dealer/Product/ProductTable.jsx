@@ -7,6 +7,7 @@ const STATUS_MAP = {
   pending: { label: "Chờ duyệt", cls: "bg-amber-50 text-amber-700" },
   inactive: { label: "Ngừng bán", cls: "bg-neutral-100 text-neutral-500" },
   rejected: { label: "Từ chối", cls: "bg-red-50 text-red-600" },
+  deleted: { label: "Đã xóa", cls: "bg-red-100 text-red-900" },
 };
 
 export default function ProductTable({ data, onRowClick, currentPage, totalPages, onPageChange }) {

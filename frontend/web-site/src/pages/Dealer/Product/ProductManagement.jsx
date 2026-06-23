@@ -44,8 +44,11 @@ export default function DealerProductManagementPage() {
 
   const filterOptions = [
     { label: "Tất cả", value: "", colorClass: "text-neutral-700" },
-    { label: "Đang hiển thị", value: "active", colorClass: "text-emerald-700" },
-    { label: "Đã ẩn", value: "inactive", colorClass: "text-neutral-500" },
+    { label: "Chờ duyệt", value: "pending", colorClass: "text-amber-700" },
+    { label: "Đang bán", value: "active", colorClass: "text-emerald-700" },
+    { label: "Ngừng bán", value: "inactive", colorClass: "text-neutral-500" },
+    { label: "Từ chối", value: "rejected", colorClass: "text-red-600" },
+    { label: "Đã xóa", value: "deleted", colorClass: "text-red-900" },
   ];
 
   const handleRowClick = (row) => {
@@ -79,11 +82,11 @@ export default function DealerProductManagementPage() {
 
           <SupplierFilter
             searchQuery={searchQuery}
-            onSearchChange={setSearchQuery}
+            onSearchChange={(val) => { setSearchQuery(val); setCurrentPage(1); }}
             statusFilter={statusFilter}
-            onStatusChange={setStatusFilter}
+            onStatusChange={(val) => { setStatusFilter(val); setCurrentPage(1); }}
             filterOptions={filterOptions}
-            placeholder="Tìm theo tên sản phẩm..."
+            placeholder="Tìm theo tên sản phẩm, danh mục, nhà cung cấp..."
           />
 
           <ProductTable

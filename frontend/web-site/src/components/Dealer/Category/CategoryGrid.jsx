@@ -25,12 +25,14 @@ export default function CategoryGrid({ categories, onViewDetail, onDelete, onUpd
                 
                 <span
                   className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
-                    cat.status === "Hoạt động"
+                    cat.status === "Đang bán"
                       ? "bg-emerald-100 text-emerald-800"
                       : cat.status === "Chờ duyệt"
                       ? "bg-amber-100 text-amber-800"
                       : cat.status === "Từ chối"
-                      ? "bg-red-100 text-red-800"
+                      ? "bg-red-100 text-red-600"
+                      : cat.status === "Đã xóa"
+                      ? "bg-red-100 text-red-900"
                       : "bg-neutral-100 text-neutral-500"
                   }`}
                 >

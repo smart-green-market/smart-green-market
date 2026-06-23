@@ -2,7 +2,7 @@
 
 from django.db.models import Count, Prefetch, Q, Sum
 from django.utils import timezone
-from drf_spectacular.utils import OpenApiExample, OpenApiResponse, extend_schema, extend_schema_view
+from drf_spectacular.utils import OpenApiExample, OpenApiParameter, OpenApiResponse, extend_schema, extend_schema_view
 from rest_framework import viewsets
 from rest_framework.decorators import action
 from rest_framework.exceptions import ValidationError
@@ -162,6 +162,10 @@ def _supplier_catalog_product_q(supplier, *, dealer_catalog=False):
         responses={
             200: SupplierDetailSerializer,
         },
+        parameters=[
+            OpenApiParameter("search", str, description="Tìm kiếm theo tên công ty, địa chỉ", required=False),
+            OpenApiParameter("status", str, description="Lọc theo trạng thái", required=False),
+        ],
         examples=[SUPPLIER_CATALOG_DETAIL_EXAMPLE],
     ),
     create=extend_schema(
@@ -271,6 +275,20 @@ class SupplierViewSet(viewsets.ModelViewSet):
                             ),
                         ),
                     )
+                if self.action == "list":
+                    status_filter = self.request.query_params.get("status")
+                    if status_filter:
+                        status_val = status_filter.strip()
+                        if status_val == "active":
+                            status_val = "approved"
+                        qs = qs.filter(verification_status=status_val)
+                    search = self.request.query_params.get("search")
+                    if search:
+                        search = search.strip()
+                        qs = qs.filter(
+                            Q(company_name__icontains=search) |
+                            Q(address__icontains=search)
+                        )
                 return qs
             return qs.none()
         if self.action == "products" and user.role == AccountRole.ADMIN:
@@ -293,13 +311,28 @@ class SupplierViewSet(viewsets.ModelViewSet):
                     .order_by("-updated_at", "-created_at", "-id"),
                 ),
             )
-        return filter_admin_or_supplier_account(
+        qs = filter_admin_or_supplier_account(
             qs,
             user,
             account_lookup="account",
             ordering=ORDER_NEWEST,
             pending_field="verification_status",
         )
+        if self.action == "list":
+            status_filter = self.request.query_params.get("status")
+            if status_filter:
+                status_val = status_filter.strip()
+                if status_val == "active":
+                    status_val = "approved"
+                qs = qs.filter(verification_status=status_val)
+            search = self.request.query_params.get("search")
+            if search:
+                search = search.strip()
+                qs = qs.filter(
+                    Q(company_name__icontains=search) |
+                    Q(address__icontains=search)
+                )
+        return qs
 
     def get_serializer_context(self):
         ctx = super().get_serializer_context()

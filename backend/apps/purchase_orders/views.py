@@ -19,7 +19,7 @@ Router: config/urls.py → purchase_orders/urls.py → PurchaseOrderViewSet
 Config công khai: GET /api/purchase-order-config/
 """
 
-from django.db.models import Prefetch
+from django.db.models import Prefetch, Q
 
 from drf_spectacular.utils import OpenApiParameter, extend_schema, extend_schema_view
 from rest_framework import status, viewsets
@@ -114,10 +114,8 @@ def _detail_response(order, request):
             + PAGINATION_QUERY_HELP
         ),
         parameters=[
-            OpenApiParameter("search", str, description="Tìm kiếm theo mã đơn hàng", required=False),
+            OpenApiParameter("search", str, description="Tìm kiếm theo mã đơn, tên/SĐT người nhận, đại lý hoặc NCC", required=False),
             OpenApiParameter("status", str, description="Lọc theo trạng thái đơn hàng", required=False),
-            OpenApiParameter("dealer", int, description="Lọc theo ID đại lý", required=False),
-            OpenApiParameter("supplier", int, description="Lọc theo ID nhà cung cấp", required=False),
         ],
         responses={
             200: paginated_response_schema(
@@ -198,7 +196,13 @@ class PurchaseOrderViewSet(viewsets.GenericViewSet):
         # Search
         search = request.query_params.get("search", "").strip()
         if search:
-            qs = qs.filter(order_code__icontains=search)
+            qs = qs.filter(
+                Q(order_code__icontains=search)
+                | Q(receiver_name__icontains=search)
+                | Q(receiver_phone__icontains=search)
+                | Q(dealer__store_name__icontains=search)
+                | Q(supplier__company_name__icontains=search)
+            )
 
         # Filters
         status_param = request.query_params.get("status", "").strip()

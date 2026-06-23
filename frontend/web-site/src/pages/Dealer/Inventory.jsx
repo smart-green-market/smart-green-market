@@ -61,6 +61,13 @@ export default function DealerInventoryPage() {
           ? new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(retailPriceRaw)
           : "N/A";
 
+        const statusMap = {
+          "active": "Đang hoạt động",
+          "depleted": "Hết hàng",
+          "expired": "Hết hạn",
+          "cancelled": "Đã hủy"
+        };
+
         // Trả về đối tượng lô hàng đã được format thân thiện với UI table
         return {
           batchCode: batch.batch_number, // Mã lô hàng
@@ -73,7 +80,7 @@ export default function DealerInventoryPage() {
           unit: unitName, // Đơn vị tính
           priceImport: new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(batch.import_price), // Giá nhập kho
           priceRetail: priceRetail, // Giá bán lẻ đại lý tự cấu hình
-          status: batch.remaining_quantity > 0 ? "Còn hàng" : "Hết hàng", // Trạng thái tồn kho
+          status: statusMap[batch.status] || batch.status, // Trạng thái tồn kho theo backend
           freshness: "N/A",
           freshnessColor: "text-neutral-600 bg-neutral-50",
           originalData: batch // Lưu giữ toàn bộ data gốc của lô hàng để dùng cho các tác vụ cập nhật
@@ -127,25 +134,16 @@ export default function DealerInventoryPage() {
     }
   };
 
-  // Logic lọc dữ liệu cục bộ (chỉ áp dụng trên kết quả của trang hiện tại nếu backend chưa hỗ trợ query param search/status)
-  const filteredInventory = inventoryList.filter((item) => {
-    const matchesSearch =
-      item.productName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      item.batchCode.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      item.supplier.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      item.category.toLowerCase().includes(searchQuery.toLowerCase());
+  // Backend xử lý lọc dữ liệu nên không cần lọc lại ở frontend
+  const filteredInventory = inventoryList;
 
-    const matchesStatus = statusFilter === "" || item.status === statusFilter;
-    return matchesSearch && matchesStatus;
-  });
-
-  // Cấu hình các tùy chọn bộ lọc trạng thái tồn kho
+  // Cấu hình các tùy chọn bộ lọc trạng thái tồn kho chuẩn theo backend
   const filterOptions = [
     { label: "Tất cả", value: "", colorClass: "text-neutral-700" },
-    { label: "Còn hàng", value: "Còn hàng", colorClass: "text-emerald-700" },
-    { label: "Sắp hết hàng", value: "Sắp hết hàng", colorClass: "text-amber-700" },
-    { label: "Hết hàng", value: "Hết hàng", colorClass: "text-red-700" },
-    { label: "Hết hạn", value: "Hết hạn", colorClass: "text-red-900" },
+    { label: "Đang hoạt động", value: "active", colorClass: "text-emerald-700" },
+    { label: "Hết hàng", value: "depleted", colorClass: "text-amber-700" },
+    { label: "Hết hạn", value: "expired", colorClass: "text-red-700" },
+    { label: "Đã hủy", value: "cancelled", colorClass: "text-red-900" },
   ];
 
   /**
@@ -169,14 +167,7 @@ export default function DealerInventoryPage() {
     await fetchTransactions();
   };
 
-  // Trạng thái chờ tải dữ liệu ban đầu
-  if (loading) {
-    return (
-      <div className="p-6 bg-emerald-50/15 min-h-screen flex justify-center items-center">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-emerald-600"></div>
-      </div>
-    );
-  }
+
 
   // --- Render Giao diện ---
   return (
@@ -187,9 +178,9 @@ export default function DealerInventoryPage() {
       {/* 2. Bộ lọc kết hợp tìm kiếm và chọn nhanh trạng thái hàng */}
       <SupplierFilter
         searchQuery={searchQuery}
-        onSearchChange={setSearchQuery}
+        onSearchChange={(val) => { setSearchQuery(val); setInventoryPage(1); }}
         statusFilter={statusFilter}
-        onStatusChange={setStatusFilter}
+        onStatusChange={(val) => { setStatusFilter(val); setInventoryPage(1); }}
         filterOptions={filterOptions}
         placeholder="Tìm kiếm lô hàng (Mã lô, tên nông sản, nhà cung cấp...)"
       />

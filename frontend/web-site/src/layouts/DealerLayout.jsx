@@ -3,7 +3,7 @@ import { Outlet, useNavigate } from "react-router-dom";
 import { Menu } from "lucide-react";
 import SideBar from "../components/Dealer/UI/SideBar";
 import Logo from "../components/Dealer/UI/Logo";
-import NotificationBell from "../components/common/NotificationBell";
+import DealerNotificationBell from "../components/common/DealerNotificationBell";
 import AppToaster from "../components/common/AppToaster";
 
 export default function DealerLayout() {
@@ -28,7 +28,7 @@ export default function DealerLayout() {
 
                 {/* Right icons */}
                 <div className="flex items-center gap-3">
-                    <NotificationBell role="dealer" />
+                    <DealerNotificationBell role="dealer" />
 
                     <div className="pl-4 border-l border-gray-200 flex items-center gap-2">
                         <button
