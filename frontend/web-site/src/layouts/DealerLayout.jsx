@@ -11,15 +11,15 @@ export default function DealerLayout() {
     const navigate = useNavigate();
 
     return (
-        <div className="min-h-screen bg-neutral-50/50">
+        <div className="min-h-screen bg-[#F8F9FA]">
             {/* ── Top Bar ───────────────────────────────────────────────────── */}
-            <header className="fixed top-0 left-0 right-0 z-50 h-16 bg-stone-50 border-b border-emerald-100/50 flex items-center justify-between px-6">
+            <header className="fixed top-0 left-0 right-0 z-50 h-16 bg-white border-b border-gray-200/60 flex items-center justify-between px-6 shadow-[0_1px_3px_rgba(0,0,0,0.04)]">
 
                 {/* Logo & Toggle Button */}
                 <div className="flex items-center gap-4">
                     <button
                         onClick={() => setIsSidebarOpen(!isSidebarOpen)}
-                        className="p-2 hover:bg-emerald-50 active:bg-emerald-100 rounded-xl cursor-pointer transition-colors text-emerald-800"
+                        className="p-2 hover:bg-gray-100 active:bg-gray-200/60 rounded-lg cursor-pointer transition-colors text-[#333333]"
                     >
                         <Menu className="w-5 h-5" />
                     </button>
@@ -30,10 +30,10 @@ export default function DealerLayout() {
                 <div className="flex items-center gap-3">
                     <NotificationBell role="dealer" />
 
-                    <div className="pl-4 border-l border-emerald-100 flex items-center gap-2">
+                    <div className="pl-4 border-l border-gray-200 flex items-center gap-2">
                         <button
                             onClick={() => navigate("/dai-ly/cau-hinh")}
-                            className="w-8 h-8 rounded-full bg-emerald-800 hover:bg-emerald-900 flex items-center justify-center text-white text-xs font-bold font-['Geist',sans-serif] shadow-xs active:scale-95 transition-transform cursor-pointer"
+                            className="w-8 h-8 rounded-full bg-green-600 hover:bg-green-700 flex items-center justify-center text-white text-xs font-bold font-['Geist',sans-serif] shadow-sm active:scale-95 transition-all cursor-pointer"
                         >
                             D
                         </button>
