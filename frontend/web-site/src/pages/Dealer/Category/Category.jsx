@@ -71,7 +71,7 @@ export default function DealerCategoryPage() {
     const handleCreateCategory = async (newCatData) => {
         try {
             const dataToCreate = {
-                
+
                 name: newCatData.name,
                 description: newCatData.description || "",
                 sort_order: "1"

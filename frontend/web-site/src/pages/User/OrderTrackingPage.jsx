@@ -14,12 +14,21 @@ import {
   parseBuyerOrderList,
 } from "../../services/api/Buyer/buyerOrder";
 import { useDealerSlug } from "../../hooks/useStorefrontPaths";
+<<<<<<< HEAD
 import { matchesStatusFilter, isActiveTrackingOrder } from "../../utils/orderUtils";
+=======
+import { matchesStatusFilter } from "../../utils/orderUtils";
+>>>>>>> 2f5307e509c173f5476c9d53a52e0d76032f8e03
 
 const FILTER_TABS = [
   { key: "all", label: "Tất cả" },
   { key: "processing", label: "Đang xử lý" },
   { key: "shipping", label: "Đang giao" },
+<<<<<<< HEAD
+=======
+  { key: "completed", label: "Hoàn thành" },
+  { key: "cancelled", label: "Đã hủy" },
+>>>>>>> 2f5307e509c173f5476c9d53a52e0d76032f8e03
 ];
 
 export default function OrderTrackingPage() {
@@ -55,6 +64,7 @@ export default function OrderTrackingPage() {
     fetchOrders();
   }, [fetchOrders]);
 
+<<<<<<< HEAD
   const activeOrders = useMemo(
     () => orders.filter((order) => isActiveTrackingOrder(order.status)),
     [orders],
@@ -63,6 +73,11 @@ export default function OrderTrackingPage() {
   const filteredOrders = useMemo(
     () => activeOrders.filter((order) => matchesStatusFilter(order.status, activeFilter)),
     [activeOrders, activeFilter],
+=======
+  const filteredOrders = useMemo(
+    () => orders.filter((order) => matchesStatusFilter(order.status, activeFilter)),
+    [orders, activeFilter],
+>>>>>>> 2f5307e509c173f5476c9d53a52e0d76032f8e03
   );
 
   const tabsWithCount = useMemo(
@@ -71,12 +86,19 @@ export default function OrderTrackingPage() {
         ...tab,
         count:
           tab.key === "all"
+<<<<<<< HEAD
             ? activeOrders.length
             : activeOrders.filter((order) =>
                 matchesStatusFilter(order.status, tab.key),
               ).length,
       })),
     [activeOrders],
+=======
+            ? orders.length
+            : orders.filter((order) => matchesStatusFilter(order.status, tab.key)).length,
+      })),
+    [orders],
+>>>>>>> 2f5307e509c173f5476c9d53a52e0d76032f8e03
   );
 
   const handleViewDetail = useCallback((orderId) => {
@@ -96,9 +118,13 @@ export default function OrderTrackingPage() {
           </span>
           <div>
             <h1 className="text-2xl font-bold text-slate-800">Theo dõi đơn hàng</h1>
+<<<<<<< HEAD
             <p className="text-sm text-slate-400">
               Các đơn hàng đang được xử lý và giao
             </p>
+=======
+            <p className="text-sm text-slate-400">Danh sách tất cả đơn hàng của bạn</p>
+>>>>>>> 2f5307e509c173f5476c9d53a52e0d76032f8e03
           </div>
         </div>
 

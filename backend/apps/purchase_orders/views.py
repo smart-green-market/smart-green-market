@@ -4,7 +4,7 @@ Router: config/urls.py → purchase_orders/urls.py → PurchaseOrderViewSet
 
 | Endpoint | Role | Service |
 |----------|------|---------|
-| GET/POST /api/purchase-orders/ | Dealer (POST) | create_purchase_order |
+| GET/POST /api/purchase-orders/ | Dealer (POST) | create_purchase_orders |
 | GET /api/purchase-orders/{id}/ | All (phân quyền) | — |
 | POST .../confirm/ | Supplier | supplier_confirm_order |
 | POST .../reject/ | Supplier | supplier_reject_order |
@@ -44,6 +44,20 @@ from common.verify_openapi import (
 
 from . import services
 from .openapi import (
+    PO_CANCEL_DESCRIPTION,
+    PO_CONFIRM_DELIVERY_DESCRIPTION,
+    PO_CONFIRM_DESCRIPTION,
+    PO_CREATE_DESCRIPTION,
+    PO_CREATE_REQUEST_EXAMPLE,
+    PO_CREATE_RESPONSE_EXAMPLE,
+    PO_LIST_DESCRIPTION,
+    PO_PAYMENT_QR_DESCRIPTION,
+    PO_REJECT_DESCRIPTION,
+    PO_RETRIEVE_DESCRIPTION,
+    PO_SHIP_DESCRIPTION,
+    PO_SUBMIT_DEPOSIT_DESCRIPTION,
+    PO_SUBMIT_FINAL_DESCRIPTION,
+    PO_VERIFY_PAYMENT_DESCRIPTION,
     SUBMIT_PAYMENT_EXAMPLE_NOTE,
     SUBMIT_PAYMENT_MINIMAL_HELP,
     SubmitPaymentForm,
@@ -58,6 +72,7 @@ from .serializers import (
     CancelOrderSerializer,
     NoteSerializer,
     PurchaseOrderCreateSerializer,
+    PurchaseOrderBatchCreateResponseSerializer,
     PurchaseOrderDetailSerializer,
     PurchaseOrderListSerializer,
     PurchaseOrderPaymentReadSerializer,
@@ -93,7 +108,7 @@ def _detail_response(order, request):
 @extend_schema_view(
     list=extend_schema(
         tags=["Purchase Orders"],
-        summary="Danh sách phiếu nhập",
+        summary="[Danh sách] Phiếu nhập",
         description=(
             "Admin: tất cả. Supplier: đơn gửi tới NCC mình. Dealer: đơn của đại lý mình."
             + PAGINATION_QUERY_HELP
@@ -113,15 +128,17 @@ def _detail_response(order, request):
     ),
     retrieve=extend_schema(
         tags=["Purchase Orders"],
-        summary="Chi tiết phiếu nhập",
+        summary="[Chi tiết] Một phiếu nhập",
+        description=PO_RETRIEVE_DESCRIPTION,
         responses={200: PurchaseOrderDetailSerializer},
     ),
     create=extend_schema(
         tags=["Purchase Orders"],
-        summary="Đại lý tạo phiếu nhập",
-        description="Gửi phiếu → trạng thái `pending_supplier_confirmation`.",
+        summary="[Bước 1] Dealer tạo phiếu (tách theo NCC)",
+        description=PO_CREATE_DESCRIPTION,
         request=PurchaseOrderCreateSerializer,
-        responses={201: PurchaseOrderDetailSerializer},
+        responses={201: PurchaseOrderBatchCreateResponseSerializer},
+        examples=[PO_CREATE_REQUEST_EXAMPLE, PO_CREATE_RESPONSE_EXAMPLE],
     ),
 )
 class PurchaseOrderViewSet(viewsets.GenericViewSet):
@@ -213,12 +230,20 @@ class PurchaseOrderViewSet(viewsets.GenericViewSet):
             context={"request": request},
         )
         serializer.is_valid(raise_exception=True)
-        order = serializer.save()
-        return Response(_detail_response(order, request), status=status.HTTP_201_CREATED)
+        orders = serializer.save()
+        return Response(
+            {
+                "orders": [
+                    _detail_response(order, request) for order in orders
+                ],
+            },
+            status=status.HTTP_201_CREATED,
+        )
 
     @extend_schema(
         tags=["Purchase Orders"],
-        summary="NCC xác nhận phiếu",
+        summary="[Bước 2a] NCC xác nhận phiếu",
+        description=PO_CONFIRM_DESCRIPTION,
         request=SupplierConfirmSerializer,
         responses={200: PurchaseOrderDetailSerializer},
     )
@@ -239,8 +264,8 @@ class PurchaseOrderViewSet(viewsets.GenericViewSet):
 
     @extend_schema(
         tags=["Purchase Orders"],
-        summary="NCC từ chối phiếu",
-        description="`rejection_reason` bắt buộc.",
+        summary="[Bước 2b] NCC từ chối phiếu",
+        description=PO_REJECT_DESCRIPTION,
         request=SupplierRejectSerializer,
         responses={200: PurchaseOrderDetailSerializer},
         examples=[PO_REJECT],
@@ -261,13 +286,8 @@ class PurchaseOrderViewSet(viewsets.GenericViewSet):
 
     @extend_schema(
         tags=["Purchase Orders"],
-        summary="Lấy QR VietQR thanh toán",
-        description=(
-            "Dealer quét QR chuyển khoản tới tài khoản NCC.\n\n"
-            "- `payment_type=deposit` — khi `status=confirmed`\n"
-            "- `payment_type=final_payment` — khi `status=delivered`\n\n"
-            "Hiển thị `qr_image_url` bằng thẻ `<img>` — URL trỏ tới img.vietqr.io."
-        ),
+        summary="[Bước 3/8] QR VietQR thanh toán",
+        description=PO_PAYMENT_QR_DESCRIPTION,
         parameters=[
             OpenApiParameter(
                 name="payment_type",
@@ -275,6 +295,7 @@ class PurchaseOrderViewSet(viewsets.GenericViewSet):
                 location=OpenApiParameter.QUERY,
                 required=True,
                 enum=["deposit", "final_payment"],
+                description="`deposit` khi confirmed | `final_payment` khi delivered",
             ),
         ],
         responses={200: PaymentQrSerializer},
@@ -304,8 +325,8 @@ class PurchaseOrderViewSet(viewsets.GenericViewSet):
 
     @extend_schema(
         tags=["Purchase Orders"],
-        summary="Đại lý gửi xác nhận thanh toán cọc",
-        description=SUBMIT_PAYMENT_MINIMAL_HELP,
+        summary="[Bước 4] Dealer nộp biên lai cọc",
+        description=PO_SUBMIT_DEPOSIT_DESCRIPTION + "\n\n" + SUBMIT_PAYMENT_MINIMAL_HELP,
         request=multipart_request(SubmitPaymentForm),
         responses={201: PurchaseOrderPaymentReadSerializer},
         examples=[SUBMIT_PAYMENT_EXAMPLE_NOTE],
@@ -335,8 +356,8 @@ class PurchaseOrderViewSet(viewsets.GenericViewSet):
 
     @extend_schema(
         tags=["Purchase Orders"],
-        summary="Đại lý gửi xác nhận thanh toán cuối",
-        description=SUBMIT_PAYMENT_MINIMAL_HELP,
+        summary="[Bước 9] Dealer nộp biên lai TT cuối",
+        description=PO_SUBMIT_FINAL_DESCRIPTION + "\n\n" + SUBMIT_PAYMENT_MINIMAL_HELP,
         request=multipart_request(SubmitPaymentForm),
         responses={201: PurchaseOrderPaymentReadSerializer},
         examples=[SUBMIT_PAYMENT_EXAMPLE_NOTE],
@@ -366,12 +387,8 @@ class PurchaseOrderViewSet(viewsets.GenericViewSet):
 
     @extend_schema(
         tags=["Purchase Orders"],
-        summary="NCC xác nhận / từ chối thanh toán",
-        description=(
-            "Lấy `payment_id` từ `payments[]` của phiếu.\n"
-            "`status=rejected` bắt buộc `rejection_reason`."
-            + VERIFY_REJECT_HELP
-        ),
+        summary="[Bước 5/10] NCC duyệt / từ chối CK",
+        description=PO_VERIFY_PAYMENT_DESCRIPTION + VERIFY_REJECT_HELP,
         request=VerifyPaymentSerializer,
         responses={200: PurchaseOrderPaymentReadSerializer},
         examples=[PO_VERIFY_PAYMENT_APPROVE, PO_VERIFY_PAYMENT_REJECT],
@@ -408,7 +425,8 @@ class PurchaseOrderViewSet(viewsets.GenericViewSet):
 
     @extend_schema(
         tags=["Purchase Orders"],
-        summary="NCC bắt đầu giao hàng",
+        summary="[Bước 6] NCC bắt đầu giao hàng",
+        description=PO_SHIP_DESCRIPTION,
         request=NoteSerializer,
         responses={200: PurchaseOrderDetailSerializer},
     )
@@ -426,7 +444,8 @@ class PurchaseOrderViewSet(viewsets.GenericViewSet):
 
     @extend_schema(
         tags=["Purchase Orders"],
-        summary="Đại lý xác nhận đã nhận hàng",
+        summary="[Bước 7] Dealer xác nhận nhận hàng",
+        description=PO_CONFIRM_DELIVERY_DESCRIPTION,
         request=NoteSerializer,
         responses={200: PurchaseOrderDetailSerializer},
     )
@@ -444,8 +463,8 @@ class PurchaseOrderViewSet(viewsets.GenericViewSet):
 
     @extend_schema(
         tags=["Purchase Orders"],
-        summary="Hủy phiếu nhập",
-        description="Dealer: trước khi NCC xử lý hoặc sau confirm chưa cọc. Admin: mọi trạng thái chưa terminal.",
+        summary="[Hủy] Hủy phiếu nhập",
+        description=PO_CANCEL_DESCRIPTION,
         request=CancelOrderSerializer,
         responses={200: PurchaseOrderDetailSerializer},
     )

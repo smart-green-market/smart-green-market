@@ -14,4 +14,8 @@ export { default as DealerSlugEntryPage } from "./DealerSlugEntryPage";
 export { default as CheckoutPage } from "./CheckoutPage";
 export { default as OrderTrackingPage } from "./OrderTrackingPage";
 export { default as PoliciesPage } from "./PoliciesPage";
+<<<<<<< HEAD
 export { default as SupportPage } from "./SupportPage";
+=======
+export { default as SupportPage } from "./SupportPage";
+>>>>>>> 2f5307e509c173f5476c9d53a52e0d76032f8e03

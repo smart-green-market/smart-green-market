@@ -12,7 +12,10 @@ import {
 import {
   formatCurrency,
   formatDateTime,
+<<<<<<< HEAD
   formatEstimatedDeliveryTime,
+=======
+>>>>>>> 2f5307e509c173f5476c9d53a52e0d76032f8e03
   getStatusCfg,
   formatPaymentMethod,
 } from "../../../utils/orderUtils";
@@ -239,8 +242,11 @@ const PaymentSummary = ({ order }) => {
 
 // ── Thông tin người mua / người nhận / giao hàng ────────
 const DeliveryInfo = ({ order }) => {
+<<<<<<< HEAD
   const estimatedDeliveryTime = formatEstimatedDeliveryTime(order);
 
+=======
+>>>>>>> 2f5307e509c173f5476c9d53a52e0d76032f8e03
   const rows = [
     { label: "Cửa hàng",          value: order.dealer_name },
     { label: "Người mua",         value: order.customer_name, sub: order.customer_phone },
@@ -248,7 +254,10 @@ const DeliveryInfo = ({ order }) => {
     { label: "Địa chỉ giao hàng", value: order.delivery_address ?? order.shipping_address },
     { label: "Ngày giao",         value: formatDateTime(order.delivery_date, false) },
     { label: "Khung giờ giao",    value: order.delivery_slot_name },
+<<<<<<< HEAD
     { label: "Thời gian dự kiến giao", value: estimatedDeliveryTime },
+=======
+>>>>>>> 2f5307e509c173f5476c9d53a52e0d76032f8e03
     { label: "Phương thức TT",    value: formatPaymentMethod(order.payment_method) },
     { label: "Ghi chú",           value: order.note },
   ].filter((r) => r.value);
@@ -297,7 +306,11 @@ const ModalActionFooter = ({
           type="button"
           disabled={actionLoading}
           onClick={onConfirmDelivery}
+<<<<<<< HEAD
           className="hover:scale-105 cursor-pointer w-full flex items-center justify-center gap-2 rounded-xl bg-emerald-700 px-4 py-3
+=======
+          className="w-full flex items-center justify-center gap-2 rounded-xl bg-emerald-700 px-4 py-3
+>>>>>>> 2f5307e509c173f5476c9d53a52e0d76032f8e03
             text-[14px] font-medium text-white hover:bg-emerald-800 transition-colors
             disabled:opacity-60 disabled:cursor-not-allowed"
         >
@@ -316,7 +329,11 @@ const ModalActionFooter = ({
             type="button"
             disabled={actionLoading}
             onClick={() => toast.info("Tính năng trả hàng đang được phát triển.")}
+<<<<<<< HEAD
             className="hover:scale-105 cursor-pointer flex-1 flex items-center justify-center gap-2 rounded-xl border border-gray-200 px-4 py-3
+=======
+            className="flex-1 flex items-center justify-center gap-2 rounded-xl border border-gray-200 px-4 py-3
+>>>>>>> 2f5307e509c173f5476c9d53a52e0d76032f8e03
               text-[14px] font-medium text-gray-600 hover:bg-gray-50 transition-colors
               disabled:opacity-60 disabled:cursor-not-allowed"
           >
@@ -327,7 +344,11 @@ const ModalActionFooter = ({
             type="button"
             disabled={actionLoading}
             onClick={onComplete}
+<<<<<<< HEAD
             className="hover:scale-105 cursor-pointer flex-1 flex items-center justify-center gap-2 rounded-xl bg-emerald-700 px-4 py-3
+=======
+            className="flex-1 flex items-center justify-center gap-2 rounded-xl bg-emerald-700 px-4 py-3
+>>>>>>> 2f5307e509c173f5476c9d53a52e0d76032f8e03
               text-[14px] font-medium text-white hover:bg-emerald-800 transition-colors
               disabled:opacity-60 disabled:cursor-not-allowed"
           >
@@ -451,7 +472,11 @@ export default function OrderDetailModal({ dealerSlug, orderId, isOpen, onClose,
 
           <button
             onClick={onClose}
+<<<<<<< HEAD
             className="hover:scale-105 cursor-pointer w-8 h-8 flex items-center justify-center rounded-lg text-gray-400
+=======
+            className="w-8 h-8 flex items-center justify-center rounded-lg text-gray-400
+>>>>>>> 2f5307e509c173f5476c9d53a52e0d76032f8e03
               hover:bg-gray-100 hover:text-gray-700 transition-colors flex-shrink-0"
             aria-label="Đóng"
           >

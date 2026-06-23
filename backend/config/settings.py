@@ -105,6 +105,7 @@ INSTALLED_APPS = [
     "apps.accounts",
     "apps.suppliers",
     "apps.categories",
+    "apps.product_catalog",
     "apps.supplier_products",
     "apps.dealers",
     "apps.dealer_products",
@@ -115,8 +116,7 @@ INSTALLED_APPS = [
     "apps.promotions",
     "apps.reviews",
     "apps.certifications",
-    "apps.notifications",   
-    "apps.supplier_inventory",
+    "apps.notifications",
 ]
 
 if CLOUDINARY_URL:

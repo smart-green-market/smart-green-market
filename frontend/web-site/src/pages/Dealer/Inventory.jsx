@@ -39,7 +39,7 @@ export default function DealerInventoryPage() {
       setLoading(true);
       const [data, productsData] = await Promise.all([
         dealerInventoryService.getBatches({ page: inventoryPage, page_size: 10, search: searchQuery, status: statusFilter }),
-        dealerProductService.getAll().catch(() => []) 
+        dealerProductService.getAll().catch(() => [])
       ]);
       const batches = data.results || data || [];
       setInventoryTotalPages(Math.max(1, Math.ceil((data.count || batches.length) / 10)));
@@ -215,8 +215,8 @@ export default function DealerInventoryPage() {
       </div>
 
       {/* 4. Bảng danh sách ghi nhận lịch sử nhập xuất hao hụt kho */}
-      <InventoryHistoryTable 
-        data={transactionList} 
+      <InventoryHistoryTable
+        data={transactionList}
         currentPage={transactionPage}
         totalPages={transactionTotalPages}
         onPageChange={setTransactionPage}

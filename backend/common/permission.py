@@ -83,15 +83,11 @@ class IsBuyer(BaseRolePermission):
     role = AccountRole.BUYER
 
 class IsActive(BasePermission):
-    """Yêu cầu tài khoản đã được kích hoạt (status = active)."""
-    
+    """Yêu cầu tài khoản đã đăng nhập và status = active."""
+
     def has_permission(self, request, view):
-        """Trả True nếu status active; raise PermissionDenied nếu chưa kích hoạt."""
-        print("user:", request.user)
-        print("authenticated:", request.user.is_authenticated)
-        print("role:", request.user.role)
-        print("status:", request.user.status)
+        if not request.user.is_authenticated:
+            return False
         if request.user.status != "active":
             raise PermissionDenied("Tài khoản chưa được kích hoạt.")
-
         return True

@@ -2,7 +2,6 @@ import axiosClient from "./axiosClient";
 import { accountDocumentService } from "./accountDocumentService";
 import { extractApiError } from "../../utils/extractApiError";
 
-
 export const dealerService = {
   getAll: () =>
     axiosClient
@@ -43,7 +42,6 @@ export const dealerService = {
     axiosClient
       .post("/dealers/", data)
       .then((res) => res.data.data ?? res.data),
-
 
   //NTD lấy url cửa hàng đại lý
   getStorefrontLink: () =>

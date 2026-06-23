@@ -258,6 +258,42 @@ export default function FilterProduct() {
                             </div>
                         </FilterSection>
 
+<<<<<<< HEAD
+=======
+                        <FilterSection title="Nhà cung cấp">
+                            <div className="flex flex-wrap gap-2">
+                                {loading ? (
+                                    <span className="text-xs text-neutral-400">
+                                        Đang tải...
+                                    </span>
+                                ) : availableSuppliers.length > 0 ? (
+                                    availableSuppliers.map((supplier) => (
+                                        <TagButton
+                                            key={supplier.value}
+                                            active={selectedSuppliers.includes(
+                                                supplier.value,
+                                            )}
+                                            onClick={() =>
+                                                toggleSupplier(supplier.value)
+                                            }
+                                        >
+                                            {supplier.label}
+                                            {supplier.count != null ? (
+                                                <span className="ml-1 opacity-70">
+                                                    ({supplier.count})
+                                                </span>
+                                            ) : null}
+                                        </TagButton>
+                                    ))
+                                ) : (
+                                    <span className="text-xs text-neutral-400">
+                                        Chưa có dữ liệu
+                                    </span>
+                                )}
+                            </div>
+                        </FilterSection>
+
+>>>>>>> 2f5307e509c173f5476c9d53a52e0d76032f8e03
                         <FilterSection title="Tồn kho">
                             <div className="flex flex-wrap gap-2">
                                 <TagButton
@@ -356,6 +392,10 @@ export default function FilterProduct() {
                                     id={product.id}
                                     brand={product.brand}
                                     categoryName={product.category_name}
+<<<<<<< HEAD
+=======
+                                    supplierName={product.supplier_name}
+>>>>>>> 2f5307e509c173f5476c9d53a52e0d76032f8e03
                                     name={product.name}
                                     price={product.price}
                                     rating={product.rating}

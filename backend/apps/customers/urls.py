@@ -7,6 +7,22 @@ from .storefront_catalog_views import (
     StorefrontProductDetailView,
     StorefrontProductListView,
 )
+from apps.marketing.storefront_views import StorefrontInteractionTrackView
+from apps.reviews.storefront_views import (
+    StorefrontPendingReviewsView,
+    StorefrontProductReviewListView,
+    StorefrontProductReviewSummaryView,
+    StorefrontReviewDetailView,
+    StorefrontReviewImageDetailView,
+    StorefrontReviewImagesView,
+    StorefrontReviewListCreateView,
+)
+from apps.orders.storefront_views import (
+    StorefrontDeliverySlotsView,
+    StorefrontOrderConfirmReceivedView,
+    StorefrontOrderDetailView,
+    StorefrontOrderListCreateView,
+)
 from .views import (
     DealerCustomerViewSet,
     StorefrontCustomerAddressViewSet,
@@ -72,6 +88,66 @@ urlpatterns = [
         "storefronts/<slug:dealer_slug>/addresses/<int:pk>/",
         storefront_address_detail,
         name="storefront-address-detail",
+    ),
+    path(
+        "storefronts/<slug:dealer_slug>/reviews/",
+        StorefrontReviewListCreateView.as_view(),
+        name="storefront-reviews",
+    ),
+    path(
+        "storefronts/<slug:dealer_slug>/reviews/<int:pk>/",
+        StorefrontReviewDetailView.as_view(),
+        name="storefront-review-detail",
+    ),
+    path(
+        "storefronts/<slug:dealer_slug>/reviews/<int:pk>/images/",
+        StorefrontReviewImagesView.as_view(),
+        name="storefront-review-images",
+    ),
+    path(
+        "storefronts/<slug:dealer_slug>/reviews/<int:pk>/images/<int:image_id>/",
+        StorefrontReviewImageDetailView.as_view(),
+        name="storefront-review-image-detail",
+    ),
+    path(
+        "storefronts/<slug:dealer_slug>/me/pending-reviews/",
+        StorefrontPendingReviewsView.as_view(),
+        name="storefront-pending-reviews",
+    ),
+    path(
+        "storefronts/<slug:dealer_slug>/products/<int:product_id>/reviews/",
+        StorefrontProductReviewListView.as_view(),
+        name="storefront-product-reviews",
+    ),
+    path(
+        "storefronts/<slug:dealer_slug>/products/<int:product_id>/reviews/summary/",
+        StorefrontProductReviewSummaryView.as_view(),
+        name="storefront-product-reviews-summary",
+    ),
+    path(
+        "storefronts/<slug:dealer_slug>/interactions/",
+        StorefrontInteractionTrackView.as_view(),
+        name="storefront-interactions",
+    ),
+    path(
+        "storefronts/<slug:dealer_slug>/delivery-slots/",
+        StorefrontDeliverySlotsView.as_view(),
+        name="storefront-delivery-slots",
+    ),
+    path(
+        "storefronts/<slug:dealer_slug>/orders/",
+        StorefrontOrderListCreateView.as_view(),
+        name="storefront-orders",
+    ),
+    path(
+        "storefronts/<slug:dealer_slug>/orders/<int:pk>/",
+        StorefrontOrderDetailView.as_view(),
+        name="storefront-order-detail",
+    ),
+    path(
+        "storefronts/<slug:dealer_slug>/orders/<int:pk>/confirm-received/",
+        StorefrontOrderConfirmReceivedView.as_view(),
+        name="storefront-order-confirm-received",
     ),
     *router.urls,
 ]

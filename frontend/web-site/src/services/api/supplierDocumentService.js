@@ -16,7 +16,9 @@ export const supplierDocumentService = {
   // --- SUPPLIER
   // POST /account-documents/ — Upload 3 loại giấy tờ (một lần)
   create: (data) =>
-    axiosClient.post(DOCUMENTS_BASE, data).then((res) => res.data?.data ?? res.data),
+    axiosClient
+      .post(DOCUMENTS_BASE, data)
+      .then((res) => res.data?.data ?? res.data),
 
   upload: (files = {}) => {
     const formData = new FormData();

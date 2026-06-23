@@ -15,7 +15,7 @@ export default function DealerSalesOrderPage() {
     const [selectedOrder, setSelectedOrder] = useState(null);
     const [selectedRows, setSelectedRows] = useState([]);
     const [clearSelectedToggle, setClearSelectedToggle] = useState(false);
-    
+
     // Print Modal State
     const [isPrintModalOpen, setIsPrintModalOpen] = useState(false);
     const [ordersToPrint, setOrdersToPrint] = useState([]);
@@ -26,7 +26,7 @@ export default function DealerSalesOrderPage() {
     const [totalPages, setTotalPages] = useState(1);
 
     const mapStatusToVietnamese = (status) => {
-        switch(status) {
+        switch (status) {
             case "pending": return "Chờ xác nhận";
             case "confirmed": return "Đã xác nhận";
             case "processing": return "Đang chuẩn bị hàng";
@@ -44,12 +44,12 @@ export default function DealerSalesOrderPage() {
             const data = await dealerOrderService.getAll({ page: currentPage, page_size: 10, search: searchQuery, status: statusFilter });
             const results = data.results || (Array.isArray(data) ? data : []);
             setTotalPages(Math.max(1, Math.ceil((data.count || results.length) / 10)));
-            
+
             const formattedOrders = results.map(order => ({
                 uniqueId: order.id,
                 id: order.order_code,
                 customer: order.customer_name,
-                address: "Chưa có địa chỉ", 
+                address: "Chưa có địa chỉ",
                 date: order.created_at ? new Date(order.created_at).toLocaleDateString('vi-VN') : (order.delivery_date || ""),
                 items: `${order.item_count || 1} sản phẩm`,
                 amount: new Intl.NumberFormat('vi-VN').format(Number(order.total_amount || 0)) + ' đ',
@@ -100,9 +100,9 @@ export default function DealerSalesOrderPage() {
             const confirmPromises = selectedRows
                 .filter(row => row.status === "Chờ xác nhận")
                 .map(row => dealerOrderService.confirmOrder(row.originalData.id));
-                
+
             await Promise.all(confirmPromises);
-            
+
             await fetchOrders();
             setClearSelectedToggle(!clearSelectedToggle);
             setSelectedRows([]);
@@ -121,7 +121,7 @@ export default function DealerSalesOrderPage() {
                 delivery: mapStatusToVietnamese(detail.status),
                 originalData: detail
             }));
-        } catch {}
+        } catch { }
     };
 
     const handleSingleConfirm = async (order) => {
@@ -162,9 +162,9 @@ export default function DealerSalesOrderPage() {
             const processPromises = selectedRows
                 .filter(row => row.status === "Đã xác nhận")
                 .map(row => dealerOrderService.startProcessing(row.originalData.id));
-                
+
             await Promise.all(processPromises);
-            
+
             await fetchOrders();
             setClearSelectedToggle(!clearSelectedToggle);
             setSelectedRows([]);
@@ -179,9 +179,9 @@ export default function DealerSalesOrderPage() {
             const shipPromises = selectedRows
                 .filter(row => row.status === "Đang chuẩn bị hàng")
                 .map(row => dealerOrderService.shipOrder(row.originalData.id));
-                
+
             await Promise.all(shipPromises);
-            
+
             await fetchOrders();
             setClearSelectedToggle(!clearSelectedToggle);
             setSelectedRows([]);
@@ -213,7 +213,7 @@ export default function DealerSalesOrderPage() {
                         Theo dõi danh sách khách hàng đặt mua nông sản sỉ/lẻ từ đại lý của bạn.
                     </p>
                 </div>
-                <button 
+                <button
                     onClick={() => setIsCreateModalOpen(true)}
                     className="h-10 px-4 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white font-bold text-xs transition-all flex items-center justify-center gap-1.5 shadow-md shadow-emerald-100 cursor-pointer self-start sm:self-auto">
                     <Plus className="w-4 h-4" /> Tạo đơn bán mới
@@ -242,50 +242,50 @@ export default function DealerSalesOrderPage() {
                 ) : (
                     <>
                         {selectedRows.length > 0 && (() => {
-                    const hasPendingConfirmation = selectedRows.some(r => (r.status || r.delivery) === "Chờ xác nhận");
-                    const hasConfirmed = selectedRows.some(r => (r.status || r.delivery) === "Đã xác nhận");
-                    const hasPreparing = selectedRows.some(r => (r.status || r.delivery) === "Đang chuẩn bị hàng");
-                    
-                    return (
-                        <div className="mb-4 p-4 bg-emerald-50 border border-emerald-200 rounded-2xl flex items-center justify-between animate-in fade-in slide-in-from-top-4">
-                            <span className="text-sm font-bold text-emerald-800">
-                                Đã chọn {selectedRows.length} đơn hàng
-                            </span>
-                            <div className="flex gap-3">
-                                {hasPendingConfirmation && (
-                                    <button 
-                                        onClick={handleBulkConfirm}
-                                        className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold transition-all shadow-sm flex items-center gap-2"
-                                    >
-                                        <CheckCircle2 className="w-4 h-4" /> Xác nhận đơn hàng
-                                    </button>
-                                )}
-                                {hasConfirmed && (
-                                    <button 
-                                        onClick={handleBulkStartProcessing}
-                                        className="px-4 py-2 bg-amber-500 hover:bg-amber-600 text-white rounded-xl text-xs font-bold transition-all shadow-sm flex items-center gap-2"
-                                    >
-                                        <Package className="w-4 h-4" /> Chuẩn bị hàng
-                                    </button>
-                                )}
-                                {hasPreparing && (
-                                    <button 
-                                        onClick={handleBulkDeliver}
-                                        className="px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-xl text-xs font-bold transition-all shadow-sm flex items-center gap-2"
-                                    >
-                                        <Truck className="w-4 h-4" /> Giao hàng
-                                    </button>
-                                )}
-                                <button 
-                                    onClick={handleBulkPrint}
-                                    className="px-4 py-2 bg-white border border-neutral-200 hover:bg-neutral-50 text-neutral-700 rounded-xl text-xs font-bold transition-all shadow-sm flex items-center gap-2"
-                                >
-                                    <Printer className="w-4 h-4" /> In hoá đơn ({selectedRows.length})
-                                </button>
-                            </div>
-                        </div>
-                    );
-                })()}
+                            const hasPendingConfirmation = selectedRows.some(r => (r.status || r.delivery) === "Chờ xác nhận");
+                            const hasConfirmed = selectedRows.some(r => (r.status || r.delivery) === "Đã xác nhận");
+                            const hasPreparing = selectedRows.some(r => (r.status || r.delivery) === "Đang chuẩn bị hàng");
+
+                            return (
+                                <div className="mb-4 p-4 bg-emerald-50 border border-emerald-200 rounded-2xl flex items-center justify-between animate-in fade-in slide-in-from-top-4">
+                                    <span className="text-sm font-bold text-emerald-800">
+                                        Đã chọn {selectedRows.length} đơn hàng
+                                    </span>
+                                    <div className="flex gap-3">
+                                        {hasPendingConfirmation && (
+                                            <button
+                                                onClick={handleBulkConfirm}
+                                                className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold transition-all shadow-sm flex items-center gap-2"
+                                            >
+                                                <CheckCircle2 className="w-4 h-4" /> Xác nhận đơn hàng
+                                            </button>
+                                        )}
+                                        {hasConfirmed && (
+                                            <button
+                                                onClick={handleBulkStartProcessing}
+                                                className="px-4 py-2 bg-amber-500 hover:bg-amber-600 text-white rounded-xl text-xs font-bold transition-all shadow-sm flex items-center gap-2"
+                                            >
+                                                <Package className="w-4 h-4" /> Chuẩn bị hàng
+                                            </button>
+                                        )}
+                                        {hasPreparing && (
+                                            <button
+                                                onClick={handleBulkDeliver}
+                                                className="px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-xl text-xs font-bold transition-all shadow-sm flex items-center gap-2"
+                                            >
+                                                <Truck className="w-4 h-4" /> Giao hàng
+                                            </button>
+                                        )}
+                                        <button
+                                            onClick={handleBulkPrint}
+                                            className="px-4 py-2 bg-white border border-neutral-200 hover:bg-neutral-50 text-neutral-700 rounded-xl text-xs font-bold transition-all shadow-sm flex items-center gap-2"
+                                        >
+                                            <Printer className="w-4 h-4" /> In hoá đơn ({selectedRows.length})
+                                        </button>
+                                    </div>
+                                </div>
+                            );
+                        })()}
                         <SalesOrderList
                             salesOrders={filteredOrders}
                             onViewDetail={handleViewDetail}
@@ -302,14 +302,14 @@ export default function DealerSalesOrderPage() {
             {/* Overlay Detail Panel */}
             {selectedOrder && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6">
-                    <div 
+                    <div
                         className="absolute inset-0 bg-black/40 backdrop-blur-sm transition-opacity"
                         onClick={() => setSelectedOrder(null)}
                     ></div>
                     <div className="relative w-full max-w-md h-[90vh] max-h-[800px]">
-                        <SalesOrderDetailPanel 
-                            order={selectedOrder} 
-                            onClose={() => setSelectedOrder(null)} 
+                        <SalesOrderDetailPanel
+                            order={selectedOrder}
+                            onClose={() => setSelectedOrder(null)}
                             onPrint={handleSinglePrint}
                             onConfirm={handleSingleConfirm}
                             onStartProcessing={handleStartProcessing}
@@ -319,9 +319,9 @@ export default function DealerSalesOrderPage() {
                 </div>
             )}
 
-            <CreateSalesOrderModal 
-                isOpen={isCreateModalOpen} 
-                onClose={() => setIsCreateModalOpen(false)} 
+            <CreateSalesOrderModal
+                isOpen={isCreateModalOpen}
+                onClose={() => setIsCreateModalOpen(false)}
             />
 
             <PrintInvoiceModal

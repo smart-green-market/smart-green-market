@@ -3,6 +3,7 @@
 from drf_spectacular.utils import extend_schema, extend_schema_view, OpenApiParameter
 from rest_framework import viewsets
 from rest_framework.decorators import action
+from rest_framework.parsers import FormParser, MultiPartParser
 from rest_framework.response import Response
 
 from common.notifications import notify_account, notify_admins
@@ -38,7 +39,7 @@ from .serializers import (
     RecordWastageSerializer,
     VerifyDealerProductSerializer,
 )
-from .services import record_wastage
+from .services import annotate_dealer_product_stock, record_wastage
 
 
 def _filter_dealer_product_scope(qs, user):
@@ -103,7 +104,10 @@ class DealerProductViewSet(viewsets.ModelViewSet):
         return [IsActive()]
 
     def get_queryset(self):
-        return _filter_dealer_product_scope(self.queryset, self.request.user)
+        qs = _filter_dealer_product_scope(self.queryset, self.request.user)
+        if self.action in ("list", "retrieve", "verify"):
+            qs = annotate_dealer_product_stock(qs)
+        return qs
 
     def perform_create(self, serializer):
         product = serializer.save()
@@ -193,6 +197,7 @@ class DealerProductImageViewSet(viewsets.ModelViewSet):
         "dealer_product__dealer_profile",
     )
     serializer_class = DealerProductImageSerializer
+    parser_classes = [MultiPartParser, FormParser]
 
     def get_permissions(self):
         if self.action in ("list", "retrieve"):
@@ -213,12 +218,7 @@ class DealerProductImageViewSet(viewsets.ModelViewSet):
             from rest_framework.exceptions import PermissionDenied
 
             raise PermissionDenied("Không có quyền thêm ảnh cho sản phẩm này.")
-        image = serializer.save()
-        if image.is_thumbnail:
-            DealerProductImage.objects.filter(
-                dealer_product=product,
-                is_thumbnail=True,
-            ).exclude(pk=image.pk).update(is_thumbnail=False)
+        serializer.save()
 
 
 @extend_schema_view(

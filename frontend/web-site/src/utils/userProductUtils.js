@@ -13,84 +13,84 @@ export function resolveMediaUrl(url) {
 }
 
 function extractImageUrl(source) {
-    if (!source) return null;
-    if (typeof source === "string") return resolveMediaUrl(source);
-    return resolveMediaUrl(
-        source.image_url ?? source.image ?? source.url ?? source.thumbnail ?? null,
-    );
+  if (!source) return null;
+  if (typeof source === "string") return resolveMediaUrl(source);
+  return resolveMediaUrl(
+    source.image_url ?? source.image ?? source.url ?? source.thumbnail ?? null,
+  );
 }
 
 function buildDealerImages(raw) {
-    const collected = [];
-    const seen = new Set();
+  const collected = [];
+  const seen = new Set();
 
-    const pushImage = (img, index) => {
-        const image_url = extractImageUrl(img);
-        if (!image_url || seen.has(image_url)) return;
+  const pushImage = (img, index) => {
+    const image_url = extractImageUrl(img);
+    if (!image_url || seen.has(image_url)) return;
 
-        seen.add(image_url);
-        collected.push({
-            id: img?.id ?? `img-${index}-${image_url}`,
-            image_url,
-            is_thumbnail: Boolean(img?.is_thumbnail),
-            sort_order: img?.sort_order ?? index,
-        });
-    };
-
-    if (Array.isArray(raw?.images)) {
-        raw.images.forEach((img, index) => pushImage(img, index));
-    }
-
-    if (Array.isArray(raw?.supplier_product?.images)) {
-        raw.supplier_product.images.forEach((img, index) => pushImage(img, index + 100));
-    }
-
-    const thumbnail = extractImageUrl(raw?.thumbnail);
-    if (thumbnail && !seen.has(thumbnail)) {
-        collected.unshift({
-            id: raw?.id ?? "thumbnail",
-            image_url: thumbnail,
-            is_thumbnail: true,
-            sort_order: -1,
-        });
-        seen.add(thumbnail);
-    }
-
-    return collected.sort((a, b) => {
-        if (a.is_thumbnail && !b.is_thumbnail) return -1;
-        if (!a.is_thumbnail && b.is_thumbnail) return 1;
-        return (a.sort_order ?? 0) - (b.sort_order ?? 0);
+    seen.add(image_url);
+    collected.push({
+      id: img?.id ?? `img-${index}-${image_url}`,
+      image_url,
+      is_thumbnail: Boolean(img?.is_thumbnail),
+      sort_order: img?.sort_order ?? index,
     });
+  };
+
+  if (Array.isArray(raw?.images)) {
+    raw.images.forEach((img, index) => pushImage(img, index));
+  }
+
+  if (Array.isArray(raw?.supplier_product?.images)) {
+    raw.supplier_product.images.forEach((img, index) => pushImage(img, index + 100));
+  }
+
+  const thumbnail = extractImageUrl(raw?.thumbnail);
+  if (thumbnail && !seen.has(thumbnail)) {
+    collected.unshift({
+      id: raw?.id ?? "thumbnail",
+      image_url: thumbnail,
+      is_thumbnail: true,
+      sort_order: -1,
+    });
+    seen.add(thumbnail);
+  }
+
+  return collected.sort((a, b) => {
+    if (a.is_thumbnail && !b.is_thumbnail) return -1;
+    if (!a.is_thumbnail && b.is_thumbnail) return 1;
+    return (a.sort_order ?? 0) - (b.sort_order ?? 0);
+  });
 }
 
 export function getProductImageUrl(primary, fallback = PRODUCT_IMAGE_FALLBACK) {
-    const extracted = extractImageUrl(primary);
-    if (extracted) return extracted;
-    if (fallback === null) return null;
-    return resolveMediaUrl(fallback) || PRODUCT_IMAGE_FALLBACK;
+  const extracted = extractImageUrl(primary);
+  if (extracted) return extracted;
+  if (fallback === null) return null;
+  return resolveMediaUrl(fallback) || PRODUCT_IMAGE_FALLBACK;
 }
 
 /** Ưu tiên ảnh gốc trong mảng images, tránh thumbnail nén thấp khi có ảnh lớn hơn */
 export function getBestProductImage(product) {
-    const images = product?.images ?? [];
+  const images = product?.images ?? [];
 
-    const fullImages = images
-        .filter((img) => !img.is_thumbnail)
-        .map((img) => extractImageUrl(img))
-        .filter(Boolean);
+  const fullImages = images
+    .filter((img) => !img.is_thumbnail)
+    .map((img) => extractImageUrl(img))
+    .filter(Boolean);
 
-    if (fullImages.length) return fullImages[0];
+  if (fullImages.length) return fullImages[0];
 
-    const anyImage = images.map((img) => extractImageUrl(img)).find(Boolean);
-    if (anyImage) return anyImage;
+  const anyImage = images.map((img) => extractImageUrl(img)).find(Boolean);
+  if (anyImage) return anyImage;
 
-    return extractImageUrl(product?.thumbnail) || PRODUCT_IMAGE_FALLBACK;
+  return extractImageUrl(product?.thumbnail) || PRODUCT_IMAGE_FALLBACK;
 }
 
 export function parseProductList(response) {
-    if (Array.isArray(response)) return response;
-    if (Array.isArray(response?.results)) return response.results;
-    return [];
+  if (Array.isArray(response)) return response;
+  if (Array.isArray(response?.results)) return response.results;
+  return [];
 }
 
 export function parseDealerProductList(response) {
@@ -120,6 +120,20 @@ function resolveCategoryId(raw) {
 function resolveCategoryName(raw) {
   if (raw?.category_name) return raw.category_name;
   if (typeof raw?.category === "object") return raw.category?.name ?? "Nông sản";
+  return "Nông sản";
+}
+
+function resolveCategoryId(raw) {
+  if (raw?.category_id != null) return raw.category_id;
+  if (raw?.category == null) return null;
+  if (typeof raw.category === "object") return raw.category.id;
+  return raw.category;
+}
+
+function resolveCategoryName(raw) {
+  if (raw?.category_name) return raw.category_name;
+  if (typeof raw?.category === "object")
+    return raw.category?.name ?? "Nông sản";
   return "Nông sản";
 }
 

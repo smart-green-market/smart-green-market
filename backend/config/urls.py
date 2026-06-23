@@ -44,16 +44,16 @@ urlpatterns = [
     path("api/", include("apps.categories.urls")),
     path("api/", include("apps.suppliers.urls")),
     path("api/", include("apps.dealers.urls")),
+    path("api/", include("apps.product_catalog.urls")),
     path("api/", include("apps.supplier_products.urls")),
     path("api/", include("apps.dealer_products.urls")),
     path("api/", include("apps.customers.urls")),
     path("api/", include("apps.purchase_orders.urls")),
+    path("api/", include("apps.orders.urls")),
+    path("api/", include("apps.reviews.urls")),
     path("api/", include("apps.certifications.urls")),
     path("api/", include("apps.notifications.urls")),
     path("api/", include("common.urls")),
-    path("api/", include("apps.supplier_inventory.urls")),
-
-
 ]
 
 # DEBUG=True: django.contrib.staticfiles phục vụ media.

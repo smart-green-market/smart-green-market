@@ -27,6 +27,14 @@ class SupplierProduct(models.Model):
         on_delete=models.PROTECT,
         related_name="supplier_products",
     )
+    product_master = models.ForeignKey(
+        "product_catalog.ProductMaster",
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name="supplier_products",
+        help_text="Catalog chuẩn — bắt buộc với danh mục system; tuỳ chọn với danh mục riêng",
+    )
     name = models.CharField(max_length=255)
     slug = models.SlugField(max_length=255)
     unit = models.CharField(max_length=50)
@@ -81,7 +89,12 @@ class SupplierProduct(models.Model):
             models.UniqueConstraint(
                 fields=["supplier", "slug"],
                 name="unique_supplier_product_slug",
-            )
+            ),
+            models.UniqueConstraint(
+                fields=["supplier", "product_master"],
+                condition=models.Q(product_master__isnull=False),
+                name="unique_supplier_product_master",
+            ),
         ]
 
     def __str__(self):

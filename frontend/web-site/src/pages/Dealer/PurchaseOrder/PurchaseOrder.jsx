@@ -73,7 +73,7 @@ export default function DealerPurchaseOrderPage() {
                 };
                 if (searchQuery) params.search = searchQuery;
                 if (statusFilter) params.status = statusFilter;
-                
+
                 const response = await purchaseOrderService.getAll(params);
 
                 const results = response?.results || [];
@@ -115,6 +115,14 @@ export default function DealerPurchaseOrderPage() {
     const filteredData = purchaseOrders; // Backend đã xử lý filter, ở đây không filter thêm để tránh lỗi phân trang
 
 
+
+    if (loading) {
+        return (
+            <div className="p-6 bg-emerald-50/15 min-h-screen flex justify-center items-center">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-emerald-600"></div>
+            </div>
+        );
+    }
 
     return (
         <div className="p-6 bg-emerald-50/15 min-h-screen font-['Geist',sans-serif]">

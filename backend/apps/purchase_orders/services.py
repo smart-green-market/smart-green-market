@@ -12,7 +12,7 @@ FILE LIÊN QUAN (đọc kèm khi vấn đáp):
 - common/querysets.py : filter_purchase_orders (phân quyền list)
 
 === SƠ ĐỒ LUỒNG ===
-[Đại lý] POST /purchase-orders/           → create_purchase_order
+[Đại lý] POST /purchase-orders/           → create_purchase_orders (tách theo NCC)
 [NCC]    POST .../confirm/                → supplier_confirm_order (+ tính cọc)
 [NCC]    POST .../reject/                 → supplier_reject_order
 [Đại lý] GET  .../payment-qr?deposit      → get_payment_qr (VietQR)
@@ -44,7 +44,7 @@ from apps.accounts.models import AccountStatus
 from apps.categories.models import CategoryScope, CategoryStatus
 from apps.dealers.models import DealerProfileStatus
 from apps.supplier_products.models import SupplierProduct, SupplierProductStatus
-from apps.suppliers.models import SupplierVerificationStatus
+from apps.suppliers.models import Supplier, SupplierVerificationStatus
 from common.business_rules import (
     DEFAULT_DEPOSIT_PERCENT,
     validate_deposit_percent,
@@ -142,7 +142,7 @@ def validate_items_for_supplier(supplier_id, items_data):
     """Kiểm tra từng dòng: thuộc đúng NCC, sản phẩm active, đã có wholesale_price."""
     product_ids = [item["supplier_product"].id for item in items_data]
     products = SupplierProduct.objects.filter(id__in=product_ids)
-    if products.count() != len(product_ids):
+    if products.count() != len(set(product_ids)):
         raise ValidationError({"items": "Có sản phẩm không tồn tại."})
 
     for product in products:
@@ -158,6 +158,36 @@ def validate_items_for_supplier(supplier_id, items_data):
             raise ValidationError(
                 {"items": f"Sản phẩm '{product.name}' chưa có giá sỉ."}
             )
+
+
+def merge_purchase_order_items(items_data):
+    """Gộp các dòng trùng supplier_product_id (cộng quantity)."""
+    merged: dict[int, dict] = {}
+    for row in items_data:
+        product = row["supplier_product"]
+        quantity = Decimal(row["quantity"])
+        note = (row.get("note") or "").strip()
+        if product.id in merged:
+            merged[product.id]["quantity"] += quantity
+            if note and note not in merged[product.id]["note"]:
+                prev = merged[product.id]["note"]
+                merged[product.id]["note"] = f"{prev}; {note}" if prev else note
+        else:
+            merged[product.id] = {
+                "supplier_product": product,
+                "quantity": quantity,
+                "note": note,
+            }
+    return list(merged.values())
+
+
+def group_items_by_supplier(items_data):
+    """Nhóm dòng đặt hàng theo supplier_id."""
+    groups: dict[int, list] = {}
+    for row in items_data:
+        supplier_id = row["supplier_product"].supplier_id
+        groups.setdefault(supplier_id, []).append(row)
+    return groups
 
 
 def build_order_items(order, items_data):
@@ -220,6 +250,63 @@ def create_purchase_order(*, dealer_profile, supplier, delivery_data, items_data
 
     notify_purchase_order_status_change(order, actor=user, old_status="")
     return order
+
+
+@transaction.atomic
+def create_purchase_orders(
+    *,
+    dealer_profile,
+    delivery_data,
+    items_data,
+    user,
+    forced_supplier_id=None,
+):
+    """Đại lý gửi một phiếu — backend tách thành nhiều PO theo từng NCC.
+
+    Mỗi NCC = một PurchaseOrder riêng, cùng thông tin giao hàng.
+    """
+    if not items_data:
+        raise ValidationError({"items": "Cần ít nhất một sản phẩm."})
+
+    normalized_items = merge_purchase_order_items(items_data)
+
+    if forced_supplier_id is not None:
+        mismatched = [
+            row["supplier_product"].name
+            for row in normalized_items
+            if row["supplier_product"].supplier_id != forced_supplier_id
+        ]
+        if mismatched:
+            raise ValidationError(
+                {
+                    "items": (
+                        "Có sản phẩm không thuộc NCC đã chọn "
+                        f"({', '.join(mismatched[:3])}{'...' if len(mismatched) > 3 else ''}). "
+                        "Bỏ supplier_id để đặt từ nhiều NCC trong một lần gửi."
+                    )
+                }
+            )
+        supplier_groups = {forced_supplier_id: normalized_items}
+    else:
+        supplier_groups = group_items_by_supplier(normalized_items)
+
+    orders = []
+    for supplier_id in sorted(supplier_groups.keys()):
+        supplier_items = supplier_groups[supplier_id]
+        try:
+            supplier = Supplier.objects.select_related("account").get(pk=supplier_id)
+        except Supplier.DoesNotExist as exc:
+            raise ValidationError({"items": f"Nhà cung cấp id={supplier_id} không tồn tại."}) from exc
+
+        order = create_purchase_order(
+            dealer_profile=dealer_profile,
+            supplier=supplier,
+            delivery_data=delivery_data,
+            items_data=supplier_items,
+            user=user,
+        )
+        orders.append(order)
+    return orders
 
 
 @transaction.atomic

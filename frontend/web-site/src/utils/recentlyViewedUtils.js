@@ -10,100 +10,100 @@ export const RECENTLY_VIEWED_UPDATED_EVENT = "gm-recently-viewed-updated";
 const STORAGE_PREFIX = "gm_recently_viewed";
 
 function getStorageKey(dealerSlug) {
-    const slug = String(dealerSlug || "default").trim() || "default";
-    return `${STORAGE_PREFIX}_${slug}`;
+  const slug = String(dealerSlug || "default").trim() || "default";
+  return `${STORAGE_PREFIX}_${slug}`;
 }
 
 function readRawEntries(dealerSlug) {
-    try {
-        const raw = localStorage.getItem(getStorageKey(dealerSlug));
-        if (!raw) return [];
-        const parsed = JSON.parse(raw);
-        return Array.isArray(parsed) ? parsed : [];
-    } catch {
-        return [];
-    }
+  try {
+    const raw = localStorage.getItem(getStorageKey(dealerSlug));
+    if (!raw) return [];
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
 }
 
 function writeRawEntries(dealerSlug, entries) {
-    localStorage.setItem(getStorageKey(dealerSlug), JSON.stringify(entries));
+  localStorage.setItem(getStorageKey(dealerSlug), JSON.stringify(entries));
 }
 
 function pruneExpired(entries, now = Date.now()) {
-    return entries.filter(
-        (item) =>
-            item?.viewedAt != null &&
-            now - Number(item.viewedAt) < RECENTLY_VIEWED_TTL_MS,
-    );
+  return entries.filter(
+    (item) =>
+      item?.viewedAt != null &&
+      now - Number(item.viewedAt) < RECENTLY_VIEWED_TTL_MS,
+  );
 }
 
 function notifyUpdated() {
-    window.dispatchEvent(new CustomEvent(RECENTLY_VIEWED_UPDATED_EVENT));
+  window.dispatchEvent(new CustomEvent(RECENTLY_VIEWED_UPDATED_EVENT));
 }
 
 export function buildRecentlyViewedEntry(product) {
-    const card = toCardProduct(product);
+  const card = toCardProduct(product);
 
-    return {
-        ...card,
-        viewedAt: Date.now(),
-    };
+  return {
+    ...card,
+    viewedAt: Date.now(),
+  };
 }
 
 export function mergeRecentlyViewedWithCatalog(storedItems, products = []) {
-    if (!Array.isArray(storedItems) || storedItems.length === 0) return [];
+  if (!Array.isArray(storedItems) || storedItems.length === 0) return [];
 
-    const catalogMap = new Map(
-        products.map((product) => [String(product.id), toCardProduct(product)]),
-    );
+  const catalogMap = new Map(
+    products.map((product) => [String(product.id), toCardProduct(product)]),
+  );
 
-    return storedItems.map((item) => {
-        const live = catalogMap.get(String(item.id));
-        const merged = live ? { ...item, ...live } : item;
+  return storedItems.map((item) => {
+    const live = catalogMap.get(String(item.id));
+    const merged = live ? { ...item, ...live } : item;
 
-        return {
-            ...merged,
-            viewedAt: item.viewedAt,
-            available_quantity: merged.available_quantity ?? 0,
-            supplier_name: merged.supplier_name ?? "",
-            in_stock: merged.in_stock ?? true,
-        };
-    });
+    return {
+      ...merged,
+      viewedAt: item.viewedAt,
+      available_quantity: merged.available_quantity ?? 0,
+      supplier_name: merged.supplier_name ?? "",
+      in_stock: merged.in_stock ?? true,
+    };
+  });
 }
 
 export function getRecentlyViewed(dealerSlug) {
-    const now = Date.now();
-    const valid = pruneExpired(readRawEntries(dealerSlug), now);
+  const now = Date.now();
+  const valid = pruneExpired(readRawEntries(dealerSlug), now);
 
-    if (valid.length !== readRawEntries(dealerSlug).length) {
-        writeRawEntries(dealerSlug, valid);
-    }
+  if (valid.length !== readRawEntries(dealerSlug).length) {
+    writeRawEntries(dealerSlug, valid);
+  }
 
-    return [...valid].sort(
-        (a, b) => Number(b.viewedAt || 0) - Number(a.viewedAt || 0),
-    );
+  return [...valid].sort(
+    (a, b) => Number(b.viewedAt || 0) - Number(a.viewedAt || 0),
+  );
 }
 
 export function addRecentlyViewed(dealerSlug, product) {
-    if (!dealerSlug || !product?.id) return;
+  if (!dealerSlug || !product?.id) return;
 
-    const entry = buildRecentlyViewedEntry(product);
-    const now = Date.now();
-    const existing = pruneExpired(readRawEntries(dealerSlug), now).filter(
-        (item) => String(item.id) !== String(entry.id),
-    );
+  const entry = buildRecentlyViewedEntry(product);
+  const now = Date.now();
+  const existing = pruneExpired(readRawEntries(dealerSlug), now).filter(
+    (item) => String(item.id) !== String(entry.id),
+  );
 
-    const next = [entry, ...existing].slice(0, RECENTLY_VIEWED_MAX_ITEMS);
-    writeRawEntries(dealerSlug, next);
-    notifyUpdated();
+  const next = [entry, ...existing].slice(0, RECENTLY_VIEWED_MAX_ITEMS);
+  writeRawEntries(dealerSlug, next);
+  notifyUpdated();
 }
 
 export function clearRecentlyViewed(dealerSlug) {
-    localStorage.removeItem(getStorageKey(dealerSlug));
-    notifyUpdated();
+  localStorage.removeItem(getStorageKey(dealerSlug));
+  notifyUpdated();
 }
 
 /** Dùng khi cần hiển thị giá từ snapshot đã lưu */
 export function getRecentlyViewedPrice(entry) {
-    return Number(entry?.priceValue ?? getProductPrice(entry) ?? 0);
+  return Number(entry?.priceValue ?? getProductPrice(entry) ?? 0);
 }

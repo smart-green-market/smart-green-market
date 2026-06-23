@@ -70,7 +70,7 @@ export default function DealerCustomerPage() {
 
   return (
     <div className="p-6 bg-neutral-50/50 min-h-screen font-['Geist',sans-serif]">
-      
+
       {/* Header & Stats */}
       <CustomerHeader
         loading={loading}
@@ -80,7 +80,7 @@ export default function DealerCustomerPage() {
         onAdd={handleAddCustomer}
       />
 
-      <SupplierFilter 
+      <SupplierFilter
         searchQuery={searchQuery}
         onSearchChange={setSearchQuery}
         statusFilter={statusFilter}

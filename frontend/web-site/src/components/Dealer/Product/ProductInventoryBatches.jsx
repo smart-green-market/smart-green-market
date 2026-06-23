@@ -9,7 +9,7 @@ export default function ProductInventoryBatches({ batches, currentPage = 1, tota
         <PackageCheck className="w-5 h-5 text-emerald-600" />
         <h2 className="text-base font-bold text-emerald-950">Lô hàng liên quan</h2>
       </div>
-      
+
       {!batches || batches.length === 0 ? (
         <div className="py-8 text-sm text-neutral-500 text-center font-semibold">
           Không có dữ liệu lô hàng.

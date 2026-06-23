@@ -25,7 +25,7 @@ Tài liệu checklist schema đã triển khai (migration only, **chưa có API*
 | 6 | `customer_interaction` dạng aggregate + timestamp | ✅ | `view_count`, `add_cart_count`, `purchase_count` + `last_*_at` |
 | 7 | `promotion_targets` mở rộng (segment/product/category/all) | ✅ | `PromotionTarget.target_type` + FK nullable |
 | 8 | Luồng trừ/hoàn tồn kho | ⏳ Chưa | Sẽ implement trong `services.py` khi viết API order |
-| 9 | Cập nhật `CustomerProfile` khi order completed | ⏳ Chưa | Sẽ implement trong service khi viết API |
+| 9 | Cập nhật `CustomerProfile` khi order completed | ⏳ Một phần | `total_orders`, `total_spent`, `last_order_at` khi completed; `favorite_category` khi tạo đơn |
 | 10 | Phân biệt customer order vs purchase order | ✅ | B2C: `apps.orders` / B2B: `apps.purchase_orders` |
 
 ---
@@ -110,18 +110,19 @@ Cache gợi ý. Unique: `(customer_id, dealer_product_id, recommendation_type)`.
 
 ---
 
-## Checklist API (chưa làm — phase tiếp theo)
+## Checklist API (phase buyer orders)
 
-- [ ] CRUD đơn hàng buyer (dealer + storefront customer)
-- [ ] Luồng trạng thái đơn + `OrderStatusHistory`
-- [ ] Trừ/hoàn tồn `DealerInventoryBatch` + `DealerInventoryTransaction(SALE)`
-- [ ] Thanh toán buyer (COD, chuyển khoản, ví)
-- [ ] Cập nhật `CustomerProfile.total_orders`, `total_spent`, `last_order_at`, `loyalty_points`
-- [ ] CRUD promotion + validate target + apply voucher
-- [ ] CRUD segment + gán member
+- [x] CRUD đơn hàng buyer (dealer + storefront customer)
+- [x] Luồng trạng thái đơn + `OrderStatusHistory`
+- [x] Trừ tồn `DealerInventoryBatch` + `DealerInventoryTransaction(SALE)` khi tạo đơn
+- [x] Thanh toán buyer COD
+- [x] Cập nhật `CustomerProfile.total_orders`, `total_spent`, `last_order_at` khi completed
+- [ ] CRUD promotion + apply voucher
 - [ ] Track interaction (view/add_cart/purchase)
 - [ ] Review sau order completed
-- [ ] Job tính `ProductRecommendation`
+- [ ] Hủy / từ chối đơn
+
+Chi tiết tích hợp: `docs/CUSTOMER_ORDERS_API_GUIDE.md`
 
 ---
 

@@ -3,7 +3,7 @@ import { Award, CheckCircle2, AlertTriangle, Ban } from "lucide-react";
 import CertificationTable from "../../components/Supplier/Certification/CertificationTable";
 import DeleteConfirmModal from "../../components/common/DeleteConfirmModal";
 import CreateCertificationModal from "../../components/Supplier/Certification/CreateCertificationModal";
-import { certificationService } from "../../services/api/CertificationService"; 
+import { certificationService } from "../../services/api/CertificationService";
 import DetailCertificationModal from "../../components/Supplier/Certification/DetailCertificationModal";
 import SupplierPageHeader, { SUPPLIER_PAGE_CLASS } from "../../components/Supplier/UI/SupplierPageHeader";
 import { getValidityBucket } from "../../components/Supplier/Certification/certificationStatus";
@@ -52,7 +52,7 @@ export default function CertificationSupplierPage() {
   }, []);
 
   const handleCreate = (newCert) => {
-    fetchCertifications(); 
+    fetchCertifications();
   };
 
   // ── Thống kê: chỉ approved mới tính vào active/soon/expired ──
@@ -98,20 +98,19 @@ export default function CertificationSupplierPage() {
           Lọc:
         </span>
         {[
-          { value: "",         label: "Tất cả" },
-          { value: "pending",  label: "Chờ duyệt" },
+          { value: "", label: "Tất cả" },
+          { value: "pending", label: "Chờ duyệt" },
           { value: "approved", label: "Đã duyệt" },
           { value: "rejected", label: "Từ chối" },
-          { value: "expired",  label: "Hết hạn" },
+          { value: "expired", label: "Hết hạn" },
         ].map((chip) => (
           <button
             key={chip.value}
             onClick={() => setStatusFilter(chip.value)}
-            className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors ${
-              statusFilter === chip.value
-                ? "bg-emerald-800 text-white"
-                : "bg-neutral-100 text-neutral-500 hover:bg-neutral-200"
-            }`}
+            className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors ${statusFilter === chip.value
+              ? "bg-emerald-800 text-white"
+              : "bg-neutral-100 text-neutral-500 hover:bg-neutral-200"
+              }`}
           >
             {chip.label}
           </button>

@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 import { Link } from "react-router-dom";
 import { PackageSearch } from "lucide-react";
 
@@ -27,6 +28,17 @@ export default function OrderListEmpty({
           {actionLabel}
         </Link>
       ) : null}
+=======
+// src/components/OrderListEmpty.jsx
+
+/**
+ * Trạng thái rỗng — hiển thị khi danh sách đơn hàng (đã lọc) không có gì.
+ */
+export default function OrderListEmpty() {
+  return (
+    <div className="rounded-2xl border border-dashed border-slate-200 bg-white py-16 text-center text-sm text-slate-400">
+      Không có đơn hàng nào trong mục này.
+>>>>>>> 2f5307e509c173f5476c9d53a52e0d76032f8e03
     </div>
   );
 }

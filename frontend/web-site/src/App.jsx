@@ -5,7 +5,7 @@ import AdminProtectedRoute from "./contexts/adminProtectedRoute";
 import SupplierProtectedRoute from "./contexts/supplierProtectedRoute";
 import DealerProtectedRoute from "./contexts/dealerProtectedRoute";
 import BuyerRouteProtect from "./contexts/buyerRouteProtect";
-    //Layouts
+//Layouts
 import UserLayout from "./layouts/UserLayout";
 import StorefrontSlugSync from "./layouts/StorefrontSlugSync";
 import AdminLayout from "./layouts/AdminLayout";
@@ -17,9 +17,9 @@ import DealerLayout from "./layouts/DealerLayout";
 
 import StorefrontEntryRedirect from "./components/User/StorefrontEntryRedirect";
 //User Pages
-import {HomePage, ProductDetailPage, CartPage, OrderPage, PaymentPage, OrderStatusPage, UserProfilePage, ChangePasswordPage, OrderHistoryPage, UserLoginPage, UserRegisterPage, SearchProductPage, DealerSlugEntryPage, CheckoutPage, OrderTrackingPage, PoliciesPage, SupportPage}  from "./pages/User";
+import { HomePage, ProductDetailPage, CartPage, OrderPage, PaymentPage, OrderStatusPage, UserProfilePage, ChangePasswordPage, OrderHistoryPage, UserLoginPage, UserRegisterPage, SearchProductPage, DealerSlugEntryPage, CheckoutPage, OrderTrackingPage, PoliciesPage, SupportPage } from "./pages/User";
 //Supplier Pages
-import { OrderSupplierPage, ProductSupplierPage, CertificationSupplierPage, RegisterPage, SupplierLoginPage, SupplierInfoPage, CategorySupplierPage, CultivationSupplierPage,DashboardSupplierPage,NotFound } from "./pages/Supplier";
+import { OrderSupplierPage, ProductSupplierPage, CertificationSupplierPage, RegisterPage, SupplierLoginPage, SupplierInfoPage, CategorySupplierPage, CultivationSupplierPage, DashboardSupplierPage, NotFound } from "./pages/Supplier";
 //Admin Pages
 import { AdminLoginPage, AdminDashboardPage, SettingPage, SupplierPage, CategoryPage, ProductPage, ProductMasterPage, CertificationPage, DocumentPage, NotificationPage, DealerPage, } from "./pages/Admin";
 //Dealer Pages
