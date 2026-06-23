@@ -123,19 +123,7 @@ function resolveCategoryName(raw) {
   return "Nông sản";
 }
 
-function resolveCategoryId(raw) {
-  if (raw?.category_id != null) return raw.category_id;
-  if (raw?.category == null) return null;
-  if (typeof raw.category === "object") return raw.category.id;
-  return raw.category;
-}
 
-function resolveCategoryName(raw) {
-  if (raw?.category_name) return raw.category_name;
-  if (typeof raw?.category === "object")
-    return raw.category?.name ?? "Nông sản";
-  return "Nông sản";
-}
 
 export function formatDealerProduct(raw) {
   const images = buildDealerImages(raw);
