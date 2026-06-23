@@ -1,6 +1,6 @@
 """API sản phẩm đại lý, ảnh và tồn kho."""
 
-from drf_spectacular.utils import extend_schema, extend_schema_view
+from drf_spectacular.utils import extend_schema, extend_schema_view, OpenApiParameter
 from rest_framework import viewsets
 from rest_framework.decorators import action
 from rest_framework.response import Response
@@ -225,7 +225,12 @@ class DealerProductImageViewSet(viewsets.ModelViewSet):
     list=extend_schema(
         tags=["Dealer Inventory"],
         summary="Danh sách lô tồn kho",
-        description="Lô hàng nhập từ phiếu nhập hoàn tất." + PAGINATION_QUERY_HELP,
+        description="Lô hàng nhập từ phiếu nhập hoàn tất. Hỗ trợ tìm kiếm và lọc. " + PAGINATION_QUERY_HELP,
+        parameters=[
+            OpenApiParameter("search", str, description="Tìm kiếm theo mã lô", required=False),
+            OpenApiParameter("status", str, description="Lọc theo trạng thái lô hàng", required=False),
+            OpenApiParameter("dealer_product", int, description="Lọc theo ID sản phẩm đại lý", required=False),
+        ],
         responses={
             200: paginated_response_schema(
                 DealerInventoryBatchSerializer,
@@ -250,6 +255,28 @@ class DealerInventoryBatchViewSet(viewsets.ReadOnlyModelViewSet):
 
     def get_queryset(self):
         return _filter_inventory_scope(self.queryset, self.request.user)
+
+    def list(self, request, *args, **kwargs):
+        from common.pagination import LoadMorePagination
+        
+        qs = self.get_queryset()
+        
+        search = request.query_params.get("search", "").strip()
+        if search:
+            qs = qs.filter(batch_number__icontains=search)
+            
+        status_param = request.query_params.get("status", "").strip()
+        if status_param:
+            qs = qs.filter(status=status_param)
+            
+        dp_id = request.query_params.get("dealer_product", "").strip()
+        if dp_id.isdigit():
+            qs = qs.filter(dealer_product_id=dp_id)
+            
+        paginator = LoadMorePagination()
+        page = paginator.paginate_queryset(qs, request, view=self)
+        data = self.get_serializer(page, many=True).data
+        return paginator.get_paginated_response(data)
 
     @extend_schema(
         tags=["Dealer Inventory"],
@@ -286,6 +313,11 @@ class DealerInventoryBatchViewSet(viewsets.ReadOnlyModelViewSet):
     list=extend_schema(
         tags=["Dealer Inventory"],
         summary="Lịch sử biến động tồn kho",
+        description="Lịch sử biến động tồn kho. Hỗ trợ tìm kiếm và lọc. " + PAGINATION_QUERY_HELP,
+        parameters=[
+            OpenApiParameter("search", str, description="Tìm kiếm theo lý do", required=False),
+            OpenApiParameter("batch", int, description="Lọc theo ID lô hàng", required=False),
+        ],
         responses={
             200: paginated_response_schema(
                 DealerInventoryTransactionSerializer,
@@ -312,3 +344,21 @@ class DealerInventoryTransactionViewSet(viewsets.ReadOnlyModelViewSet):
             account_lookup="batch__dealer_product__dealer_profile__account",
             ordering=ORDER_NEWEST,
         )
+
+    def list(self, request, *args, **kwargs):
+        from common.pagination import LoadMorePagination
+        
+        qs = self.get_queryset()
+        
+        search = request.query_params.get("search", "").strip()
+        if search:
+            qs = qs.filter(reason__icontains=search)
+            
+        batch_id = request.query_params.get("batch", "").strip()
+        if batch_id.isdigit():
+            qs = qs.filter(batch_id=batch_id)
+            
+        paginator = LoadMorePagination()
+        page = paginator.paginate_queryset(qs, request, view=self)
+        data = self.get_serializer(page, many=True).data
+        return paginator.get_paginated_response(data)

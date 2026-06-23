@@ -98,6 +98,12 @@ def _detail_response(order, request):
             "Admin: tất cả. Supplier: đơn gửi tới NCC mình. Dealer: đơn của đại lý mình."
             + PAGINATION_QUERY_HELP
         ),
+        parameters=[
+            OpenApiParameter("search", str, description="Tìm kiếm theo mã đơn hàng", required=False),
+            OpenApiParameter("status", str, description="Lọc theo trạng thái đơn hàng", required=False),
+            OpenApiParameter("dealer", int, description="Lọc theo ID đại lý", required=False),
+            OpenApiParameter("supplier", int, description="Lọc theo ID nhà cung cấp", required=False),
+        ],
         responses={
             200: paginated_response_schema(
                 PurchaseOrderListSerializer,
@@ -170,8 +176,28 @@ class PurchaseOrderViewSet(viewsets.GenericViewSet):
     def list(self, request):
         from common.pagination import LoadMorePagination
 
+        qs = self.get_queryset()
+
+        # Search
+        search = request.query_params.get("search", "").strip()
+        if search:
+            qs = qs.filter(order_code__icontains=search)
+
+        # Filters
+        status_param = request.query_params.get("status", "").strip()
+        if status_param:
+            qs = qs.filter(status=status_param)
+            
+        dealer_id = request.query_params.get("dealer", "").strip()
+        if dealer_id.isdigit():
+            qs = qs.filter(dealer_id=dealer_id)
+            
+        supplier_id = request.query_params.get("supplier", "").strip()
+        if supplier_id.isdigit():
+            qs = qs.filter(supplier_id=supplier_id)
+
         paginator = LoadMorePagination()
-        page = paginator.paginate_queryset(self.get_queryset(), request, view=self)
+        page = paginator.paginate_queryset(qs, request, view=self)
         data = PurchaseOrderListSerializer(
             page, many=True, context={"request": request}
         ).data
