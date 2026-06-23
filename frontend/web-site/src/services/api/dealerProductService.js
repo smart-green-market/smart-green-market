@@ -117,11 +117,7 @@ export const dealerProductService = {
     try {
       formData.append("dealer_product", id);
       const res = await axiosClient.post(`/dealer-product-images/`, formData, {
-<<<<<<< HEAD
         headers: { "Content-Type": "multipart/form-data" }
-=======
-        headers: { "Content-Type": "multipart/form-data" },
->>>>>>> 2f5307e509c173f5476c9d53a52e0d76032f8e03
       });
       return res.data;
     } catch (error) {
@@ -131,13 +127,7 @@ export const dealerProductService = {
   },
   deleteImage: async (imageId) => {
     try {
-<<<<<<< HEAD
       const res = await axiosClient.delete(`/dealer-product-images/${imageId}/`);
-=======
-      const res = await axiosClient.delete(
-        `/dealer-product-images/${imageId}/`,
-      );
->>>>>>> 2f5307e509c173f5476c9d53a52e0d76032f8e03
       return res.data;
     } catch (error) {
       console.error("Lỗi xóa ảnh sản phẩm:", error);
@@ -146,20 +136,10 @@ export const dealerProductService = {
   },
   setThumbnail: async (imageId) => {
     try {
-<<<<<<< HEAD
      
       const res = await axiosClient.patch(`/dealer-product-images/${imageId}/`,  { is_thumbnail: true }, {
         headers: { "Content-Type": "multipart/form-data" }
       });
-=======
-      const res = await axiosClient.patch(
-        `/dealer-product-images/${imageId}/`,
-        { is_thumbnail: true },
-        {
-          headers: { "Content-Type": "multipart/form-data" },
-        },
-      );
->>>>>>> 2f5307e509c173f5476c9d53a52e0d76032f8e03
       return res.data;
     } catch (error) {
       console.error("Lỗi đặt ảnh chính:", error);
@@ -168,19 +148,9 @@ export const dealerProductService = {
   },
   unsetThumbnail: async (imageId) => {
     try {
-<<<<<<< HEAD
       const res = await axiosClient.patch(`/dealer-product-images/${imageId}/`, { is_thumbnail: true }, {
         headers: { "Content-Type": "multipart/form-data" }
       });
-=======
-      const res = await axiosClient.patch(
-        `/dealer-product-images/${imageId}/`,
-        { is_thumbnail: true },
-        {
-          headers: { "Content-Type": "multipart/form-data" },
-        },
-      );
->>>>>>> 2f5307e509c173f5476c9d53a52e0d76032f8e03
       return res.data;
     } catch (error) {
       console.error("Lỗi gỡ ảnh chính:", error);

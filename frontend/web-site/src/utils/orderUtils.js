@@ -158,15 +158,7 @@ export function matchesStatusFilter(orderStatus, filterKey) {
 }
 
 export const getStatusCfg = (status) =>
-<<<<<<< HEAD
   ORDER_STATUS_CFG[status] ?? { label: status || "—", bg: "bg-gray-100", text: "text-gray-500" };
-=======
-  ORDER_STATUS_CFG[status] ?? {
-    label: status || "—",
-    bg: "bg-gray-100",
-    text: "text-gray-500",
-  };
->>>>>>> 2f5307e509c173f5476c9d53a52e0d76032f8e03
 
 // payment_method ("cash" theo example trong API)
 const PAYMENT_METHOD_LABEL = {
@@ -176,9 +168,4 @@ const PAYMENT_METHOD_LABEL = {
   card: "Thẻ ngân hàng",
 };
 
-<<<<<<< HEAD
 export const formatPaymentMethod = (method) => PAYMENT_METHOD_LABEL[method] ?? method ?? "—";
-=======
-export const formatPaymentMethod = (method) =>
-  PAYMENT_METHOD_LABEL[method] ?? method ?? "—";
->>>>>>> 2f5307e509c173f5476c9d53a52e0d76032f8e03

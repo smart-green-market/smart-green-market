@@ -7,11 +7,8 @@ import {
 } from "../../hooks/useBuyerCatalog";
 import { useStorefrontPaths } from "../../hooks/useStorefrontPaths";
 import { addRecentlyViewed } from "../../utils/recentlyViewedUtils";
-<<<<<<< HEAD
 import { recordProductView } from "../../utils/buyerInteractionUtils";
 import { useAuth } from "../../contexts/authProvider";
-=======
->>>>>>> 2f5307e509c173f5476c9d53a52e0d76032f8e03
 import { handleApiError } from "../../services/api/Buyer/buyerCatalogService";
 import ProductDetailGallery from "../../components/User/Product/ProductDetailGallery";
 import ProductDetailPurchase from "../../components/User/Product/ProductDetailPurchase";
@@ -26,10 +23,7 @@ function scrollToPageTop() {
 export default function ProductDetailPage() {
     const { id } = useParams();
     const paths = useStorefrontPaths();
-<<<<<<< HEAD
     const { user } = useAuth();
-=======
->>>>>>> 2f5307e509c173f5476c9d53a52e0d76032f8e03
     const [product, setProduct] = useState(null);
     const [related, setRelated] = useState([]);
     const [loading, setLoading] = useState(true);
@@ -91,14 +85,11 @@ export default function ProductDetailPage() {
         if (!product?.id || !paths.slug) return;
         addRecentlyViewed(paths.slug, product);
     }, [product?.id, paths.slug]);
-<<<<<<< HEAD
 
     useEffect(() => {
         if (!product?.id || !paths.slug) return;
         recordProductView(paths.slug, product, user);
     }, [product?.id, paths.slug, user]);
-=======
->>>>>>> 2f5307e509c173f5476c9d53a52e0d76032f8e03
 
     const breadcrumb = useMemo(() => {
         if (!product) return [];

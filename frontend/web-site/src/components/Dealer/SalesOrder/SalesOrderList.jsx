@@ -1,4 +1,3 @@
-<<<<<<< HEAD
 import { useState, useEffect } from "react";
 import { Calendar, Package, ChevronRight } from "lucide-react";
 import Pagination from "../../common/Pagination";
@@ -34,13 +33,6 @@ export default function SalesOrderList({ salesOrders, onViewDetail, onSelectedRo
     onSelectedRowsChange && onSelectedRowsChange({ selectedRows });
   };
 
-=======
-import DataTable from "react-data-table-component";
-import { tableStyles } from "../../common/TableStyles";
-import { Calendar, Package, ChevronRight } from "lucide-react";
-
-export default function SalesOrderList({ salesOrders, onViewDetail, onSelectedRowsChange, clearSelectedRows }) {
->>>>>>> 2f5307e509c173f5476c9d53a52e0d76032f8e03
   const getStatusConfig = (status) => {
     switch (status) {
       case "Chờ xác nhận":
@@ -59,7 +51,6 @@ export default function SalesOrderList({ salesOrders, onViewDetail, onSelectedRo
         return { bg: "bg-neutral-50", text: "text-neutral-700", dot: "bg-neutral-500" };
     }
   };
-<<<<<<< HEAD
 
   if (!salesOrders || salesOrders.length === 0) {
     return (
@@ -189,171 +180,6 @@ export default function SalesOrderList({ salesOrders, onViewDetail, onSelectedRo
           onPageChange={onPageChange}
         />
       )}
-=======
-
-  const columns = [
-    {
-      name: "Mã Đơn",
-      selector: (row) => row.id,
-      sortable: true,
-      width: "140px",
-      cell: (row) => (
-        <span
-          onClick={() => onViewDetail && onViewDetail(row)}
-          className="text-xs font-extrabold text-emerald-800 hover:text-emerald-950 cursor-pointer hover:underline underline-offset-2 transition-colors uppercase tracking-wider"
-        >
-          {row.id}
-        </span>
-      ),
-    },
-    {
-      name: "Khách Hàng",
-      selector: (row) => row.customer,
-      sortable: true,
-      grow: 2,
-      cell: (row) => (
-        <div className="flex flex-col py-2 gap-0.5">
-          <span className="font-bold text-sm text-neutral-800 leading-tight">
-            {row.customer}
-          </span>
-          <div className="flex items-center gap-1.5 mt-0.5 text-[11px] text-neutral-400 font-medium">
-            <Package className="w-3 h-3 text-neutral-300 shrink-0" />
-            <span className="truncate max-w-[250px]" title={row.items}>{row.items}</span>
-          </div>
-        </div>
-      ),
-    },
-    {
-      name: "Thời Gian",
-      selector: (row) => row.date,
-      sortable: true,
-      width: "220px",
-      cell: (row) => (
-        <div className="flex flex-col gap-1.5 py-2">
-          <div className="flex items-center gap-1.5 text-xs text-neutral-600 font-medium whitespace-nowrap">
-            <Calendar className="w-3.5 h-3.5 text-emerald-600/70" />
-            <span><span className="text-neutral-400">Ngày đặt:</span> {row.date}</span>
-          </div>
-        </div>
-      ),
-    },
-    {
-      name: "Tổng Tiền",
-      selector: (row) => row.amount,
-      sortable: true,
-      right: true,
-      cell: (row) => (
-        <span className="font-extrabold text-sm text-emerald-700 whitespace-nowrap">
-          {row.amount}
-        </span>
-      ),
-    },
-    {
-      name: "Trạng Thái",
-      selector: (row) => row.status || row.delivery,
-      sortable: true,
-      center: true,
-      width: "200px",
-      cell: (row) => {
-        const statusStr = row.status || row.delivery;
-        const config = getStatusConfig(statusStr);
-        return (
-          <div className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-white/50 shadow-sm ${config.bg}`}>
-            <span className={`w-1.5 h-1.5 rounded-full ${config.dot}`} />
-            <span className={`text-[11px] font-bold ${config.text} whitespace-nowrap`}>
-              {statusStr}
-            </span>
-          </div>
-        );
-      },
-    },
-    {
-      name: "",
-      width: "50px",
-      cell: (row) => (
-        <button
-          onClick={(e) => {
-            e.stopPropagation();
-            onViewDetail && onViewDetail(row);
-          }}
-          className="w-8 h-8 rounded-lg hover:bg-emerald-50 flex items-center justify-center transition-colors cursor-pointer group"
-        >
-          <ChevronRight className="w-4 h-4 text-neutral-300 group-hover:text-emerald-600 transition-colors" />
-        </button>
-      ),
-    },
-  ];
-
-  return (
-    <div className="w-full rounded-2xl border border-neutral-100 overflow-hidden bg-white shadow-xs font-['Geist',sans-serif]">
-      <DataTable
-        columns={columns}
-        data={salesOrders}
-        customStyles={{
-          ...tableStyles,
-          headRow: {
-            style: {
-              ...tableStyles?.headRow?.style,
-              backgroundColor: "#f9fafb",
-              borderBottom: "1px solid #f3f4f6",
-              minHeight: "48px",
-            },
-          },
-          headCells: {
-            style: {
-              ...tableStyles?.headCells?.style,
-              fontSize: "11px",
-              fontWeight: "700",
-              color: "#9ca3af",
-              textTransform: "uppercase",
-              letterSpacing: "0.05em",
-              paddingLeft: "16px",
-              paddingRight: "16px",
-            },
-          },
-          rows: {
-            style: {
-              ...tableStyles?.rows?.style,
-              minHeight: "72px",
-              borderBottom: "1px solid #f9fafb",
-              "&:hover": {
-                backgroundColor: "#f0fdf4",
-                cursor: "pointer",
-              },
-              transition: "background-color 0.15s ease",
-            },
-          },
-          cells: {
-            style: {
-              ...tableStyles?.cells?.style,
-              paddingLeft: "16px",
-              paddingRight: "16px",
-            },
-          },
-        }}
-        noDataComponent={
-          <div className="py-16 text-center">
-            <div className="w-16 h-16 rounded-2xl bg-neutral-50 flex items-center justify-center mx-auto mb-4 border border-neutral-100">
-              <Package className="w-7 h-7 text-neutral-300" />
-            </div>
-            <p className="text-sm text-neutral-500 font-bold mb-1">
-              Không tìm thấy đơn bán hàng nào.
-            </p>
-            <p className="text-xs text-neutral-400 font-medium">
-              Thử thay đổi bộ lọc hoặc tạo đơn mới.
-            </p>
-          </div>
-        }
-        highlightOnHover
-        responsive
-        pointerOnHover
-        onRowClicked={onViewDetail}
-        selectableRows
-        onSelectedRowsChange={onSelectedRowsChange}
-        clearSelectedRows={clearSelectedRows}
-        keyField="uniqueId"
-      />
->>>>>>> 2f5307e509c173f5476c9d53a52e0d76032f8e03
     </div>
   );
 }

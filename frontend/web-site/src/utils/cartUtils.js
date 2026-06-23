@@ -73,17 +73,10 @@ function normalizeCartItem(item) {
 }
 
 export function loadCartFromSession(dealerSlug, buyerId) {
-<<<<<<< HEAD
   try {
     const key = getCartSessionKey(dealerSlug, buyerId);
     const raw = sessionStorage.getItem(key);
     if (!raw) return [];
-=======
-  try {
-    const key = getCartSessionKey(dealerSlug, buyerId);
-    const raw = sessionStorage.getItem(key);
-    if (!raw) return [];
->>>>>>> 2f5307e509c173f5476c9d53a52e0d76032f8e03
 
     const parsed = JSON.parse(raw);
     if (!Array.isArray(parsed)) return [];
@@ -95,30 +88,12 @@ export function loadCartFromSession(dealerSlug, buyerId) {
 }
 
 export function saveCartToSession(items, dealerSlug, buyerId) {
-<<<<<<< HEAD
   try {
     const key = getCartSessionKey(dealerSlug, buyerId);
     sessionStorage.setItem(key, JSON.stringify(items));
   } catch {
     // Bỏ qua khi sessionStorage đầy hoặc không khả dụng.
   }
-=======
-  try {
-    const key = getCartSessionKey(dealerSlug, buyerId);
-    sessionStorage.setItem(key, JSON.stringify(items));
-  } catch {
-    // Bỏ qua khi sessionStorage đầy hoặc không khả dụng.
-  }
-}
-
-export function clearCartSession(dealerSlug, buyerId) {
-  try {
-    const key = getCartSessionKey(dealerSlug, buyerId);
-    sessionStorage.removeItem(key);
-  } catch {
-    // ignore
-  }
->>>>>>> 2f5307e509c173f5476c9d53a52e0d76032f8e03
 }
 
 export function clearCartSession(dealerSlug, buyerId) {
