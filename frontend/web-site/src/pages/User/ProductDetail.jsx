@@ -26,6 +26,7 @@ export default function ProductDetailPage() {
     const { user } = useAuth();
     const [product, setProduct] = useState(null);
     const [related, setRelated] = useState([]);
+    const [reviewSummary, setReviewSummary] = useState(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState("");
 
@@ -155,8 +156,14 @@ export default function ProductDetailPage() {
                     />
                     <ProductDetailPurchase
                         product={product}
-                        rating={product.rating ?? 4.8}
-                        reviewCount={product.sold ?? 0}
+                        rating={
+                            reviewSummary?.average_rating ??
+                            product.rating ??
+                            0
+                        }
+                        reviewCount={
+                            reviewSummary?.review_count ?? product.sold ?? 0
+                        }
                     />
                 </div>
 
@@ -165,7 +172,11 @@ export default function ProductDetailPage() {
                 </div>
 
                 <div className="mt-16">
-                    <ProductReviews />
+                    <ProductReviews
+                        dealerSlug={paths.slug}
+                        productId={product.id}
+                        onSummaryLoaded={setReviewSummary}
+                    />
                 </div>
             </div>
 

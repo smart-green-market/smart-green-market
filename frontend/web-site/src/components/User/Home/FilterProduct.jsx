@@ -178,7 +178,7 @@ export default function FilterProduct() {
     return (
         <section id="kham-pha" className="mx-auto w-full max-w-[1280px] px-10 pt-12 pb-4">
             <div className="mb-8">
-                <h2 className="font-playfair text-2xl font-bold text-emerald-950">
+                <h2 className="text-2xl font-bold text-emerald-950">
                     Khám phá sản phẩm
                 </h2>
             </div>

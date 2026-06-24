@@ -25,7 +25,7 @@ export default function AddToCartButton({
     };
 
     return (
-        <button type="button" onClick={handleClick} className={className}>
+        <button type="button" onClick={handleClick} className={`cursor-pointer ${className}`}>
             <ShoppingCart className={iconClassName} />
         </button>
     );

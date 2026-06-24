@@ -1,6 +1,7 @@
 import { Outlet } from "react-router-dom";
 import Header from "../components/User/Ui/Header";
 import Footer from "../components/User/Ui/Footer";
+import ScrollToTopButton from "../components/User/Ui/ScrollToTopButton";
 import AppToaster from "../components/common/AppToaster";
 import { CartProvider } from "../contexts/cartProvider";
 
@@ -13,6 +14,7 @@ export default function UserLayout() {
                     <Outlet />
                 </main>
                 <Footer />
+                <ScrollToTopButton />
                 <AppToaster />
             </div>
         </CartProvider>

@@ -23,12 +23,12 @@ export default function ProductCard({
             </div>
 
             <div className="self-stretch p-4 flex flex-col justify-between items-start gap-2">
-                <span className="text-zinc-900 text-base font-normal font-['Inter'] leading-6">{name}</span>
+                <span className="text-zinc-900 text-base font-normal leading-6">{name}</span>
 
                 <div className="self-stretch inline-flex justify-between items-center">
                     <div className="flex items-baseline gap-1">
-                        <span className="text-emerald-950 text-base font-bold font-['Inter'] leading-6">{price}</span>
-                        <span className="text-neutral-700 text-sm font-normal font-['Inter'] leading-5">{unit}</span>
+                        <span className="text-emerald-950 text-base font-bold leading-6">{price}</span>
+                        <span className="text-neutral-700 text-sm font-normal leading-5">{unit}</span>
                     </div>
                     {variant === "bestsell" && (
                         <button
@@ -45,7 +45,7 @@ export default function ProductCard({
                         onClick={onAddToCart}
                         className="self-stretch py-2 bg-green-200 rounded-lg flex justify-center items-center hover:bg-green-300 transition-colors"
                     >
-                        <span className="text-center text-green-950 text-base font-normal font-['Inter'] leading-6">
+                        <span className="text-center text-green-950 text-base font-normal leading-6">
                             Thêm vào giỏ
                         </span>
                     </button>
@@ -54,7 +54,7 @@ export default function ProductCard({
 
             {badge && (
                 <div className="px-3 py-1 left-4 top-4 absolute bg-orange-400 rounded-full">
-                    <span className="text-white text-[10px] font-bold font-['Inter'] uppercase leading-4 tracking-wide">
+                    <span className="text-white text-[10px] font-bold uppercase leading-4 tracking-wide">
                         {badge}
                     </span>
                 </div>

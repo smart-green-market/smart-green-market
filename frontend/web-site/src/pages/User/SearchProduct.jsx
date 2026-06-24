@@ -103,7 +103,7 @@ export default function SearchProductPage() {
             </nav>
 
             <div className="mb-8">
-                <h1 className="font-playfair text-3xl font-bold text-emerald-950">
+                <h1 className="text-3xl font-bold text-emerald-950">
                     Tìm kiếm sản phẩm
                 </h1>
                 <p className="mt-2 text-sm text-neutral-600">

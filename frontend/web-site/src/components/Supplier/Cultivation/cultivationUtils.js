@@ -9,7 +9,7 @@ export const ACTIVE_PRODUCT_STATUS = "active";
 export { validateCultivationForm };
 
 export function parseProductList(response) {
-  return Array.isArray(response) ? response : (response?.results || []);
+  return Array.isArray(response) ? response : response?.results || [];
 }
 
 export function getActiveProducts(products) {
@@ -17,7 +17,7 @@ export function getActiveProducts(products) {
 }
 
 export function parseCultivationList(response) {
-  const list = Array.isArray(response) ? response : (response?.results || []);
+  const list = Array.isArray(response) ? response : response?.results || [];
   return list.map(normalizeCultivationRow);
 }
 

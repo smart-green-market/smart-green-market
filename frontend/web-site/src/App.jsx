@@ -17,7 +17,7 @@ import DealerLayout from "./layouts/DealerLayout";
 
 import StorefrontEntryRedirect from "./components/User/StorefrontEntryRedirect";
 //User Pages
-import { HomePage, ProductDetailPage, CartPage, OrderPage, PaymentPage, OrderStatusPage, UserProfilePage, ChangePasswordPage, OrderHistoryPage, UserLoginPage, UserRegisterPage, SearchProductPage, DealerSlugEntryPage, CheckoutPage, OrderTrackingPage, PoliciesPage, SupportPage } from "./pages/User";
+import { HomePage, ProductDetailPage, CartPage, OrderPage, PaymentPage, OrderStatusPage, UserProfilePage, ChangePasswordPage, OrderHistoryPage, ProductReviewsPage, UserLoginPage, UserRegisterPage, SearchProductPage, DealerSlugEntryPage, CheckoutPage, OrderTrackingPage, PoliciesPage, SupportPage } from "./pages/User";
 //Supplier Pages
 import { OrderSupplierPage, ProductSupplierPage, CertificationSupplierPage, RegisterPage, SupplierLoginPage, SupplierInfoPage, CategorySupplierPage, CultivationSupplierPage, DashboardSupplierPage, NotFound } from "./pages/Supplier";
 //Admin Pages
@@ -51,6 +51,7 @@ export default function App() {
                                     <Route path="" element={<UserProfilePage />} />
                                     <Route path="doi-mat-khau" element={<ChangePasswordPage />} />
                                     <Route path="lich-su-don-hang" element={<OrderHistoryPage />} />
+                                    <Route path="danh-gia-san-pham" element={<ProductReviewsPage />} />
                                 </Route>
                                 <Route path="dat-hang-1" element={<CheckoutPage />} />
                             </Route>
