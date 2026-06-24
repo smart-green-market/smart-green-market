@@ -1,4 +1,5 @@
 import axiosClient from "../axiosClient";
+import { extractApiError } from "../../../utils/extractApiError";
 
 export const buyerProfileService = {
   getProfile: (dealer_slug) =>
@@ -31,27 +32,8 @@ export const buyerProfileService = {
 
   updateProfile: (dealer_slug, data) =>
     axiosClient
-      .put(`/storefronts/${dealer_slug}/me/`, data)
+      .patch(`/storefronts/${dealer_slug}/me/`, data)
       .then((res) => res.data),
-
-  uploadAvatar: (dealer_slug, file, form = null) => {
-    const formData = new FormData();
-    formData.append("avatar", file);
-
-    if (form) {
-      if (form.full_name?.trim())
-        formData.append("full_name", form.full_name.trim());
-      if (form.phone?.trim()) formData.append("phone", form.phone.trim());
-      if (form.note != null) formData.append("note", form.note.trim());
-      if (form.favorite_category !== "" && form.favorite_category != null) {
-        formData.append("favorite_category", String(form.favorite_category));
-      }
-    }
-
-    return axiosClient
-      .put(`/storefronts/${dealer_slug}/me/`, formData)
-      .then((res) => res.data);
-  },
 
   // in dealer_slug: string
   // data{
@@ -80,8 +62,6 @@ export const buyerProfileService = {
 };
 
 export const handleApiError = (error, defaultMessage = "Có lỗi xảy ra") => {
-  const message =
-    error.response?.data?.message || error.message || defaultMessage;
   console.error("API Error:", error);
-  return message;
+  return extractApiError(error, defaultMessage);
 };
