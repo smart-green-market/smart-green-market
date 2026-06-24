@@ -2,7 +2,7 @@ import { ChevronLeft, ChevronRight } from "lucide-react";
 import { useDragScroll } from "../../../hooks/useDragScroll";
 
 const NAV_BUTTON_CLASS =
-    "absolute top-1/2 z-10 flex h-12 w-12 -translate-y-1/2 cursor-pointer items-center justify-center rounded-full border border-stone-200 bg-white text-zinc-600 opacity-0 shadow-lg transition-all hover:border-emerald-300 hover:bg-emerald-50 group-hover:opacity-100";
+    "absolute top-1/2 z-10 flex h-12 w-12 -translate-y-1/2 cursor-pointer items-center justify-center rounded-full border border-stone-200 bg-white text-zinc-600 opacity-0 shadow-lg transition-all hover:border-emerald-300 hover:bg-emerald-50 group-hover/carousel:opacity-100";
 
 export default function DragScrollCarousel({
     children,
@@ -32,7 +32,7 @@ export default function DragScrollCarousel({
             : `${NAV_BUTTON_CLASS} right-0 translate-x-5`;
 
     return (
-        <div className={`group relative ${className}`}>
+        <div className={`group/carousel relative ${className}`}>
             {showNav ? (
                 <>
                     <button
