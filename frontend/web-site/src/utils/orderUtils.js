@@ -73,6 +73,94 @@ export const ORDER_STATUS_CFG = {
   cancelled: { label: "Đã hủy", bg: "bg-red-50", text: "text-red-500" },
 };
 
+/** Các trạng thái không hiển thị trên trang theo dõi đơn hàng */
+export const TERMINAL_ORDER_STATUSES = ["completed", "cancelled"];
+
+export function isActiveTrackingOrder(status) {
+  return !TERMINAL_ORDER_STATUSES.includes(status);
+}
+
+export function isHistoryOrder(status) {
+  return TERMINAL_ORDER_STATUSES.includes(status);
+}
+
+export function matchesHistoryStatusFilter(orderStatus, filterKey) {
+  if (filterKey === "all") return isHistoryOrder(orderStatus);
+  if (filterKey === "completed") return orderStatus === "completed";
+  if (filterKey === "cancelled") return orderStatus === "cancelled";
+  return false;
+}
+
+export function sortOrdersByCreatedDesc(orders = []) {
+  return [...orders].sort((a, b) => {
+    const timeA = new Date(a?.created_at ?? 0).getTime();
+    const timeB = new Date(b?.created_at ?? 0).getTime();
+    return timeB - timeA;
+  });
+}
+
+const DELIVERY_SLOT_WINDOWS = {
+  morning: { start: "06:00", end: "11:00" },
+  afternoon: { start: "13:00", end: "18:00" },
+};
+
+function resolveDeliverySlotKey(deliverySlot, deliverySlotName) {
+  const slot = String(deliverySlot ?? "")
+    .trim()
+    .toLowerCase();
+  const name = String(deliverySlotName ?? "")
+    .trim()
+    .toLowerCase();
+
+  if (
+    slot.includes("morning") ||
+    slot === "sang" ||
+    name.includes("sáng") ||
+    name.includes("sang")
+  ) {
+    return "morning";
+  }
+
+  if (
+    slot.includes("afternoon") ||
+    slot === "chieu" ||
+    name.includes("chiều") ||
+    name.includes("chieu")
+  ) {
+    return "afternoon";
+  }
+
+  return null;
+}
+
+export function formatEstimatedDeliveryTime(order = {}) {
+  const {
+    delivery_date: deliveryDate,
+    delivery_slot: deliverySlot,
+    delivery_slot_name: deliverySlotName,
+    delivery_time: deliveryTime,
+  } = order;
+
+  if (deliveryTime) {
+    const formatted = formatDateTime(deliveryTime);
+    if (formatted) return formatted;
+  }
+
+  const slotKey = resolveDeliverySlotKey(deliverySlot, deliverySlotName);
+  const dateLabel = deliveryDate ? formatDateTime(deliveryDate, false) : null;
+
+  if (slotKey && dateLabel) {
+    const window = DELIVERY_SLOT_WINDOWS[slotKey];
+    return `${dateLabel}, ${window.start} - ${window.end}`;
+  }
+
+  if (dateLabel && deliverySlotName) {
+    return `${dateLabel} • ${deliverySlotName}`;
+  }
+
+  return dateLabel || deliverySlotName || null;
+}
+
 /** Các trạng thái thuộc nhóm "Đang xử lý" trên trang theo dõi đơn hàng */
 export const PROCESSING_STATUSES = [
   "pending",

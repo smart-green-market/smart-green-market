@@ -46,7 +46,16 @@ export default function ProductDetailInfo({ product, onUpdate }) {
       const res = await dealerProductService.update(product.id, updatedData);
       toast.success("Cập nhật thông tin thành công!");
       setIsEditing(false);
-      onUpdate({ ...product, ...updatedData, category_name: categories.find(c => String(c.id) === String(categoryId))?.name || product.category_name });
+      
+      const selectedCat = categories.find(c => String(c.id) === String(categoryId));
+      onUpdate({ 
+        ...product, 
+        title,
+        description,
+        retail_price: retailPrice,
+        category_id: categoryId,
+        category: selectedCat ? { id: selectedCat.id, name: selectedCat.name } : product.category 
+      });
     } catch (error) {
       toast.error("Lỗi cập nhật thông tin sản phẩm.");
     } finally {

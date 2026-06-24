@@ -107,10 +107,10 @@ POST /api/purchase-orders/
 Role: dealer
 ```
 
-**Body:**
+**Body** — một lần gửi có thể gồm SP từ **nhiều NCC** (không cần `supplier_id`):
+
 ```json
 {
-  "supplier_id": 1,
   "delivery_address": "123 Kho DL, Q1, HCM",
   "requested_delivery_time": "2026-06-15T08:00:00+07:00",
   "receiver_name": "Nguyen Van A",
@@ -118,14 +118,29 @@ Role: dealer
   "note": "",
   "items": [
     { "supplier_product_id": 5, "quantity": "50", "note": "" },
-    { "supplier_product_id": 8, "quantity": "100" }
+    { "supplier_product_id": 12, "quantity": "30", "note": "" }
   ]
 }
 ```
 
-**Sau khi thành công:** `status = pending_supplier_confirmation`, có `order_code`, `total_amount`.
+> `supplier_product_id` 5 thuộc NCC A, 12 thuộc NCC B → backend tạo **2 phiếu** riêng.
 
-**UI:** Chuyển màn chi tiết phiếu / danh sách chờ NCC.
+**Response 201:**
+
+```json
+{
+  "orders": [
+    { "id": 101, "order_code": "PN-...", "supplier": 1, "status": "pending_supplier_confirmation", "..." : "..." },
+    { "id": 102, "order_code": "PN-...", "supplier": 2, "status": "pending_supplier_confirmation", "..." : "..." }
+  ]
+}
+```
+
+**Legacy:** vẫn có thể gửi `supplier_id` khi chỉ đặt một NCC — mọi dòng `items` phải thuộc NCC đó.
+
+**Sau khi thành công:** mỗi phiếu `status = pending_supplier_confirmation`, có `order_code`, `total_amount`.
+
+**UI:** Hiển thị danh sách phiếu vừa tạo / chuyển màn danh sách chờ NCC.
 
 ---
 

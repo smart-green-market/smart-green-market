@@ -14,14 +14,12 @@ import {
   parseBuyerOrderList,
 } from "../../services/api/Buyer/buyerOrder";
 import { useDealerSlug } from "../../hooks/useStorefrontPaths";
-import { matchesStatusFilter } from "../../utils/orderUtils";
+import { matchesStatusFilter, isActiveTrackingOrder } from "../../utils/orderUtils";
 
 const FILTER_TABS = [
   { key: "all", label: "Tất cả" },
   { key: "processing", label: "Đang xử lý" },
   { key: "shipping", label: "Đang giao" },
-  { key: "completed", label: "Hoàn thành" },
-  { key: "cancelled", label: "Đã hủy" },
 ];
 
 export default function OrderTrackingPage() {
@@ -57,9 +55,14 @@ export default function OrderTrackingPage() {
     fetchOrders();
   }, [fetchOrders]);
 
+  const activeOrders = useMemo(
+    () => orders.filter((order) => isActiveTrackingOrder(order.status)),
+    [orders],
+  );
+
   const filteredOrders = useMemo(
-    () => orders.filter((order) => matchesStatusFilter(order.status, activeFilter)),
-    [orders, activeFilter],
+    () => activeOrders.filter((order) => matchesStatusFilter(order.status, activeFilter)),
+    [activeOrders, activeFilter],
   );
 
   const tabsWithCount = useMemo(
@@ -68,10 +71,12 @@ export default function OrderTrackingPage() {
         ...tab,
         count:
           tab.key === "all"
-            ? orders.length
-            : orders.filter((order) => matchesStatusFilter(order.status, tab.key)).length,
+            ? activeOrders.length
+            : activeOrders.filter((order) =>
+                matchesStatusFilter(order.status, tab.key),
+              ).length,
       })),
-    [orders],
+    [activeOrders],
   );
 
   const handleViewDetail = useCallback((orderId) => {
@@ -91,7 +96,9 @@ export default function OrderTrackingPage() {
           </span>
           <div>
             <h1 className="text-2xl font-bold text-slate-800">Theo dõi đơn hàng</h1>
-            <p className="text-sm text-slate-400">Danh sách tất cả đơn hàng của bạn</p>
+            <p className="text-sm text-slate-400">
+              Các đơn hàng đang được xử lý và giao
+            </p>
           </div>
         </div>
 

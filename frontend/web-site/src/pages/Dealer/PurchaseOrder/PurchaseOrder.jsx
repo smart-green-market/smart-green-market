@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { ClipboardList, Plus } from "lucide-react";
 import SupplierFilter from "../../../components/Dealer/Supplier/SupplierFilter";
 import PurchaseOrderList from "../../../components/Dealer/PurchaseOrder/PurchaseOrderList";
+import PurchaseOrderStatsCard from "../../../components/Dealer/PurchaseOrder/PurchaseOrderStatsCard";
 import { purchaseOrderService } from "../../../services/api/purchaseOrderService";
 import Pagination from "../../../components/common/Pagination";
 import { useNavigate, useLocation } from "react-router-dom";
@@ -41,16 +42,16 @@ export default function DealerPurchaseOrderPage() {
 
     const filterOptions = [
         { label: "Tất cả", value: "", colorClass: "text-neutral-700" },
-        { label: "Chờ xác nhận", value: "Chờ xác nhận", colorClass: "text-sky-700" },
-        { label: "Đã từ chối", value: "Đã từ chối", colorClass: "text-rose-700" },
-        { label: "Đã xác nhận", value: "Đã xác nhận", colorClass: "text-cyan-700" },
-        { label: "Chờ duyệt cọc", value: "Chờ duyệt cọc", colorClass: "text-amber-700" },
-        { label: "Đang chuẩn bị hàng", value: "Đang chuẩn bị hàng", colorClass: "text-indigo-700" },
-        { label: "Đang giao hàng", value: "Chờ giao hàng", colorClass: "text-orange-700" },
-        { label: "Đã giao hàng", value: "Đã giao hàng", colorClass: "text-teal-700" },
-        { label: "Chờ xác nhận thanh toán cuối", value: "Chờ xác nhận thanh toán cuối", colorClass: "text-yellow-700" },
-        { label: "Đã hoàn thành", value: "Đã hoàn thành", colorClass: "text-emerald-700" },
-        { label: "Đã hủy", value: "Đã hủy", colorClass: "text-red-700" }
+        { label: "Chờ xác nhận", value: "pending_supplier_confirmation", colorClass: "text-sky-700" },
+        { label: "Đã từ chối", value: "rejected", colorClass: "text-rose-700" },
+        { label: "Đã xác nhận", value: "confirmed", colorClass: "text-cyan-700" },
+        { label: "Chờ duyệt cọc", value: "deposit_pending_verification", colorClass: "text-amber-700" },
+        { label: "Đang chuẩn bị hàng", value: "processing", colorClass: "text-indigo-700" },
+        { label: "Đang giao hàng", value: "shipping", colorClass: "text-orange-700" },
+        { label: "Đã giao hàng", value: "delivered", colorClass: "text-teal-700" },
+        { label: "Chờ xác nhận thanh toán cuối", value: "final_payment_pending_verification", colorClass: "text-yellow-700" },
+        { label: "Đã hoàn thành", value: "completed", colorClass: "text-emerald-700" },
+        { label: "Đã hủy", value: "cancelled", colorClass: "text-red-700" }
     ];
 
     const handleViewDetail = (order) => {
@@ -66,10 +67,14 @@ export default function DealerPurchaseOrderPage() {
         const fetchOrders = async () => {
             setLoading(true);
             try {
-                const response = await purchaseOrderService.getAll({
+                const params = {
                     page: currentPage,
                     page_size: page_size,
-                });
+                };
+                if (searchQuery) params.search = searchQuery;
+                if (statusFilter) params.status = statusFilter;
+
+                const response = await purchaseOrderService.getAll(params);
 
                 const results = response?.results || [];
                 const mappedList = results.map((item) => ({
@@ -104,29 +109,13 @@ export default function DealerPurchaseOrderPage() {
             }
         };
         fetchOrders();
-    }, [currentPage, location.state]);
+    }, [currentPage, location.state, searchQuery, statusFilter]);
 
     // Tìm kiếm và lọc theo trạng thái
-    const filteredData = purchaseOrders.filter((item) => {
-        const supplierName = item.supplier || "";
-        const orderId = item.id || "";
-        const supplierStatus = item.status || "";
+    const filteredData = purchaseOrders; // Backend đã xử lý filter, ở đây không filter thêm để tránh lỗi phân trang
 
-        const matchesSearch =
-            supplierName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-            orderId.toLowerCase().includes(searchQuery.toLowerCase());
 
-        const matchesStatus = statusFilter === "" || supplierStatus === statusFilter;
-        return matchesSearch && matchesStatus;
-    });
 
-    if (loading) {
-        return (
-            <div className="p-6 bg-emerald-50/15 min-h-screen flex justify-center items-center">
-                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-emerald-600"></div>
-            </div>
-        );
-    }
 
     return (
         <div className="p-6 bg-emerald-50/15 min-h-screen font-['Geist',sans-serif]">
@@ -148,26 +137,43 @@ export default function DealerPurchaseOrderPage() {
                 </button>
             </div>
 
+            {/* Stats Cards */}
+            <PurchaseOrderStatsCard
+                orders={purchaseOrders}
+                activeFilter={statusFilter}
+                onFilterChange={(val) => { setStatusFilter(val); setCurrentPage(1); }}
+            />
+
             {/* Filter */}
             <SupplierFilter
                 searchQuery={searchQuery}
-                onSearchChange={setSearchQuery}
+                onSearchChange={(val) => { setSearchQuery(val); setCurrentPage(1); }}
                 statusFilter={statusFilter}
-                onStatusChange={setStatusFilter}
+                onStatusChange={(val) => { setStatusFilter(val); setCurrentPage(1); }}
                 filterOptions={filterOptions}
                 placeholder="Tìm kiếm đơn nhập hàng (Mã đơn, Nhà cung cấp...)"
             />
 
             {/* List of orders */}
-            <PurchaseOrderList
-                purchaseOrders={filteredData}
-                onViewDetail={handleViewDetail}
-            />
-            <Pagination
-                currentPage={currentPage}
-                totalPages={totalPages}
-                onPageChange={setCurrentPage}
-            />
+            <div className="relative">
+                {loading ? (
+                    <div className="flex justify-center items-center py-20">
+                        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-emerald-600"></div>
+                    </div>
+                ) : (
+                    <>
+                        <PurchaseOrderList
+                            purchaseOrders={filteredData}
+                            onViewDetail={handleViewDetail}
+                        />
+                        <Pagination
+                            currentPage={currentPage}
+                            totalPages={totalPages}
+                            onPageChange={setCurrentPage}
+                        />
+                    </>
+                )}
+            </div>
 
 
 

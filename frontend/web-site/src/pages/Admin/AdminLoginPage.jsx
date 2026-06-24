@@ -4,7 +4,6 @@ import {
     ArrowLeft,
     Eye,
     EyeOff,
-    LayoutDashboard,
     Loader2,
     Lock,
     ShieldCheck,
@@ -65,7 +64,7 @@ export default function AdminLoginPage() {
     };
 
     return (
-        <div className="flex min-h-screen w-full font-['Geist',sans-serif]">
+        <div className="flex min-h-screen min-h-[100dvh] w-full font-['Geist',sans-serif]">
             {/* ── Left panel ── */}
             <aside className="relative hidden overflow-hidden bg-[#064e3b] lg:flex lg:w-[46%] lg:flex-col lg:justify-between lg:p-12">
                 <div
@@ -131,8 +130,8 @@ export default function AdminLoginPage() {
                 </p>
             </aside>
 
-            {/* ── Form panel ── */}
-            <main className="relative flex flex-1 flex-col items-center justify-center bg-[#f7f7f5] px-4 py-10 sm:px-8">
+            {/* ── Form panel (responsive mobile; desktop giữ nguyên layout) ── */}
+            <main className="relative flex flex-1 flex-col items-center justify-center bg-[#f7f7f5] px-4 py-6 sm:px-8 sm:py-10">
                 <div
                     className="pointer-events-none absolute inset-0 opacity-[0.45]"
                     style={{
@@ -142,32 +141,37 @@ export default function AdminLoginPage() {
                     }}
                 />
 
-                <div className="relative w-full max-w-[420px] admin-login-enter">
-                    <div className="mb-8 flex items-center gap-3 lg:hidden">
-                        <BrandMark className="h-10 w-10" />
-                        <div>
-                            <p className="font-['Noto_Serif',serif] text-lg font-bold text-emerald-950">
+                <div className="admin-login-enter relative w-full max-w-[420px]">
+                    {/* Header mobile — ẩn trên desktop (logo đã có ở panel trái) */}
+                    <div className="mb-5 flex items-center gap-3 sm:mb-6 lg:hidden">
+                        <BrandMark className="h-10 w-10 sm:h-11 sm:w-11" />
+                        <div className="min-w-0">
+                            <p className="truncate font-['Noto_Serif',serif] text-lg font-bold text-emerald-950 sm:text-xl">
                                 GreenMarket
                             </p>
-                            <p className="text-xs text-neutral-500">Đăng nhập quản trị</p>
+                            <p className="text-xs text-neutral-500 sm:text-sm">
+                                Đăng nhập quản trị
+                            </p>
                         </div>
                     </div>
 
                     <div className="overflow-hidden rounded-2xl border border-neutral-200/80 bg-white shadow-[0_8px_30px_rgba(0,0,0,0.06)]">
                         <div className="h-1 bg-gradient-to-r from-emerald-700 via-emerald-600 to-lime-600" />
 
-                        <form onSubmit={handleSubmit} className="sm:p-9">
-                                    <div className="mb-8 text-center">
-                                        <h1 className="text-3xl font-bold text-[#141b2b]">
-                                            Đăng nhập
-                                        </h1>
-                                        
-                                        <p className="mt-1 text-sm text-neutral-500">
-                                            Tài khoản quản trị viên hệ thống
-                                        </p>
+                        <form
+                            onSubmit={handleSubmit}
+                            className="p-5 sm:p-8 lg:p-9"
+                        >
+                            <div className="mb-6 text-center sm:mb-8">
+                                <h1 className="text-2xl font-bold text-[#141b2b] sm:text-3xl">
+                                    Đăng nhập
+                                </h1>
+                                <p className="mt-1 text-sm text-neutral-500">
+                                    Tài khoản quản trị viên hệ thống
+                                </p>
                             </div>
 
-                            <div className="space-y-5">
+                            <div className="space-y-4 sm:space-y-5">
                                 <div>
                                     <label
                                         htmlFor="admin-username"
@@ -182,8 +186,10 @@ export default function AdminLoginPage() {
                                             type="text"
                                             autoComplete="username"
                                             value={username}
-                                            onChange={(e) => setUsername(e.target.value)}
-                                            className="h-11 w-full rounded-xl border border-neutral-200 bg-neutral-50/50 pl-10 pr-4 text-sm text-neutral-900 outline-none transition-all placeholder:text-neutral-400 focus:border-emerald-600 focus:bg-white focus:ring-2 focus:ring-emerald-600/15"
+                                            onChange={(e) =>
+                                                setUsername(e.target.value)
+                                            }
+                                            className="h-11 w-full rounded-xl border border-neutral-200 bg-neutral-50/50 pl-10 pr-4 text-base text-neutral-900 outline-none transition-all placeholder:text-neutral-400 focus:border-emerald-600 focus:bg-white focus:ring-2 focus:ring-emerald-600/15 sm:text-sm"
                                             placeholder="Nhập tên đăng nhập"
                                             required
                                         />
@@ -201,20 +207,30 @@ export default function AdminLoginPage() {
                                         <Lock className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-neutral-400" />
                                         <input
                                             id="admin-password"
-                                            type={showPassword ? "text" : "password"}
+                                            type={
+                                                showPassword
+                                                    ? "text"
+                                                    : "password"
+                                            }
                                             autoComplete="current-password"
                                             value={password}
-                                            onChange={(e) => setPassword(e.target.value)}
-                                            className="h-11 w-full rounded-xl border border-neutral-200 bg-neutral-50/50 pl-10 pr-11 text-sm text-neutral-900 outline-none transition-all placeholder:text-neutral-400 focus:border-emerald-600 focus:bg-white focus:ring-2 focus:ring-emerald-600/15"
+                                            onChange={(e) =>
+                                                setPassword(e.target.value)
+                                            }
+                                            className="h-11 w-full rounded-xl border border-neutral-200 bg-neutral-50/50 pl-10 pr-11 text-base text-neutral-900 outline-none transition-all placeholder:text-neutral-400 focus:border-emerald-600 focus:bg-white focus:ring-2 focus:ring-emerald-600/15 sm:text-sm"
                                             placeholder="Nhập mật khẩu"
                                             required
                                         />
                                         <button
                                             type="button"
-                                            onClick={() => setShowPassword((v) => !v)}
-                                            className="absolute right-3 top-1/2 -translate-y-1/2 rounded-md p-0.5 text-neutral-400 transition-colors hover:text-neutral-700"
+                                            onClick={() =>
+                                                setShowPassword((v) => !v)
+                                            }
+                                            className="absolute right-3 top-1/2 -translate-y-1/2 rounded-md p-1 text-neutral-400 transition-colors hover:text-neutral-700"
                                             aria-label={
-                                                showPassword ? "Ẩn mật khẩu" : "Hiện mật khẩu"
+                                                showPassword
+                                                    ? "Ẩn mật khẩu"
+                                                    : "Hiện mật khẩu"
                                             }
                                         >
                                             {showPassword ? (
@@ -238,7 +254,7 @@ export default function AdminLoginPage() {
                                 <button
                                     type="submit"
                                     disabled={loading}
-                                    className="hover:scale-105 flex h-11 w-full cursor-pointer items-center justify-center gap-2 rounded-xl bg-emerald-800 text-sm font-semibold text-white shadow-sm transition-all hover:bg-emerald-900 active:scale-[0.99] disabled:cursor-not-allowed disabled:bg-emerald-500/70"
+                                    className="flex h-11 w-full cursor-pointer items-center justify-center gap-2 rounded-xl bg-emerald-800 text-sm font-semibold text-white shadow-sm transition-all hover:bg-emerald-900 active:scale-[0.99] disabled:cursor-not-allowed disabled:bg-emerald-500/70 sm:hover:scale-[1.01]"
                                 >
                                     {loading ? (
                                         <>
@@ -251,10 +267,10 @@ export default function AdminLoginPage() {
                                 </button>
                             </div>
 
-                            <p className="mt-6 text-center">
+                            <p className="mt-5 text-center sm:mt-6">
                                 <Link
                                     to="/"
-                                    className="hover:scale-105 inline-flex items-center gap-1.5 text-sm text-neutral-500 no-underline transition-colors hover:text-emerald-800"
+                                    className="inline-flex items-center gap-1.5 text-sm text-neutral-500 no-underline transition-colors hover:text-emerald-800"
                                 >
                                     <ArrowLeft className="h-3.5 w-3.5" />
                                     Về trang chủ
@@ -262,6 +278,10 @@ export default function AdminLoginPage() {
                             </p>
                         </form>
                     </div>
+
+                    <p className="mt-4 text-center text-xs text-neutral-400 lg:hidden">
+                        © {new Date().getFullYear()} Smart Green Market
+                    </p>
                 </div>
             </main>
 

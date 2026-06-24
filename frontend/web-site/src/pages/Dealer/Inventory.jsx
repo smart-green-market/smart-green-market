@@ -16,33 +16,33 @@ export default function DealerInventoryPage() {
   const [selectedRow, setSelectedRow] = useState(null); // Lô hàng đang được chọn để cập nhật (mở modal)
   const [loading, setLoading] = useState(true); // Trạng thái tải dữ liệu
 
-  // Tải dữ liệu ban đầu khi component mount
+  const [inventoryPage, setInventoryPage] = useState(1);
+  const [inventoryTotalPages, setInventoryTotalPages] = useState(1);
+  const [transactionPage, setTransactionPage] = useState(1);
+  const [transactionTotalPages, setTransactionTotalPages] = useState(1);
+
+  // Gọi API danh sách lô hàng
   useEffect(() => {
-    const loadData = async () => {
-      setLoading(true);
-      try {
-        // Tải song song danh sách lô hàng và lịch sử giao dịch
-        await Promise.all([fetchInventory(), fetchTransactions()]);
-      } catch (error) {
-        console.error("Failed to load inventory data:", error);
-      } finally {
-        setLoading(false);
-      }
-    };
-    loadData();
-  }, []);
+    fetchInventory();
+  }, [inventoryPage, searchQuery, statusFilter]);
+
+  // Gọi API lịch sử giao dịch
+  useEffect(() => {
+    fetchTransactions();
+  }, [transactionPage]);
 
   /**
    * Tải danh sách lô hàng tồn kho từ backend và map thêm dữ liệu từ danh mục sản phẩm đại lý
    */
   const fetchInventory = async () => {
     try {
-      // Gọi song song API lấy danh sách lô hàng và danh sách sản phẩm của đại lý
+      setLoading(true);
       const [data, productsData] = await Promise.all([
-        dealerInventoryService.getBatches(),
-        dealerProductService.getAll().catch(() => []) // Fallback mảng rỗng nếu lỗi
+        dealerInventoryService.getBatches({ page: inventoryPage, page_size: 10, search: searchQuery, status: statusFilter }),
+        dealerProductService.getAll().catch(() => [])
       ]);
       const batches = data.results || data || [];
+      setInventoryTotalPages(Math.max(1, Math.ceil((data.count || batches.length) / 10)));
 
       // Ánh xạ dữ liệu lô hàng với sản phẩm đại lý tương ứng để hiển thị thông tin đầy đủ nhất
       const mappedInventory = batches.map(batch => {
@@ -61,6 +61,13 @@ export default function DealerInventoryPage() {
           ? new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(retailPriceRaw)
           : "N/A";
 
+        const statusMap = {
+          "active": "Đang hoạt động",
+          "depleted": "Hết hàng",
+          "expired": "Hết hạn",
+          "cancelled": "Đã hủy"
+        };
+
         // Trả về đối tượng lô hàng đã được format thân thiện với UI table
         return {
           batchCode: batch.batch_number, // Mã lô hàng
@@ -73,7 +80,7 @@ export default function DealerInventoryPage() {
           unit: unitName, // Đơn vị tính
           priceImport: new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(batch.import_price), // Giá nhập kho
           priceRetail: priceRetail, // Giá bán lẻ đại lý tự cấu hình
-          status: batch.remaining_quantity > 0 ? "Còn hàng" : "Hết hàng", // Trạng thái tồn kho
+          status: statusMap[batch.status] || batch.status, // Trạng thái tồn kho theo backend
           freshness: "N/A",
           freshnessColor: "text-neutral-600 bg-neutral-50",
           originalData: batch // Lưu giữ toàn bộ data gốc của lô hàng để dùng cho các tác vụ cập nhật
@@ -82,6 +89,8 @@ export default function DealerInventoryPage() {
       setInventoryList(mappedInventory);
     } catch (error) {
       console.error("Failed to fetch inventory:", error);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -90,8 +99,9 @@ export default function DealerInventoryPage() {
    */
   const fetchTransactions = async () => {
     try {
-      const data = await dealerInventoryService.getTransactions();
+      const data = await dealerInventoryService.getTransactions({ page: transactionPage, page_size: 10 });
       const transactions = data.results || data;
+      setTransactionTotalPages(Math.max(1, Math.ceil((data.count || transactions.length) / 10)));
 
       // Định nghĩa tên loại giao dịch sang tiếng Việt hiển thị trên UI
       const typeMapping = {
@@ -124,27 +134,16 @@ export default function DealerInventoryPage() {
     }
   };
 
-  // --- Logic lọc dữ liệu ---
-  // Tìm kiếm lô hàng dựa trên: Tên nông sản, Mã lô, Tên nhà cung cấp, hoặc Danh mục
-  const filteredInventory = inventoryList.filter((item) => {
-    const matchesSearch =
-      item.productName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      item.batchCode.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      item.supplier.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      item.category.toLowerCase().includes(searchQuery.toLowerCase());
+  // Backend xử lý lọc dữ liệu nên không cần lọc lại ở frontend
+  const filteredInventory = inventoryList;
 
-    // Lọc theo trạng thái tồn kho (Còn hàng, Sắp hết hàng, Hết hàng...)
-    const matchesStatus = statusFilter === "" || item.status === statusFilter;
-    return matchesSearch && matchesStatus;
-  });
-
-  // Cấu hình các tùy chọn bộ lọc trạng thái tồn kho
+  // Cấu hình các tùy chọn bộ lọc trạng thái tồn kho chuẩn theo backend
   const filterOptions = [
     { label: "Tất cả", value: "", colorClass: "text-neutral-700" },
-    { label: "Còn hàng", value: "Còn hàng", colorClass: "text-emerald-700" },
-    { label: "Sắp hết hàng", value: "Sắp hết hàng", colorClass: "text-amber-700" },
-    { label: "Hết hàng", value: "Hết hàng", colorClass: "text-red-700" },
-    { label: "Hết hạn", value: "Hết hạn", colorClass: "text-red-900" },
+    { label: "Đang hoạt động", value: "active", colorClass: "text-emerald-700" },
+    { label: "Hết hàng", value: "depleted", colorClass: "text-amber-700" },
+    { label: "Hết hạn", value: "expired", colorClass: "text-red-700" },
+    { label: "Đã hủy", value: "cancelled", colorClass: "text-red-900" },
   ];
 
   /**
@@ -168,14 +167,7 @@ export default function DealerInventoryPage() {
     await fetchTransactions();
   };
 
-  // Trạng thái chờ tải dữ liệu ban đầu
-  if (loading) {
-    return (
-      <div className="p-6 bg-emerald-50/15 min-h-screen flex justify-center items-center">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-emerald-600"></div>
-      </div>
-    );
-  }
+
 
   // --- Render Giao diện ---
   return (
@@ -186,9 +178,9 @@ export default function DealerInventoryPage() {
       {/* 2. Bộ lọc kết hợp tìm kiếm và chọn nhanh trạng thái hàng */}
       <SupplierFilter
         searchQuery={searchQuery}
-        onSearchChange={setSearchQuery}
+        onSearchChange={(val) => { setSearchQuery(val); setInventoryPage(1); }}
         statusFilter={statusFilter}
-        onStatusChange={setStatusFilter}
+        onStatusChange={(val) => { setStatusFilter(val); setInventoryPage(1); }}
         filterOptions={filterOptions}
         placeholder="Tìm kiếm lô hàng (Mã lô, tên nông sản, nhà cung cấp...)"
       />
@@ -197,7 +189,10 @@ export default function DealerInventoryPage() {
       <div className="mb-8">
         <InventoryTable
           data={filteredInventory}
-          onRowClick={(row) => setSelectedRow(row)} // Click dòng sẽ kích hoạt mở modal
+          onRowClick={(row) => setSelectedRow(row)}
+          currentPage={inventoryPage}
+          totalPages={inventoryTotalPages}
+          onPageChange={setInventoryPage}
         />
 
         {/* Modal Cập nhật Lô hàng (chỉ mở khi có lô hàng được chọn) */}
@@ -211,7 +206,12 @@ export default function DealerInventoryPage() {
       </div>
 
       {/* 4. Bảng danh sách ghi nhận lịch sử nhập xuất hao hụt kho */}
-      <InventoryHistoryTable data={transactionList} />
+      <InventoryHistoryTable
+        data={transactionList}
+        currentPage={transactionPage}
+        totalPages={transactionTotalPages}
+        onPageChange={setTransactionPage}
+      />
 
     </div>
   );

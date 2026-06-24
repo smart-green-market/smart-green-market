@@ -1,11 +1,17 @@
-import { useMemo, useState } from "react";
-import { ChevronLeft, ChevronRight } from "lucide-react";
-import StarRating from "./StarRating";
+import { useEffect, useState } from "react";
+import { ChevronLeft, ChevronRight, Loader2, X } from "lucide-react";
 import {
-    MOCK_PRODUCT_REVIEWS,
-    MOCK_REVIEW_SUMMARY,
-    REVIEWS_PER_PAGE,
-} from "./mockProductReviews";
+    buyerReviewService,
+    handleApiError,
+} from "../../../services/api/Buyer/buyerReviewService";
+import { useBodyScrollLock } from "../../../hooks/useBodyScrollLock";
+import {
+    getReviewTotalPages,
+    mapProductReviewItem,
+    mapProductReviewSummary,
+    REVIEWS_PAGE_SIZE,
+} from "../../../utils/buyerReviewUtils";
+import StarRating from "./StarRating";
 
 const MAX_PAGE_BUTTONS = 3;
 
@@ -48,18 +54,18 @@ function buildPageItems(currentPage, totalPages, maxButtons = MAX_PAGE_BUTTONS) 
     return items;
 }
 
-function ReviewPagination({ page, totalPages, onPageChange }) {
+function ReviewPagination({ page, totalPages, onPageChange, loading }) {
     if (totalPages <= 1) return null;
 
     const pageItems = buildPageItems(page, totalPages);
 
     return (
-        <div className="flex items-center justify-center gap-1.5 pt-4">
+        <div className="flex items-center justify-center gap-1 pt-3 lg:gap-1.5 lg:pt-4">
             <button
                 type="button"
                 onClick={() => onPageChange(page - 1)}
-                disabled={page <= 1}
-                className="flex h-9 w-9 items-center justify-center rounded-lg border border-stone-300 text-neutral-600 transition-colors hover:bg-stone-50 disabled:cursor-not-allowed disabled:opacity-40"
+                disabled={page <= 1 || loading}
+                className="flex h-8 w-8 items-center justify-center rounded-lg border border-stone-300 text-neutral-600 transition-colors hover:bg-stone-50 disabled:cursor-not-allowed disabled:opacity-40 lg:h-9 lg:w-9"
                 aria-label="Trang trước"
             >
                 <ChevronLeft className="h-4 w-4" />
@@ -70,7 +76,7 @@ function ReviewPagination({ page, totalPages, onPageChange }) {
                     return (
                         <span
                             key={item}
-                            className="flex h-9 min-w-9 items-center justify-center px-1 text-sm text-neutral-400"
+                            className="flex h-8 min-w-8 items-center justify-center px-1 text-xs text-neutral-400 lg:h-9 lg:min-w-9 lg:text-sm"
                         >
                             …
                         </span>
@@ -82,7 +88,8 @@ function ReviewPagination({ page, totalPages, onPageChange }) {
                         key={item}
                         type="button"
                         onClick={() => onPageChange(item)}
-                        className={`flex h-9 min-w-9 items-center justify-center rounded-lg px-2 text-sm font-medium transition-colors ${
+                        disabled={loading}
+                        className={`flex h-8 min-w-8 items-center justify-center rounded-lg px-1.5 text-xs font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-60 lg:h-9 lg:min-w-9 lg:px-2 lg:text-sm ${
                             item === page
                                 ? "bg-emerald-950 text-white"
                                 : "border border-stone-300 text-neutral-600 hover:bg-stone-50"
@@ -96,8 +103,8 @@ function ReviewPagination({ page, totalPages, onPageChange }) {
             <button
                 type="button"
                 onClick={() => onPageChange(page + 1)}
-                disabled={page >= totalPages}
-                className="flex h-9 w-9 items-center justify-center rounded-lg border border-stone-300 text-neutral-600 transition-colors hover:bg-stone-50 disabled:cursor-not-allowed disabled:opacity-40"
+                disabled={page >= totalPages || loading}
+                className="flex h-8 w-8 items-center justify-center rounded-lg border border-stone-300 text-neutral-600 transition-colors hover:bg-stone-50 disabled:cursor-not-allowed disabled:opacity-40 lg:h-9 lg:w-9"
                 aria-label="Trang sau"
             >
                 <ChevronRight className="h-4 w-4" />
@@ -106,77 +113,247 @@ function ReviewPagination({ page, totalPages, onPageChange }) {
     );
 }
 
-function ReviewItem({ review }) {
+function ReviewImageLightbox({ imageUrl, onClose }) {
+    useBodyScrollLock(Boolean(imageUrl));
+
+    useEffect(() => {
+        if (!imageUrl) return undefined;
+
+        const handleKeyDown = (event) => {
+            if (event.key === "Escape") onClose();
+        };
+
+        document.addEventListener("keydown", handleKeyDown);
+        return () => document.removeEventListener("keydown", handleKeyDown);
+    }, [imageUrl, onClose]);
+
+    if (!imageUrl) return null;
+
     return (
-        <article className="border-b border-stone-300 py-6 last:border-b-0">
-            <div className="flex items-start justify-between gap-4">
-                <div className="flex items-center gap-3">
-                    <div className="flex h-10 w-10 items-center justify-center rounded-full bg-emerald-200 text-base font-bold text-teal-800">
-                        {review.initial}
+        <div
+            className="fixed inset-0 z-[100] flex items-center justify-center overflow-hidden bg-black/75 p-4"
+            role="dialog"
+            aria-modal="true"
+            aria-label="Xem ảnh đánh giá"
+            onClick={onClose}
+        >
+            <button
+                type="button"
+                onClick={onClose}
+                className="absolute right-4 top-4 rounded-full bg-black/50 p-2 text-white transition-colors hover:bg-black/70"
+                aria-label="Đóng ảnh"
+            >
+                <X className="h-5 w-5" />
+            </button>
+
+            <img
+                src={imageUrl}
+                alt="Ảnh đánh giá"
+                className="max-h-[min(85vh,100dvh)] max-w-full rounded-lg object-contain shadow-2xl"
+                onClick={(event) => event.stopPropagation()}
+            />
+        </div>
+    );
+}
+
+function ReviewItem({ review }) {
+    const [previewImage, setPreviewImage] = useState(null);
+
+    return (
+        <>
+            <article className="rounded-lg border border-emerald-100/90 border-l-[3px] border-l-emerald-600 bg-gradient-to-br from-emerald-50/50 via-white to-white p-3 shadow-[0_1px_4px_rgba(6,78,59,0.07)] ring-1 ring-emerald-50/80 sm:p-3.5 lg:p-4">
+                <div className="flex items-start justify-between gap-2 sm:gap-3">
+                    <div className="flex min-w-0 items-center gap-2 sm:gap-2.5">
+                        <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-emerald-100 text-xs font-semibold text-emerald-800 sm:h-8 sm:w-8 sm:text-sm">
+                            {review.initial}
+                        </div>
+                        <div className="min-w-0">
+                            <p className="truncate text-sm font-semibold text-emerald-950">
+                                {review.name}
+                            </p>
+                            <p className="break-all text-[11px] leading-snug text-neutral-500 sm:text-xs lg:truncate">
+                                {review.meta}
+                            </p>
+                        </div>
                     </div>
-                    <div>
-                        <p className="text-base text-emerald-950">{review.name}</p>
-                        <p className="text-xs text-neutral-700">{review.meta}</p>
-                    </div>
+                    <StarRating value={review.rating} size="sm" className="shrink-0 pt-0.5" />
                 </div>
-                <StarRating value={review.rating} />
-            </div>
-            <p className="mt-3 text-base text-zinc-900">{review.content}</p>
-        </article>
+
+                {review.content ? (
+                    <p className="mt-2 text-sm leading-relaxed text-zinc-700 sm:mt-2.5">
+                        {review.content}
+                    </p>
+                ) : null}
+
+                {review.images?.length ? (
+                    <div className="mt-2 flex flex-wrap gap-1.5 sm:mt-2.5">
+                        {review.images.map((imageUrl, index) => (
+                            <button
+                                key={`${review.id}-${index}`}
+                                type="button"
+                                onClick={() => setPreviewImage(imageUrl)}
+                                className="cursor-pointer overflow-hidden rounded-md border border-stone-200 bg-white transition hover:border-emerald-300 hover:ring-2 hover:ring-emerald-100"
+                                aria-label={`Xem ảnh đánh giá ${index + 1}`}
+                            >
+                                <img
+                                    src={imageUrl}
+                                    alt={`Ảnh đánh giá ${index + 1}`}
+                                    className="h-12 w-12 object-cover sm:h-14 sm:w-14"
+                                />
+                            </button>
+                        ))}
+                    </div>
+                ) : null}
+            </article>
+
+            <ReviewImageLightbox
+                imageUrl={previewImage}
+                onClose={() => setPreviewImage(null)}
+            />
+        </>
     );
 }
 
 export default function ProductReviews({
-    summary = MOCK_REVIEW_SUMMARY,
-    reviews = MOCK_PRODUCT_REVIEWS,
-    perPage = REVIEWS_PER_PAGE,
+    dealerSlug,
+    productId,
+    onSummaryLoaded,
 }) {
     const [page, setPage] = useState(1);
+    const [summary, setSummary] = useState(mapProductReviewSummary(null));
+    const [reviews, setReviews] = useState([]);
+    const [totalPages, setTotalPages] = useState(1);
+    const [summaryLoading, setSummaryLoading] = useState(true);
+    const [reviewsLoading, setReviewsLoading] = useState(true);
+    const [error, setError] = useState("");
 
-    const totalPages = Math.max(1, Math.ceil(reviews.length / perPage));
+    useEffect(() => {
+        setPage(1);
+    }, [dealerSlug, productId]);
 
-    const pageReviews = useMemo(() => {
-        const start = (page - 1) * perPage;
-        return reviews.slice(start, start + perPage);
-    }, [page, perPage, reviews]);
+    useEffect(() => {
+        if (!dealerSlug || !productId) return undefined;
+
+        let cancelled = false;
+
+        async function loadSummary() {
+            setSummaryLoading(true);
+
+            try {
+                const data = await buyerReviewService.productRating(
+                    dealerSlug,
+                    productId,
+                );
+                if (cancelled) return;
+
+                const mapped = mapProductReviewSummary(data);
+                setSummary(mapped);
+                onSummaryLoaded?.(data);
+            } catch (err) {
+                if (!cancelled) {
+                    setError(handleApiError(err, "Không thể tải tổng hợp đánh giá"));
+                }
+            } finally {
+                if (!cancelled) setSummaryLoading(false);
+            }
+        }
+
+        loadSummary();
+
+        return () => {
+            cancelled = true;
+        };
+    }, [dealerSlug, productId, onSummaryLoaded]);
+
+    useEffect(() => {
+        if (!dealerSlug || !productId) return undefined;
+
+        let cancelled = false;
+
+        async function loadReviews() {
+            setReviewsLoading(true);
+            setError("");
+
+            try {
+                const data = await buyerReviewService.productReviews(
+                    dealerSlug,
+                    productId,
+                    { page, page_size: REVIEWS_PAGE_SIZE },
+                );
+                if (cancelled) return;
+
+                const mappedReviews = (data.results || []).map(mapProductReviewItem);
+                setReviews(mappedReviews);
+                setTotalPages(
+                    getReviewTotalPages(data.count, data.page_size || REVIEWS_PAGE_SIZE),
+                );
+            } catch (err) {
+                if (!cancelled) {
+                    setReviews([]);
+                    setError(handleApiError(err, "Không thể tải danh sách đánh giá"));
+                }
+            } finally {
+                if (!cancelled) setReviewsLoading(false);
+            }
+        }
+
+        loadReviews();
+
+        return () => {
+            cancelled = true;
+        };
+    }, [dealerSlug, productId, page]);
 
     const handlePageChange = (nextPage) => {
         setPage(Math.min(Math.max(1, nextPage), totalPages));
     };
 
     return (
-        <section className="border-t border-stone-300 pt-12">
-            <h2 className="mb-8 font-['Noto_Serif',serif] text-3xl font-semibold text-emerald-950">
+        <section className="border-t border-stone-300 pt-8 lg:pt-12">
+            <h2 className="mb-5 text-2xl font-semibold text-emerald-950 sm:text-[1.75rem] lg:mb-8 lg:text-3xl">
                 Đánh giá sản phẩm
             </h2>
 
-            <div className="grid gap-10 lg:grid-cols-[320px_1fr]">
-                <aside className="flex flex-col gap-6">
-                    <div className="rounded-2xl bg-zinc-100 p-8 text-center">
-                        <p className="text-5xl font-bold text-emerald-950">
-                            {summary.average.toFixed(1)}
-                        </p>
-                        <StarRating
-                            value={summary.average}
-                            size="lg"
-                            className="mt-2 justify-center"
-                        />
-                        <p className="mt-2 text-sm text-neutral-700">
-                            Dựa trên {summary.total} đánh giá từ khách hàng
-                        </p>
+            <div className="grid gap-6 lg:grid-cols-[320px_1fr] lg:gap-10">
+                <aside className="flex flex-col gap-4 lg:gap-6">
+                    <div className="rounded-2xl bg-zinc-100 p-5 text-center sm:p-6 lg:p-8">
+                        {summaryLoading ? (
+                            <div className="flex justify-center py-4 lg:py-6">
+                                <Loader2 className="h-6 w-6 animate-spin text-emerald-700" />
+                            </div>
+                        ) : (
+                            <>
+                                <p className="text-4xl font-bold text-emerald-950 lg:text-5xl">
+                                    {summary.average.toFixed(1)}
+                                </p>
+                                <StarRating
+                                    value={summary.average}
+                                    size="lg"
+                                    className="mt-2 justify-center"
+                                />
+                                <p className="mt-2 text-xs text-neutral-700 sm:text-sm">
+                                    Dựa trên {summary.total} đánh giá từ khách hàng
+                                </p>
+                            </>
+                        )}
                     </div>
 
-                    <div className="flex flex-col gap-3">
+                    <div className="flex flex-col gap-2.5 lg:gap-3">
                         {summary.distribution.map((row) => (
-                            <div key={row.stars} className="flex items-center gap-4">
-                                <span className="w-12 text-sm text-neutral-700">{row.stars} sao</span>
-                                <div className="h-2 flex-1 overflow-hidden rounded-full bg-zinc-100">
+                            <div
+                                key={row.stars}
+                                className="flex items-center gap-2.5 sm:gap-3 lg:gap-4"
+                            >
+                                <span className="w-10 shrink-0 text-xs text-neutral-700 sm:text-sm lg:w-12">
+                                    {row.stars} sao
+                                </span>
+                                <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-zinc-100 sm:h-2">
                                     <div
-                                        className="h-full rounded-full bg-teal-800"
+                                        className="h-full rounded-full bg-teal-800 transition-all"
                                         style={{ width: `${row.percent}%` }}
                                     />
                                 </div>
-                                <span className="w-10 text-right text-sm text-zinc-900">
+                                <span className="w-8 shrink-0 text-right text-xs text-zinc-900 sm:text-sm lg:w-10">
                                     {row.percent}%
                                 </span>
                             </div>
@@ -184,13 +361,25 @@ export default function ProductReviews({
                     </div>
                 </aside>
 
-                <div className="rounded-xl border border-stone-200 bg-white p-6 shadow-sm">
-                    {pageReviews.length ? (
-                        pageReviews.map((review) => (
-                            <ReviewItem key={review.id} review={review} />
-                        ))
+                <div className="rounded-xl border border-stone-200 bg-stone-50/50 p-3 shadow-sm sm:p-4 lg:bg-white lg:p-5">
+                    {error ? (
+                        <p className="mb-3 rounded-lg border border-red-100 bg-red-50 px-3 py-2.5 text-sm text-red-700 lg:mb-4 lg:px-4 lg:py-3">
+                            {error}
+                        </p>
+                    ) : null}
+
+                    {reviewsLoading ? (
+                        <div className="flex justify-center py-8 lg:py-10">
+                            <Loader2 className="h-7 w-7 animate-spin text-emerald-700" />
+                        </div>
+                    ) : reviews.length ? (
+                        <div className="flex flex-col gap-2.5 sm:gap-3">
+                            {reviews.map((review) => (
+                                <ReviewItem key={review.id} review={review} />
+                            ))}
+                        </div>
                     ) : (
-                        <p className="py-8 text-center text-base text-neutral-500">
+                        <p className="py-6 text-center text-sm text-neutral-500 lg:py-8">
                             Chưa có đánh giá nào.
                         </p>
                     )}
@@ -199,6 +388,7 @@ export default function ProductReviews({
                         page={page}
                         totalPages={totalPages}
                         onPageChange={handlePageChange}
+                        loading={reviewsLoading}
                     />
                 </div>
             </div>

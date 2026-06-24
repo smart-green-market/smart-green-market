@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useLayoutEffect, useMemo, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { ChevronRight, Loader2 } from "lucide-react";
 import {
@@ -7,6 +7,8 @@ import {
 } from "../../hooks/useBuyerCatalog";
 import { useStorefrontPaths } from "../../hooks/useStorefrontPaths";
 import { addRecentlyViewed } from "../../utils/recentlyViewedUtils";
+import { recordProductView } from "../../utils/buyerInteractionUtils";
+import { useAuth } from "../../contexts/authProvider";
 import { handleApiError } from "../../services/api/Buyer/buyerCatalogService";
 import ProductDetailGallery from "../../components/User/Product/ProductDetailGallery";
 import ProductDetailPurchase from "../../components/User/Product/ProductDetailPurchase";
@@ -14,13 +16,29 @@ import ProductDetailSpecs from "../../components/User/Product/ProductDetailSpecs
 import ProductReviews from "../../components/User/Product/ProductReviews";
 import RelatedProducts from "../../components/User/Product/RelatedProducts";
 
+function scrollToPageTop() {
+    window.scrollTo({ top: 0, left: 0, behavior: "auto" });
+}
+
 export default function ProductDetailPage() {
     const { id } = useParams();
     const paths = useStorefrontPaths();
+    const { user } = useAuth();
     const [product, setProduct] = useState(null);
     const [related, setRelated] = useState([]);
+    const [reviewSummary, setReviewSummary] = useState(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState("");
+
+    useLayoutEffect(() => {
+        scrollToPageTop();
+    }, [id]);
+
+    useEffect(() => {
+        if (!loading) {
+            scrollToPageTop();
+        }
+    }, [loading, id]);
 
     useEffect(() => {
         let cancelled = false;
@@ -68,6 +86,11 @@ export default function ProductDetailPage() {
         if (!product?.id || !paths.slug) return;
         addRecentlyViewed(paths.slug, product);
     }, [product?.id, paths.slug]);
+
+    useEffect(() => {
+        if (!product?.id || !paths.slug) return;
+        recordProductView(paths.slug, product, user);
+    }, [product?.id, paths.slug, user]);
 
     const breadcrumb = useMemo(() => {
         if (!product) return [];
@@ -133,8 +156,14 @@ export default function ProductDetailPage() {
                     />
                     <ProductDetailPurchase
                         product={product}
-                        rating={product.rating ?? 4.8}
-                        reviewCount={product.sold ?? 0}
+                        rating={
+                            reviewSummary?.average_rating ??
+                            product.rating ??
+                            0
+                        }
+                        reviewCount={
+                            reviewSummary?.review_count ?? product.sold ?? 0
+                        }
                     />
                 </div>
 
@@ -143,7 +172,11 @@ export default function ProductDetailPage() {
                 </div>
 
                 <div className="mt-16">
-                    <ProductReviews />
+                    <ProductReviews
+                        dealerSlug={paths.slug}
+                        productId={product.id}
+                        onSummaryLoaded={setReviewSummary}
+                    />
                 </div>
             </div>
 

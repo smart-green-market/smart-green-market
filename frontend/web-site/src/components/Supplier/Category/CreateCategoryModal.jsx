@@ -1,25 +1,11 @@
 import { useState } from "react";
-
-// ================================================================
-// API SERVICE
-// ================================================================
-const categoryService = {
-  create: async (payload) => {
-    const res = await fetch("/api/categories/", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${localStorage.getItem("access_token")}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(payload),
-    });
-    if (!res.ok) {
-      const err = await res.json().catch(() => ({}));
-      throw err;
-    }
-    return res.json();
-  },
-};
+import { categoryService } from "../../../services/api/categoryService";
+import {
+  parseSupplierApiErrors,
+  validateCategoryForm,
+  errorsToSummary,
+  extractSupplierApiMessage,
+} from "../../../utils/supplierValidation";
 
 // ================================================================
 // INITIAL STATE
@@ -37,8 +23,8 @@ const INITIAL_FORM = {
 //   onSuccess — (newCategory) => void
 // ================================================================
 export default function AddCategoryModal({ onClose, onSuccess }) {
-  const [form, setForm]         = useState(INITIAL_FORM);
-  const [errors, setErrors]     = useState({});
+  const [form, setForm] = useState(INITIAL_FORM);
+  const [errors, setErrors] = useState({});
   const [submitting, setSubmitting] = useState(false);
   const [apiError, setApiError] = useState("");
 
@@ -47,28 +33,20 @@ export default function AddCategoryModal({ onClose, onSuccess }) {
     if (errors[key]) setErrors((e) => ({ ...e, [key]: "" }));
   };
 
-  // Validate
-  const validate = () => {
-    const errs = {};
-    if (!form.name.trim())
-      errs.name = "Tên danh mục không được để trống";
-    if (form.sort_order === "" || form.sort_order === null)
-      errs.sort_order = "Thứ tự sắp xếp không được để trống";
-    else if (isNaN(Number(form.sort_order)) || Number(form.sort_order) < 0)
-      errs.sort_order = "Thứ tự phải là số nguyên không âm";
-    return errs;
-  };
-
   const handleSubmit = async () => {
     setApiError("");
-    const errs = validate();
-    if (Object.keys(errs).length) { setErrors(errs); return; }
+    const errs = validateCategoryForm(form);
+    if (Object.keys(errs).length) {
+      setErrors(errs);
+      setApiError(errorsToSummary(errs));
+      return;
+    }
 
     // Payload đúng theo API spec
     const payload = {
-      name:        form.name.trim(),
+      name: form.name.trim(),
       description: form.description.trim(),
-      sort_order:  Number(form.sort_order),
+      sort_order: Number(form.sort_order),
     };
 
     try {
@@ -77,19 +55,11 @@ export default function AddCategoryModal({ onClose, onSuccess }) {
       onSuccess?.(newCategory);
       onClose();
     } catch (err) {
-      if (err && typeof err === "object") {
-        const fieldErrors = {};
-        let general = "";
-        Object.entries(err).forEach(([key, val]) => {
-          const msg = Array.isArray(val) ? val[0] : val;
-          if (key === "non_field_errors" || key === "detail") general += msg + " ";
-          else fieldErrors[key] = msg;
-        });
-        if (Object.keys(fieldErrors).length) setErrors(fieldErrors);
-        if (general) setApiError(general.trim());
-      } else {
-        setApiError("Có lỗi xảy ra. Vui lòng thử lại!");
-      }
+      const { fieldErrors, general, summary } = parseSupplierApiErrors(err?.response?.data, {
+        fallback: "Thêm danh mục thất bại. Vui lòng kiểm tra lại thông tin.",
+      });
+      if (Object.keys(fieldErrors).length) setErrors(fieldErrors);
+      setApiError(general || summary || extractSupplierApiMessage(err));
     } finally {
       setSubmitting(false);
     }
