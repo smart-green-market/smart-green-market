@@ -1,8 +1,6 @@
 import Slogan from "../../components/User/Home/Slogan";
 import Banner from "../../components/User/Home/Banner";
 import SuggestProduct from "../../components/User/Home/SuggestProduct";
-import BestSellingProduct from "../../components/User/Home/BestSellingProduct";
-import FavProduct from "../../components/User/Home/FavProduct";
 import FilterProduct from "../../components/User/Home/FilterProduct";
 import RecentlyViewedProducts from "../../components/User/Home/RecentlyViewedProducts";
 
@@ -13,7 +11,6 @@ export default function HomePage() {
             <Banner />
             <RecentlyViewedProducts />
             <SuggestProduct />
-            <BestSellingProduct />
             <FilterProduct />
         </div>
     );

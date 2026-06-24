@@ -29,7 +29,7 @@ function TagButton({ active, onClick, children }) {
         <button
             type="button"
             onClick={onClick}
-            className={`rounded-md px-3 py-1.5 text-xs font-medium transition-colors ${active
+            className={`cursor-pointer rounded-md px-3 py-1.5 text-xs font-medium transition-colors ${active
                 ? "bg-emerald-700 text-white"
                 : "bg-stone-100 text-neutral-600 hover:bg-emerald-50 hover:text-emerald-800"
                 }`}
@@ -243,11 +243,6 @@ export default function FilterProduct() {
                                             onClick={() => toggleUnit(unit.value)}
                                         >
                                             {unit.label}
-                                            {unit.count != null ? (
-                                                <span className="ml-1 opacity-70">
-                                                    ({unit.count})
-                                                </span>
-                                            ) : null}
                                         </TagButton>
                                     ))
                                 ) : (
