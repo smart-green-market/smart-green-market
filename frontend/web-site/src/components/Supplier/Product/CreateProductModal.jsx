@@ -13,12 +13,23 @@ import {
   extractSupplierApiMessage,
 } from "../../../utils/supplierValidation";
 import { productMasterService } from "../../../services/api/Admin/productMasterService";
+import  ConfirmModal  from "../../common/ConfirmModal"
 
 const inputCls =
   "w-full text-sm border border-zinc-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-green-600 focus:border-transparent transition-colors placeholder:text-zinc-300 disabled:bg-zinc-50 disabled:text-zinc-400";
 const selectCls =
   "w-full text-sm border border-zinc-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-green-600 focus:border-transparent transition-colors bg-white disabled:bg-zinc-50 disabled:text-zinc-400";
 const labelCls = "text-xs text-zinc-500 block mb-1";
+
+// Chặn ký tự không hợp lệ trong input số (e, E, +, -)
+const blockInvalidNumberKeys = (e) => {
+  if (["e", "E", "+", "-"].includes(e.key)) e.preventDefault();
+};
+
+// Chặn thêm dấu thập phân cho số nguyên
+const blockDecimalKeys = (e) => {
+  if (["e", "E", "+", "-", "."].includes(e.key)) e.preventDefault();
+};
 
 const UNIT_OPTIONS = [
   { value: "kg", label: "kg" },
@@ -33,14 +44,14 @@ const UNIT_OPTIONS = [
  *   isOpen    : boolean
  *   onClose   : () => void
  *   onSuccess : (createdProduct) => void
- *   mode      : "catalog" | "personal"   ← MỚI
+ *   mode      : "catalog" | "personal"
  */
 export default function CreateProductModal({ isOpen, onClose, onSuccess, mode = "catalog" }) {
   const isPersonal = mode === "personal";
 
   const [form, setForm] = useState({
     name: "",
-    unit: "kg",                       // chỉ dùng cho personal
+    unit: "kg",
     category: "",
     wholesale_price: "",
     daily_production_capacity: "",
@@ -53,25 +64,35 @@ export default function CreateProductModal({ isOpen, onClose, onSuccess, mode = 
   const [images, setImages] = useState([]);
   const [thumbnailIdx, setThumbnailIdx] = useState(0);
   const [saving, setSaving] = useState(false);
+  const [showConfirm, setShowConfirm] = useState(false);
   const [error, setError] = useState(null);
   const [fieldErrors, setFieldErrors] = useState({});
   const [categories, setCategories] = useState([]);
 
-  // catalog mode
+  // product masters
   const [products, setProducts] = useState([]);
   const [loadingProducts, setLoadingProducts] = useState(false);
   const [selectedProductId, setSelectedProductId] = useState("");
 
+  // personal mode: fetch system categories để lấy product masters
+  const [systemCategories, setSystemCategories] = useState([]);
+  const [selectedSystemCategoryId, setSelectedSystemCategoryId] = useState("");
+
   // ── Reset khi đóng / đổi mode ──────────────────────────────
   useEffect(() => {
     if (!isOpen) return;
-    setForm({ name: "", unit: "kg", category: "", wholesale_price: "", daily_production_capacity: "", description: "", storage_duration_days: "", min_storage_temp: "", max_storage_temp: "" });
+    setForm({
+      name: "", unit: "kg", category: "", wholesale_price: "",
+      daily_production_capacity: "", description: "",
+      storage_duration_days: "", min_storage_temp: "", max_storage_temp: "",
+    });
     setImages([]);
     setThumbnailIdx(0);
     setError(null);
     setFieldErrors({});
     setSelectedProductId("");
     setProducts([]);
+    setSelectedSystemCategoryId("");
   }, [isOpen, mode]);
 
   // Escape
@@ -93,9 +114,7 @@ export default function CreateProductModal({ isOpen, onClose, onSuccess, mode = 
     return () => { images.forEach((img) => URL.revokeObjectURL(img.preview)); };
   }, [images]);
 
-  // ── Fetch danh mục ─────────────────────────────────────────
-  // catalog → lấy tất cả active
-  // personal → chỉ lấy scope=customer
+  // ── Fetch danh mục của supplier ─────────────────────────────
   useEffect(() => {
     if (!isOpen) return;
     let cancelled = false;
@@ -115,30 +134,45 @@ export default function CreateProductModal({ isOpen, onClose, onSuccess, mode = 
     return () => { cancelled = true; };
   }, [isOpen, isPersonal]);
 
-  // ── Fetch product masters theo category (chỉ catalog mode) ─
+  // ── Fetch system categories cho personal mode (để lấy product masters tham khảo) ──
   useEffect(() => {
-    if (!isOpen) {
+    if (!isOpen || !isPersonal) return;
+    let cancelled = false;
+    categoryService
+      .getsupplierCategories()
+      .then((list) => {
+        if (!cancelled) {
+          const sysCats = (list ?? []).filter((c) => c.status === "active" && c.scope === "system");
+          setSystemCategories(sysCats);
+        }
+      })
+      .catch(() => { if (!cancelled) setSystemCategories([]); });
+    return () => { cancelled = true; };
+  }, [isOpen, isPersonal]);
+
+  // ── Fetch product masters theo category ─────────────────────
+  // catalog mode  → dùng form.category (system scope)
+  // personal mode → dùng selectedSystemCategoryId (riêng, không ảnh hưởng form.category)
+  useEffect(() => {
+    const targetCategoryId = isPersonal ? selectedSystemCategoryId : form.category;
+
+    if (!isOpen || !targetCategoryId) {
       setProducts([]);
-      setSelectedProductId("");
-      return;
-    }
-    if (!form.category) {
-      setProducts([]);
-      setSelectedProductId("");
+      if (!isPersonal) setSelectedProductId("");
       return;
     }
 
     let cancelled = false;
     setLoadingProducts(true);
     productMasterService
-      .getByCategory_id(form.category)
+      .getByCategory_id(targetCategoryId)
       .then((list) => {
         if (!cancelled) {
           const data = list || [];
           setProducts(data);
 
           if (!isPersonal) {
-            // catalog: auto-select first
+            // catalog: auto-select first nếu chưa có lựa chọn hợp lệ
             if (data.length > 0) {
               const stillExists = data.some((p) => String(p.id) === selectedProductId);
               if (stillExists) {
@@ -153,7 +187,7 @@ export default function CreateProductModal({ isOpen, onClose, onSuccess, mode = 
               setForm((f) => ({ ...f, name: "" }));
             }
           } else {
-            // personal: reset selection, không auto-fill tên
+            // personal: reset selection mỗi khi đổi system category
             setSelectedProductId("");
           }
         }
@@ -168,14 +202,34 @@ export default function CreateProductModal({ isOpen, onClose, onSuccess, mode = 
       .finally(() => { if (!cancelled) setLoadingProducts(false); });
 
     return () => { cancelled = true; };
-  }, [isOpen, form.category, isPersonal]);
+  }, [isOpen, form.category, selectedSystemCategoryId, isPersonal]);
 
   if (!isOpen) return null;
 
+  // ── Helpers ─────────────────────────────────────────────────
   const set = (k, v) => {
     setForm((f) => ({ ...f, [k]: v }));
     if (fieldErrors[k]) setFieldErrors((e) => ({ ...e, [k]: "" }));
     if (error) setError(null);
+  };
+
+  // Chỉ cho phép nhập số dương, không âm
+  const setPositiveNumber = (k, rawVal) => {
+    // Loại bỏ ký tự không phải số hoặc dấu chấm
+    const cleaned = rawVal.replace(/[^0-9.]/g, "");
+    set(k, cleaned);
+  };
+
+  const setPositiveInteger = (k, rawVal) => {
+    const cleaned = rawVal.replace(/[^0-9]/g, "");
+    set(k, cleaned);
+  };
+
+  // Nhiệt độ: cho phép số âm
+  const setTemperature = (k, rawVal) => {
+    // Cho phép: dấu âm ở đầu, chữ số, dấu chấm
+    const cleaned = rawVal.replace(/[^0-9.\-]/g, "").replace(/(?!^)-/g, "");
+    set(k, cleaned);
   };
 
   const handleImageUpload = (e) => {
@@ -193,11 +247,10 @@ export default function CreateProductModal({ isOpen, onClose, onSuccess, mode = 
     });
   };
 
-  // ── Submit ─────────────────────────────────────────────────
-  const handleSubmit = async () => {
+  // ── Mở confirm trước khi submit ───────────────────────────
+  const handleRequestSubmit = () => {
     setError(null);
-
-    // --- Validate ---
+    // Validate trước, nếu lỗi thì không mở confirm
     if (!form.category) {
       setFieldErrors({ category: "Vui lòng chọn danh mục." });
       setError("Vui lòng chọn danh mục.");
@@ -212,48 +265,110 @@ export default function CreateProductModal({ isOpen, onClose, onSuccess, mode = 
       setError("Vui lòng nhập tên sản phẩm.");
       return;
     }
-    if (isPersonal) {
-      productFd.append("name", form.name.trim());
-      productFd.append("unit", form.unit);
-      // gửi product_master nếu supplier có chọn tham khảo
-      if (selectedProductId) {
-        productFd.append("product_master", selectedProductId);
-      }
-    } else {
-      productFd.append("product_master", selectedProductId);
+    const price = parseFloat(form.wholesale_price);
+    const capacity = parseFloat(form.daily_production_capacity);
+    const inlineErrors = {};
+    if (!form.wholesale_price || isNaN(price) || price <= 0) {
+      inlineErrors.wholesale_price = "Giá sỉ phải là số dương lớn hơn 0.";
     }
-    const errs = validateProductForm(form);
-    if (Object.keys(errs).length) {
-      setFieldErrors(errs);
-      setError(errorsToSummary(errs));
+    if (!form.daily_production_capacity || isNaN(capacity) || capacity <= 0) {
+      inlineErrors.daily_production_capacity = "Năng suất phải là số dương lớn hơn 0.";
+    }
+    const formErrs = validateProductForm(form);
+    const allErrs = { ...formErrs, ...inlineErrors };
+    if (Object.keys(allErrs).length) {
+      setFieldErrors(allErrs);
+      setError(errorsToSummary(allErrs) || "Vui lòng kiểm tra lại các trường có lỗi.");
       return;
     }
+    // Mọi thứ hợp lệ → mở confirm
+    setShowConfirm(true);
+  };
+
+  // ── Submit ─────────────────────────────────────────────────
+  const handleSubmit = async () => {
+    setError(null);
+
+    if (!form.category) {
+      setFieldErrors({ category: "Vui lòng chọn danh mục." });
+      setError("Vui lòng chọn danh mục.");
+      return;
+    }
+    if (!isPersonal && !selectedProductId) {
+      setError("Vui lòng chọn sản phẩm từ danh mục.");
+      return;
+    }
+    if (isPersonal && !form.name.trim()) {
+      setFieldErrors({ name: "Vui lòng nhập tên sản phẩm." });
+      setError("Vui lòng nhập tên sản phẩm.");
+      return;
+    }
+
+    // Validate giá và năng suất
+    const price = parseFloat(form.wholesale_price);
+    const capacity = parseFloat(form.daily_production_capacity);
+    const inlineErrors = {};
+    if (!form.wholesale_price || isNaN(price) || price <= 0) {
+      inlineErrors.wholesale_price = "Giá sỉ phải là số dương lớn hơn 0.";
+    }
+    if (!form.daily_production_capacity || isNaN(capacity) || capacity <= 0) {
+      inlineErrors.daily_production_capacity = "Năng suất phải là số dương lớn hơn 0.";
+    }
+    if (form.storage_duration_days !== "") {
+      const days = parseInt(form.storage_duration_days, 10);
+      if (isNaN(days) || days < 0) {
+        inlineErrors.storage_duration_days = "Thời hạn bảo quản phải là số nguyên không âm.";
+      }
+    }
+    if (form.min_storage_temp !== "" && form.max_storage_temp !== "") {
+      const minT = parseFloat(form.min_storage_temp);
+      const maxT = parseFloat(form.max_storage_temp);
+      if (!isNaN(minT) && !isNaN(maxT) && minT > maxT) {
+        inlineErrors.max_storage_temp = "Nhiệt độ tối đa phải lớn hơn hoặc bằng nhiệt độ tối thiểu.";
+      }
+    }
+
+    const formErrs = validateProductForm(form);
+    const allErrs = { ...formErrs, ...inlineErrors };
+    if (Object.keys(allErrs).length) {
+      setFieldErrors(allErrs);
+      setError(errorsToSummary(allErrs) || "Vui lòng kiểm tra lại các trường có lỗi.");
+      return;
+    }
+
     setFieldErrors({});
     setSaving(true);
 
     try {
-      const productFd = new FormData();
-      const slug = Math.floor(1000000000 + Math.random() * 9000000000).toString();
+      // ── Build payload đúng theo API spec ──────────────────────
+      // catalog:  { category, product_master, wholesale_price, daily_production_capacity, description? }
+      // personal: { category, name, unit, wholesale_price, daily_production_capacity, description?, product_master? }
+      const payload = {
+        category: parseInt(form.category, 10),
+        wholesale_price: form.wholesale_price,
+        daily_production_capacity: form.daily_production_capacity,
+      };
 
-      productFd.append("category", parseInt(form.category, 10));
-      productFd.append("slug", slug);
-      productFd.append("wholesale_price", form.wholesale_price);
-      productFd.append("daily_production_capacity", parseFloat(form.daily_production_capacity));
-      if (form.description.trim()) productFd.append("description", form.description.trim());
-      if (form.storage_duration_days !== "") productFd.append("storage_duration_days", parseInt(form.storage_duration_days, 10));
-      if (form.min_storage_temp !== "") productFd.append("min_storage_temp", form.min_storage_temp);
-      if (form.max_storage_temp !== "") productFd.append("max_storage_temp", form.max_storage_temp);
+      if (form.description.trim()) payload.description = form.description.trim();
+      if (form.storage_duration_days !== "") {
+        payload.storage_duration_days = parseInt(form.storage_duration_days, 10);
+      }
+      if (form.min_storage_temp !== "") payload.min_storage_temp = parseFloat(form.min_storage_temp);
+      if (form.max_storage_temp !== "") payload.max_storage_temp = parseFloat(form.max_storage_temp);
 
       if (isPersonal) {
-        // personal: gửi name + unit, KHÔNG gửi product_master
-        productFd.append("name", form.name.trim());
-        productFd.append("unit", form.unit);
+        // personal: bắt buộc name + unit, product_master chỉ là id tham khảo (tùy chọn)
+        payload.name = form.name.trim();
+        payload.unit = form.unit;
+        if (selectedProductId) {
+          payload.product_master = parseInt(selectedProductId, 10);
+        }
       } else {
-        // catalog: gửi product_master (id), name được lấy từ product master
-        productFd.append("product_master", selectedProductId);
+        // catalog: chỉ cần product_master id
+        payload.product_master = parseInt(selectedProductId, 10);
       }
 
-      const newProduct = await productService.addProduct(productFd);
+      const newProduct = await productService.addProduct(payload);
       const productId = newProduct?.id;
       if (!productId) throw new Error("Không lấy được ID sản phẩm vừa tạo.");
 
@@ -284,21 +399,24 @@ export default function CreateProductModal({ isOpen, onClose, onSuccess, mode = 
     }
   };
 
-  // ── UI ─────────────────────────────────────────────────────
+  // ── UI tokens ───────────────────────────────────────────────
   const headerColor = isPersonal ? "text-blue-950" : "text-emerald-950";
   const accentColor = isPersonal ? "text-blue-700" : "text-green-700";
-  const ringColor = isPersonal ? "focus:ring-blue-500" : "focus:ring-green-600";
-  const btnColor = isPersonal
-    ? "bg-blue-700 hover:bg-blue-800"
-    : "bg-green-700 hover:bg-green-800";
-  const tipBg = isPersonal ? "bg-blue-50 border-blue-200" : "bg-green-50 border-green-200";
-  const tipText = isPersonal ? "text-blue-700" : "text-green-700";
-  const tipTitle = isPersonal ? "text-blue-900" : "text-green-900";
+  const ringColor   = isPersonal ? "focus:ring-blue-500" : "focus:ring-green-600";
+  const btnColor    = isPersonal ? "bg-blue-700 hover:bg-blue-800" : "bg-green-700 hover:bg-green-800";
+  const tipBg       = isPersonal ? "bg-blue-50 border-blue-200" : "bg-green-50 border-green-200";
+  const tipText     = isPersonal ? "text-blue-700" : "text-green-700";
+  const tipTitle    = isPersonal ? "text-blue-900" : "text-green-900";
 
-  const inputClsMode = inputCls.replace("focus:ring-green-600", ringColor);
+  const inputClsMode  = inputCls.replace("focus:ring-green-600", ringColor);
   const selectClsMode = selectCls.replace("focus:ring-green-600", ringColor);
 
+  const errCls = (field) => fieldErrors[field] ? "border-red-400 bg-red-50" : "";
+  const ErrMsg = ({ field }) =>
+    fieldErrors[field] ? <p className="text-xs text-red-500 mt-1">{fieldErrors[field]}</p> : null;
+
   return (
+    <>
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4" aria-modal="true" role="dialog">
       <div className="absolute inset-0 bg-black/40 backdrop-blur-[2px]" onClick={() => !saving && onClose()} />
 
@@ -361,10 +479,8 @@ export default function CreateProductModal({ isOpen, onClose, onSuccess, mode = 
             <div className="flex flex-col gap-4">
 
               {/* Thông tin cơ bản */}
-              <Section
-                icon={<Info className={`w-4 h-4 ${accentColor}`} />}
-                title="Thông tin cơ bản"
-              >
+              <Section icon={<Info className={`w-4 h-4 ${accentColor}`} />} title="Thông tin cơ bản">
+
                 {/* Danh mục */}
                 <div className="mb-3">
                   <label className={labelCls}>
@@ -373,7 +489,7 @@ export default function CreateProductModal({ isOpen, onClose, onSuccess, mode = 
                   <select
                     value={form.category}
                     onChange={(e) => set("category", e.target.value)}
-                    className={`${selectClsMode} ${fieldErrors.category ? "border-red-400 bg-red-50" : ""}`}
+                    className={`${selectClsMode} ${errCls("category")}`}
                     disabled={saving}
                   >
                     <option value="">
@@ -382,10 +498,12 @@ export default function CreateProductModal({ isOpen, onClose, onSuccess, mode = 
                         : "— Chọn danh mục —"}
                     </option>
                     {categories.map((c) => (
-                      <option key={c.id} value={String(c.id)}>{c.name}{isPersonal? " (cá nhân)": ""}</option>
+                      <option key={c.id} value={String(c.id)}>
+                        {c.name}{isPersonal ? " (cá nhân)" : ""}
+                      </option>
                     ))}
                   </select>
-                  {fieldErrors.category && <p className="text-xs text-red-500 mt-1">{fieldErrors.category}</p>}
+                  <ErrMsg field="category" />
                   {isPersonal && categories.length === 0 && (
                     <p className="text-xs text-amber-600 mt-1">
                       Bạn cần tạo danh mục cá nhân trước. Hãy vào mục <strong>Danh mục</strong> để thêm mới.
@@ -393,42 +511,52 @@ export default function CreateProductModal({ isOpen, onClose, onSuccess, mode = 
                   )}
                 </div>
 
-                {/* catalog: chọn product master; personal: tự nhập tên */}
+                {/* catalog: chọn product master */}
                 {!isPersonal ? (
                   <div className="mb-3">
-                    <label className={labelCls}>Sản phẩm có sẵn trong danh mục (gợi ý)</label>
-                    <select
-                      value={selectedProductId}
-                      onChange={(e) => {
-                        const id = e.target.value;
-                        setSelectedProductId(id);
-                        const picked = products.find((p) => String(p.id) === id);
-                        if (picked) {
-                          set("name", picked.name);
-                          if (picked.category) {
-                            const catId = picked.category.id ?? picked.category;
-                            if (catId) set("category", String(catId));
+                    <label className={labelCls}>Sản phẩm có sẵn trong danh mục (*)</label>
+                    {loadingProducts ? (
+                      <div className="flex items-center gap-2 text-xs text-zinc-400 py-2">
+                        <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                        Đang tải sản phẩm...
+                      </div>
+                    ) : (
+                      <select
+                        value={selectedProductId}
+                        onChange={(e) => {
+                          const id = e.target.value;
+                          setSelectedProductId(id);
+                          const picked = products.find((p) => String(p.id) === id);
+                          if (picked) {
+                            set("name", picked.name);
+                            if (picked.category) {
+                              const catId = picked.category.id ?? picked.category;
+                              if (catId) set("category", String(catId));
+                            }
                           }
-                        }
-                      }}
-                      className={selectClsMode}
-                      disabled={saving || loadingProducts || products.length === 0}
-                    >
-                      {products.length === 0 ? (
-                        <option value="">Không có sản phẩm nào trong danh mục này</option>
-                      ) : (
-                        products.map((p) => (
-                          <option key={p.id} value={String(p.id)}>
-                            {p.name}{p.status === "customer" ? " (sản phẩm cá nhân)" : ""}
-                          </option>
-                        ))
-                      )}
-                    </select>
+                        }}
+                        className={selectClsMode}
+                        disabled={saving || !form.category || products.length === 0}
+                      >
+                        {!form.category ? (
+                          <option value="">— Chọn danh mục trước —</option>
+                        ) : products.length === 0 ? (
+                          <option value="">Không có sản phẩm trong danh mục này</option>
+                        ) : (
+                          products.map((p) => (
+                            <option key={p.id} value={String(p.id)}>
+                              {p.name}
+                            </option>
+                          ))
+                        )}
+                      </select>
+                    )}
                     <p className="text-xs text-zinc-400 mt-1">Chọn 1 sản phẩm có từ catalog để bán.</p>
                   </div>
                 ) : (
-                  /* personal: nhập tên + chọn product_master tùy chọn */
+                  /* personal: nhập tên + chọn product_master tham khảo */
                   <>
+                    {/* Tên sản phẩm */}
                     <div className="mb-3">
                       <label className={labelCls}>Tên sản phẩm (*)</label>
                       <input
@@ -436,41 +564,89 @@ export default function CreateProductModal({ isOpen, onClose, onSuccess, mode = 
                         placeholder="VD: Cà chua bi nhà kính loại A"
                         value={form.name}
                         onChange={(e) => set("name", e.target.value)}
-                        className={`${inputClsMode} ${fieldErrors.name ? "border-red-400 bg-red-50" : ""}`}
+                        className={`${inputClsMode} ${errCls("name")}`}
                         disabled={saving}
                       />
-                      {fieldErrors.name && <p className="text-xs text-red-500 mt-1">{fieldErrors.name}</p>}
+                      <ErrMsg field="name" />
                     </div>
 
-                    {/* product_master tùy chọn — chỉ hiện khi đã chọn category */}
-                    {form.category && (
-                      <div className="mb-3">
-                        <label className={labelCls}>
+                    {/* Đơn vị */}
+                    {/* <div className="mb-3">
+                      <label className={labelCls}>Đơn vị tính (*)</label>
+                      <select
+                        value={form.unit}
+                        onChange={(e) => set("unit", e.target.value)}
+                        className={selectClsMode}
+                        disabled={saving}
+                      >
+                        {UNIT_OPTIONS.map((u) => (
+                          <option key={u.value} value={u.value}>{u.label}</option>
+                        ))}
+                      </select>
+                    </div> */}
+
+                    {/* Tham khảo product master — dropdown có system category riêng */}
+                    <div className="mb-3 border border-dashed border-blue-200 rounded-lg p-3 bg-blue-50/40">
+                      <div className="flex items-center gap-1.5 mb-2">
+                        <Search className="w-3.5 h-3.5 text-blue-500" />
+                        <span className="text-xs font-semibold text-blue-700">
                           Liên kết sản phẩm tham khảo
-                          <span className="ml-1 text-zinc-300">(tùy chọn)</span>
-                        </label>
-                        <select
-                          value={selectedProductId}
-                          onChange={(e) => setSelectedProductId(e.target.value)}
-                          className={selectClsMode}
-                          disabled={saving || loadingProducts}
-                        >
-                          <option value="">— Không liên kết —</option>
-                          {loadingProducts ? (
-                            <option disabled>Đang tải...</option>
-                          ) : products.length === 0 ? (
-                            <option disabled>Không có sản phẩm tham khảo</option>
-                          ) : (
-                            products.map((p) => (
-                              <option key={p.id} value={String(p.id)}>{p.name}</option>
-                            ))
-                          )}
-                        </select>
-                        <p className="text-xs text-zinc-400 mt-1">
-                          Liên kết với sản phẩm có sẵn trong hệ thống để admin duyệt nhanh hơn.
-                        </p>
+                          <span className="ml-1 font-normal text-blue-400">(tùy chọn)</span>
+                        </span>
                       </div>
-                    )}
+                      <p className="text-xs text-blue-600 mb-2">
+                        Chọn danh mục hệ thống để tìm sản phẩm tham khảo, giúp admin duyệt nhanh hơn.
+                      </p>
+
+                      {/* Chọn system category */}
+                      <div className="mb-2">
+                        <label className="text-xs text-zinc-400 block mb-1">Danh mục hệ thống</label>
+                        <select
+                          value={selectedSystemCategoryId}
+                          onChange={(e) => {
+                            setSelectedSystemCategoryId(e.target.value);
+                            setSelectedProductId("");
+                            setProducts([]);
+                          }}
+                          className={selectClsMode}
+                          disabled={saving}
+                        >
+                          <option value="">— Chọn danh mục hệ thống —</option>
+                          {systemCategories.map((c) => (
+                            <option key={c.id} value={String(c.id)}>{c.name}</option>
+                          ))}
+                        </select>
+                      </div>
+
+                      {/* Chọn product master */}
+                      {selectedSystemCategoryId && (
+                        <div>
+                          <label className="text-xs text-zinc-400 block mb-1">Sản phẩm tham khảo</label>
+                          {loadingProducts ? (
+                            <div className="flex items-center gap-2 text-xs text-zinc-400 py-1">
+                              <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                              Đang tải...
+                            </div>
+                          ) : (
+                            <select
+                              value={selectedProductId}
+                              onChange={(e) => setSelectedProductId(e.target.value)}
+                              className={selectClsMode}
+                              disabled={saving || products.length === 0}
+                            >
+                              <option value="">— Không liên kết —</option>
+                              {products.length === 0 ? (
+                                <option disabled>Không có sản phẩm trong danh mục này</option>
+                              ) : (
+                                products.map((p) => (
+                                  <option key={p.id} value={String(p.id)}>{p.name}</option>
+                                ))
+                              )}
+                            </select>
+                          )}
+                        </div>
+                      )}
+                    </div>
                   </>
                 )}
 
@@ -491,78 +667,104 @@ export default function CreateProductModal({ isOpen, onClose, onSuccess, mode = 
               {/* Phân loại & Năng suất */}
               <Section icon={<Tag className={`w-4 h-4 ${accentColor}`} />} title="Phân loại & Năng suất">
                 <div className="grid grid-cols-2 gap-3">
+                  {/* Giá sỉ */}
                   <div>
                     <label className={labelCls}>Giá sỉ (*)</label>
                     <div className="relative">
                       <input
-                        type="number" min="0" step="1" placeholder="VD: 15000"
+                        type="number"
+                        min="1"
+                        step="1"
+                        placeholder="VD: 15000"
                         value={form.wholesale_price}
-                        onChange={(e) => set("wholesale_price", e.target.value)}
-                        className={`${inputClsMode} pr-8 ${fieldErrors.wholesale_price ? "border-red-400 bg-red-50" : ""}`}
+                        onKeyDown={blockDecimalKeys}
+                        onChange={(e) => setPositiveInteger("wholesale_price", e.target.value)}
+                        className={`${inputClsMode} pr-8 ${errCls("wholesale_price")}`}
                         disabled={saving}
                       />
                       <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-zinc-400">đ</span>
                     </div>
-                    {fieldErrors.wholesale_price && <p className="text-xs text-red-500 mt-1">{fieldErrors.wholesale_price}</p>}
+                    <ErrMsg field="wholesale_price" />
                   </div>
+
+                  {/* Năng suất */}
                   <div>
                     <label className={labelCls}>Năng suất (*)</label>
                     <div className="flex items-center gap-2">
                       <input
-                        type="number" min="0" step="0.01" placeholder="VD: 500"
+                        type="number"
+                        min="0.01"
+                        step="0.01"
+                        placeholder="VD: 500"
                         value={form.daily_production_capacity}
-                        onChange={(e) => set("daily_production_capacity", e.target.value)}
-                        className={`${inputClsMode} ${fieldErrors.daily_production_capacity ? "border-red-400 bg-red-50" : ""}`}
+                        onKeyDown={blockInvalidNumberKeys}
+                        onChange={(e) => setPositiveNumber("daily_production_capacity", e.target.value)}
+                        className={`${inputClsMode} ${errCls("daily_production_capacity")}`}
                         disabled={saving}
                       />
                       <span className="text-xs text-zinc-400 whitespace-nowrap">kg/tháng</span>
                     </div>
-                    {fieldErrors.daily_production_capacity && <p className="text-xs text-red-500 mt-1">{fieldErrors.daily_production_capacity}</p>}
+                    <ErrMsg field="daily_production_capacity" />
                   </div>
+
+                  {/* Thời hạn bảo quản */}
                   <div>
                     <label className={labelCls}>Thời hạn bảo quản</label>
                     <div className="flex items-center gap-2">
                       <input
-                        type="number" min="0" placeholder="Số ngày"
+                        type="number"
+                        min="0"
+                        step="1"
+                        placeholder="Số ngày"
                         value={form.storage_duration_days}
-                        onChange={(e) => set("storage_duration_days", e.target.value)}
-                        className={`${inputClsMode} ${fieldErrors.storage_duration_days ? "border-red-400 bg-red-50" : ""}`}
+                        onKeyDown={blockDecimalKeys}
+                        onChange={(e) => setPositiveInteger("storage_duration_days", e.target.value)}
+                        className={`${inputClsMode} ${errCls("storage_duration_days")}`}
                         disabled={saving}
                       />
                       <span className="text-xs text-zinc-400 whitespace-nowrap">ngày</span>
                     </div>
+                    <ErrMsg field="storage_duration_days" />
                   </div>
                 </div>
               </Section>
 
-              {/* Nhiệt độ */}
+              {/* Nhiệt độ bảo quản */}
               <Section icon={<Thermometer className={`w-4 h-4 ${accentColor}`} />} title="Nhiệt độ bảo quản">
                 <div className="grid grid-cols-2 gap-3">
                   <div>
                     <label className={labelCls}>Nhiệt độ tối thiểu</label>
                     <div className="relative">
                       <input
-                        type="number" step="0.1" placeholder="VD: 2"
+                        type="number"
+                        step="0.1"
+                        placeholder="VD: 2"
                         value={form.min_storage_temp}
-                        onChange={(e) => set("min_storage_temp", e.target.value)}
-                        className={`${inputClsMode} pr-8`}
+                        onKeyDown={(e) => ["e", "E", "+"].includes(e.key) && e.preventDefault()}
+                        onChange={(e) => setTemperature("min_storage_temp", e.target.value)}
+                        className={`${inputClsMode} pr-8 ${errCls("min_storage_temp")}`}
                         disabled={saving}
                       />
                       <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-zinc-400">°C</span>
                     </div>
+                    <ErrMsg field="min_storage_temp" />
                   </div>
                   <div>
                     <label className={labelCls}>Nhiệt độ tối đa</label>
                     <div className="relative">
                       <input
-                        type="number" step="0.1" placeholder="VD: 8"
+                        type="number"
+                        step="0.1"
+                        placeholder="VD: 8"
                         value={form.max_storage_temp}
-                        onChange={(e) => set("max_storage_temp", e.target.value)}
-                        className={`${inputClsMode} pr-8`}
+                        onKeyDown={(e) => ["e", "E", "+"].includes(e.key) && e.preventDefault()}
+                        onChange={(e) => setTemperature("max_storage_temp", e.target.value)}
+                        className={`${inputClsMode} pr-8 ${errCls("max_storage_temp")}`}
                         disabled={saving}
                       />
                       <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-zinc-400">°C</span>
                     </div>
+                    <ErrMsg field="max_storage_temp" />
                   </div>
                 </div>
                 <p className="text-xs text-zinc-400 mt-2">Để trống nếu không có yêu cầu cụ thể.</p>
@@ -581,7 +783,14 @@ export default function CreateProductModal({ isOpen, onClose, onSuccess, mode = 
                   <span className="text-xs text-zinc-400">{images.length}/5 ảnh</span>
                 </div>
                 <label className={`border-2 border-dashed border-zinc-200 rounded-lg p-4 text-center cursor-pointer hover:border-green-400 hover:bg-green-50 transition-colors block mb-3 group ${saving || images.length >= 5 ? "opacity-50 pointer-events-none" : ""}`}>
-                  <input type="file" accept="image/png,image/jpeg,image/webp" multiple className="hidden" onChange={handleImageUpload} disabled={saving || images.length >= 5} />
+                  <input
+                    type="file"
+                    accept="image/png,image/jpeg,image/webp"
+                    multiple
+                    className="hidden"
+                    onChange={handleImageUpload}
+                    disabled={saving || images.length >= 5}
+                  />
                   <CloudUpload className="w-6 h-6 text-zinc-400 group-hover:text-green-600 mx-auto mb-1.5 transition-colors" />
                   <div className="text-xs font-medium text-zinc-600 group-hover:text-green-700 transition-colors">Kéo thả hoặc Click để tải lên</div>
                   <div className="text-xs text-zinc-400 mt-0.5">PNG, JPG — tối đa 2MB/ảnh</div>
@@ -600,8 +809,11 @@ export default function CreateProductModal({ isOpen, onClose, onSuccess, mode = 
                           <Star className="w-2.5 h-2.5 text-white fill-white" />
                         </div>
                       )}
-                      <button onClick={() => removeImage(i)} disabled={saving}
-                        className="absolute top-1 right-1 w-5 h-5 bg-black/60 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity disabled:hidden">
+                      <button
+                        onClick={() => removeImage(i)}
+                        disabled={saving}
+                        className="absolute top-1 right-1 w-5 h-5 bg-black/60 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity disabled:hidden"
+                      >
                         <X className="w-3 h-3 text-white" />
                       </button>
                     </div>
@@ -614,7 +826,9 @@ export default function CreateProductModal({ isOpen, onClose, onSuccess, mode = 
                   )}
                 </div>
                 {images.length > 0 && (
-                  <p className="text-xs text-zinc-400 mt-2 text-center">Click ảnh để đặt làm <span className={`${accentColor} font-medium`}>ảnh đại diện</span></p>
+                  <p className="text-xs text-zinc-400 mt-2 text-center">
+                    Click ảnh để đặt làm <span className={`${accentColor} font-medium`}>ảnh đại diện</span>
+                  </p>
                 )}
               </div>
 
@@ -642,7 +856,9 @@ export default function CreateProductModal({ isOpen, onClose, onSuccess, mode = 
                   <span className="text-xs font-semibold text-zinc-600">Trạng thái sau khi tạo</span>
                 </div>
                 <p className="text-xs text-zinc-500 leading-relaxed">
-                  Sản phẩm mới sẽ ở trạng thái <span className="font-semibold text-amber-600">Chờ duyệt</span> và hiển thị sau khi admin phê duyệt.
+                  Sản phẩm mới sẽ ở trạng thái{" "}
+                  <span className="font-semibold text-amber-600">Chờ duyệt</span>{" "}
+                  và hiển thị sau khi admin phê duyệt.
                 </p>
               </div>
             </div>
@@ -652,13 +868,23 @@ export default function CreateProductModal({ isOpen, onClose, onSuccess, mode = 
         {/* Footer */}
         <div className="h-px bg-neutral-100 mx-6 flex-shrink-0" />
         <div className="px-6 py-4 flex justify-end gap-3 bg-stone-50 rounded-b-2xl flex-shrink-0">
-          <button onClick={onClose} disabled={saving}
-            className="px-4 py-2 text-sm font-medium text-zinc-700 bg-stone-100 hover:bg-stone-200 rounded-lg transition-colors disabled:opacity-50">
+          <button
+            onClick={onClose}
+            disabled={saving}
+            className="px-4 py-2 text-sm font-medium text-zinc-700 bg-stone-100 hover:bg-stone-200 rounded-lg transition-colors disabled:opacity-50"
+          >
             Hủy
           </button>
-          <button onClick={handleSubmit} disabled={saving}
-            className={`flex items-center gap-2 px-4 py-2 text-sm font-semibold text-white ${btnColor} rounded-lg transition-colors disabled:opacity-70 min-w-[130px] justify-center`}>
-            {saving ? (<><Loader2 className="w-4 h-4 animate-spin" />Đang lưu...</>) : "Lưu sản phẩm"}
+          <button
+            onClick={handleRequestSubmit}
+            disabled={saving}
+            className={`flex items-center gap-2 px-4 py-2 text-sm font-semibold text-white ${btnColor} rounded-lg transition-colors disabled:opacity-70 min-w-[130px] justify-center`}
+          >
+            {saving ? (
+              <><Loader2 className="w-4 h-4 animate-spin" />Đang lưu...</>
+            ) : (
+              "Lưu sản phẩm"
+            )}
           </button>
         </div>
       </div>
@@ -670,6 +896,25 @@ export default function CreateProductModal({ isOpen, onClose, onSuccess, mode = 
         }
       `}</style>
     </div>
+
+    {/* ConfirmModal đặt ngoài wrapper z-50 để đè lên trên */}
+    <ConfirmModal
+      isOpen={showConfirm}
+      onClose={() => setShowConfirm(false)}
+      onConfirm={handleSubmit}
+      title={isPersonal ? "Xác nhận thêm sản phẩm cá nhân" : "Xác nhận thêm sản phẩm"}
+      message={
+        isPersonal
+          ? `Sản phẩm "${form.name}" sẽ được gửi lên để admin xét duyệt. Bạn có chắc chắn muốn tiếp tục?`
+          : "Sản phẩm sẽ được thêm vào danh sách chờ duyệt. Bạn có chắc chắn muốn tiếp tục?"
+      }
+      confirmText="Xác nhận lưu"
+      cancelText="Kiểm tra lại"
+      variant="warning"
+      successMessage="Thêm sản phẩm thành công! Vui lòng chờ admin phê duyệt."
+      errorMessage="Thêm sản phẩm thất bại. Vui lòng thử lại."
+    />
+    </>
   );
 }
 
