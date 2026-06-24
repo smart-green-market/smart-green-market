@@ -26,7 +26,7 @@ function SpecRow({ label, value, highlight = false }) {
 function SpecSection({ title, children }) {
     return (
         <div className="rounded-xl border border-stone-200 bg-white p-6 shadow-sm">
-            <h3 className="mb-4 font-['Noto_Serif',serif] text-lg font-semibold text-emerald-950">
+            <h3 className="mb-4 text-lg font-semibold text-emerald-950">
                 {title}
             </h3>
             <dl>{children}</dl>
@@ -43,7 +43,7 @@ export default function ProductDetailSpecs({ product }) {
 
     return (
         <section className="flex flex-col gap-6">
-            <h2 className="font-['Noto_Serif',serif] text-2xl font-semibold text-emerald-950">
+            <h2 className="text-2xl font-semibold text-emerald-950">
                 Mô tả & thông tin chi tiết
             </h2>
 
@@ -78,7 +78,6 @@ export default function ProductDetailSpecs({ product }) {
                         }
                     />
                     <SpecRow label="Nguồn hàng gốc" value={product.supplier_product_name} />
-                    <SpecRow label="Mã sản phẩm" value={product.slug || `#${product.id}`} />
                 </SpecSection>
 
                 <SpecSection title="Bảo quản & sử dụng">

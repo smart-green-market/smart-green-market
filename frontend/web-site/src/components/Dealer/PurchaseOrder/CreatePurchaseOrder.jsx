@@ -3,8 +3,8 @@ import { ArrowLeft } from "lucide-react";
 import { supplierService } from "../../../services/api/suppilerService";
 import { categoryService } from "../../../services/api/categoryService";
 import { productService } from "../../../services/api/productService";
+import { dealerService } from "../../../services/api/dealerService";
 import { toast } from "sonner";
-import { useAuth } from "../../../contexts/authProvider";
 import FiltersBar from "./FiltersBar";
 import ProductCard from "./ProductCard";
 import { useLocation } from "react-router-dom";
@@ -13,17 +13,41 @@ import DraftInvoice from "./DraftInvoice";
 import DeliveryInfoForm from "./DeliveryInfoForm";
 
 export default function CreatePurchaseOrder({ onClose, onSuccess }) {
-  const { user } = useAuth();
   // --- STATE QUẢN LÝ BỘ LỌC (FILTERS) ---
   const [selectedSupplier, setSelectedSupplier] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
-  const [orderNote, setOrderNote] = useState(""); // Ghi chú của đại lý
-  const [deliveryInfo, setDeliveryInfo] = useState({
-    receiverName: "",
-    receiverPhone: "",
-    deliveryAddress: "",
-    requestedDeliveryTime: "",
+
+  const location = useLocation();
+  const savedDraft = location.state?.draftData;
+
+  // Ghi chú đơn hàng — khôi phục từ draftData nếu back từ trang preview
+  const [orderNote, setOrderNote] = useState(() => savedDraft?.note ?? "");
+
+  // Thông tin giao hàng — khôi phục từ draftData nếu back từ trang preview
+  const [deliveryInfo, setDeliveryInfo] = useState(() => {
+    if (savedDraft) {
+      // Chuyển ISO string về định dạng datetime-local (yyyy-MM-ddTHH:mm)
+      let deliveryTime = "";
+      if (savedDraft.requested_delivery_time) {
+        const dt = new Date(savedDraft.requested_delivery_time);
+        // Offset sang giờ local để datetime-local input hiển thị đúng
+        const offset = dt.getTimezoneOffset() * 60000;
+        deliveryTime = new Date(dt - offset).toISOString().slice(0, 16);
+      }
+      return {
+        receiverName: savedDraft.receiver_name ?? "",
+        receiverPhone: savedDraft.receiver_phone ?? "",
+        deliveryAddress: savedDraft.delivery_address ?? "",
+        requestedDeliveryTime: deliveryTime,
+      };
+    }
+    return {
+      receiverName: "",
+      receiverPhone: "",
+      deliveryAddress: "",
+      requestedDeliveryTime: "",
+    };
   });
 
   // --- STATE QUẢN LÝ DỮ LIỆU TỪ API ---
@@ -34,14 +58,11 @@ export default function CreatePurchaseOrder({ onClose, onSuccess }) {
 
   // --- STATE QUẢN LÝ GIỎ HÀNG NHÁP (DRAFT CART) ---
   // cart: { [productId]: quantity } là 1 object rỗng
-  // const [cart, setCart] = useState({});
   // cardQuantities: Lưu số lượng nhập tạm thời hiển thị trên từng thẻ sản phẩm
   const [cardQuantities, setCardQuantities] = useState({});
 
-  const location = useLocation();
   // Khởi tạo state cart từ draftData truyền về (nếu có)
   const [cart, setCart] = useState(() => {
-    const savedDraft = location.state?.draftData;
     if (savedDraft && savedDraft.items) {
       const initialCart = {};
       savedDraft.items.forEach((item) => {
@@ -109,6 +130,28 @@ export default function CreatePurchaseOrder({ onClose, onSuccess }) {
             { id: 3, name: "Nấm" },
           ]);
         }
+
+        // Gọi API lấy thông tin dealer
+        const dealerData = await dealerService.getAll().catch(() => []);
+        if (dealerData && dealerData.length > 0) {
+          const dealer = dealerData[0];
+          setDeliveryInfo((prev) => {
+            if (!savedDraft) {
+              const dt = new Date();
+              dt.setDate(dt.getDate() + 3);
+              const offset = dt.getTimezoneOffset() * 60000;
+              const deliveryTime = new Date(dt.getTime() - offset).toISOString().slice(0, 16);
+
+              return {
+                receiverName: dealer.account?.full_name || dealer.account?.first_name || prev.receiverName,
+                receiverPhone: dealer.account?.phone || prev.receiverPhone,
+                deliveryAddress: dealer.store_address || prev.deliveryAddress,
+                requestedDeliveryTime: deliveryTime,
+              };
+            }
+            return prev;
+          });
+        }
       } catch (err) {
         console.error("Lỗi khi tải dữ liệu trang Tạo đơn nhập:", err);
         toast.error("Không thể tải dữ liệu danh sách sản phẩm.", { position: "top-center", duration: 5000 },);
@@ -120,11 +163,7 @@ export default function CreatePurchaseOrder({ onClose, onSuccess }) {
     fetchData();
   }, []);
 
-  // --- POPULATE MẶC ĐỊNH DELIVERY INFO KHI CÓ USER ---
-  // Đã bỏ mặc định điền thông tin giao hàng theo yêu cầu
-  // useEffect(() => {
-  //   if (user) { ... }
-  // }, [user]);
+ 
 
 
   /**
@@ -169,28 +208,6 @@ export default function CreatePurchaseOrder({ onClose, onSuccess }) {
       return;
     }
 
-    // Kiểm tra xem sản phẩm có cùng nhà cung cấp với các sản phẩm đã có trong giỏ không
-    const cartEntries = Object.keys(cart);
-    if (cartEntries.length > 0) {
-      const firstCartProductId = cartEntries[0];
-      const firstProductInCart = products.find(
-        (p) => String(p.id) === String(firstCartProductId),
-      );
-      const currentSupplierId = firstProductInCart?.supplier?.id;
-      const newSupplierId = product.supplier?.id;
-
-      if (
-        currentSupplierId &&
-        newSupplierId &&
-        String(currentSupplierId) !== String(newSupplierId)
-      ) {
-        toast.error(
-          `Mỗi đơn hàng chỉ thuộc về 1 nhà cung cấp! Giỏ hàng đang chứa sản phẩm của "${firstProductInCart.supplier?.company_name}". Vui lòng hoàn tất đơn hiện tại hoặc xóa sản phẩm cũ.`,
-          { position: "top-center", duration: 5000 },
-        );
-        return;
-      }
-    }
 
     // Cảnh báo nếu số lượng muốn nhập vượt quá lượng hàng có sẵn của NCC
     if (qtyToAdd > product.stock) {
@@ -278,7 +295,7 @@ export default function CreatePurchaseOrder({ onClose, onSuccess }) {
   /**
    * Gửi yêu cầu tạo đơn nhập hàng mới từ danh sách nháp.
    */
-  const handleCreateOrder = () => {
+  const handleCreateOrder = async () => {
     if (cartItems.length === 0) {
       toast.error("Vui lòng thêm ít nhất một sản phẩm vào phiếu nhập!", { position: "top-center", duration: 5000 },);
       return;
@@ -289,42 +306,51 @@ export default function CreatePurchaseOrder({ onClose, onSuccess }) {
       return;
     }
 
-    const firstProduct = cartItems[0]?.product;
-    let supplierId = firstProduct?.supplier?.id;
-    if (!supplierId || isNaN(Number(supplierId))) {
-      supplierId = 1; // ID mặc định dự phòng
-    }
+    // Nhóm sản phẩm theo nhà cung cấp
+    const groupedItems = cartItems.reduce((acc, item) => {
+      const supplierId = item.product.supplier?.id || 1;
+      if (!acc[supplierId]) acc[supplierId] = [];
+      acc[supplierId].push(item);
+      return acc;
+    }, {});
 
-    const draftData = {
-      isDraft: true,
-      supplier_id: Number(supplierId),
-      supplier_name: firstProduct?.supplier?.company_name || "Nhà cung cấp",
-      delivery_address: deliveryInfo.deliveryAddress,
-      requested_delivery_time: new Date(deliveryInfo.requestedDeliveryTime).toISOString(),
-      receiver_name: deliveryInfo.receiverName,
-      receiver_phone: deliveryInfo.receiverPhone,
-      note: orderNote.trim() !== "" ? orderNote.trim() : "Yêu cầu giao hàng cẩn thận, sản phẩm đạt chuẩn.",
-      items: cartItems.map((item) => {
-        let productId = item.product.id;
-        if (typeof productId === "string" && productId.startsWith("def-")) {
-          productId = productId === "def-1" ? 1 : productId === "def-2" ? 2 : 3;
-        }
-        return {
-          supplier_product_id: Number(productId),
-          name: item.product.name,
-          unit: item.product.unit || "Kg",
-          quantity: Number(item.quantity),
-          price: Number(item.product.price),
-          subtotal: Number(item.subtotal),
-          note: "",
-        };
-      }),
-      // Gửi các giá trị tài chính dưới dạng raw
-      total_amount: finalTotal,
-    };
+    const supplierIds = Object.keys(groupedItems);
+
+    const draftDataList = supplierIds.map(supplierId => {
+      const items = groupedItems[supplierId];
+      const firstProduct = items[0]?.product;
+
+      return {
+        isDraft: true,
+        supplier_id: Number(supplierId),
+        supplier_name: firstProduct?.supplier?.company_name || "Nhà cung cấp",
+        delivery_address: deliveryInfo.deliveryAddress,
+        requested_delivery_time: new Date(deliveryInfo.requestedDeliveryTime).toISOString(),
+        receiver_name: deliveryInfo.receiverName,
+        receiver_phone: deliveryInfo.receiverPhone,
+        note: orderNote.trim() !== "" ? orderNote.trim() : "Yêu cầu giao hàng cẩn thận, sản phẩm đạt chuẩn.",
+        items: items.map((item) => {
+          let productId = item.product.id;
+          if (typeof productId === "string" && productId.startsWith("def-")) {
+            productId = productId === "def-1" ? 1 : productId === "def-2" ? 2 : 3;
+          }
+          return {
+            supplier_product_id: Number(productId),
+            name: item.product.name,
+            unit: item.product.unit || "Kg",
+            quantity: Number(item.quantity),
+            price: Number(item.product.price),
+            subtotal: Number(item.subtotal),
+            note: "",
+          };
+        }),
+        // Gửi các giá trị tài chính dưới dạng raw
+        total_amount: items.reduce((sum, i) => sum + i.subtotal, 0),
+      };
+    });
 
     if (onSuccess) {
-      onSuccess(draftData);
+      onSuccess(draftDataList);
     }
   };
 

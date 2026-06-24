@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useLocation, useNavigate } from "react-router-dom";
 import { supplierService } from "../../services/api/suppilerService";
 import { accountService } from "../../services/api/accountService";
 import { bankService } from "../../services/api/bankService";
@@ -677,6 +678,8 @@ function EditCompanyModal({ supplier, onClose, onSave, isSaving }) {
 }
 
 export default function SupplierInfoPage() {
+  const location = useLocation();
+  const navigate = useNavigate();
   const [supplier, setSupplier] = useState(null);
   const [isLoadingSupplier, setIsLoadingSupplier] = useState(true);
   const [supplierError, setSupplierError] = useState("");
@@ -713,6 +716,13 @@ export default function SupplierInfoPage() {
 
     loadSupplierProfile();
   }, []);
+
+  useEffect(() => {
+    if (location.state?.openChangePassword) {
+      setShowChangePassword(true);
+      navigate(location.pathname, { replace: true, state: null });
+    }
+  }, [location.pathname, location.state, navigate]);
 
   const handlePickAvatar = (e) => {
     const file = e.target.files?.[0];
@@ -834,10 +844,6 @@ export default function SupplierInfoPage() {
   if (isLoadingSupplier) {
     return (
       <div className={SUPPLIER_PAGE_CLASS}>
-        <SupplierPageHeader
-          title="Thông tin nhà cung cấp"
-          description="Quản lý thông tin tài khoản và doanh nghiệp của bạn"
-        />
         <div className="bg-white rounded-xl border border-gray-200 p-6 text-sm text-gray-500">
           Đang tải thông tin nhà cung cấp...
         </div>

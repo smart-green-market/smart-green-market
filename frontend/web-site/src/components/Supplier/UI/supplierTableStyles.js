@@ -1,4 +1,4 @@
-import { tableStyles, paginationVi } from "../../common/tableStyles";
+import { tableStyles, paginationVi } from "../../common/TableStyles";
 
 export { paginationVi };
 

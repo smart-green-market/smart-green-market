@@ -122,7 +122,9 @@ export function AuthProvider({ children }) {
                 await authService.logout();
             }
         } catch (error) {
-            console.error("Lỗi khi logout API:", error);
+            if (import.meta.env.DEV) {
+                console.warn("Logout API:", error.response?.status || error.message);
+            }
         } finally {
             if (isBuyer) {
                 clearBuyerAuth();

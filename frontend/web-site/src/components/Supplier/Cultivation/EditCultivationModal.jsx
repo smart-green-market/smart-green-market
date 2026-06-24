@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { X } from "lucide-react";
 import { Overlay, ModalBox, Field, inputCls } from "./CreateCultivationModal";
 import { farmingProcessService } from "../../../services/api/cultivationService";
@@ -14,18 +14,19 @@ import {
 import { errorsToSummary } from "../../../utils/supplierValidation";
 
 export default function EditCultivationModal({ isOpen, onClose, process, onSuccess, productId }) {
+  const isFixedProduct = productId != null && productId !== "";
   const [form, setForm] = useState({});
   const [original, setOriginal] = useState({});
   const [errors, setErrors] = useState({});
   const [apiError, setApiError] = useState("");
   const [loading, setLoading] = useState(false);
   const [productsLoading, setProductsLoading] = useState(false);
-  const [products, setProducts] = useState(null);
+  const [products, setProducts] = useState([]);
 
   useEffect(() => {
     if (isOpen && process) {
       const init = {
-        supplier_product: String(process.supplier_product ?? ""),
+        supplier_product: String(process.supplier_product ?? productId ?? ""),
         step_order: String(process.step_order ?? ""),
         process_name: process.process_name ?? "",
         description: process.description ?? "",
@@ -35,19 +36,28 @@ export default function EditCultivationModal({ isOpen, onClose, process, onSucce
       setErrors({});
       setApiError("");
     }
-  }, [isOpen, process]);
+  }, [isOpen, process, productId]);
 
   useEffect(() => {
     if (!isOpen || !process) return;
 
     async function fetchProducts() {
+      setProductsLoading(true);
       try {
-        setProductsLoading(true);
-        const res = await productService.getById(productId);
-        setProducts(res)
-        setProductsLoading(true)
+        if (isFixedProduct) {
+          const product = await productService.getById(productId);
+          setProducts(product ? [product] : []);
+        } else {
+          const res = await productService.getAll();
+          const allProducts = parseProductList(res);
+          const activeProducts = getActiveProducts(allProducts);
+          setProducts(
+            mergeCurrentProduct(activeProducts, allProducts, process.supplier_product),
+          );
+        }
       } catch (err) {
         console.error("Lỗi khi tải danh sách sản phẩm:", err);
+        setProducts([]);
         setApiError("Không thể tải danh sách sản phẩm. Vui lòng thử lại!");
       } finally {
         setProductsLoading(false);
@@ -55,7 +65,17 @@ export default function EditCultivationModal({ isOpen, onClose, process, onSucce
     }
 
     fetchProducts();
-  }, [isOpen, process]);
+  }, [isOpen, process, productId, isFixedProduct]);
+
+  const activeProductIds = useMemo(
+    () => getActiveProducts(products).map((p) => Number(p.id)),
+    [products],
+  );
+
+  const selectedProduct = useMemo(
+    () => products.find((p) => String(p.id) === String(form.supplier_product)),
+    [products, form.supplier_product],
+  );
 
   const isDirty = JSON.stringify(form) !== JSON.stringify(original);
 
@@ -67,7 +87,7 @@ export default function EditCultivationModal({ isOpen, onClose, process, onSucce
   const handleSubmit = async () => {
     setApiError("");
     const errs = validateCultivationForm(form, {
-      productId,
+      activeProductIds,
       originalProductId: original.supplier_product,
     });
     if (Object.keys(errs).length) {
@@ -75,7 +95,6 @@ export default function EditCultivationModal({ isOpen, onClose, process, onSucce
       setApiError(errorsToSummary(errs));
       return;
     }
-    setApiError("");
 
     setLoading(true);
     try {
@@ -93,7 +112,7 @@ export default function EditCultivationModal({ isOpen, onClose, process, onSucce
       const { fieldErrors, general } = parseFieldErrors(apiErrors);
       if (Object.keys(fieldErrors).length) setErrors(fieldErrors);
       setApiError(
-        general || handleApiError(err, "Cập nhật quy trình thất bại. Vui lòng thử lại!")
+        general || handleApiError(err, "Cập nhật quy trình thất bại. Vui lòng thử lại!"),
       );
     } finally {
       setLoading(false);
@@ -102,8 +121,7 @@ export default function EditCultivationModal({ isOpen, onClose, process, onSucce
 
   if (!isOpen || !process) return null;
 
-  const currentProduct = products;
-  const isCurrentInactive = currentProduct && currentProduct.status !== "active";
+  const isCurrentInactive = selectedProduct && selectedProduct.status !== "active";
 
   return (
     <Overlay onClose={onClose}>
@@ -112,7 +130,9 @@ export default function EditCultivationModal({ isOpen, onClose, process, onSucce
           <div>
             <h2 className="text-lg font-bold text-gray-900">Chỉnh sửa quy trình</h2>
             <p className="text-xs text-gray-400 mt-0.5">
-              Chỉ chọn sản phẩm đang được bán khi đổi sản phẩm
+              {isFixedProduct
+                ? "Cập nhật bước quy trình của sản phẩm đang xem"
+                : "Chỉ chọn sản phẩm đang được bán khi đổi sản phẩm"}
             </p>
           </div>
           <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-neutral-100 transition-colors">
@@ -141,9 +161,27 @@ export default function EditCultivationModal({ isOpen, onClose, process, onSucce
           )}
 
           <Field label="Sản phẩm">
-            <p className="text-sm text-neutral-800 font-medium">
-              {productsLoading ? "Đang loading..." : products?.name}
-            </p>
+            {isFixedProduct ? (
+              <p className="text-sm text-neutral-800 font-medium">
+                {productsLoading ? "Đang tải..." : (selectedProduct?.name ?? "—")}
+              </p>
+            ) : (
+              <select
+                value={form.supplier_product}
+                onChange={set("supplier_product")}
+                disabled={productsLoading}
+                className={inputCls(errors.supplier_product)}
+              >
+                <option value="">
+                  {productsLoading ? "Đang tải sản phẩm..." : "Chọn sản phẩm"}
+                </option>
+                {products.map((p) => (
+                  <option key={p.id} value={p.id}>
+                    {p.name}
+                  </option>
+                ))}
+              </select>
+            )}
           </Field>
 
           <div className="grid grid-cols-3 gap-4">

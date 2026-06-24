@@ -89,7 +89,7 @@ export default function UserLoginPage() {
     };
 
     return (
-        <div className="flex min-h-screen w-full font-['Geist',sans-serif]">
+        <div className="flex min-h-screen w-full">
             <aside className="relative hidden overflow-hidden bg-[#064e3b] lg:flex lg:w-[46%] lg:flex-col lg:justify-between lg:p-12">
                 <div
                     className="admin-login-bg absolute inset-0 bg-cover bg-center opacity-40"
@@ -111,7 +111,7 @@ export default function UserLoginPage() {
                 <div className="relative z-10 flex items-center gap-3">
                     <BrandMark />
                     <div>
-                        <p className="font-['Noto_Serif',serif] text-xl font-bold tracking-tight text-white">
+                        <p className="text-xl font-bold tracking-tight text-white">
                             GreenMarket
                         </p>
                         <p className="text-[11px] font-medium uppercase tracking-[0.18em] text-emerald-200/80">
@@ -126,7 +126,7 @@ export default function UserLoginPage() {
                             <ShieldCheck className="h-3.5 w-3.5" />
                             Khu vực mua hàng
                         </p>
-                        <h1 className="font-['Noto_Serif',serif] text-[2rem] font-bold leading-tight tracking-tight text-white xl:text-[2.35rem]">
+                        <h1 className="text-[2rem] font-bold leading-tight tracking-tight text-white xl:text-[2.35rem]">
                             Nông sản sạch, giao tận tay bạn
                         </h1>
                         <p className="mt-4 text-sm leading-relaxed text-emerald-100/85">
@@ -169,7 +169,7 @@ export default function UserLoginPage() {
                     <div className="mb-8 flex items-center gap-3 lg:hidden">
                         <BrandMark className="h-10 w-10" />
                         <div>
-                            <p className="font-['Noto_Serif',serif] text-lg font-bold text-emerald-950">
+                            <p className="text-lg font-bold text-emerald-950">
                                 GreenMarket
                             </p>
                             <p className="text-xs text-neutral-500">Đăng nhập khách hàng</p>

@@ -1,265 +1,231 @@
-// ============================================================
-// OrderHistoryPage.jsx — trang lịch sử đơn hàng
-// Quản lý toàn bộ state: filter tab, phân trang, fetch API
-// ============================================================
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { History, Loader2 } from "lucide-react";
+import { Link } from "react-router-dom";
 
-import React, { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import OrderStatusFilterTabs from "../../../components/User/OrderTracking/OrderStatusFilterTabs";
+import OrderTrackingCard from "../../../components/User/OrderTracking/OrderTrackingCard";
+import OrderListError from "../../../components/User/OrderTracking/OrderListError";
+import OrderListEmpty from "../../../components/User/OrderTracking/OrderListEmpty";
+import OrderDetailModal from "../../../components/User/OrderTracking/OrderDetailModal";
+import Pagination from "../../../components/User/OrderHistory/Pagination";
 
-import FilterTabs  from "../../../components/User/OrderHistory/FilterTabs";
-import OrderCard   from "../../../components/User/orderHistory/OrderCard";
-import Pagination  from "../../../components/User/orderHistory/Pagination";
-import EmptyState  from "../../../components/User/orderHistory/EmptyState";
-// import OrderDetailModal  from "../../../components/User/OrderTracking/OrderDetailModal";
-const LIMIT = 5; // số đơn hàng mỗi trang
-  
-// -------------------------------------------------------
-// MOCK DATA — chỉ completed
-// Xóa khi API sẵn sàng, thay bằng getOrders({ status: "completed", ... })
-// -------------------------------------------------------
-const MOCK_COMPLETED_ORDERS = [
-  {
-    id: "ORD-2024-065",
-    status: "completed",
-    storeName: "FarmFresh Đà Lạt",
-    orderDate: "20/5/2024 • 17:00",
-    thumbnail: "https://images.unsplash.com/photo-1490885578174-acda8905c2c6?w=120&q=70",
-    items: [
-      { name: "Cải xanh hữu cơ", quantity: "1kg", price: 28000 },
-      { name: "Rau muống sạch",   quantity: "500g", price: 25000 },
-    ],
-    totalPrice: 53000,
-    deliveryAddress: "65 Huỳnh Thúc Kháng, Phường Sài Gòn, Tp.HCM",
-    paymentMethod: "Thanh toán qua Ngân hàng",
-    completedDate: "21/5/2024 • 10:15",
-  },
-  {
-    id: "ORD-2024-058",
-    status: "completed",
-    storeName: "Vườn Sạch Organic",
-    orderDate: "18/5/2024 • 10:30",
-    thumbnail: "https://images.unsplash.com/photo-1543364195-bfe6e4932397?w=120&q=70",
-    items: [
-      { name: "Dâu tây Đà Lạt",   quantity: "500g", price: 120000 },
-      { name: "Việt quất nhập khẩu", quantity: "250g", price: 130000 },
-      { name: "Nho xanh không hạt",  quantity: "1kg",  price: 70000  },
-    ],
-    totalPrice: 320000,
-    deliveryAddress: "12 Nguyễn Huệ, Quận 1, Tp.HCM",
-    paymentMethod: "COD (Thanh toán khi nhận hàng)",
-    completedDate: "19/5/2024 • 14:30",
-  },
-  {
-    id: "ORD-2024-049",
-    status: "completed",
-    storeName: "CKC Fresh Mart",
-    orderDate: "14/5/2024 • 08:00",
-    thumbnail: "https://images.unsplash.com/photo-1455619452474-d2be8b1e70cd?w=120&q=70",
-    items: [
-      { name: "Ớt chuông đỏ",   quantity: "300g", price: 35000 },
-      { name: "Ớt chuông vàng", quantity: "300g", price: 37000 },
-    ],
-    totalPrice: 72000,
-    deliveryAddress: "88 Lê Văn Sỹ, Quận 3, Tp.HCM",
-    paymentMethod: "Thanh toán qua Ngân hàng",
-    completedDate: "15/5/2024 • 09:00",
-  },
-  {
-    id: "ORD-2024-041",
-    status: "completed",
-    storeName: "GreenLand Store",
-    orderDate: "10/5/2024 • 16:20",
-    thumbnail: "https://images.unsplash.com/photo-1464965911861-746a04b4bca6?w=120&q=70",
-    items: [
-      { name: "Súp lơ trắng hữu cơ", quantity: "1 cái", price: 45000 },
-    ],
-    totalPrice: 45000,
-    deliveryAddress: "200 Đinh Tiên Hoàng, Bình Thạnh, Tp.HCM",
-    paymentMethod: "COD (Thanh toán khi nhận hàng)",
-    completedDate: "11/5/2024 • 11:45",
-  },
-  {
-    id: "ORD-2024-033",
-    status: "completed",
-    storeName: "Nông Trại Xanh",
-    orderDate: "06/5/2024 • 09:00",
-    thumbnail: "https://images.unsplash.com/photo-1567306226416-28f0efdc88ce?w=120&q=70",
-    items: [
-      { name: "Táo Fuji Nhật",    quantity: "1kg",  price: 95000 },
-      { name: "Lê Hàn Quốc",     quantity: "500g", price: 75000 },
-      { name: "Cam Úc không hạt", quantity: "1kg",  price: 80000 },
-    ],
-    totalPrice: 250000,
-    deliveryAddress: "45 Trần Hưng Đạo, Quận 5, Tp.HCM",
-    paymentMethod: "Thanh toán qua Ngân hàng",
-    completedDate: "07/5/2024 • 13:20",
-  },
-  {
-    id: "ORD-2024-025",
-    status: "completed",
-    storeName: "SaigonFresh Market",
-    orderDate: "01/5/2024 • 13:00",
-    thumbnail: "https://images.unsplash.com/photo-1506484381205-f7945653044d?w=120&q=70",
-    items: [
-      { name: "Bơ sáp Đắk Lắk",   quantity: "2 trái", price: 80000 },
-      { name: "Xoài cát Hoà Lộc",  quantity: "1kg",    price: 65000 },
-    ],
-    totalPrice: 145000,
-    deliveryAddress: "33 Võ Văn Tần, Quận 3, Tp.HCM",
-    paymentMethod: "COD (Thanh toán khi nhận hàng)",
-    completedDate: "02/5/2024 • 10:00",
-  },
-  {
-    id: "ORD-2024-018",
-    status: "completed",
-    storeName: "Vina Organic",
-    orderDate: "25/4/2024 • 07:30",
-    thumbnail: "https://images.unsplash.com/photo-1518977676601-b53f82aba655?w=120&q=70",
-    items: [
-      { name: "Khoai lang mật",   quantity: "2kg", price: 44000 },
-      { name: "Khoai tây Đà Lạt", quantity: "1kg", price: 30000 },
-      { name: "Củ dền đỏ",        quantity: "500g",price: 22000 },
-      { name: "Cà rốt baby",      quantity: "300g",price: 18000 },
-    ],
-    totalPrice: 114000,
-    deliveryAddress: "10 Phạm Văn Đồng, Thủ Đức, Tp.HCM",
-    paymentMethod: "Thanh toán qua Ngân hàng",
-    completedDate: "26/4/2024 • 14:00",
-  },
+import {
+  buyerOrder,
+  handleApiError,
+  parseBuyerOrderList,
+} from "../../../services/api/Buyer/buyerOrder";
+import { useDealerSlug, useStorefrontPaths } from "../../../hooks/useStorefrontPaths";
+import {
+  isHistoryOrder,
+  matchesHistoryStatusFilter,
+  sortOrdersByCreatedDesc,
+} from "../../../utils/orderUtils";
+
+const PAGE_SIZE = 5;
+
+const FILTER_TABS = [
+  { key: "all", label: "Tất cả" },
+  { key: "completed", label: "Hoàn thành" },
+  { key: "cancelled", label: "Đã hủy" },
 ];
- 
-// Giả lập phân trang phía client — xóa khi dùng API thật
-const mockFetch = ({ page }) => {
-  const totalPages = Math.ceil(MOCK_COMPLETED_ORDERS.length / LIMIT) || 1;
-  const results    = MOCK_COMPLETED_ORDERS.slice((page - 1) * LIMIT, page * LIMIT);
-  return Promise.resolve({ results, totalPages, total: MOCK_COMPLETED_ORDERS.length });
+
+const EMPTY_STATE = {
+  all: {
+    title: "Chưa có đơn hàng trong lịch sử",
+    description:
+      "Các đơn đã hoàn thành hoặc đã hủy sẽ được lưu tại đây.",
+    actionLabel: "Theo dõi đơn đang xử lý",
+  },
+  completed: {
+    title: "Chưa có đơn hàng hoàn thành",
+    description: "Đơn hàng hoàn tất sẽ hiển thị tại đây sau khi giao thành công.",
+    actionLabel: "Theo dõi đơn đang xử lý",
+  },
+  cancelled: {
+    title: "Chưa có đơn hàng đã hủy",
+    description: "Các đơn bị hủy sẽ được lưu lại để bạn tra cứu.",
+    actionLabel: "",
+  },
 };
-// -------------------------------------------------------
- 
-export default function OrderHistoryPage(){
-  const navigate = useNavigate();
 
-  const [activeTab,   setActiveTab]   = useState("all");
+export default function OrderHistoryPage() {
+  const dealerSlug = useDealerSlug();
+  const paths = useStorefrontPaths();
+
+  const [orders, setOrders] = useState([]);
+  const [activeFilter, setActiveFilter] = useState("all");
   const [currentPage, setCurrentPage] = useState(1);
-  const [orders,      setOrders]      = useState([]);
-  const [totalPages,  setTotalPages]  = useState(1);
-  const [counts,      setCounts]      = useState({});
-  const [isLoading,   setIsLoading]   = useState(true);
-  const [error,       setError]       = useState(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [selectedOrderId, setSelectedOrderId] = useState(null);
 
-  // ── Fetch khi tab hoặc trang thay đổi ─────────────────
+  const fetchOrders = useCallback(async () => {
+    if (!dealerSlug) {
+      setOrders([]);
+      setError("Không xác định được cửa hàng. Vui lòng truy cập lại từ liên kết cửa hàng.");
+      setIsLoading(false);
+      return;
+    }
+
+    setIsLoading(true);
+    setError(null);
+
+    try {
+      const data = await buyerOrder.getAll(dealerSlug);
+      setOrders(parseBuyerOrderList(data));
+    } catch (err) {
+      setError(handleApiError(err, "Không tải được lịch sử đơn hàng. Vui lòng thử lại."));
+    } finally {
+      setIsLoading(false);
+    }
+  }, [dealerSlug]);
+
   useEffect(() => {
-    const load = async () => {
-      setIsLoading(true);
-      setError(null);
-      try {
-        // TODO: thay mockFetch bằng getOrders khi API sẵn sàng
-        // const data = await getOrders({ status: activeTab, page: currentPage, limit: LIMIT });
-        const data = await mockFetch({ status: activeTab, page: currentPage });
+    fetchOrders();
+  }, [fetchOrders]);
 
-        setOrders(data.results);
-        setTotalPages(data.totalPages);
-        if (data.counts) setCounts(data.counts);
-      } catch (e) {
-        setError("Không thể tải danh sách đơn hàng. Vui lòng thử lại.");
-      } finally {
-        setIsLoading(false);
-      }
-    };
-    load();
-  }, [activeTab, currentPage]);
-
-  // ── Khi đổi tab → về trang 1 ──────────────────────────
-  const handleTabChange = (tab) => {
-    setActiveTab(tab);
-    setCurrentPage(1);
-  };
-
-  // ── Navigate sang trang chi tiết ──────────────────────
-  const handleViewDetail = (orderId) => {
-    navigate(`/orders/${orderId}`);
-    // TODO: đảm bảo route /orders/:orderId tồn tại trong App router
-  };
-
-  // ── Skeleton loader ────────────────────────────────────
-  const SkeletonCard = () => (
-    <div className="bg-white rounded-2xl border border-gray-200 px-5 py-4 flex items-center gap-4 animate-pulse">
-      <div className="w-[72px] h-[72px] rounded-xl bg-gray-100 flex-shrink-0" />
-      <div className="flex-1 space-y-2">
-        <div className="h-3 bg-gray-100 rounded w-1/3" />
-        <div className="h-4 bg-gray-100 rounded w-1/2" />
-        <div className="h-3 bg-gray-100 rounded w-1/4" />
-        <div className="h-3 bg-gray-100 rounded w-2/5" />
-      </div>
-      <div className="flex flex-col items-end gap-2">
-        <div className="h-4 bg-gray-100 rounded w-20" />
-        <div className="h-8 bg-gray-100 rounded w-24" />
-      </div>
-    </div>
+  const historyOrders = useMemo(
+    () => sortOrdersByCreatedDesc(orders.filter((order) => isHistoryOrder(order.status))),
+    [orders],
   );
 
-  return (
-    <div className="min-h-screen bg-[#f3f4f6]">
-      <div className="max-w-3xl mx-auto px-4 py-8">
+  const filteredOrders = useMemo(
+    () =>
+      sortOrdersByCreatedDesc(
+        historyOrders.filter((order) =>
+          matchesHistoryStatusFilter(order.status, activeFilter),
+        ),
+      ),
+    [historyOrders, activeFilter],
+  );
 
-        {/* ── Header card ── */}
-        <div className="bg-white rounded-2xl border border-gray-200 px-6 py-5 mb-4">
-          <h1 className="text-[20px] font-medium text-gray-900 mb-1">Lịch sử đơn hàng</h1>
-          <p className="text-[13px] text-gray-400 mb-4">
-            Theo dõi và xem lại các đơn hàng bạn đã đặt trên GreenMarket.
-          </p>
-          {/* Filter tabs */}
-          <FilterTabs
-            activeTab={activeTab}
-            onChange={handleTabChange}
-            counts={counts}
-          />
+  const totalPages = Math.max(1, Math.ceil(filteredOrders.length / PAGE_SIZE));
+
+  const pageOrders = useMemo(() => {
+    const start = (currentPage - 1) * PAGE_SIZE;
+    return filteredOrders.slice(start, start + PAGE_SIZE);
+  }, [filteredOrders, currentPage]);
+
+  const tabsWithCount = useMemo(
+    () =>
+      FILTER_TABS.map((tab) => ({
+        ...tab,
+        count:
+          tab.key === "all"
+            ? historyOrders.length
+            : historyOrders.filter((order) =>
+                matchesHistoryStatusFilter(order.status, tab.key),
+              ).length,
+      })),
+    [historyOrders],
+  );
+
+  const stats = useMemo(() => {
+    const completed = historyOrders.filter((order) => order.status === "completed").length;
+    const cancelled = historyOrders.filter((order) => order.status === "cancelled").length;
+    return { completed, cancelled };
+  }, [historyOrders]);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [activeFilter]);
+
+  useEffect(() => {
+    if (currentPage > totalPages) {
+      setCurrentPage(totalPages);
+    }
+  }, [currentPage, totalPages]);
+
+  const handleFilterChange = useCallback((filterKey) => {
+    setActiveFilter(filterKey);
+    setCurrentPage(1);
+  }, []);
+
+  const handlePageChange = useCallback((page) => {
+    setCurrentPage(page);
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }, []);
+
+  const handleViewDetail = useCallback((orderId) => {
+    setSelectedOrderId(orderId);
+  }, []);
+
+  const handleCloseDetail = useCallback(() => {
+    setSelectedOrderId(null);
+  }, []);
+
+  const emptyState = EMPTY_STATE[activeFilter] ?? EMPTY_STATE.all;
+
+  return (
+    <div className="space-y-5">
+      <section className="rounded-2xl border border-gray-200 bg-white px-6 py-5">
+        <div className="mb-4 flex flex-wrap items-start justify-between gap-4">
+          <div className="flex items-center gap-3">
+            <span className="flex h-11 w-11 items-center justify-center rounded-full bg-emerald-50 text-emerald-700">
+              <History size={22} />
+            </span>
+            <div>
+              <h1 className="text-xl font-semibold text-emerald-950">
+                Lịch sử đơn hàng
+              </h1>
+            </div>
+          </div>
+
+          <Link
+            to={paths.orderStatus}
+            className="text-sm font-medium text-emerald-700 no-underline hover:text-emerald-900 hover:underline"
+          >
+            Theo dõi đơn đang xử lý →
+          </Link>
         </div>
 
-        {/* ── Order list ── */}
-        <div className="flex flex-col gap-3">
-          {isLoading ? (
-            // Skeleton
-            Array.from({ length: 3 }).map((_, i) => <SkeletonCard key={i} />)
-          ) : error ? (
-            // Error
-            <div className="bg-white rounded-2xl border border-gray-200 py-12 text-center">
-              <p className="text-[13px] text-gray-500 mb-2">{error}</p>
-              <button
-                onClick={() => setCurrentPage((p) => p)} // trigger re-fetch
-                className="text-[13px] text-[#1a5c2a] hover:underline"
-              >
-                Thử lại
-              </button>
-            </div>
-          ) : orders.length === 0 ? (
-            // Empty
-            <EmptyState activeTab={activeTab} />
-          ) : (
-            // Order cards
-            orders.map((order) => (
-              <OrderCard
+        <OrderStatusFilterTabs
+          tabs={tabsWithCount}
+          activeKey={activeFilter}
+          onChange={handleFilterChange}
+        />
+      </section>
+
+      {isLoading ? (
+        <div className="flex h-40 items-center justify-center rounded-2xl border border-gray-200 bg-white">
+          <Loader2 className="h-7 w-7 animate-spin text-emerald-700" />
+        </div>
+      ) : error ? (
+        <OrderListError message={error} onRetry={fetchOrders} />
+      ) : filteredOrders.length === 0 ? (
+        <OrderListEmpty
+          title={emptyState.title}
+          description={emptyState.description}
+          actionLabel={emptyState.actionLabel}
+          actionHref={emptyState.actionLabel ? paths.orderStatus : ""}
+        />
+      ) : (
+        <>
+          <div className="space-y-4">
+            {pageOrders.map((order) => (
+              <OrderTrackingCard
                 key={order.id}
                 order={order}
                 onViewDetail={handleViewDetail}
               />
-            ))
-          )}
-        </div>
+            ))}
+          </div>
 
-        {/* ── Pagination ── */}
-        {!isLoading && !error && orders.length > 0 && (
           <Pagination
             currentPage={currentPage}
             totalPages={totalPages}
-            onChange={(p) => {
-              setCurrentPage(p);
-              window.scrollTo({ top: 0, behavior: "smooth" });
-            }}
+            onChange={handlePageChange}
           />
-        )}
+        </>
+      )}
 
-      </div>
+      <OrderDetailModal
+        dealerSlug={dealerSlug}
+        orderId={selectedOrderId}
+        isOpen={selectedOrderId != null}
+        onClose={handleCloseDetail}
+        onOrderUpdated={fetchOrders}
+      />
     </div>
   );
-};
+}

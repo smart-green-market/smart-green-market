@@ -161,7 +161,7 @@ export default function ProductDetailPurchase({
                     </span>
                 </div>
 
-                <h1 className="font-playfair text-3xl font-bold leading-tight text-emerald-950 lg:text-4xl">
+                <h1 className="text-3xl font-bold leading-tight text-emerald-950 lg:text-4xl">
                     {product.name}
                 </h1>
             </div>
