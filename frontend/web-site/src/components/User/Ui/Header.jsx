@@ -6,6 +6,36 @@ import { isBuyerUser } from "../../../utils/buyerAuthUtils";
 import { useCart } from "../../../contexts/cartProvider";
 import { useStorefrontPaths } from "../../../hooks/useStorefrontPaths";
 
+function HeaderNavLink({ to, icon: Icon, label, title, badge }) {
+    return (
+        <Link
+            to={to}
+            className="hover:scale-110 transition-transform duration-200 flex flex-col items-center gap-0.5 rounded-full p-2 text-zinc-700 no-underline transition-colors hover:bg-zinc-100 hover:text-green-600 md:rounded-lg md:px-3 md:py-1.5"
+            title={title}
+            aria-label={title}
+        >
+            <span className="relative inline-flex">
+                <Icon className="h-5 w-5" />
+                {badge}
+            </span>
+            <span className="hidden text-xs font-medium leading-none md:block">
+                {label}
+            </span>
+        </Link>
+    );
+}
+
+function HeaderNavDivider() {
+    return (
+        <span
+            className="hidden px-1.5 text-sm text-neutral-300 md:inline"
+            aria-hidden
+        >
+            |
+        </span>
+    );
+}
+
 export default function Header() {
     const navigate = useNavigate();
     const paths = useStorefrontPaths();
@@ -54,38 +84,38 @@ export default function Header() {
                         {searchInput}
                     </form>
 
-                    <div className="flex shrink-0 items-center gap-0.5 sm:gap-1 md:gap-2">
+                    <div className="flex shrink-0 items-center gap-0.5 sm:gap-1 md:gap-0">
                         {isLoggedIn ? (
                             <>
-                                <Link
+                                <HeaderNavLink
                                     to={paths.orderStatus}
-                                    className="rounded-full p-2 text-zinc-700 transition-colors hover:bg-zinc-100 hover:text-green-600"
+                                    icon={Newspaper}
+                                    label="Đơn hàng"
                                     title="Theo dõi đơn hàng"
-                                    aria-label="Theo dõi đơn hàng"
-                                >
-                                    <Newspaper className="h-5 w-5" />
-                                </Link>
-                                <Link
+                                />
+                                <HeaderNavDivider />
+                                <HeaderNavLink
                                     to={paths.cart}
-                                    className="relative rounded-full p-2 text-zinc-700 transition-colors hover:bg-zinc-100 hover:text-green-600"
+                                    icon={ShoppingCart}
+                                    label="Giỏ hàng"
                                     title="Giỏ hàng"
-                                    aria-label="Giỏ hàng"
-                                >
-                                    <ShoppingCart className="h-5 w-5" />
-                                    {itemCount > 0 ? (
-                                        <span className="absolute -right-0.5 -top-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-emerald-700 px-1 text-[10px] font-bold text-white">
-                                            {itemCount > 99 ? "99+" : itemCount}
-                                        </span>
-                                    ) : null}
-                                </Link>
-                                <Link
+                                    badge={
+                                        itemCount > 0 ? (
+                                            <span className="absolute -right-1.5 -top-1.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-emerald-700 px-1 text-[10px] font-bold text-white">
+                                                {itemCount > 9
+                                                    ? "9+"
+                                                    : itemCount}
+                                            </span>
+                                        ) : null
+                                    }
+                                />
+                                <HeaderNavDivider />
+                                <HeaderNavLink
                                     to={paths.account}
-                                    className="rounded-full p-2 text-zinc-700 transition-colors hover:bg-zinc-100 hover:text-green-600"
+                                    icon={User}
+                                    label="Tài khoản"
                                     title="Tài khoản"
-                                    aria-label="Tài khoản"
-                                >
-                                    <User className="h-5 w-5" />
-                                </Link>
+                                />
                             </>
                         ) : (
                             <>
@@ -105,7 +135,15 @@ export default function Header() {
                         )}
                     </div>
                 </div>
-            </div >
-        </header >
+
+                {/* Search mobile — hàng 2 */}
+                <form
+                    onSubmit={handleSearchSubmit}
+                    className="pt-1 pb-3 md:hidden"
+                >
+                    {searchInput}
+                </form>
+            </div>
+        </header>
     );
 }

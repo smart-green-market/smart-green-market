@@ -240,7 +240,7 @@ export default function DashboardPage() {
           min-width: 64px;
         }
         .bstat-val   { font-size: 20px; font-weight: 500; color: var(--white1); }
-        .bstat-label { font-size: 10px; color: #4d8a5e; margin-top: 2px; }
+        .bstat-label { font-size: 10px; color: white; margin-top: 2px; }
 
         /* ── Metric cards ── */
         .db-metrics {

@@ -101,6 +101,11 @@ export const productMasterService = {
   remove: (id) => {
     return axiosClient.delete(`/product-masters/${id}/`).then((res) => res.data);
   },
+  getByCategory_id: async (id) => {
+  const params = id ? { category_id: id } : {};
+  const res = await axiosClient.get(`/product-masters/`, { params });
+  return res.data?.results ?? [];
+},
 };
 
 // Xử lý bug

@@ -1,7 +1,6 @@
 import axiosClient from "../axiosClient";
 
 export const interactionService = {
-    /** POST /storefronts/{dealer_slug}/interactions/ */
     interaction: async (dealer_slug, { dealer_product_id, action }) => {
         const res = await axiosClient.post(
             `/storefronts/${dealer_slug}/interactions/`,

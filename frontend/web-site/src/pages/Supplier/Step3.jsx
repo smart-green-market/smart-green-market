@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from "react";
-import { supplierDocumentService } from "../../services/api/supplierdocumentService";
+import { supplierDocumentService } from "../../services/api/supplierDocumentService";
 import { extractSupplierApiMessage } from "../../utils/supplierValidation";
 
 function extractDocumentApiMessage(error, fallback = "Có lỗi khi tải lên giấy tờ.") {
