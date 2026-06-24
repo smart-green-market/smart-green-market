@@ -13,9 +13,11 @@ from common.business_rules import (
 )
 from common.openapi_enums import schema_choice_field
 from common.validators import require_rejection_reason, validate_image_upload
-from apps.categories.models import CategoryStatus
 from apps.categories.utils import category_assignable_by_user
+from apps.product_catalog.models import ProductMaster
+from apps.product_catalog.serializers import ProductMasterListSerializer
 from apps.suppliers.models import SupplierVerificationStatus
+from .catalog_services import apply_supplier_product_catalog_rules
 from .models import SupplierProduct, SupplierProductImage, SupplierProductStatus
 
 _IMAGE_FIELD_HELP = (
@@ -217,6 +219,7 @@ class SupplierProductReadSerializer(serializers.ModelSerializer):
 
     images = SupplierProductImageSerializer(many=True, read_only=True)
     status = schema_choice_field(choices=SupplierProductStatus.choices, read_only=True)
+    product_master = ProductMasterListSerializer(read_only=True)
     verified_by_username = serializers.CharField(
         source="verified_by.username",
         read_only=True,
@@ -232,6 +235,7 @@ class SupplierProductReadSerializer(serializers.ModelSerializer):
             "name",
             "slug",
             "unit",
+            "product_master",
             "wholesale_price",
             "daily_production_capacity",
             "description",
@@ -281,17 +285,60 @@ class SupplierProductListSerializer(SupplierProductReadSerializer):
 
 
 class SupplierProductSerializer(serializers.ModelSerializer):
-    """Serializer tạo và cập nhật sản phẩm nhà cung cấp."""
+    """Serializer tạo và cập nhật sản phẩm nhà cung cấp — 2 luồng catalog."""
 
     images = SupplierProductImageSerializer(many=True, read_only=True)
     status = schema_choice_field(choices=SupplierProductStatus.choices, read_only=True)
+    product_master = serializers.PrimaryKeyRelatedField(
+        queryset=ProductMaster.objects.all(),
+        required=False,
+        allow_null=True,
+        help_text=(
+            "**Danh mục system:** bắt buộc — ID từ GET /api/product-masters/?category_id=. "
+            "**Danh mục riêng:** tuỳ chọn (Product Catalog Link)."
+        ),
+    )
+    name = serializers.CharField(
+        required=False,
+        allow_blank=True,
+        help_text="**Danh mục riêng:** bắt buộc tên tự do. **Danh mục system:** bỏ qua (lấy từ master).",
+    )
+    unit = serializers.CharField(
+        required=False,
+        allow_blank=True,
+        help_text="**Danh mục riêng:** bắt buộc. **Danh mục system:** bỏ qua (lấy từ master).",
+    )
+    slug = serializers.SlugField(read_only=True)
 
     class Meta:
         """Cấu hình trường ghi sản phẩm."""
 
         model = SupplierProduct
-        fields = "__all__"
+        fields = [
+            "id",
+            "category",
+            "product_master",
+            "name",
+            "slug",
+            "unit",
+            "wholesale_price",
+            "daily_production_capacity",
+            "description",
+            "storage_duration_days",
+            "min_storage_temp",
+            "max_storage_temp",
+            "status",
+            "images",
+            "supplier",
+            "verified_by",
+            "verified_at",
+            "rejection_reason",
+            "created_at",
+            "updated_at",
+        ]
         read_only_fields = [
+            "id",
+            "slug",
             "supplier",
             "status",
             "verified_by",
@@ -299,21 +346,21 @@ class SupplierProductSerializer(serializers.ModelSerializer):
             "rejection_reason",
             "created_at",
             "updated_at",
+            "images",
         ]
         extra_kwargs = {
-            "category": {"help_text": "ID danh mục sản phẩm"},
-            "name": {"help_text": "Tên sản phẩm"},
-            "slug": {"help_text": "Slug URL (unique trong phạm vi supplier)"},
-            "unit": {"help_text": "Đơn vị bán (kg, túi, thùng...)"},
+            "category": {
+                "help_text": "ID danh mục — system hoặc custom (NCC tự tạo)",
+            },
             "wholesale_price": {
-                "help_text": "Giá bán sỉ cho đại lý",
+                "help_text": "Giá bán sỉ cho đại lý (VND)",
                 "required": False,
             },
             "daily_production_capacity": {
-                "help_text": "Năng lực sản xuất TB/ngày (cùng đơn vị với unit)",
+                "help_text": "Năng lực sản xuất TB/ngày (cùng đơn vị unit) — không phải tồn kho",
                 "required": False,
             },
-            "description": {"help_text": "Mô tả chi tiết sản phẩm", "required": False},
+            "description": {"help_text": "Mô tả riêng của NCC", "required": False},
             "storage_duration_days": {"help_text": "Số ngày bảo quản được", "required": False},
             "min_storage_temp": {"help_text": "Nhiệt độ bảo quản tối thiểu (°C)", "required": False},
             "max_storage_temp": {"help_text": "Nhiệt độ bảo quản tối đa (°C)", "required": False},
@@ -330,7 +377,7 @@ class SupplierProductSerializer(serializers.ModelSerializer):
         return category
 
     def validate(self, attrs):
-        """Kiểm tra nhà cung cấp đã được duyệt trước khi tạo/sửa."""
+        """Áp dụng rule catalog + kiểm tra NCC đã duyệt."""
         request = self.context.get("request")
         if request and request.user.is_authenticated:
             profile = getattr(request.user, "supplier_profile", None)
@@ -338,6 +385,34 @@ class SupplierProductSerializer(serializers.ModelSerializer):
                 raise serializers.ValidationError(
                     "Supplier chưa được duyệt, không thể tạo/sửa sản phẩm."
                 )
+
+        instance = self.instance
+        category = attrs.get("category") or (instance.category if instance else None)
+        if category is None:
+            raise serializers.ValidationError({"category": "Bắt buộc chọn danh mục."})
+
+        product_master = attrs.get("product_master", serializers.empty)
+        if product_master is serializers.empty:
+            product_master = instance.product_master if instance else None
+
+        name = attrs.get("name")
+        if name is None and instance:
+            name = instance.name
+        unit = attrs.get("unit")
+        if unit is None and instance:
+            unit = instance.unit
+
+        supplier = request.user.supplier_profile
+        resolved = apply_supplier_product_catalog_rules(
+            user=request.user,
+            category=category,
+            product_master=product_master,
+            name=name or "",
+            unit=unit or "",
+            supplier=supplier,
+            instance=instance,
+        )
+        attrs.update(resolved)
         return attrs
 
     def create(self, validated_data):
