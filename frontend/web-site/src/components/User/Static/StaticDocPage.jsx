@@ -13,7 +13,7 @@ export default function StaticDocPage({
     return (
         <div className="mx-auto w-full max-w-[1280px] px-4 py-10 sm:px-10 sm:py-14">
             <div className="mb-10">
-                <h1 className="font-serif text-3xl font-bold text-emerald-950 sm:text-4xl">
+                <h1 className="text-3xl font-bold text-emerald-950 sm:text-4xl">
                     {title}
                 </h1>
                 {description ? (

@@ -178,7 +178,7 @@ export default function FilterProduct() {
     return (
         <section id="kham-pha" className="mx-auto w-full max-w-[1280px] px-10 pt-12 pb-4">
             <div className="mb-8">
-                <h2 className="font-playfair text-2xl font-bold text-emerald-950">
+                <h2 className="text-2xl font-bold text-emerald-950">
                     Khám phá sản phẩm
                 </h2>
             </div>
@@ -246,39 +246,6 @@ export default function FilterProduct() {
                                             {unit.count != null ? (
                                                 <span className="ml-1 opacity-70">
                                                     ({unit.count})
-                                                </span>
-                                            ) : null}
-                                        </TagButton>
-                                    ))
-                                ) : (
-                                    <span className="text-xs text-neutral-400">
-                                        Chưa có dữ liệu
-                                    </span>
-                                )}
-                            </div>
-                        </FilterSection>
-
-                        <FilterSection title="Nhà cung cấp">
-                            <div className="flex flex-wrap gap-2">
-                                {loading ? (
-                                    <span className="text-xs text-neutral-400">
-                                        Đang tải...
-                                    </span>
-                                ) : availableSuppliers.length > 0 ? (
-                                    availableSuppliers.map((supplier) => (
-                                        <TagButton
-                                            key={supplier.value}
-                                            active={selectedSuppliers.includes(
-                                                supplier.value,
-                                            )}
-                                            onClick={() =>
-                                                toggleSupplier(supplier.value)
-                                            }
-                                        >
-                                            {supplier.label}
-                                            {supplier.count != null ? (
-                                                <span className="ml-1 opacity-70">
-                                                    ({supplier.count})
                                                 </span>
                                             ) : null}
                                         </TagButton>
@@ -389,7 +356,6 @@ export default function FilterProduct() {
                                     id={product.id}
                                     brand={product.brand}
                                     categoryName={product.category_name}
-                                    supplierName={product.supplier_name}
                                     name={product.name}
                                     price={product.price}
                                     rating={product.rating}

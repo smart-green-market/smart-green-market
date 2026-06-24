@@ -2,6 +2,8 @@ import React, { useState } from "react";
 import { Link } from "react-router-dom";
 import { accountService } from "../../services/api/accountService";
 import { authService } from "../../services/api/authAdminService";
+import { saveAuthTokens } from "../../services/token/authTokenStorage";
+import { extractSupplierApiMessage } from "../../utils/supplierValidation";
 
 export default function Step1({ onNext }) {
   const [form, setForm] = useState({
@@ -27,27 +29,27 @@ export default function Step1({ onNext }) {
       setError("");
 
       if (!form.full_name.trim()) {
-        return setError("Vui lòng nhập họ tên");
+        return setError("Họ tên: Không được để trống.");
       }
 
       if (!form.username.trim()) {
-        return setError("Vui lòng nhập tên tài khoản");
+        return setError("Tên tài khoản: Không được để trống.");
       }
 
       if (!form.email.trim()) {
-        return setError("Vui lòng nhập email");
+        return setError("Email: Không được để trống.");
       }
 
       if (!form.phone.trim()) {
-        return setError("Vui lòng nhập số điện thoại");
+        return setError("Số điện thoại: Không được để trống.");
       }
 
       if (!form.password) {
-        return setError("Vui lòng nhập mật khẩu");
+        return setError("Mật khẩu: Không được để trống.");
       }
 
       if (form.password !== form.repassword) {
-        return setError("Mật khẩu xác nhận không khớp");
+        return setError("Xác nhận mật khẩu: Mật khẩu nhập lại không khớp.");
       }
 
       setLoading(true);
@@ -70,7 +72,10 @@ export default function Step1({ onNext }) {
       });
 
       // Lưu token để Step2, Step3 dùng
-      localStorage.setItem("access_token", loginResult.access);
+      saveAuthTokens({
+        access: loginResult.access,
+        refresh: loginResult.refresh,
+      });
 
       console.log("Đăng nhập sau đăng ký thành công:", loginResult);
       onNext?.(result);
@@ -78,17 +83,7 @@ export default function Step1({ onNext }) {
       console.log("STATUS:", err.response?.status);
       console.log("DATA:", err.response?.data);
 
-      setError(
-        JSON.stringify(err.response?.data)
-      );
-
-
-      const message =
-        err?.response?.data?.detail ||
-        err?.response?.data?.message ||
-        "Đăng ký thất bại";
-
-      setError(message);
+      setError(extractSupplierApiMessage(err, "Đăng ký thất bại. Vui lòng kiểm tra lại thông tin."));
     } finally {
       setLoading(false);
     }

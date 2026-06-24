@@ -43,10 +43,7 @@ export default function Banner() {
                     />
                     <div className="absolute inset-0 bg-gradient-to-r from-emerald-950/65 via-emerald-950/30 to-transparent" />
                     <div className="absolute inset-0 flex flex-col justify-center px-8 md:px-16 lg:px-24">
-                        <h1
-                            className="mb-4 text-4xl font-normal leading-[1.2] text-white md:text-5xl"
-                            style={{ fontFamily: "'Pacifico', cursive" }}
-                        >
+                        <h1 className="mb-4 text-4xl font-bold leading-[1.2] text-white md:text-5xl">
                             {slide.title}
                         </h1>
                         <p className="mb-8 max-w-sm text-lg leading-7 text-white/85">

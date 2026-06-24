@@ -18,7 +18,7 @@ export default function OrderStatusFilterTabs({ tabs, activeKey, onChange }) {
             key={tab.key}
             type="button"
             onClick={() => onChange(tab.key)}
-            className={`rounded-full px-4 py-2 text-sm font-medium transition ${
+            className={`cursor-pointer rounded-full px-4 py-2 text-sm font-medium transition ${
               isActive ? "bg-emerald-800 text-white" : "bg-white text-slate-500 hover:bg-emerald-50"
             }`}
           >

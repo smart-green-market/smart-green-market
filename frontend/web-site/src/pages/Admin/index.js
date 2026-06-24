@@ -1,8 +1,10 @@
 export { default as AdminLoginPage } from "./AdminLoginPage";
+export { default as AdminDashboardPage } from "./Dashboard";
 export { default as SettingPage } from "./Setting";
 export { default as SupplierPage } from "./Suppiler";
 export { default as CategoryPage } from "./Category";
 export { default as ProductPage } from "./Product";
+export { default as ProductMasterPage } from "./ProductMaster";
 export { default as CertificationPage } from "./Certification";
 export { default as DocumentPage } from "./Document";
 export { default as NotificationPage } from "./Notification";

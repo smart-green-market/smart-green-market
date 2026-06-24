@@ -1,5 +1,7 @@
-import React, { useState } from "react";
+import React, { useState,useEffect } from "react";
 import { supplierService } from "../../services/api/suppilerService";
+import { bankService } from "../../services/api/bankService";
+import { extractSupplierApiMessage } from "../../utils/supplierValidation";
 
 export default function Step2({ onNext, onBack }) {
   const [form, setForm] = useState({
@@ -12,6 +14,20 @@ export default function Step2({ onNext, onBack }) {
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [banks, setBanks] = useState([]);
+  const [selectedBank, setSelectedBank] = useState("");
+  const [bankAccount, setBankAccount] = useState("");
+  const [accountName, setAccountName] = useState("");
+  /* ── Fetch ── */
+  const fetchBanks = async () => {
+    try {
+      const response = await bankService.getAll();
+      setBanks(response);
+    } catch (error) {
+      console.error("Lỗi khi tải danh sách ngân hàng:", error);
+    }
+  };
+  useEffect(() => { fetchBanks(); }, []);
 
   const set = (key) => (e) =>
     setForm((prev) => ({
@@ -24,23 +40,43 @@ export default function Step2({ onNext, onBack }) {
       setError("");
 
       if (!form.company_name.trim()) {
-        return setError("Vui lòng nhập tên công ty");
+        return setError("Tên công ty: Không được để trống.");
       }
 
       if (!form.tax_code.trim()) {
-        return setError("Vui lòng nhập mã số thuế");
+        return setError("Mã số thuế: Không được để trống.");
       }
 
       if (!form.phone.trim()) {
-        return setError("Vui lòng nhập số điện thoại");
+        return setError("Số điện thoại: Không được để trống.");
       }
 
       if (!form.address.trim()) {
-        return setError("Vui lòng nhập địa chỉ");
+        return setError("Địa chỉ: Không được để trống.");
       }
 
       if (!form.description.trim()) {
-        return setError("Vui lòng nhập mô tả hoạt động");
+        return setError("Mô tả hoạt động: Không được để trống.");
+      }
+
+      if (!selectedBank) {
+        return setError("Ngân hàng: Vui lòng chọn ngân hàng.");
+      }
+
+      if (!bankAccount.trim()) {
+        return setError("Số tài khoản: Không được để trống.");
+      }
+
+      if (!accountName.trim()) {
+        return setError("Tên chủ tài khoản: Không được để trống.");
+      }
+
+      const selectedBankInfo = banks.find(
+        (bank) => String(bank.bin) === String(selectedBank)
+      );
+
+      if (!selectedBankInfo?.bin) {
+        return setError("Ngân hàng: Giá trị không hợp lệ, vui lòng chọn lại.");
       }
 
       setLoading(true);
@@ -51,6 +87,10 @@ export default function Step2({ onNext, onBack }) {
         phone: form.phone,
         address: form.address,
         description: form.description,
+        bank_name: selectedBankInfo.name,
+        bank_bin: String(selectedBankInfo.bin),
+        account_number: bankAccount.trim(),
+        account_name: accountName.trim(),
       };
 
       console.log("Payload gửi lên:", payload);
@@ -65,12 +105,7 @@ export default function Step2({ onNext, onBack }) {
       console.log("STATUS:", err.response?.status);
       console.log("DATA:", err.response?.data);
 
-      const message =
-        err?.response?.data?.detail ||
-        err?.response?.data?.message ||
-        "Có lỗi xảy ra khi tạo nhà cung cấp";
-
-      setError(message);
+      setError(extractSupplierApiMessage(err, "Tạo nhà cung cấp thất bại. Vui lòng kiểm tra lại thông tin."));
     } finally {
       setLoading(false);
     }
@@ -125,6 +160,42 @@ export default function Step2({ onNext, onBack }) {
         />
       </Field>
 
+      <Field label="🏦 Ngân hàng">
+  <select
+    value={selectedBank}
+    onChange={(e) => setSelectedBank(e.target.value)}
+  >
+    <option value="">-- Chọn ngân hàng --</option>
+
+    {banks.map((bank) => (
+      <option
+        key={bank.bin}
+        value={bank.bin}
+      >
+        {bank.name}
+      </option>
+    ))}
+  </select>
+</Field>
+      <Field label="💳 Số tài khoản ngân hàng">
+        <input
+          value={bankAccount}
+          onChange={(e) => setBankAccount(e.target.value)}
+          placeholder="26022005111"
+          type="text"
+          inputMode="numeric"
+          maxLength={20}
+        />
+      </Field>
+
+      <Field label="👤 Tên chủ tài khoản">
+        <input
+          value={accountName}
+          onChange={(e) => setAccountName(e.target.value)}
+          placeholder="VD: Nguyễn Văn A"
+          type="text"
+        />
+      </Field>
       <Field label="📝 Mô tả hoạt động kinh doanh">
         <textarea
           value={form.description}

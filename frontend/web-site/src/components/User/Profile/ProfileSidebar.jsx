@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { KeyRound, Loader2, LogOut, ScrollText, UserCircle2 } from "lucide-react";
+import { KeyRound, Loader2, LogOut, ScrollText, Star, UserCircle2 } from "lucide-react";
 import { NavLink } from "react-router-dom";
 import { useAuth } from "../../../contexts/authProvider";
 import { useStorefrontPaths } from "../../../hooks/useStorefrontPaths";
@@ -27,6 +27,12 @@ export default function ProfileSidebar() {
       label: "Lịch sử đơn hàng",
       to: `${paths.account}/lich-su-don-hang`,
       icon: ScrollText,
+    },
+    {
+      key: "reviews",
+      label: "Đánh giá sản phẩm",
+      to: `${paths.account}/danh-gia-san-pham`,
+      icon: Star,
     },
   ];
 

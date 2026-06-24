@@ -19,7 +19,7 @@ export default function DealerCreatePurchaseOrderPage() {
   // từ trang hiện tại sang trang đích (/dai-ly/nhap-hang/tao-phieu-nhap) 
   // mà không hiển thị dữ liệu đó trên thanh địa chỉ (URL).
   const handleSuccess = (draftData) => {
-    navigate(`/dai-ly/nhap-hang/tao-phieu-nhap`, { state: { draftData } });
+    navigate(`/dai-ly/nhap-hang/xem-truoc`, { state: { draftData } });
   };
 
   return (

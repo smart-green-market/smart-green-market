@@ -3,8 +3,7 @@ import { Link, useNavigate } from "react-router-dom";
 import { ArrowLeft, ShoppingBag } from "lucide-react";
 import CartTable from "../../components/User/Cart/CartTable";
 import OrderSummary from "../../components/User/Cart/OrderSummary";
-import SuggestedProducts from "../../components/User/Cart/SuggestedProducts";
-import { mockSuggestedProducts } from "../../components/User/Cart/mockData";
+import SuggestProduct from "../../components/User/Home/SuggestProduct";
 import { useCart } from "../../contexts/cartProvider";
 import { useStorefrontPaths } from "../../hooks/useStorefrontPaths";
 
@@ -41,9 +40,6 @@ export default function CartPage() {
   return (
     <div className="mx-auto w-full max-w-[1280px] px-4 py-8 sm:px-10">
       <div className="mb-6 flex items-center gap-3">
-        <div className="flex h-10 w-10 items-center justify-center rounded-full bg-emerald-100">
-          <ShoppingBag className="h-5 w-5 text-emerald-800" />
-        </div>
         <div>
           <h1 className="text-2xl font-semibold text-emerald-950">Giỏ hàng của tôi</h1>
           <p className="text-sm text-neutral-600">
@@ -97,7 +93,7 @@ export default function CartPage() {
         </div>
       )}
 
-      <SuggestedProducts products={mockSuggestedProducts} />
+      <SuggestProduct />
     </div>
   );
 }
