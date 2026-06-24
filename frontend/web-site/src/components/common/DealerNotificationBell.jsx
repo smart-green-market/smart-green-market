@@ -18,11 +18,11 @@ const getNotificationRoute = (item) => {
     const referenceId = item.referenceId ?? item.reference_id;
     
     switch (referenceType) {
-        case "purchase_order":   return `/dealer/purchase-orders/${referenceId}`;
-        case "customer_order":   return `/dealer/orders/${referenceId}`;
-        case "category":         return `/dealer/categories/${referenceId}`;
-        case "account_document": return `/dealer/profile/documents`;
-        case "dealer":           return `/dealer/profile`;
+        case "purchase_order":   return `/dai-ly/nhap-hang/chi-tiet/${referenceId}`;
+        case "customer_order":   return `/dai-ly/ban-hang`;
+        case "category":         return `/dai-ly/danh-muc`;
+        case "account_document": return `/dai-ly/cau-hinh`;
+        case "dealer":           return `/dai-ly/cau-hinh`;
         default:                 return null;
     }
 };
