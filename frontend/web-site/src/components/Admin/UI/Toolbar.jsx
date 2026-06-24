@@ -2,31 +2,36 @@ import { Plus } from "lucide-react";
 import SearchBar from "./SearchBar";
 
 /**
- * Toolbar — top action bar: search + filter button + add CTA
- * Props:
- *   search            : string
- *   onSearch          : (val: string) => void
- *   onAdd             : () => void
- *   addLabel          : string
- *   searchPlaceholder : string
+ * Toolbar — search + filter dropdown + optional add CTA
  */
-export default function Toolbar({ search, onSearch, onAdd, addLabel = "Thêm mới", searchPlaceholder }) {
+export default function Toolbar({
+    search,
+    onSearch,
+    onAdd,
+    addLabel = "Thêm mới",
+    searchPlaceholder,
+    filter = null,
+}) {
     return (
-        <div className="w-full p-4 bg-white rounded-xl border border-neutral-200 flex justify-between items-center gap-4">
-            <div className="flex items-center gap-3">
+        <div className="flex w-full items-center justify-between gap-4 rounded-xl border border-neutral-200 bg-white p-4">
+            <div className="flex flex-wrap items-center gap-3">
                 <SearchBar
                     value={search}
                     onChange={onSearch}
                     placeholder={searchPlaceholder}
                 />
+                {filter}
             </div>
-            {/* <button
-                onClick={onAdd}
-                className="flex items-center gap-2 px-5 py-2.5 bg-emerald-800 hover:bg-emerald-700 text-white text-sm font-semibold rounded-lg shadow-sm transition-colors font-['Geist',sans-serif]"
-            >
-                <Plus className="w-4 h-4" />
-                {addLabel}
-            </button> */}
+            {onAdd ? (
+                <button
+                    type="button"
+                    onClick={onAdd}
+                    className="flex shrink-0 cursor-pointer items-center gap-2 rounded-lg bg-emerald-800 px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-emerald-700 font-['Geist',sans-serif]"
+                >
+                    <Plus className="h-4 w-4" />
+                    {addLabel}
+                </button>
+            ) : null}
         </div>
     );
 }

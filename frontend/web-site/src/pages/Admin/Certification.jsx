@@ -226,22 +226,13 @@ export default function CertificationPage() {
                 search={search}
                 onSearch={setSearch}
                 searchPlaceholder="Tìm kiếm chứng chỉ..."
+                filter={
+                    <Filter
+                        value={statusFilter}
+                        onChange={setStatusFilter}
+                    />
+                }
             />
-
-            {/* FILTER */}
-            <div className="flex items-center gap-3">
-
-                <span className="text-xs font-semibold text-neutral-400 uppercase tracking-wide font-['Geist',sans-serif]">
-                    Lọc:
-                </span>
-
-                <Filter
-                    value={statusFilter}
-                    onChange={
-                        setStatusFilter
-                    }
-                />
-            </div>
 
             {/* ERROR */}
             {error && (

@@ -12,7 +12,18 @@ import {
   errorsToSummary,
   extractSupplierApiMessage,
 } from "../../../utils/supplierValidation";
-import { productMasterService } from "../../../services/api/Admin/productMasterService";
+import { productMasterService } from "../../../services/api/Admin/productMasterService"
+// ─────────────────────────────────────────────────────────────
+// API response schema (để tham khảo, không cần sửa)
+// POST /supplier-products/  →  multipart/form-data
+// {
+//   id, status, name, slug, unit, description,
+//   storage_duration_days, min_storage_temp, max_storage_temp,
+//   verified_at, rejection_reason, created_at, updated_at,
+//   supplier, category, verified_by,
+//   images: [{ id, supplier_product, image_url, is_thumbnail, sort_order, created_at }]
+// }
+// ─────────────────────────────────────────────────────────────
 
 const inputCls =
   "w-full text-sm border border-zinc-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-green-600 focus:border-transparent transition-colors placeholder:text-zinc-300 disabled:bg-zinc-50 disabled:text-zinc-400";
@@ -57,24 +68,15 @@ export default function CreateProductModal({ isOpen, onClose, onSuccess, mode = 
   const [fieldErrors, setFieldErrors] = useState({});
   const [categories, setCategories] = useState([]);
 
-  // catalog mode
+  // ── sản phẩm gợi ý theo danh mục đã chọn ───────────────────
+  // products       : danh sách sản phẩm fetch theo form.category (để supplier chọn nhanh)
+  // selectedProductId : id sản phẩm supplier vừa chọn trong select gợi ý (chỉ dùng để autofill tên,
+  //                     KHÔNG gửi lên API tạo sản phẩm — payload vẫn chỉ có name/category như cũ)
   const [products, setProducts] = useState([]);
   const [loadingProducts, setLoadingProducts] = useState(false);
   const [selectedProductId, setSelectedProductId] = useState("");
 
-  // ── Reset khi đóng / đổi mode ──────────────────────────────
-  useEffect(() => {
-    if (!isOpen) return;
-    setForm({ name: "", unit: "kg", category: "", wholesale_price: "", daily_production_capacity: "", description: "", storage_duration_days: "", min_storage_temp: "", max_storage_temp: "" });
-    setImages([]);
-    setThumbnailIdx(0);
-    setError(null);
-    setFieldErrors({});
-    setSelectedProductId("");
-    setProducts([]);
-  }, [isOpen, mode]);
-
-  // Escape
+  // Escape key
   useEffect(() => {
     if (!isOpen) return;
     const h = (e) => { if (e.key === "Escape" && !saving) onClose(); };
@@ -93,9 +95,14 @@ export default function CreateProductModal({ isOpen, onClose, onSuccess, mode = 
     return () => { images.forEach((img) => URL.revokeObjectURL(img.preview)); };
   }, [images]);
 
-  // ── Fetch danh mục ─────────────────────────────────────────
-  // catalog → lấy tất cả active
-  // personal → chỉ lấy scope=customer
+  // ─────────────────────────────────────────────────────────────
+  // [FETCH API] Danh sách DANH MỤC SẢN PHẨM — hiển thị ở select đầu tiên
+  // Gọi ngay khi modal mở, KHÔNG phụ thuộc field nào khác.
+  //   Endpoint : GET /categories/
+  //   Response : res.data.results → [{ id, name, status }]
+  //   Hàm gọi  : categoryService.getsupplierCategories()  (đã implement)
+  // Sau khi có danh sách → render vào <select> "Nhóm rau — danh mục" bên dưới.
+  // ─────────────────────────────────────────────────────────────
   useEffect(() => {
     if (!isOpen) return;
     let cancelled = false;
@@ -170,6 +177,65 @@ export default function CreateProductModal({ isOpen, onClose, onSuccess, mode = 
     return () => { cancelled = true; };
   }, [isOpen, form.category, isPersonal]);
 
+  // ─────────────────────────────────────────────────────────────
+  // [FETCH API] Danh sách SẢN PHẨM theo danh mục đã chọn
+  // Trigger ngay khi `form.category` thay đổi (tức ngay sau khi supplier
+  // chọn xong 1 danh mục ở select trên) — KHÔNG cần chờ submit.
+  // Mục đích: hiển thị các sản phẩm đã có sẵn trong danh mục đó để supplier
+  // chọn nhanh (tự điền tên, tránh tạo trùng lặp). Đây chỉ là gợi ý UI,
+  // không bắt buộc — supplier vẫn có thể tự nhập tên sản phẩm mới.
+  //   Endpoint : GET /product-masters/?category_id=<id>
+  //   Hàm gọi  : productMasterApi.getByCategory_id(form.category)
+  // ─────────────────────────────────────────────────────────────
+  useEffect(() => {
+    if (!isOpen) {
+      setProducts([]);
+      setSelectedProductId("");
+      return;
+    }
+
+    let cancelled = false;
+    setLoadingProducts(true);
+
+    productMasterService
+      .getByCategory_id(form.category)
+      .then((list) => {
+        console.log("API result", list);
+        if (!cancelled) {
+          const data = list || [];
+          setProducts(data);
+          if (data.length > 0) {
+            // Check if the currently selectedProductId still exists in the newly loaded list
+            const stillExists = data.some((p) => String(p.id) === selectedProductId);
+            if (stillExists) {
+              const picked = data.find((p) => String(p.id) === selectedProductId);
+              setForm((f) => ({ ...f, name: picked.name }));
+            } else {
+              const firstProduct = data[0];
+              setSelectedProductId(String(firstProduct.id));
+              setForm((f) => ({ ...f, name: firstProduct.name }));
+            }
+          } else {
+            setSelectedProductId("");
+            setForm((f) => ({ ...f, name: "" }));
+          }
+        }
+      })
+      .catch((err) => {
+        console.error("[CreateProductModal] fetch products by category error:", err);
+        if (!cancelled) {
+          setProducts([]);
+          setSelectedProductId("");
+          setForm((f) => ({ ...f, name: "" }));
+        }
+      })
+      .finally(() => {
+        if (!cancelled) setLoadingProducts(false);
+      });
+
+    return () => { cancelled = true; };
+  }, [isOpen, form.category]);
+
   if (!isOpen) return null;
 
   const set = (k, v) => {
@@ -193,34 +259,17 @@ export default function CreateProductModal({ isOpen, onClose, onSuccess, mode = 
     });
   };
 
-  // ── Submit ─────────────────────────────────────────────────
+  // ── submit ──────────────────────────────────────────────────
   const handleSubmit = async () => {
     setError(null);
-
-    // --- Validate ---
     if (!form.category) {
-      setFieldErrors({ category: "Vui lòng chọn danh mục." });
-      setError("Vui lòng chọn danh mục.");
+      setFieldErrors({ category: "Danh mục: Vui lòng chọn nhóm rau/danh mục." });
+      setError("Danh mục: Vui lòng chọn nhóm rau/danh mục.");
       return;
     }
-    if (!isPersonal && !selectedProductId) {
-      setError("Vui lòng chọn sản phẩm từ danh mục.");
+    if (!selectedProductId) {
+      setError("Vui lòng chọn sản phẩm gợi ý từ danh mục.");
       return;
-    }
-    if (isPersonal && !form.name.trim()) {
-      setFieldErrors({ name: "Vui lòng nhập tên sản phẩm." });
-      setError("Vui lòng nhập tên sản phẩm.");
-      return;
-    }
-    if (isPersonal) {
-      productFd.append("name", form.name.trim());
-      productFd.append("unit", form.unit);
-      // gửi product_master nếu supplier có chọn tham khảo
-      if (selectedProductId) {
-        productFd.append("product_master", selectedProductId);
-      }
-    } else {
-      productFd.append("product_master", selectedProductId);
     }
     const errs = validateProductForm(form);
     if (Object.keys(errs).length) {
@@ -233,8 +282,12 @@ export default function CreateProductModal({ isOpen, onClose, onSuccess, mode = 
 
     try {
       const productFd = new FormData();
+      const productUpDate = new FormData();
+      const name = form.name.trim();
       const slug = Math.floor(1000000000 + Math.random() * 9000000000).toString();
 
+      productFd.append("product_master", selectedProductId);
+      productFd.append("slug", slug);
       productFd.append("category", parseInt(form.category, 10));
       productFd.append("slug", slug);
       productFd.append("wholesale_price", form.wholesale_price);
@@ -243,16 +296,8 @@ export default function CreateProductModal({ isOpen, onClose, onSuccess, mode = 
       if (form.storage_duration_days !== "") productFd.append("storage_duration_days", parseInt(form.storage_duration_days, 10));
       if (form.min_storage_temp !== "") productFd.append("min_storage_temp", form.min_storage_temp);
       if (form.max_storage_temp !== "") productFd.append("max_storage_temp", form.max_storage_temp);
-
-      if (isPersonal) {
-        // personal: gửi name + unit, KHÔNG gửi product_master
-        productFd.append("name", form.name.trim());
-        productFd.append("unit", form.unit);
-      } else {
-        // catalog: gửi product_master (id), name được lấy từ product master
-        productFd.append("product_master", selectedProductId);
-      }
-
+      console.log(productFd)
+      // Gọi API tạo sản phẩm
       const newProduct = await productService.addProduct(productFd);
       const productId = newProduct?.id;
       if (!productId) throw new Error("Không lấy được ID sản phẩm vừa tạo.");
@@ -361,15 +406,11 @@ export default function CreateProductModal({ isOpen, onClose, onSuccess, mode = 
             <div className="flex flex-col gap-4">
 
               {/* Thông tin cơ bản */}
-              <Section
-                icon={<Info className={`w-4 h-4 ${accentColor}`} />}
-                title="Thông tin cơ bản"
-              >
-                {/* Danh mục */}
+              <Section icon={<Info className="w-4 h-4 text-green-700" />} title="Thông tin cơ bản">
+
+                {/* category — hiển thị ĐẦU TIÊN, supplier chọn danh mục trước */}
                 <div className="mb-3">
-                  <label className={labelCls}>
-                    {isPersonal ? "Danh mục cá nhân (*)" : "Nhóm rau — danh mục (*)"}
-                  </label>
+                  <label className={labelCls}>Nhóm rau — danh mục (*)</label>
                   <select
                     value={form.category}
                     onChange={(e) => set("category", e.target.value)}
@@ -377,14 +418,15 @@ export default function CreateProductModal({ isOpen, onClose, onSuccess, mode = 
                     disabled={saving}
                   >
                     <option value="">
-                      {categories.length === 0
-                        ? (isPersonal ? "Bạn chưa có danh mục cá nhân nào" : "Đang tải danh mục...")
-                        : "— Chọn danh mục —"}
+                      {categories.length === 0 ? "Đang tải danh mục..." : "Tất cả sản phẩm"}
                     </option>
-                    {categories.map((c) => (
-                      <option key={c.id} value={String(c.id)}>{c.name}{isPersonal? " (cá nhân)": ""}</option>
-                    ))}
+                    {categories
+                      .filter((c) => c.status === "active")
+                      .map((c) => (
+                        <option key={c.id} value={String(c.id)}>{c.name}</option>
+                      ))}
                   </select>
+
                   {fieldErrors.category && <p className="text-xs text-red-500 mt-1">{fieldErrors.category}</p>}
                   {isPersonal && categories.length === 0 && (
                     <p className="text-xs text-amber-600 mt-1">
@@ -393,88 +435,42 @@ export default function CreateProductModal({ isOpen, onClose, onSuccess, mode = 
                   )}
                 </div>
 
-                {/* catalog: chọn product master; personal: tự nhập tên */}
-                {!isPersonal ? (
-                  <div className="mb-3">
-                    <label className={labelCls}>Sản phẩm có sẵn trong danh mục (gợi ý)</label>
-                    <select
-                      value={selectedProductId}
-                      onChange={(e) => {
-                        const id = e.target.value;
-                        setSelectedProductId(id);
-                        const picked = products.find((p) => String(p.id) === id);
-                        if (picked) {
-                          set("name", picked.name);
-                          if (picked.category) {
-                            const catId = picked.category.id ?? picked.category;
-                            if (catId) set("category", String(catId));
+                {/* sản phẩm gợi ý theo danh mục — chỉ hiện sau khi đã chọn category,
+                    fetch ngay khi category đổi (xem useEffect [FETCH API] phía trên) */}
+                <div className="mb-3">
+                  <label className={labelCls}>Sản phẩm có sẵn trong danh mục (gợi ý)</label>
+                  <select
+                    value={selectedProductId}
+                    onChange={(e) => {
+                      const id = e.target.value;
+                      setSelectedProductId(id);
+                      const picked = products.find((p) => String(p.id) === id);
+                      if (picked) {
+                        set("name", picked.name);
+                        if (picked.category) {
+                          const catId = picked.category.id ?? picked.category;
+                          if (catId) {
+                            set("category", String(catId));
                           }
                         }
-                      }}
-                      className={selectClsMode}
-                      disabled={saving || loadingProducts || products.length === 0}
-                    >
-                      {products.length === 0 ? (
-                        <option value="">Không có sản phẩm nào trong danh mục này</option>
-                      ) : (
-                        products.map((p) => (
-                          <option key={p.id} value={String(p.id)}>
-                            {p.name}{p.status === "customer" ? " (sản phẩm cá nhân)" : ""}
-                          </option>
-                        ))
-                      )}
-                    </select>
-                    <p className="text-xs text-zinc-400 mt-1">Chọn 1 sản phẩm có từ catalog để bán.</p>
-                  </div>
-                ) : (
-                  /* personal: nhập tên + chọn product_master tùy chọn */
-                  <>
-                    <div className="mb-3">
-                      <label className={labelCls}>Tên sản phẩm (*)</label>
-                      <input
-                        type="text"
-                        placeholder="VD: Cà chua bi nhà kính loại A"
-                        value={form.name}
-                        onChange={(e) => set("name", e.target.value)}
-                        className={`${inputClsMode} ${fieldErrors.name ? "border-red-400 bg-red-50" : ""}`}
-                        disabled={saving}
-                      />
-                      {fieldErrors.name && <p className="text-xs text-red-500 mt-1">{fieldErrors.name}</p>}
-                    </div>
-
-                    {/* product_master tùy chọn — chỉ hiện khi đã chọn category */}
-                    {form.category && (
-                      <div className="mb-3">
-                        <label className={labelCls}>
-                          Liên kết sản phẩm tham khảo
-                          <span className="ml-1 text-zinc-300">(tùy chọn)</span>
-                        </label>
-                        <select
-                          value={selectedProductId}
-                          onChange={(e) => setSelectedProductId(e.target.value)}
-                          className={selectClsMode}
-                          disabled={saving || loadingProducts}
-                        >
-                          <option value="">— Không liên kết —</option>
-                          {loadingProducts ? (
-                            <option disabled>Đang tải...</option>
-                          ) : products.length === 0 ? (
-                            <option disabled>Không có sản phẩm tham khảo</option>
-                          ) : (
-                            products.map((p) => (
-                              <option key={p.id} value={String(p.id)}>{p.name}</option>
-                            ))
-                          )}
-                        </select>
-                        <p className="text-xs text-zinc-400 mt-1">
-                          Liên kết với sản phẩm có sẵn trong hệ thống để admin duyệt nhanh hơn.
-                        </p>
-                      </div>
+                      }
+                    }}
+                    className={selectCls}
+                    disabled={saving || loadingProducts || products.length === 0}
+                  >
+                    {products.length === 0 ? (
+                      <option value="">Không có sản phẩm nào trong danh mục này</option>
+                    ) : (
+                      products.map((p) => (
+                        <option key={p.id} value={String(p.id)}>{p.name}{p.status === "customer" ? " (sản phẩm cá nhân)" : "" }</option>
+                      ))
                     )}
-                  </>
-                )}
-
-                {/* Mô tả */}
+                  </select>
+                  <p className="text-xs text-zinc-400 mt-1">
+                    Chọn 1 sản phẩm có từ catalog để bán.
+                  </p>
+                </div>
+                {/* description */}
                 <div>
                   <label className={labelCls}>Mô tả chi tiết</label>
                   <textarea

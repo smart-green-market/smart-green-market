@@ -326,6 +326,26 @@ class PurchaseOrderDetailSerializer(serializers.ModelSerializer):
         read_only=True,
         help_text="Thông tin TK ngân hàng NCC (dùng VietQR)",
     )
+    dealer_phone = serializers.CharField(
+        source="dealer.account.phone",
+        read_only=True,
+        help_text="SĐT đại lý",
+    )
+    dealer_email = serializers.CharField(
+        source="dealer.account.email",
+        read_only=True,
+        help_text="Email đại lý",
+    )
+    supplier_phone = serializers.CharField(
+        source="supplier.phone",
+        read_only=True,
+        help_text="SĐT NCC",
+    )
+    supplier_email = serializers.CharField(
+        source="supplier.account.email",
+        read_only=True,
+        help_text="Email NCC",
+    )
 
     class Meta:
         model = PurchaseOrder
@@ -337,6 +357,10 @@ class PurchaseOrderDetailSerializer(serializers.ModelSerializer):
             "supplier_bank",
             "dealer",
             "dealer_name",
+            "dealer_phone",
+            "dealer_email",
+            "supplier_phone",
+            "supplier_email",
             "status",
             "delivery_address",
             "requested_delivery_time",

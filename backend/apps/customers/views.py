@@ -1,6 +1,7 @@
 """API hồ sơ khách hàng, địa chỉ và quản lý khách theo đại lý."""
 
-from drf_spectacular.utils import extend_schema, extend_schema_view
+from django.db.models import Q
+from drf_spectacular.utils import extend_schema, extend_schema_view, OpenApiParameter
 from rest_framework import viewsets
 from rest_framework.exceptions import PermissionDenied, ValidationError
 from rest_framework.parsers import FormParser, JSONParser, MultiPartParser
@@ -43,6 +44,10 @@ def _customer_profile_queryset():
                 "PaginatedDealerCustomer",
             )
         },
+        parameters=[
+            OpenApiParameter("search", str, description="Tìm kiếm theo tên, email, sđt", required=False),
+            OpenApiParameter("status", str, description="Lọc theo trạng thái tài khoản", required=False),
+        ],
     ),
     retrieve=extend_schema(tags=["Dealer Customers"], summary="Chi tiết khách hàng"),
     partial_update=extend_schema(
@@ -72,6 +77,23 @@ class DealerCustomerViewSet(viewsets.ModelViewSet):
             if not hasattr(user, "dealer_profile"):
                 return qs.none()
             qs = qs.filter(user__store_dealer=user.dealer_profile)
+            
+        if self.action == "list":
+            status_filter = self.request.query_params.get("status")
+            if status_filter:
+                qs = qs.filter(user__status=status_filter.strip())
+                
+            search = self.request.query_params.get("search")
+            if search:
+                search = search.strip()
+                qs = qs.filter(
+                    Q(user__first_name__icontains=search) |
+                    Q(user__last_name__icontains=search) |
+                    Q(user__email__icontains=search) |
+                    Q(user__phone__icontains=search) |
+                    Q(user__username__icontains=search)
+                )
+                
         return qs
 
     def get_serializer_class(self):

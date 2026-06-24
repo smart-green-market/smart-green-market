@@ -12,7 +12,8 @@ export default function DraftOrderPreviewPage() {
 
   // Lấy dữ liệu draftData từ state
   const rawData = location.state?.draftData;
-  const draftList = Array.isArray(rawData) ? rawData : (rawData ? [rawData] : []);
+  const initialDraftList = Array.isArray(rawData) ? rawData : (rawData ? [rawData] : []);
+  const [draftList, setDraftList] = useState(initialDraftList);
 
   if (draftList.length === 0) {
     return (
@@ -24,6 +25,12 @@ export default function DraftOrderPreviewPage() {
       </div>
     );
   }
+
+  const handleNoteChange = (index, value) => {
+    const newList = [...draftList];
+    newList[index].note = value;
+    setDraftList(newList);
+  };
 
   const handleConfirmOrder = async () => {
     setLoading(true);
@@ -93,6 +100,38 @@ export default function DraftOrderPreviewPage() {
         <h1 className="text-2xl font-bold text-neutral-800">Xác nhận phiếu nhập hàng</h1>
       </div>
 
+      {/* Thông tin giao hàng chung */}
+      {draftList.length > 0 && (
+        <div className="bg-white rounded-2xl p-6 shadow-sm border border-neutral-100 mb-8">
+          <h2 className="text-lg font-bold text-emerald-800 mb-4 border-b border-emerald-50 pb-2">
+            Thông tin nhận hàng
+          </h2>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+            <div>
+              <div className="text-neutral-500 mb-1">Người nhận</div>
+              <div className="font-medium text-neutral-800">{draftList[0].receiver_name}</div>
+            </div>
+            <div>
+              <div className="text-neutral-500 mb-1">Số điện thoại</div>
+              <div className="font-medium text-neutral-800">{draftList[0].receiver_phone}</div>
+            </div>
+            <div>
+              <div className="text-neutral-500 mb-1">Địa chỉ giao hàng</div>
+              <div className="font-medium text-neutral-800">{draftList[0].delivery_address}</div>
+            </div>
+            <div>
+              <div className="text-neutral-500 mb-1">Thời gian mong muốn</div>
+              <div className="font-medium text-neutral-800">
+                {draftList[0].requested_delivery_time 
+                  ? new Date(draftList[0].requested_delivery_time).toLocaleString("vi-VN")
+                  : "Không yêu cầu"}
+              </div>
+            </div>
+            
+          </div>
+        </div>
+      )}
+
       <div className="flex flex-col gap-8">
         {draftList.map((draft, index) => {
 
@@ -101,10 +140,21 @@ export default function DraftOrderPreviewPage() {
             <h2 className="text-lg font-bold text-emerald-800 mb-4 border-b border-emerald-50 pb-2">
               Phiếu {draftList.length > 1 ? `#${index + 1}` : ""} - {draft.supplier_name}
             </h2>
-
+        
             {/* Danh sách sản phẩm */}
             <OrderDetailItemsTable items={draft.items} />
-
+            {/* Ghi chú */}
+            <div className="mb-6">
+              <label className="block text-sm font-semibold text-neutral-800 mb-2">
+                {draftList.length > 1 ? "Ghi chú cho nhà cung cấp này" : "Ghi chú đơn hàng"}
+              </label>
+              <textarea
+                value={draft.note || ""}
+                onChange={(e) => handleNoteChange(index, e.target.value)}
+                placeholder="Nhập ghi chú (nếu có)..."
+                className="w-full text-sm border border-neutral-200 rounded-xl p-3 outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 transition-all min-h-[80px]"
+              />
+            </div>
             {/* Tổng tiền */}
             <div className="flex justify-end">
               <div className="bg-emerald-50 text-emerald-900 px-6 py-4 rounded-xl flex items-center gap-4">

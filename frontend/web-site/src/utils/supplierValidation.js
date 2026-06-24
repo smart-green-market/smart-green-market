@@ -47,35 +47,17 @@ const EN_ERROR_PATTERNS = [
   [/enter a valid url\.?/i, "Đường dẫn URL không hợp lệ."],
   [/a valid integer is required\.?/i, "Giá trị phải là số nguyên hợp lệ."],
   [/a valid number is required\.?/i, "Giá trị phải là số hợp lệ."],
-  [
-    /ensure this value is greater than or equal to (\d+)\.?/i,
-    "Giá trị phải lớn hơn hoặc bằng $1.",
-  ],
-  [
-    /ensure this value is less than or equal to (\d+)\.?/i,
-    "Giá trị phải nhỏ hơn hoặc bằng $1.",
-  ],
-  [
-    /ensure this field has no more than (\d+) characters\.?/i,
-    "Không được vượt quá $1 ký tự.",
-  ],
-  [
-    /ensure this field has at least (\d+) characters\.?/i,
-    "Phải có ít nhất $1 ký tự.",
-  ],
-  [
-    /invalid pk ".*" - object does not exist\.?/i,
-    "Giá trị đã chọn không tồn tại hoặc không hợp lệ.",
-  ],
+  [/ensure this value is greater than or equal to (\d+)\.?/i, "Giá trị phải lớn hơn hoặc bằng $1."],
+  [/ensure this value is less than or equal to (\d+)\.?/i, "Giá trị phải nhỏ hơn hoặc bằng $1."],
+  [/ensure this field has no more than (\d+) characters\.?/i, "Không được vượt quá $1 ký tự."],
+  [/ensure this field has at least (\d+) characters\.?/i, "Phải có ít nhất $1 ký tự."],
+  [/invalid pk ".*" - object does not exist\.?/i, "Giá trị đã chọn không tồn tại hoặc không hợp lệ."],
   [/not a valid choice\.?/i, "Giá trị không nằm trong danh sách cho phép."],
   [/file too large\.?/i, "Tệp quá lớn, vui lòng chọn tệp nhỏ hơn."],
   [/the submitted file is empty\.?/i, "Tệp đính kèm đang trống."],
   [/no file was submitted\.?/i, "Chưa chọn tệp đính kèm."],
   [/passwords do not match\.?/i, "Mật khẩu xác nhận không khớp."],
-  [
-    /user with this username already exists\.?/i,
-    "Tên tài khoản đã được sử dụng.",
-  ],
+  [/user with this username already exists\.?/i, "Tên tài khoản đã được sử dụng."],
   [/user with this email already exists\.?/i, "Email đã được sử dụng."],
   [/already exists\.?/i, "Giá trị này đã tồn tại trong hệ thống."],
 ];
@@ -106,10 +88,7 @@ export function formatFieldError(field, message, customLabels = {}) {
  * @returns {{ fieldErrors: Record<string,string>, general: string, summary: string }}
  */
 export function parseSupplierApiErrors(apiErrors, options = {}) {
-  const {
-    customLabels = {},
-    fallback = "Có lỗi xảy ra. Vui lòng kiểm tra lại thông tin.",
-  } = options;
+  const { customLabels = {}, fallback = "Có lỗi xảy ra. Vui lòng kiểm tra lại thông tin." } = options;
   const fieldErrors = {};
   const generalParts = [];
 
@@ -152,10 +131,7 @@ export function parseSupplierApiErrors(apiErrors, options = {}) {
   return { fieldErrors, general, summary };
 }
 
-export function extractSupplierApiMessage(
-  error,
-  fallback = "Có lỗi xảy ra. Vui lòng thử lại!",
-) {
+export function extractSupplierApiMessage(error, fallback = "Có lỗi xảy ra. Vui lòng thử lại!") {
   const data = error?.response?.data ?? error?.data;
   if (!data) {
     const msg = error?.message;
@@ -180,10 +156,7 @@ export function validateProductForm(form) {
     errs.category = "Danh mục: Vui lòng chọn nhóm rau/danh mục.";
   }
 
-  if (
-    form.daily_production_capacity === "" ||
-    form.daily_production_capacity == null
-  ) {
+  if (form.daily_production_capacity === "" || form.daily_production_capacity == null) {
     errs.daily_production_capacity = "Năng suất: Không được để trống.";
   } else {
     const capacity = Number(form.daily_production_capacity);
@@ -204,24 +177,15 @@ export function validateProductForm(form) {
   if (form.storage_duration_days !== "" && form.storage_duration_days != null) {
     const days = Number(form.storage_duration_days);
     if (!Number.isInteger(days) || days < 0) {
-      errs.storage_duration_days =
-        "Thời hạn bảo quản: Phải là số nguyên không âm.";
+      errs.storage_duration_days = "Thời hạn bảo quản: Phải là số nguyên không âm.";
     }
   }
 
-  if (
-    form.min_storage_temp !== "" &&
-    form.min_storage_temp != null &&
-    isNaN(Number(form.min_storage_temp))
-  ) {
+  if (form.min_storage_temp !== "" && form.min_storage_temp != null && isNaN(Number(form.min_storage_temp))) {
     errs.min_storage_temp = "Nhiệt độ tối thiểu: Phải là số hợp lệ.";
   }
 
-  if (
-    form.max_storage_temp !== "" &&
-    form.max_storage_temp != null &&
-    isNaN(Number(form.max_storage_temp))
-  ) {
+  if (form.max_storage_temp !== "" && form.max_storage_temp != null && isNaN(Number(form.max_storage_temp))) {
     errs.max_storage_temp = "Nhiệt độ tối đa: Phải là số hợp lệ.";
   }
 
@@ -234,8 +198,7 @@ export function validateProductForm(form) {
     !isNaN(Number(form.max_storage_temp)) &&
     Number(form.min_storage_temp) > Number(form.max_storage_temp)
   ) {
-    errs.max_storage_temp =
-      "Nhiệt độ tối đa: Phải lớn hơn hoặc bằng nhiệt độ tối thiểu.";
+    errs.max_storage_temp = "Nhiệt độ tối đa: Phải lớn hơn hoặc bằng nhiệt độ tối thiểu.";
   }
 
   return errs;
@@ -253,10 +216,7 @@ export function validateCategoryForm(form) {
 
   if (form.sort_order === "" || form.sort_order === null) {
     errs.sort_order = "Thứ tự sắp xếp: Không được để trống.";
-  } else if (
-    !Number.isInteger(Number(form.sort_order)) ||
-    Number(form.sort_order) < 0
-  ) {
+  } else if (!Number.isInteger(Number(form.sort_order)) || Number(form.sort_order) < 0) {
     errs.sort_order = "Thứ tự sắp xếp: Phải là số nguyên không âm.";
   }
 
@@ -268,18 +228,14 @@ export function validateCategoryForm(form) {
 }
 
 /** ── Validation form quy trình canh tác ── */
-export function validateCultivationForm(
-  form,
-  { activeProductIds = [], originalProductId } = {},
-) {
+export function validateCultivationForm(form, { activeProductIds = [], originalProductId } = {}) {
   const errs = {};
 
   if (!form.supplier_product) {
     errs.supplier_product = "Sản phẩm: Vui lòng chọn sản phẩm.";
   } else {
     const pid = Number(form.supplier_product);
-    const isOriginal =
-      originalProductId != null && pid === Number(originalProductId);
+    const isOriginal = originalProductId != null && pid === Number(originalProductId);
     if (!isOriginal && !activeProductIds.includes(pid)) {
       errs.supplier_product =
         "Sản phẩm: Chỉ được chọn sản phẩm đang được bán (trạng thái đang hoạt động).";
@@ -287,12 +243,7 @@ export function validateCultivationForm(
   }
 
   const step = Number(form.step_order);
-  if (
-    form.step_order === "" ||
-    form.step_order == null ||
-    !Number.isInteger(step) ||
-    step < 1
-  ) {
+  if (form.step_order === "" || form.step_order == null || !Number.isInteger(step) || step < 1) {
     errs.step_order = "Số thứ tự bước: Phải là số nguyên lớn hơn hoặc bằng 1.";
   }
 
@@ -315,19 +266,12 @@ export function validateCertificationForm(form, { hasImage = false } = {}) {
   const errs = {};
 
   if (!form.name?.trim()) errs.name = "Tên chứng nhận: Không được để trống.";
-  if (!form.certificate_code?.trim())
-    errs.certificate_code = "Mã chứng nhận: Không được để trống.";
-  if (!form.issued_by?.trim())
-    errs.issued_by = "Đơn vị cấp: Không được để trống.";
+  if (!form.certificate_code?.trim()) errs.certificate_code = "Mã chứng nhận: Không được để trống.";
+  if (!form.issued_by?.trim()) errs.issued_by = "Đơn vị cấp: Không được để trống.";
   if (!form.issue_date) errs.issue_date = "Ngày cấp: Vui lòng chọn ngày cấp.";
-  if (!form.expiry_date)
-    errs.expiry_date = "Ngày hết hạn: Vui lòng chọn ngày hết hạn.";
+  if (!form.expiry_date) errs.expiry_date = "Ngày hết hạn: Vui lòng chọn ngày hết hạn.";
 
-  if (
-    form.issue_date &&
-    form.expiry_date &&
-    form.expiry_date < form.issue_date
-  ) {
+  if (form.issue_date && form.expiry_date && form.expiry_date < form.issue_date) {
     errs.expiry_date = "Ngày hết hạn: Phải sau ngày cấp.";
   }
 

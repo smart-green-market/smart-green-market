@@ -5,10 +5,7 @@ export const buyerReviewService = {
     // Đánh giá sản phẩm sau đơn completed. Prefix: /api/storefronts/{dealer_slug}/.
     // Buyer: pending-reviews → POST reviews (multipart) → PATCH/DELETE review. Public: GET products/{id}/reviews/ + summary.
     
-    getAll: (dealer_slug, params = {}) =>
-        axiosClient
-            .get(`/storefronts/${dealer_slug}/reviews/`, { params })
-            .then((res) => res.data),
+    getAll: (dealer_slug) => axiosClient.get(`/storefronts/${dealer_slug}/reviews/`).then((res) => res.data),
     //Buyer đánh giá của tôi (danh sách)
 
     //in dealer_slug: string
@@ -72,10 +69,7 @@ export const buyerReviewService = {
     //     "updated_at": "2026-06-23T12:43:57.773Z"
     //   }
 
-    pendingReview: (dealer_slug, params = {}) =>
-        axiosClient
-            .get(`/storefronts/${dealer_slug}/me/pending-reviews/`, { params })
-            .then((res) => res.data),
+    pendingReview: (dealer_slug) => axiosClient.get(`/storefronts/${dealer_slug}/me/reviews/pending-reviews/`).then((res) => res.data),
     //Buyer sản phẩm chờ đánh giá (danh sách)
 
     //in dealer_slug: string
@@ -91,15 +85,7 @@ export const buyerReviewService = {
     //     }
     //   ]
 
-    create: (dealer_slug, data) => {
-        const config =
-            data instanceof FormData
-                ? { headers: { "Content-Type": "multipart/form-data" } }
-                : undefined;
-        return axiosClient
-            .post(`/storefronts/${dealer_slug}/reviews/`, data, config)
-            .then((res) => res.data);
-    },
+    create: (dealer_slug, data) => axiosClient.post(`/storefronts/${dealer_slug}/reviews/`, data).then((res) => res.data),
     //Buyer tạo review
     //in dealer_slug: string
 
@@ -138,15 +124,7 @@ export const buyerReviewService = {
     //     "updated_at": "2026-06-23T12:52:27.769Z"
     //   }
     
-    uploadImage: (dealer_slug, id, data) => {
-        const config =
-            data instanceof FormData
-                ? { headers: { "Content-Type": "multipart/form-data" } }
-                : undefined;
-        return axiosClient
-            .post(`/storefronts/${dealer_slug}/reviews/${id}/images/`, data, config)
-            .then((res) => res.data);
-    },
+    uploadImage: (dealer_slug, id, data) => axiosClient.post(`/storefronts/${dealer_slug}/reviews/${id}/images/`, data).then((res) => res.data),
     //Buyer tải lên ảnh review
     //in dealer_slug: string, id: int
 
@@ -204,12 +182,7 @@ export const buyerReviewService = {
 
     // PUBLIC
 
-    productReviews: (dealer_slug, product_id, params = {}) =>
-        axiosClient
-            .get(`/storefronts/${dealer_slug}/products/${product_id}/reviews/`, {
-                params,
-            })
-            .then((res) => res.data),
+    productReviews: (dealer_slug, product_id) => axiosClient.get(`/storefronts/${dealer_slug}/products/${product_id}/reviews/`).then((res) => res.data),
     // Review công khai trên trang chi tiết SP.
     // Phân trang (load more): ?page=1&page_size=20 (mặc định page=1, page_size=20, tối đa 100).
 
@@ -247,12 +220,7 @@ export const buyerReviewService = {
     //     ]
     //   }
 
-    productRating: (dealer_slug, product_id) =>
-        axiosClient
-            .get(
-                `/storefronts/${dealer_slug}/products/${product_id}/reviews/summary/`,
-            )
-            .then((res) => res.data),
+    productRating: (dealer_slug, product_id) => axiosClient.get(`/storefronts/${dealer_slug}/products/${product_id}/reviews/summary`).then((res) => res.data),
     //Tổng rating sản phẩm
     //Tổng hợp rating — hiển thị sao trung bình.
 
@@ -272,13 +240,8 @@ export const buyerReviewService = {
 };
 
 export const handleApiError = (error, defaultMessage = "Có lỗi xảy ra") => {
-    const data = error.response?.data;
     const message =
-        data?.message ||
-        data?.detail ||
-        (typeof data === "string" ? data : null) ||
-        error.message ||
-        defaultMessage;
+        error.response?.data?.message || error.message || defaultMessage;
     console.error("API Error:", error);
     return message;
 };
