@@ -12,6 +12,7 @@ export default function OrderConfirmModal({
     discount = 0,
     deliveryLabel = "",
     deliverySlotName = "",
+    deliverySlotTime = "",
     address = null,
     note = "",
 }) {
@@ -56,7 +57,12 @@ export default function OrderConfirmModal({
                         <p className="font-semibold text-emerald-950">Giao hàng</p>
                         <p className="mt-1">{deliveryLabel || "—"}</p>
                         <p className="mt-0.5 text-neutral-600">
-                            Khung giờ: {deliverySlotName || "—"}
+                            Khung giờ:{" "}
+                            {deliverySlotName
+                                ? deliverySlotTime
+                                    ? `${deliverySlotName} (${deliverySlotTime})`
+                                    : deliverySlotName
+                                : "—"}
                         </p>
                     </div>
 

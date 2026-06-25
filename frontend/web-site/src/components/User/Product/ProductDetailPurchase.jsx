@@ -6,6 +6,7 @@ import {
     Clock3,
     Heart,
     Leaf,
+    Loader2,
     Minus,
     Package,
     Plus,
@@ -44,8 +45,9 @@ function MetaRow({ icon: Icon, label, value }) {
 
 export default function ProductDetailPurchase({
     product,
-    rating = 4.8,
-    reviewCount = 124,
+    averageRating = 0,
+    reviewCount = 0,
+    ratingLoading = false,
 }) {
     const [quantity, setQuantity] = useState(1);
     const navigate = useNavigate();
@@ -133,6 +135,8 @@ export default function ProductDetailPurchase({
         }
     };
 
+    const hasReviews = reviewCount > 0;
+
     return (
         <div className="flex flex-col gap-6">
             {/* Header */}
@@ -183,10 +187,21 @@ export default function ProductDetailPurchase({
                         </div>
                     </div>
                     <div className="flex flex-col items-start gap-1 sm:items-end">
-                        <StarRating value={rating} size="md" />
-                        <span className="text-sm text-neutral-600">
-                            {Number(rating).toFixed(1)} · {reviewCount} đánh giá
-                        </span>
+                        {ratingLoading ? (
+                            <Loader2 className="h-5 w-5 animate-spin text-emerald-700" />
+                        ) : hasReviews ? (
+                            <>
+                                <StarRating value={averageRating} size="md" />
+                                <span className="text-sm text-neutral-600">
+                                    {Number(averageRating).toFixed(1)} · {reviewCount}{" "}
+                                    đánh giá
+                                </span>
+                            </>
+                        ) : (
+                            <span className="text-sm text-neutral-500">
+                                Chưa có đánh giá
+                            </span>
+                        )}
                     </div>
                 </div>
             </div>
@@ -219,7 +234,7 @@ export default function ProductDetailPurchase({
                                     !inStock ||
                                     normalizeQuantity(quantity) <= 1
                                 }
-                                className="rounded-l-xl p-2.5 text-emerald-900 transition-colors hover:bg-stone-100 disabled:opacity-40"
+                                className="cursor-pointer rounded-l-xl p-2.5 text-emerald-900 transition-colors hover:bg-stone-100 disabled:opacity-40"
                                 aria-label="Giảm số lượng"
                             >
                                 <Minus className="h-4 w-4" />
@@ -244,7 +259,7 @@ export default function ProductDetailPurchase({
                                     (maxQuantity != null &&
                                         normalizeQuantity(quantity) >= maxQuantity)
                                 }
-                                className="rounded-r-xl p-2.5 text-emerald-900 transition-colors hover:bg-stone-100 disabled:opacity-40"
+                                className="cursor-pointer rounded-r-xl p-2.5 text-emerald-900 transition-colors hover:bg-stone-100 disabled:opacity-40"
                                 aria-label="Tăng số lượng"
                             >
                                 <Plus className="h-4 w-4" />
@@ -259,7 +274,7 @@ export default function ProductDetailPurchase({
                             type="button"
                             onClick={handleBuyNow}
                             disabled={!inStock}
-                            className={`flex flex-1 items-center justify-center gap-3 rounded-lg bg-orange-500 px-4 py-4 text-base text-white transition-colors ${
+                            className={`cursor-pointer flex flex-1 items-center justify-center gap-3 rounded-lg bg-orange-500 px-4 py-4 text-base text-white transition-colors ${
                                 inStock
                                     ? "hover:bg-orange-600"
                                     : "cursor-not-allowed opacity-50"
@@ -274,7 +289,7 @@ export default function ProductDetailPurchase({
                         type="button"
                         onClick={handleAddToCart}
                         disabled={!inStock}
-                        className={`flex items-center justify-center gap-3 rounded-lg bg-emerald-950 px-4 py-4 text-base text-white transition-colors ${inStock ? "hover:bg-emerald-900" : "cursor-not-allowed opacity-50"
+                        className={`cursor-pointer flex items-center justify-center gap-3 rounded-lg bg-emerald-950 px-4 py-4 text-base text-white transition-colors ${inStock ? "hover:bg-emerald-900" : "cursor-not-allowed opacity-50"
                             }`}
                     >
                         <ShoppingCart className="h-4 w-4" />

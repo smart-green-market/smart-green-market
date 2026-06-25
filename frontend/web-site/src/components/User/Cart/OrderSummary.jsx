@@ -49,7 +49,7 @@ export default function OrderSummary({
         type="button"
         onClick={onCheckout}
         disabled={selectedCount === 0}
-        className="mt-5 w-full rounded-lg bg-emerald-800 py-3.5 text-sm font-semibold text-white shadow-sm transition hover:bg-emerald-900 disabled:cursor-not-allowed disabled:opacity-50"
+        className="cursor-pointer mt-5 w-full rounded-lg bg-emerald-800 py-3.5 text-sm font-semibold text-white shadow-sm transition hover:bg-emerald-900 disabled:cursor-not-allowed disabled:opacity-50"
       >
         Đặt hàng
       </button>

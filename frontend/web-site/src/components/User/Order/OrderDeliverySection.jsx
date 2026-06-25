@@ -1,4 +1,4 @@
-import { CalendarClock, Loader2 } from "lucide-react";
+import { CalendarClock, Clock3, Loader2 } from "lucide-react";
 
 export default function OrderDeliverySection({
     dates = [],
@@ -72,7 +72,7 @@ export default function OrderDeliverySection({
                                         }}
                                         disabled={!slot.available}
                                         aria-disabled={!slot.available}
-                                        className={`rounded-xl border px-4 py-4 text-left transition-colors ${
+                                        className={`rounded-xl border px-4 py-3.5 text-left transition-colors ${
                                             isSelected
                                                 ? "border-emerald-800 bg-emerald-50"
                                                 : slot.available
@@ -89,11 +89,25 @@ export default function OrderDeliverySection({
                                         >
                                             {slot.name}
                                         </p>
-                                        <p className="mt-0.5 text-xs text-neutral-500">
-                                            {slot.available
-                                                ? "Còn slot trống"
-                                                : "Đã hết slot"}
-                                        </p>
+
+                                        <div
+                                            className={`mt-1.5 flex items-center gap-1.5 ${
+                                                slot.available
+                                                    ? "text-emerald-700"
+                                                    : "text-neutral-500"
+                                            }`}
+                                        >
+                                            <Clock3 className="h-3.5 w-3.5 shrink-0" />
+                                            <span className="text-sm font-medium">
+                                                {slot.timeLabel || "—"}
+                                            </span>
+                                        </div>
+
+                                        {!slot.available ? (
+                                            <p className="mt-1 text-xs font-medium text-red-600">
+                                                Đã qua khung giờ giao hàng
+                                            </p>
+                                        ) : null}
                                     </button>
                                 );
                             })}

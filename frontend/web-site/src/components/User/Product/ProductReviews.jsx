@@ -217,22 +217,29 @@ function ReviewItem({ review }) {
 export default function ProductReviews({
     dealerSlug,
     productId,
-    onSummaryLoaded,
+    summary: externalSummary,
 }) {
     const [page, setPage] = useState(1);
-    const [summary, setSummary] = useState(mapProductReviewSummary(null));
+    const [internalSummary, setInternalSummary] = useState(
+        mapProductReviewSummary(null),
+    );
     const [reviews, setReviews] = useState([]);
     const [totalPages, setTotalPages] = useState(1);
-    const [summaryLoading, setSummaryLoading] = useState(true);
+    const [summaryLoading, setSummaryLoading] = useState(
+        externalSummary === undefined,
+    );
     const [reviewsLoading, setReviewsLoading] = useState(true);
     const [error, setError] = useState("");
+
+    const summary = externalSummary ?? internalSummary;
+    const useExternalSummary = externalSummary !== undefined;
 
     useEffect(() => {
         setPage(1);
     }, [dealerSlug, productId]);
 
     useEffect(() => {
-        if (!dealerSlug || !productId) return undefined;
+        if (useExternalSummary || !dealerSlug || !productId) return undefined;
 
         let cancelled = false;
 
@@ -246,9 +253,7 @@ export default function ProductReviews({
                 );
                 if (cancelled) return;
 
-                const mapped = mapProductReviewSummary(data);
-                setSummary(mapped);
-                onSummaryLoaded?.(data);
+                setInternalSummary(mapProductReviewSummary(data));
             } catch (err) {
                 if (!cancelled) {
                     setError(handleApiError(err, "Không thể tải tổng hợp đánh giá"));
@@ -263,7 +268,7 @@ export default function ProductReviews({
         return () => {
             cancelled = true;
         };
-    }, [dealerSlug, productId, onSummaryLoaded]);
+    }, [dealerSlug, productId, useExternalSummary]);
 
     useEffect(() => {
         if (!dealerSlug || !productId) return undefined;
@@ -321,7 +326,7 @@ export default function ProductReviews({
                             <div className="flex justify-center py-4 lg:py-6">
                                 <Loader2 className="h-6 w-6 animate-spin text-emerald-700" />
                             </div>
-                        ) : (
+                        ) : summary.total > 0 ? (
                             <>
                                 <p className="text-4xl font-bold text-emerald-950 lg:text-5xl">
                                     {summary.average.toFixed(1)}
@@ -335,6 +340,10 @@ export default function ProductReviews({
                                     Dựa trên {summary.total} đánh giá từ khách hàng
                                 </p>
                             </>
+                        ) : (
+                            <p className="py-4 text-sm font-medium text-neutral-500 lg:py-6">
+                                Chưa có đánh giá
+                            </p>
                         )}
                     </div>
 

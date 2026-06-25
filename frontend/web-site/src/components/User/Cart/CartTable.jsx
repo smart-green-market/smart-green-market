@@ -7,6 +7,7 @@ export default function CartTable({
   onToggleSelect,
   onDecrease,
   onIncrease,
+  onSetQuantity,
   onRemove,
 }) {
   return (
@@ -34,6 +35,7 @@ export default function CartTable({
             onToggleSelect={onToggleSelect}
             onDecrease={onDecrease}
             onIncrease={onIncrease}
+            onSetQuantity={onSetQuantity}
             onRemove={onRemove}
           />
         ))}

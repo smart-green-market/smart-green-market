@@ -1,10 +1,11 @@
-import { useMemo } from "react";
+import { useEffect, useMemo } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { ArrowLeft, ShoppingBag } from "lucide-react";
 import CartTable from "../../components/User/Cart/CartTable";
 import OrderSummary from "../../components/User/Cart/OrderSummary";
 import SuggestProduct from "../../components/User/Home/SuggestProduct";
 import { useCart } from "../../contexts/cartProvider";
+import { useBuyerCatalog } from "../../hooks/useBuyerCatalog";
 import { useStorefrontPaths } from "../../hooks/useStorefrontPaths";
 
 export default function CartPage() {
@@ -16,8 +17,15 @@ export default function CartPage() {
     toggleSelectItem,
     increaseQuantity,
     decreaseQuantity,
+    setItemQuantity,
+    syncItemsWithCatalog,
     removeItem,
   } = useCart();
+  const { products } = useBuyerCatalog();
+
+  useEffect(() => {
+    syncItemsWithCatalog(products);
+  }, [products, syncItemsWithCatalog]);
 
   const selectedItems = useMemo(
     () => cartItems.filter((item) => item.selected),
@@ -69,6 +77,7 @@ export default function CartPage() {
               onToggleSelect={toggleSelectItem}
               onDecrease={decreaseQuantity}
               onIncrease={increaseQuantity}
+              onSetQuantity={setItemQuantity}
               onRemove={removeItem}
             />
 
