@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { Search, ShoppingCart, Newspaper, User } from "lucide-react";
+import { Search, ShoppingCart, Newspaper, User, Package } from "lucide-react";
 import { useAuth } from "../../../contexts/authProvider";
 import { isBuyerUser } from "../../../utils/buyerAuthUtils";
 import { useCart } from "../../../contexts/cartProvider";
@@ -84,9 +84,20 @@ export default function Header() {
                         {searchInput}
                     </form>
 
-                    <div className="flex shrink-0 items-center gap-0.5 sm:gap-1 md:gap-0">
+                    <div
+                        className={`flex shrink-0 items-center gap-0.5 sm:gap-1 ${
+                            isLoggedIn ? "md:gap-0" : "md:gap-3"
+                        }`}
+                    >
+                        <HeaderNavLink
+                            to={paths.products}
+                            icon={Package}
+                            label="Sản phẩm"
+                            title="Sản phẩm"
+                        />
                         {isLoggedIn ? (
                             <>
+                                <HeaderNavDivider />
                                 <HeaderNavLink
                                     to={paths.orderStatus}
                                     icon={Newspaper}
@@ -119,6 +130,7 @@ export default function Header() {
                             </>
                         ) : (
                             <>
+                                <HeaderNavDivider />
                                 <Link
                                     to={paths.login}
                                     className="whitespace-nowrap rounded-lg border border-white px-2.5 py-1.5 text-xs font-semibold text-white no-underline transition-colors hover:bg-white/10 sm:px-4 sm:py-2 sm:text-sm md:px-5"
