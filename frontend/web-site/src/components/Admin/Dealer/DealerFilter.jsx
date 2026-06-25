@@ -1,29 +1,20 @@
-const OPTIONS = [
-    { label: "TẤT CẢ", value: "" },
-    { label: "ĐANG HOẠT ĐỘNG", value: "active" },
-    { label: "TẠM KHÓA", value: "inactive" },
-    { label: "TỪ CHỐI", value: "rejected" },
-    { label: "CHỜ DUYỆT", value: "pending" },
+import FilterDropdown from "../UI/FilterDropdown";
+
+export const DEALER_FILTER_OPTIONS = [
+    { label: "Tất cả", value: "" },
+    { label: "Đang hoạt động", value: "active" },
+    { label: "Tạm khóa", value: "inactive" },
+    { label: "Từ chối", value: "rejected" },
+    { label: "Chờ duyệt", value: "pending" },
 ];
 
-export default function DealerFilter({ value, onChange }) {
+export default function DealerFilter(props) {
     return (
-        <div className="flex flex-wrap items-center gap-2">
-            {OPTIONS.map((opt) => (
-                <button
-                    key={opt.value}
-                    type="button"
-                    onClick={() => onChange(opt.value)}
-                    className={`cursor-pointer rounded-lg px-3 py-1.5 text-xs font-semibold transition-colors font-['Geist',sans-serif] ${
-                        value === opt.value
-                            ? "bg-emerald-800 text-white"
-                            : "bg-stone-100 text-neutral-600 hover:bg-stone-200"
-                    }`}
-                >
-                    {opt.label}
-                </button>
-            ))}
-        </div>
+        <FilterDropdown
+            {...props}
+            label="Lọc đại lý"
+            options={DEALER_FILTER_OPTIONS}
+        />
     );
 }
 

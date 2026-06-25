@@ -31,10 +31,7 @@ export const farmingProcessService = {
    * PATCH /api/farming-processes/:id/
    */
   update: async (id, payload) => {
-    const res = await axiosClient.patch(
-      `/cultivation-processes/${id}/`,
-      payload,
-    );
+    const res = await axiosClient.patch(`/cultivation-processes/${id}/`, payload);
     return res.data;
   },
 

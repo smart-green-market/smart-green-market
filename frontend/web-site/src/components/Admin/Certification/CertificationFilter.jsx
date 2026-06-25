@@ -1,26 +1,18 @@
+import FilterDropdown from "../UI/FilterDropdown";
+
 const OPTIONS = [
-    { label: "TẤT CẢ",         value: "" },
-    { label: "ĐÃ DUYỆT", value: "approved" },
-    { label: "TỪ CHỐI",        value: "rejected" },
-    { label: "ĐĂNG KÝ",      value: "pending" },
+    { label: "Tất cả", value: "" },
+    { label: "Đã duyệt", value: "approved" },
+    { label: "Từ chối", value: "rejected" },
+    { label: "Đăng ký", value: "pending" },
 ];
 
-export default function Filter({ value, onChange }) {
+export default function CertificationFilter(props) {
     return (
-        <div className="flex items-center gap-2">
-            {OPTIONS.map((opt) => (
-                <button
-                    key={opt.value}
-                    onClick={() => onChange(opt.value)}
-                    className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors font-['Geist',sans-serif] cursor-pointer
-                        ${value === opt.value
-                            ? "bg-emerald-800 text-white"
-                            : "bg-stone-100 text-neutral-600 hover:bg-stone-200"
-                        }`}
-                >
-                    {opt.label}
-                </button>
-            ))}
-        </div>
+        <FilterDropdown
+            {...props}
+            label="Lọc chứng chỉ"
+            options={OPTIONS}
+        />
     );
 }

@@ -14,7 +14,9 @@ export const NOTIFICATION_ROLE_PATHS = {
 };
 
 export function getNotificationSeeAllPath(role = "admin") {
-  return NOTIFICATION_ROLE_PATHS[role]?.seeAllPath;
+  return (
+    NOTIFICATION_ROLE_PATHS[role]?.seeAllPath
+  );
 }
 
 export function canManageNotificationActions(role = "admin") {
