@@ -5,7 +5,7 @@ import AddCategoryModal from "../../components/Supplier/Category/CreateCategoryM
 import { categoryService } from "../../services/api/categoryService";
 import DeleteConfirmModal from "../../components/common/DeleteConfirmModal";
 import SupplierPageHeader, { SUPPLIER_PAGE_CLASS } from "../../components/Supplier/UI/SupplierPageHeader";
-
+import DetailCategoryModal from "../../components/Supplier/Category/DetailCategoryModal"
 export default function CategorySupplierPage() {
   const [data, setData] = useState([]);
   const [search, setSearch] = useState("");
@@ -14,6 +14,8 @@ export default function CategorySupplierPage() {
   // Modal states
   const [deleteRow, setDeleteRow] = useState(null); // row | null
   const [showAddCategory, setShowAddCategory] = useState(false);
+
+  const [selectedCategory, setSelectedCategory] = useState(null);
 
   /* ── Fetch ── */
   const fetchProducts = async () => {
@@ -103,7 +105,7 @@ export default function CategorySupplierPage() {
         data={data}
         search={search}
         statusFilter={statusFilter}
-        onView={row => setDetailRow(row)}
+        onView={(row) => setSelectedCategory(row)}
         onDelete={row => setDeleteRow(row)}
       />
 
@@ -123,7 +125,20 @@ export default function CategorySupplierPage() {
         product={detailRow}
         onUpdate={handleUpdate}
       /> */}
-
+      {selectedCategory && (
+        <DetailCategoryModal
+          category={selectedCategory}
+          onClose={() => setSelectedCategory(null)}
+          onEdit={(cat) => {
+            setSelectedCategory(null);
+            openEditModal(cat); // TODO: thay bằng hàm mở edit của bạn
+          }}
+          onDelete={(cat) => {
+            setSelectedCategory(null);
+            handleDelete(cat); // TODO: thay bằng hàm xóa của bạn
+          }}
+        />
+      )}
       {showAddCategory && (
         <AddCategoryModal
           onClose={() => setShowAddCategory(false)}
