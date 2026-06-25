@@ -1,8 +1,8 @@
 import { useState } from "react";
-import OrderInfoCard from "../../components/user/Payment/OrderInfoCard";
-import ShippingAddressCard from "../../components/user/Payment/ShippingAddressCard";
-import PaymentMethodSelector from "../../components/user/Payment/PaymentMethodSelector";
-import BankingDetailsCard from "../../components/user/Payment/BankingDetailsCard";
+import OrderInfoCard from "../../components/User/Payment/OrderInfoCard";
+import ShippingAddressCard from "../../components/User/Payment/ShippingAddressCard";
+import PaymentMethodSelector from "../../components/User/Payment/PaymentMethodSelector";
+import BankingDetailsCard from "../../components/User/Payment/BankingDetailsCard";
 import {
   mockBankingInfo,
   mockOrderItems,

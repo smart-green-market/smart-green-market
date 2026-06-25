@@ -1,31 +1,23 @@
+import FilterDropdown from "../UI/FilterDropdown";
+
 const OPTIONS = [
-    { label: "TẤT CẢ",         value: "" },
-    { label: "ĐÃ ĐỌC", value: "read" },
-    { label: "CHƯA ĐỌC",        value: "unread" },
-    { label: "THÔNG BÁO",        value: "info" },
-    { label: "CẢNH BÁO",        value: "warning" },
-    { label: "THÀNH CÔNG",        value: "success" },
-    { label: "THẤT BẠI",        value: "error" },
-    { label: "GIẤY TỜ",        value: "supplier_document" },
-    { label: "CHỨNG CHỈ",        value: "certification" },
+    { label: "Tất cả", value: "" },
+    { label: "Đã đọc", value: "read" },
+    { label: "Chưa đọc", value: "unread" },
+    { label: "Thông báo", value: "info" },
+    { label: "Cảnh báo", value: "warning" },
+    { label: "Thành công", value: "success" },
+    { label: "Thất bại", value: "error" },
+    { label: "Giấy tờ", value: "supplier_document" },
+    { label: "Chứng chỉ", value: "certification" },
 ];
 
-export default function Filter({ value, onChange }) {
+export default function NotificationFilter(props) {
     return (
-        <div className="flex items-center gap-2">
-            {OPTIONS.map((opt) => (
-                <button
-                    key={opt.value}
-                    onClick={() => onChange(opt.value)}
-                    className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors font-['Geist',sans-serif] cursor-pointer
-                        ${value === opt.value
-                            ? "bg-emerald-800 text-white"
-                            : "bg-stone-100 text-neutral-600 hover:bg-stone-200"
-                        }`}
-                >
-                    {opt.label}
-                </button>
-            ))}
-        </div>
+        <FilterDropdown
+            {...props}
+            label="Lọc thông báo"
+            options={OPTIONS}
+        />
     );
 }

@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 
-import SearchBar from "../../components/Admin/UI/SearchBar";
+import Toolbar from "../../components/Admin/UI/Toolbar";
 import { AdminInitialLoadGate } from "../../components/Admin/UI/AdminFetchState";
 import DealerFilter, {
     getDealerDisplayStatus,
@@ -210,43 +210,39 @@ export default function DealerPage() {
             onRetry={() => fetchDealers({ initial: true })}
             loadingMessage="Đang tải danh sách đại lý..."
         >
-        <div className="flex flex-col gap-6 px-8 pb-10 pt-6">
-            <SearchBar
-                value={search}
-                onChange={setSearch}
-                placeholder="Tìm kiếm đại lý..."
-            />
+            <div className="flex flex-col gap-6 px-8 pb-10 pt-6">
+                <Toolbar
+                    search={search}
+                    onSearch={setSearch}
+                    searchPlaceholder="Tìm kiếm đại lý..."
+                    filter={
+                        <DealerFilter value={statusFilter} onChange={setStatusFilter} />
+                    }
+                />
 
-            <div className="flex items-center gap-3">
-                <span className="text-xs font-semibold uppercase tracking-wide text-neutral-400">
-                    Lọc:
-                </span>
-                <DealerFilter value={statusFilter} onChange={setStatusFilter} />
+                {error ? (
+                    <div className="rounded-xl bg-red-100 px-4 py-3 text-sm text-red-700">
+                        {error}
+                    </div>
+                ) : null}
+
+                <DealerTable
+                    data={filteredData}
+                    loading={loading}
+                    onView={handleViewDealer}
+                />
+
+                <DealerViewModal
+                    isOpen={viewRow !== null}
+                    onClose={() => setViewRow(null)}
+                    dealer={viewRow}
+                    onApprove={handleApprove}
+                    onReject={handleReject}
+                    onLock={handleLock}
+                    onUnlock={handleUnlock}
+                    loading={actionLoading}
+                />
             </div>
-
-            {error ? (
-                <div className="rounded-xl bg-red-100 px-4 py-3 text-sm text-red-700">
-                    {error}
-                </div>
-            ) : null}
-
-            <DealerTable
-                data={filteredData}
-                loading={loading}
-                onView={handleViewDealer}
-            />
-
-            <DealerViewModal
-                isOpen={viewRow !== null}
-                onClose={() => setViewRow(null)}
-                dealer={viewRow}
-                onApprove={handleApprove}
-                onReject={handleReject}
-                onLock={handleLock}
-                onUnlock={handleUnlock}
-                loading={actionLoading}
-            />
-        </div>
         </AdminInitialLoadGate>
     );
 }

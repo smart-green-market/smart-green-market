@@ -3,7 +3,7 @@
 from django.db.models.deletion import ProtectedError
 from django.db.models import Count, F, Q
 from django.utils import timezone
-from drf_spectacular.utils import extend_schema, extend_schema_view
+from drf_spectacular.utils import extend_schema, extend_schema_view, OpenApiParameter
 from rest_framework import viewsets
 from rest_framework.decorators import action
 from rest_framework.exceptions import PermissionDenied, ValidationError
@@ -88,7 +88,13 @@ def _annotate_category_product_count(qs, user):
             "Mỗi danh mục kèm `product_count`."
             + PAGINATION_QUERY_HELP
         ),
-        responses={200: paginated_response_schema(CategoryListSerializer, "PaginatedCategory")},
+        parameters=[
+            OpenApiParameter("search", str, description="Tìm kiếm theo tên hoặc mô tả", required=False),
+            OpenApiParameter("status", str, description="Lọc theo trạng thái", required=False),
+        ],
+        responses={
+            200: paginated_response_schema(CategoryListSerializer, "PaginatedCategory")
+        },
     ),
     retrieve=extend_schema(
         tags=["Categories"],
@@ -151,6 +157,20 @@ class CategoryViewSet(viewsets.ModelViewSet):
         )
         if self.action in ("list", "retrieve", "verify", "lock", "unlock"):
             qs = _annotate_category_product_count(qs, self.request.user)
+            
+        if self.action == "list":
+            status_filter = self.request.query_params.get("status")
+            if status_filter:
+                qs = qs.filter(status=status_filter.strip())
+                
+            search = self.request.query_params.get("search")
+            if search:
+                search = search.strip()
+                qs = qs.filter(
+                    Q(name__icontains=search) | 
+                    Q(description__icontains=search)
+                )
+                
         return qs
 
     def _ensure_can_edit(self, category):

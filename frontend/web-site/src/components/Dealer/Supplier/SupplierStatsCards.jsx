@@ -2,9 +2,9 @@ import StatsCard from "./StatsCard";
 import { Truck, Leaf, Sprout } from "lucide-react";
 
 export default function SupplierStatsCards({ suppliers }) {
-    const stats = [
-        { icon: Truck, label: "Tổng nhà cung cấp", value: suppliers.length, iconBg: "bg-emerald-50", valueColor: "text-emerald-800" },
-    ];
+    // const stats = [
+    //     { icon: Truck, label: "Tổng nhà cung cấp", value: suppliers.length, iconBg: "bg-emerald-50", valueColor: "text-emerald-800" },
+    // ];
 
     return (
         <>
@@ -28,15 +28,15 @@ export default function SupplierStatsCards({ suppliers }) {
                 <div className="hidden sm:flex items-center gap-2 px-4 py-2 bg-emerald-50/60 rounded-xl border border-emerald-100/50">
                     <Sprout className="w-4 h-4 text-emerald-600" />
                     <span className="text-xs font-bold text-emerald-700">
-                        {suppliers.length} đối tác đang hợp tác
+                        {suppliers.length} nhà cung cấp đang hoạt động
                     </span>
                 </div>
             </div>
 
             {/* Stats Cards */}
-            <div className="grid grid-cols-2 xl:grid-cols-4 gap-4 mb-6">
+            {/* <div className="grid grid-cols-2 xl:grid-cols-4 gap-4 mb-6">
                 {stats.map((s, i) => <StatsCard key={i} {...s} />)}
-            </div>
+            </div> */}
         </>
     );
 }
