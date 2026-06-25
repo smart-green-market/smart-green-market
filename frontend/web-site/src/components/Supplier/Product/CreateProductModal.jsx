@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import {
   X, Info, Tag, ToggleLeft, ImageIcon, Lightbulb,
-  Plus, CloudUpload, Loader2, Thermometer, Star, User,
+  Plus, CloudUpload, Loader2, Thermometer, Star, User, Search,
 } from "lucide-react";
 
 import { categoryService } from "../../../services/api/categoryService";
