@@ -21,7 +21,7 @@ const mapStatusToFrontend = (status) => {
         completed: "Đã hoàn thành",
         cancelled: "Đã hủy",
     };
-    return statusMap[status] || status;
+    return statusMap[status] || status; 
 };
 
 
@@ -81,12 +81,12 @@ export default function DealerPurchaseOrderPage() {
                     rawId: item.id,
                     id: item.order_code,
                     supplier: item.supplier_name,
-                    date: new Date(item.created_at).toLocaleDateString("vi-VN"),
+                    date: new Date(item.created_at).toLocaleDateString("vi-VN", { day: '2-digit', month: '2-digit', year: 'numeric' }),
                     items: "Xem chi tiết đơn hàng",
                     amount: `${Number(item.total_amount).toLocaleString("vi-VN")} đ`,
                     status: mapStatusToFrontend(item.status),
                     deliveryDate: item.requested_delivery_time
-                        ? new Date(item.requested_delivery_time).toLocaleDateString("vi-VN")
+                        ? new Date(item.requested_delivery_time).toLocaleDateString("vi-VN", { day: '2-digit', month: '2-digit', year: 'numeric' })
                         : "Chưa xác định",
                 }));
                 //Check đơn mới đã tồn tại chưa để thêm lên đầu

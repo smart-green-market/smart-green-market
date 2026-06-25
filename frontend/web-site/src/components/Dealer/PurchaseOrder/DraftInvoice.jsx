@@ -83,18 +83,20 @@ export default function DraftInvoice({
         </div>
 
         {/* Actions */}
-        <div className="flex gap-3 mt-4">
+        <div className="flex flex-wrap gap-2.5 mt-4">
           <button
             onClick={onCancel}
-            className="flex-1 border border-neutral-200 hover:bg-neutral-50 text-neutral-600 hover:text-neutral-800 rounded-xl h-11 text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer"
+            className="flex-1 min-w-[100px] px-2 py-2.5 border border-neutral-200 hover:bg-neutral-50 text-neutral-600 hover:text-neutral-800 rounded-xl min-h-[44px] text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer"
           >
-            <X className="w-3.5 h-3.5" /> Hủy đơn
+            <X className="w-3.5 h-3.5 shrink-0" />
+            <span className="truncate">Hủy đơn</span>
           </button>
           <button
             onClick={onCreate}
-            className="flex-1 bg-emerald-800 hover:bg-emerald-700 text-white rounded-xl h-11 text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer shadow-xs active:scale-95"
+            className="flex-1 min-w-[130px] px-2 py-2.5 bg-emerald-800 hover:bg-emerald-700 text-white rounded-xl min-h-[44px] text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer shadow-xs active:scale-95"
           >
-            <Check className="w-3.5 h-3.5" /> Tạo phiếu nhập
+            <Check className="w-3.5 h-3.5 shrink-0" />
+            <span className="truncate">Tạo phiếu nhập</span>
           </button>
         </div>
       </div>
