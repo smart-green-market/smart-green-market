@@ -11,6 +11,7 @@ import { dealerProductService } from "../../../services/api/dealerProductService
 export default function DealerProductManagementPage() {
   const [products, setProducts] = useState([]);
   const [searchQuery, setSearchQuery] = useState("");
+  const [debouncedSearchQuery, setDebouncedSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
   const [loading, setLoading] = useState(true);
   const [currentPage, setCurrentPage] = useState(1);
@@ -21,10 +22,20 @@ export default function DealerProductManagementPage() {
 
   const navigate = useNavigate();
 
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      if (debouncedSearchQuery !== searchQuery) {
+        setDebouncedSearchQuery(searchQuery);
+        setCurrentPage(1);
+      }
+    }, 500);
+    return () => clearTimeout(timer);
+  }, [searchQuery, debouncedSearchQuery]);
+
   const fetchProducts = async () => {
     setLoading(true);
     try {
-      const data = await dealerProductService.getAll({ page: currentPage, page_size: 10, search: searchQuery, status: statusFilter });
+      const data = await dealerProductService.getAll({ page: currentPage, page_size: 10, search: debouncedSearchQuery, status: statusFilter });
       const results = data?.results || data || [];
       setProducts(results);
       setTotalPages(Math.max(1, Math.ceil((data?.count || results.length) / 10)));
@@ -37,7 +48,7 @@ export default function DealerProductManagementPage() {
 
   useEffect(() => {
     fetchProducts();
-  }, [currentPage, searchQuery, statusFilter]);
+  }, [currentPage, debouncedSearchQuery, statusFilter]);
 
   const filteredProducts = products; // Lọc ở API rồi nên không cần lọc local nữa (nếu API có hỗ trợ), nhưng tạm để nguyên danh sách data trả về. Nếu cần lọc local thêm:
   // (Đã dời logic query search lên API params)
@@ -82,7 +93,7 @@ export default function DealerProductManagementPage() {
 
           <SupplierFilter
             searchQuery={searchQuery}
-            onSearchChange={(val) => { setSearchQuery(val); setCurrentPage(1); }}
+            onSearchChange={(val) => setSearchQuery(val)}
             statusFilter={statusFilter}
             onStatusChange={(val) => { setStatusFilter(val); setCurrentPage(1); }}
             filterOptions={filterOptions}

@@ -31,6 +31,7 @@ export default function DealerPurchaseOrderPage() {
     const [purchaseOrders, setPurchaseOrders] = useState([]);
     const [loading, setLoading] = useState(false);
     const [searchQuery, setSearchQuery] = useState("");
+    const [debouncedSearchQuery, setDebouncedSearchQuery] = useState("");
     const [statusFilter, setStatusFilter] = useState("");
     const navigate = useNavigate();
     const location = useLocation();
@@ -62,6 +63,16 @@ export default function DealerPurchaseOrderPage() {
         }
     };
 
+    useEffect(() => {
+        const timer = setTimeout(() => {
+            if (debouncedSearchQuery !== searchQuery) {
+                setDebouncedSearchQuery(searchQuery);
+                setCurrentPage(1);
+            }
+        }, 500);
+        return () => clearTimeout(timer);
+    }, [searchQuery, debouncedSearchQuery]);
+
     //  Gọi API mỗi khi trang hoặc trạng thái route thay đổi
     useEffect(() => {
         const fetchOrders = async () => {
@@ -71,7 +82,7 @@ export default function DealerPurchaseOrderPage() {
                     page: currentPage,
                     page_size: page_size,
                 };
-                if (searchQuery) params.search = searchQuery;
+                if (debouncedSearchQuery) params.search = debouncedSearchQuery;
                 if (statusFilter) params.status = statusFilter;
 
                 const response = await purchaseOrderService.getAll(params);
@@ -109,7 +120,7 @@ export default function DealerPurchaseOrderPage() {
             }
         };
         fetchOrders();
-    }, [currentPage, location.state, searchQuery, statusFilter]);
+    }, [currentPage, location.state, debouncedSearchQuery, statusFilter]);
 
     // Tìm kiếm và lọc theo trạng thái
     const filteredData = purchaseOrders; // Backend đã xử lý filter, ở đây không filter thêm để tránh lỗi phân trang
@@ -147,7 +158,7 @@ export default function DealerPurchaseOrderPage() {
             {/* Filter */}
             <SupplierFilter
                 searchQuery={searchQuery}
-                onSearchChange={(val) => { setSearchQuery(val); setCurrentPage(1); }}
+                onSearchChange={(val) => setSearchQuery(val)}
                 statusFilter={statusFilter}
                 onStatusChange={(val) => { setStatusFilter(val); setCurrentPage(1); }}
                 filterOptions={filterOptions}

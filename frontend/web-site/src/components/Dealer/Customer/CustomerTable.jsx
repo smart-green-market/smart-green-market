@@ -99,10 +99,10 @@ export default function CustomerTable({
       {/* Table Content */}
       {!loading && !error && customers.length > 0 && (
         <div className="overflow-x-auto">
-          <table className="w-full text-left border-collapse">
+          <table className="w-full text-left border-collapse whitespace-nowrap">
             <thead>
               <tr className="border-b border-neutral-100 bg-white">
-                <th className="py-4 px-6 text-[11px] font-black text-neutral-500 uppercase tracking-wider w-[30%]">Tên khách hàng</th>
+                <th className="py-4 px-6 text-[11px] font-black text-neutral-500 uppercase tracking-wider">Tên khách hàng</th>
                 <th className="py-4 px-6 text-[11px] font-black text-neutral-500 uppercase tracking-wider">Email</th>
                 <th className="py-4 px-6 text-[11px] font-black text-neutral-500 uppercase tracking-wider">Số điện thoại</th>
                 <th className="py-4 px-6 text-[11px] font-black text-neutral-500 uppercase tracking-wider">Tổng chi tiêu</th>

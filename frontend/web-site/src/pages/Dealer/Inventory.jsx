@@ -12,6 +12,7 @@ export default function DealerInventoryPage() {
   const [inventoryList, setInventoryList] = useState([]); // Danh sách lô hàng đã được map dữ liệu đầy đủ
   const [transactionList, setTransactionList] = useState([]); // Lịch sử giao dịch kho (Nhập, xuất, hao hụt...)
   const [searchQuery, setSearchQuery] = useState(""); // Từ khóa tìm kiếm lô hàng
+  const [debouncedSearchQuery, setDebouncedSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState(""); // Bộ lọc trạng thái lô hàng (Còn hàng, Hết hàng...)
   const [selectedRow, setSelectedRow] = useState(null); // Lô hàng đang được chọn để cập nhật (mở modal)
   const [loading, setLoading] = useState(true); // Trạng thái tải dữ liệu
@@ -21,10 +22,20 @@ export default function DealerInventoryPage() {
   const [transactionPage, setTransactionPage] = useState(1);
   const [transactionTotalPages, setTransactionTotalPages] = useState(1);
 
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      if (debouncedSearchQuery !== searchQuery) {
+        setDebouncedSearchQuery(searchQuery);
+        setInventoryPage(1);
+      }
+    }, 500);
+    return () => clearTimeout(timer);
+  }, [searchQuery, debouncedSearchQuery]);
+
   // Gọi API danh sách lô hàng
   useEffect(() => {
     fetchInventory();
-  }, [inventoryPage, searchQuery, statusFilter]);
+  }, [inventoryPage, debouncedSearchQuery, statusFilter]);
 
   // Gọi API lịch sử giao dịch
   useEffect(() => {
@@ -38,7 +49,7 @@ export default function DealerInventoryPage() {
     try {
       setLoading(true);
       const [data, productsData] = await Promise.all([
-        dealerInventoryService.getBatches({ page: inventoryPage, page_size: 10, search: searchQuery, status: statusFilter }),
+        dealerInventoryService.getBatches({ page: inventoryPage, page_size: 10, search: debouncedSearchQuery, status: statusFilter }),
         dealerProductService.getAll().catch(() => [])
       ]);
       const batches = data.results || data || [];
@@ -178,7 +189,7 @@ export default function DealerInventoryPage() {
       {/* 2. Bộ lọc kết hợp tìm kiếm và chọn nhanh trạng thái hàng */}
       <SupplierFilter
         searchQuery={searchQuery}
-        onSearchChange={(val) => { setSearchQuery(val); setInventoryPage(1); }}
+        onSearchChange={(val) => setSearchQuery(val)}
         statusFilter={statusFilter}
         onStatusChange={(val) => { setStatusFilter(val); setInventoryPage(1); }}
         filterOptions={filterOptions}

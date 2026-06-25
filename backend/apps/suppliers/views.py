@@ -139,6 +139,10 @@ def _supplier_catalog_product_q(supplier, *, dealer_catalog=False):
             "Dealer: catalog NCC đã duyệt. Chi tiết `GET /api/suppliers/{id}/` kèm `products[]`."
             + PAGINATION_QUERY_HELP
         ),
+        parameters=[
+            OpenApiParameter("search", str, description="Tìm kiếm theo tên công ty, địa chỉ", required=False),
+            OpenApiParameter("status", str, description="Lọc theo trạng thái", required=False),
+        ],
         responses={
             200: paginated_response_schema(SupplierListSerializer, "PaginatedSupplier"),
         },
@@ -162,10 +166,6 @@ def _supplier_catalog_product_q(supplier, *, dealer_catalog=False):
         responses={
             200: SupplierDetailSerializer,
         },
-        parameters=[
-            OpenApiParameter("search", str, description="Tìm kiếm theo tên công ty, địa chỉ", required=False),
-            OpenApiParameter("status", str, description="Lọc theo trạng thái", required=False),
-        ],
         examples=[SUPPLIER_CATALOG_DETAIL_EXAMPLE],
     ),
     create=extend_schema(
