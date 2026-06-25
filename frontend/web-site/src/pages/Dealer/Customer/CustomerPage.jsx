@@ -6,6 +6,7 @@ import { customerService } from "../../../services/api/customerService";
 
 export default function DealerCustomerPage() {
   const [searchQuery, setSearchQuery] = useState("");
+  const [debouncedSearchQuery, setDebouncedSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
   const [customers, setCustomers] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -18,14 +19,23 @@ export default function DealerCustomerPage() {
   });
 
   useEffect(() => {
+    const timer = setTimeout(() => {
+      if (debouncedSearchQuery !== searchQuery) {
+        setDebouncedSearchQuery(searchQuery);
+      }
+    }, 500);
+    return () => clearTimeout(timer);
+  }, [searchQuery, debouncedSearchQuery]);
+
+  useEffect(() => {
     fetchCustomers(1);
-  }, [searchQuery, statusFilter]);
+  }, [debouncedSearchQuery, statusFilter]);
 
   const fetchCustomers = async (page = 1) => {
     try {
       setLoading(true);
       setError(null);
-      const data = await customerService.getAll({ page, page_size: 10, search: searchQuery, status: statusFilter });
+      const data = await customerService.getAll({ page, page_size: 10, search: debouncedSearchQuery, status: statusFilter });
       setCustomers(data.results || []);
       setPagination({
         count: data.count || 0,

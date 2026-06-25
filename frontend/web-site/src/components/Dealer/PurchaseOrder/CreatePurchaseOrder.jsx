@@ -316,6 +316,18 @@ export default function CreatePurchaseOrder({ onClose, onSuccess }) {
 
     const supplierIds = Object.keys(groupedItems);
 
+    // Kiểm tra tổng hoá đơn của từng nhà cung cấp có trên 500.000đ hay không
+    for (const supplierId of supplierIds) {
+      const items = groupedItems[supplierId];
+      const supplierName = items[0]?.product?.supplier?.company_name || "Nhà cung cấp";
+      const totalAmount = items.reduce((sum, i) => sum + i.subtotal, 0);
+
+      if (totalAmount < 500000) {
+        toast.error(`Tổng hoá đơn của ${supplierName} phải đạt tối thiểu 500.000đ (hiện tại: ${totalAmount.toLocaleString("vi-VN")}đ)`, { position: "top-center", duration: 5000 });
+        return;
+      }
+    }
+
     const draftDataList = supplierIds.map(supplierId => {
       const items = groupedItems[supplierId];
       const firstProduct = items[0]?.product;

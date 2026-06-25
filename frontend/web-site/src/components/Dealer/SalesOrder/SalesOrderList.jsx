@@ -33,6 +33,23 @@ export default function SalesOrderList({ salesOrders, onViewDetail, onSelectedRo
     onSelectedRowsChange && onSelectedRowsChange({ selectedRows });
   };
 
+  const formatDateTimeVN = (isoString) => {
+    if (!isoString) return '';
+    try {
+      const date = new Date(isoString);
+      if (isNaN(date.getTime())) return isoString;
+      return new Intl.DateTimeFormat('vi-VN', {
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+        hour: '2-digit',
+        minute: '2-digit'
+      }).format(date);
+    } catch(e) {
+      return isoString;
+    }
+  };
+
   const getStatusConfig = (status) => {
     switch (status) {
       case "Chờ xác nhận":
@@ -135,7 +152,7 @@ export default function SalesOrderList({ salesOrders, onViewDetail, onSelectedRo
                       <div className="flex flex-col gap-1.5 py-1">
                         <div className="flex items-center gap-1.5 text-xs text-neutral-600 font-medium whitespace-nowrap">
                           <Calendar className="w-3.5 h-3.5 text-emerald-600/70" />
-                          <span><span className="text-neutral-400">Ngày đặt:</span> {row.date}</span>
+                          <span><span className="text-neutral-400">Ngày giao:</span> {formatDateTimeVN(row.date)}</span>
                         </div>
                       </div>
                     </td>

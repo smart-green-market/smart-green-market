@@ -10,6 +10,7 @@ import { dealerOrderService } from "../../../services/api/dealerOrderService";
 
 export default function DealerSalesOrderPage() {
     const [searchQuery, setSearchQuery] = useState("");
+    const [debouncedSearchQuery, setDebouncedSearchQuery] = useState("");
     const [statusFilter, setStatusFilter] = useState("");
     const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
     const [selectedOrder, setSelectedOrder] = useState(null);
@@ -38,10 +39,20 @@ export default function DealerSalesOrderPage() {
         }
     };
 
+    useEffect(() => {
+        const timer = setTimeout(() => {
+            if (debouncedSearchQuery !== searchQuery) {
+                setDebouncedSearchQuery(searchQuery);
+                setCurrentPage(1);
+            }
+        }, 500);
+        return () => clearTimeout(timer);
+    }, [searchQuery, debouncedSearchQuery]);
+
     const fetchOrders = async () => {
         setIsLoading(true);
         try {
-            const data = await dealerOrderService.getAll({ page: currentPage, page_size: 10, search: searchQuery, status: statusFilter });
+            const data = await dealerOrderService.getAll({ page: currentPage, page_size: 10, search: debouncedSearchQuery, status: statusFilter });
             const results = data.results || (Array.isArray(data) ? data : []);
             setTotalPages(Math.max(1, Math.ceil((data.count || results.length) / 10)));
 
@@ -50,7 +61,7 @@ export default function DealerSalesOrderPage() {
                 id: order.order_code,
                 customer: order.customer_name,
                 address: "Chưa có địa chỉ",
-                date: order.created_at ? new Date(order.created_at).toLocaleDateString('vi-VN') : (order.delivery_date || ""),
+                date: order.delivery_time,
                 items: `${order.item_count || 1} sản phẩm`,
                 amount: new Intl.NumberFormat('vi-VN').format(Number(order.total_amount || 0)) + ' đ',
                 payment: order.payment_method,
@@ -68,7 +79,7 @@ export default function DealerSalesOrderPage() {
 
     useEffect(() => {
         fetchOrders();
-    }, [currentPage, searchQuery, statusFilter]);
+    }, [currentPage, debouncedSearchQuery, statusFilter]);
 
     const filteredOrders = salesOrders; // Nếu backend đã filter thì bỏ qua. Nhưng tạm giữ lại data trả về. (Đã pass search param cho API)
 
@@ -227,7 +238,7 @@ export default function DealerSalesOrderPage() {
             {/* Filter */}
             <SupplierFilter
                 searchQuery={searchQuery}
-                onSearchChange={(val) => { setSearchQuery(val); setCurrentPage(1); }}
+                onSearchChange={(val) => setSearchQuery(val)}
                 statusFilter={statusFilter}
                 onStatusChange={(val) => { setStatusFilter(val); setCurrentPage(1); }}
                 filterOptions={filterOptions}
