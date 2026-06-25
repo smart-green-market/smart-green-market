@@ -1,4 +1,5 @@
 import { authService } from "../../../services/api/authAdminService";
+import { clearAuthStorage, saveAuthTokens } from "../../../services/token/authTokenStorage";
 import { accountDocumentService } from "../../../services/api/accountDocumentService";
 import { dealerService } from "../../../services/api/dealerService";
 
@@ -54,8 +55,7 @@ function getMissingDocTypes(documents = []) {
 }
 
 export async function attemptResumeDealerRegistration(username, password) {
-    localStorage.removeItem("access_token");
-    localStorage.removeItem("user");
+    clearAuthStorage();
 
     let loginResult;
 
@@ -76,7 +76,10 @@ export async function attemptResumeDealerRegistration(username, password) {
         throw new Error("Tài khoản này không phải đại lý.");
     }
 
-    localStorage.setItem("access_token", loginResult.access);
+    saveAuthTokens({
+        access: loginResult.access,
+        refresh: loginResult.refresh,
+    });
     localStorage.setItem("user", JSON.stringify(loginResult.account));
 
     let profile = null;
@@ -100,8 +103,7 @@ export async function attemptResumeDealerRegistration(username, password) {
     const storeComplete = isStoreInfoComplete(profileDraft);
 
     if (storeComplete && missingDocs.length === 0) {
-        localStorage.removeItem("access_token");
-        localStorage.removeItem("user");
+        clearAuthStorage();
         throw new Error(
             "Đăng ký đại lý đã hoàn tất. Vui lòng đăng nhập để sử dụng hệ thống.",
         );

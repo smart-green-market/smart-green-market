@@ -25,19 +25,19 @@ export const formatDateTime = (value, withTime = true) => {
 
   const options = withTime
     ? {
-        timeZone: "Asia/Ho_Chi_Minh",
-        day: "2-digit",
-        month: "2-digit",
-        year: "numeric",
-        hour: "2-digit",
-        minute: "2-digit",
-      }
+      timeZone: "Asia/Ho_Chi_Minh",
+      day: "2-digit",
+      month: "2-digit",
+      year: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+    }
     : {
-        timeZone: "Asia/Ho_Chi_Minh",
-        day: "2-digit",
-        month: "2-digit",
-        year: "numeric",
-      };
+      timeZone: "Asia/Ho_Chi_Minh",
+      day: "2-digit",
+      month: "2-digit",
+      year: "numeric",
+    };
 
   const formatted = new Intl.DateTimeFormat("vi-VN", options).format(d);
   if (!withTime) return formatted;
@@ -49,27 +49,11 @@ export const formatDateTime = (value, withTime = true) => {
 export const ORDER_STATUS_CFG = {
   pending: { label: "Chờ xác nhận", bg: "bg-blue-100", text: "text-blue-700" },
   confirmed: { label: "Đã xác nhận", bg: "bg-blue-100", text: "text-blue-700" },
-  processing: {
-    label: "Đang chuẩn bị",
-    bg: "bg-blue-100",
-    text: "text-blue-700",
-  },
-  preparing: {
-    label: "Đang chuẩn bị",
-    bg: "bg-blue-100",
-    text: "text-blue-700",
-  },
-  shipping: {
-    label: "Đang giao hàng",
-    bg: "bg-amber-100",
-    text: "text-amber-700",
-  },
+  processing: { label: "Đang chuẩn bị", bg: "bg-blue-100", text: "text-blue-700" },
+  preparing: { label: "Đang chuẩn bị", bg: "bg-blue-100", text: "text-blue-700" },
+  shipping: { label: "Đang giao hàng", bg: "bg-amber-100", text: "text-amber-700" },
   delivered: { label: "Đã giao", bg: "bg-teal-100", text: "text-teal-700" },
-  completed: {
-    label: "Hoàn tất",
-    bg: "bg-emerald-100",
-    text: "text-emerald-700",
-  },
+  completed: { label: "Hoàn tất", bg: "bg-emerald-100", text: "text-emerald-700" },
   cancelled: { label: "Đã hủy", bg: "bg-red-50", text: "text-red-500" },
 };
 
@@ -105,12 +89,8 @@ const DELIVERY_SLOT_WINDOWS = {
 };
 
 function resolveDeliverySlotKey(deliverySlot, deliverySlotName) {
-  const slot = String(deliverySlot ?? "")
-    .trim()
-    .toLowerCase();
-  const name = String(deliverySlotName ?? "")
-    .trim()
-    .toLowerCase();
+  const slot = String(deliverySlot ?? "").trim().toLowerCase();
+  const name = String(deliverySlotName ?? "").trim().toLowerCase();
 
   if (
     slot.includes("morning") ||
@@ -162,12 +142,7 @@ export function formatEstimatedDeliveryTime(order = {}) {
 }
 
 /** Các trạng thái thuộc nhóm "Đang xử lý" trên trang theo dõi đơn hàng */
-export const PROCESSING_STATUSES = [
-  "pending",
-  "confirmed",
-  "processing",
-  "preparing",
-];
+export const PROCESSING_STATUSES = ["pending", "confirmed", "processing", "preparing"];
 
 export const STATUS_FILTER_MAP = {
   processing: PROCESSING_STATUSES,
@@ -183,11 +158,7 @@ export function matchesStatusFilter(orderStatus, filterKey) {
 }
 
 export const getStatusCfg = (status) =>
-  ORDER_STATUS_CFG[status] ?? {
-    label: status || "—",
-    bg: "bg-gray-100",
-    text: "text-gray-500",
-  };
+  ORDER_STATUS_CFG[status] ?? { label: status || "—", bg: "bg-gray-100", text: "text-gray-500" };
 
 // payment_method ("cash" theo example trong API)
 const PAYMENT_METHOD_LABEL = {
@@ -197,5 +168,4 @@ const PAYMENT_METHOD_LABEL = {
   card: "Thẻ ngân hàng",
 };
 
-export const formatPaymentMethod = (method) =>
-  PAYMENT_METHOD_LABEL[method] ?? method ?? "—";
+export const formatPaymentMethod = (method) => PAYMENT_METHOD_LABEL[method] ?? method ?? "—";

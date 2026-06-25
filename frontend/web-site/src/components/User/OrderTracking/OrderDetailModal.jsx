@@ -130,8 +130,8 @@ const ItemsTable = ({ items = [] }) => (
     <div className="grid grid-cols-12 px-6 py-2.5 bg-gray-50 border-b border-gray-100
       text-[11px] font-medium text-gray-400 uppercase tracking-wide">
       <div className="col-span-5">Sản phẩm</div>
-      <div className="col-span-2 text-center">SL</div>
-      <div className="col-span-2 text-center">ĐVT</div>
+      <div className="col-span-2 text-center">Số Lượng</div>
+      <div className="col-span-2 text-center">Đơn vị tính</div>
       <div className="col-span-3 text-right">Thành tiền</div>
     </div>
 
@@ -242,15 +242,10 @@ const DeliveryInfo = ({ order }) => {
   const estimatedDeliveryTime = formatEstimatedDeliveryTime(order);
 
   const rows = [
-    { label: "Cửa hàng",          value: order.dealer_name },
-    { label: "Người mua",         value: order.customer_name, sub: order.customer_phone },
-    { label: "Người nhận hàng",   value: order.receiver_name, sub: order.receiver_phone },
-    { label: "Địa chỉ giao hàng", value: order.delivery_address ?? order.shipping_address },
-    { label: "Ngày giao",         value: formatDateTime(order.delivery_date, false) },
-    { label: "Khung giờ giao",    value: order.delivery_slot_name },
+    { label: "Người nhận hàng", value: order.receiver_name, sub: order.receiver_phone },
+    { label: "Địa chỉ nhận hàng", value: order.delivery_address ?? order.shipping_address },
     { label: "Thời gian dự kiến giao", value: estimatedDeliveryTime },
-    { label: "Phương thức TT",    value: formatPaymentMethod(order.payment_method) },
-    { label: "Ghi chú",           value: order.note },
+    { label: "Ghi chú", value: order.note },
   ].filter((r) => r.value);
 
   return (
@@ -262,7 +257,7 @@ const DeliveryInfo = ({ order }) => {
               d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
           </svg>
         </div>
-        <h3 className="text-[14px] font-medium text-gray-900">Thông tin giao hàng</h3>
+        <h3 className="text-[14px] font-medium text-gray-900">Thông tin nhận hàng</h3>
       </div>
 
       <div className="px-6 py-4 space-y-2.5">
@@ -341,7 +336,18 @@ const ModalActionFooter = ({
 
   return null;
 };
+export const formatDateTimeVN = (dateStr) => {
+  const date = new Date(dateStr);
 
+  return date.toLocaleString("vi-VN", {
+    timeZone: "Asia/Ho_Chi_Minh",
+    hour: "2-digit",
+    minute: "2-digit",
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+  });
+};
 // ── Main modal ──────────────────────────────────────────
 export default function OrderDetailModal({ dealerSlug, orderId, isOpen, onClose, onOrderUpdated }) {
   const [order, setOrder] = useState(null);
@@ -441,18 +447,32 @@ export default function OrderDetailModal({ dealerSlug, orderId, isOpen, onClose,
 
         {/* ── Modal header ── */}
         <div className="bg-white px-6 py-4 border-b border-gray-200 flex items-center justify-between flex-shrink-0">
-          <div>
-            <div className="flex items-center gap-2 mb-0.5">
-              <span className="text-[12px] text-gray-400 font-medium">{order?.order_code ?? "—"}</span>
-              {order && <StatusBadge status={order.status} />}
+          <div className="flex justify-between items-end flex-1 mr-4">
+            {/* Trái */}
+            <div className="flex flex-col gap-0.5">
+              <span className="text-[12px] font-medium text-gray-900">
+                Mã đơn hàng: {order?.order_code ?? "—"}
+              </span>
+              <span className="text-[12px] text-gray-400 font-medium">
+                {order ? "Ngày giao hàng dự kiến: " + formatDateTimeVN(order.delivery_time) : "—"}
+              </span>
             </div>
-            <p className="text-[15px] font-medium text-gray-900">{order?.dealer_name ?? "Chi tiết đơn hàng"}</p>
+
+            {/* Phải */}
+            <div className="flex flex-col gap-0.5 text-right">
+              <p className="text-[12px] font-medium text-gray-900">
+                {order?.payment_method ?? "—"}
+              </p>
+              <p className="text-[12px] font-medium text-gray-900">
+                {order ? "Tổng tiền: " + Number(order.total_amount).toLocaleString("vi-VN") + "₫" : "—"}
+              </p>
+            </div>
           </div>
 
           <button
             onClick={onClose}
             className="hover:scale-105 cursor-pointer w-8 h-8 flex items-center justify-center rounded-lg text-gray-400
-              hover:bg-gray-100 hover:text-gray-700 transition-colors flex-shrink-0"
+      hover:bg-gray-100 hover:text-gray-700 transition-colors flex-shrink-0"
             aria-label="Đóng"
           >
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -484,17 +504,17 @@ export default function OrderDetailModal({ dealerSlug, orderId, isOpen, onClose,
 
           {!loading && !error && order && (
             <>
-              {/* 1. Lịch sử trạng thái */}
-              <StatusTimeline order={order} />
-
+              {/* 4. Thông tin giao hàng */}
+              <DeliveryInfo order={order} />
               {/* 2. Bảng sản phẩm */}
               <ItemsTable items={order.items} />
 
               {/* 3. Thanh toán & tổng tiền */}
               <PaymentSummary order={order} />
 
-              {/* 4. Thông tin giao hàng */}
-              <DeliveryInfo order={order} />
+
+              {/* 1. Lịch sử trạng thái */}
+              <StatusTimeline order={order} />
 
               {/* 5. Mốc thời gian */}
               <div className="text-[11px] text-gray-400 px-2 space-y-0.5">

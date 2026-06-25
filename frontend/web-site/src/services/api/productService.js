@@ -84,10 +84,7 @@ export const productService = {
   },
 
   updateImageProduct: async (id, formData) => {
-    const res = await axiosClient.patch(
-      `/supplier-product-images/${id}/`,
-      formData,
-    );
+    const res = await axiosClient.patch(`/supplier-product-images/${id}/`, formData);
     return res.data;
   },
 
@@ -109,9 +106,7 @@ export const productService = {
 
   /** Supplier tạm ngừng / mở lại bán hàng */
   updateSellingStatus: async (id, status) => {
-    const res = await axiosClient.patch(`/supplier-products/${id}/`, {
-      status,
-    });
+    const res = await axiosClient.patch(`/supplier-products/${id}/`, { status });
     return res.data;
   },
 

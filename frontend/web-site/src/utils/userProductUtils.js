@@ -181,7 +181,7 @@ export function formatDealerProduct(raw) {
     supplier_name: raw.supplier_name ?? raw.supplier_product_name ?? "",
     dealer: raw.dealer ?? null,
     dealer_name: raw.dealer?.store_name ?? "",
-    rating: raw.rating ?? 4.5,
+    rating: raw.rating != null ? Number(raw.rating) : null,
     sold: raw.sold ?? 0,
     source: "dealer",
   };
@@ -232,7 +232,7 @@ export function formatUserProduct(raw) {
     category_id: raw.category?.id,
     supplier: raw.supplier ?? null,
     supplier_name: raw.supplier?.company_name ?? "",
-    rating: raw.rating ?? 4.5,
+    rating: raw.rating != null ? Number(raw.rating) : null,
     sold: raw.sold ?? 0,
     source: "supplier",
   };
@@ -240,7 +240,7 @@ export function formatUserProduct(raw) {
 
 export function formatUnitLabel(unit) {
   if (!unit) return "";
-  return unit.startsWith("/") ? unit : `/${unit}`;
+  return unit.startsWith("/") ? unit : `${unit}`;
 }
 
 export function formatStorageDuration(days) {

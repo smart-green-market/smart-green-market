@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import {
     ChevronsLeft,
     ChevronsRight,
@@ -9,6 +10,7 @@ import {
 import { useBuyerCatalog } from "../../../hooks/useBuyerCatalog";
 import { buildUnitFilterOptions, buildSupplierFilterOptions, toCardProduct } from "../../../utils/userProductUtils";
 import FilterProductCard from "./FilterProductCard";
+import CategoryCheckboxDropdown from "./CategoryCheckboxDropdown";
 
 const PAGE_SIZE = 8;
 
@@ -29,7 +31,7 @@ function TagButton({ active, onClick, children }) {
         <button
             type="button"
             onClick={onClick}
-            className={`rounded-md px-3 py-1.5 text-xs font-medium transition-colors ${active
+            className={`cursor-pointer rounded-md px-3 py-1.5 text-xs font-medium transition-colors ${active
                 ? "bg-emerald-700 text-white"
                 : "bg-stone-100 text-neutral-600 hover:bg-emerald-50 hover:text-emerald-800"
                 }`}
@@ -44,11 +46,23 @@ function parseInputPrice(value) {
     return digits ? Number(digits) : null;
 }
 
+function parseCategoryParam(value) {
+    if (!value) return [];
+    return String(value)
+        .split(",")
+        .map((item) => item.trim())
+        .filter(Boolean);
+}
+
 export default function FilterProduct() {
+    const [searchParams, setSearchParams] = useSearchParams();
+    const categoryParam = searchParams.get("category") ?? "";
     const { categories, products, loading, error } = useBuyerCatalog();
     const catalog = useMemo(() => products.map(toCardProduct), [products]);
 
-    const [selectedCategories, setSelectedCategories] = useState([]);
+    const [selectedCategories, setSelectedCategories] = useState(() =>
+        parseCategoryParam(categoryParam),
+    );
     const [selectedUnits, setSelectedUnits] = useState([]);
     const [selectedSuppliers, setSelectedSuppliers] = useState([]);
     const [stockFilter, setStockFilter] = useState("all");
@@ -62,6 +76,21 @@ export default function FilterProduct() {
 
     const [page, setPage] = useState(1);
 
+    useEffect(() => {
+        setSelectedCategories(parseCategoryParam(categoryParam));
+        setPage(1);
+    }, [categoryParam]);
+
+    const syncCategoryParam = (ids) => {
+        const params = new URLSearchParams(searchParams);
+        if (ids.length === 0) {
+            params.delete("category");
+        } else {
+            params.set("category", ids.join(","));
+        }
+        setSearchParams(params, { replace: true });
+    };
+
     const availableUnits = useMemo(
         () => buildUnitFilterOptions(products),
         [products],
@@ -72,12 +101,11 @@ export default function FilterProduct() {
         [products],
     );
 
-    const toggleCategory = (id) => {
-        const key = String(id);
-        setSelectedCategories((prev) =>
-            prev.includes(key) ? prev.filter((item) => item !== key) : [...prev, key],
-        );
+    const toggleCategory = (ids) => {
+        const next = ids.map(String);
+        setSelectedCategories(next);
         setPage(1);
+        syncCategoryParam(next);
     };
 
     const toggleUnit = (unit) => {
@@ -177,56 +205,29 @@ export default function FilterProduct() {
 
     return (
         <section id="kham-pha" className="mx-auto w-full max-w-[1280px] px-10 pt-12 pb-4">
-            <div className="mb-8">
-                <h2 className="text-2xl font-bold text-emerald-950">
-                    Khám phá sản phẩm
-                </h2>
-            </div>
 
             {error ? (
                 <div className="mb-6 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
                     {error}
                 </div>
             ) : null}
-
+            <div className="mb-6 flex items-center justify-between">
+            <h2 className="text-2xl font-bold text-emerald-950">
+                    Danh mục sản phẩm
+                </h2>
+            </div>
             <div className="flex flex-col gap-6 lg:flex-row lg:items-start">
-                <aside className="w-full shrink-0 rounded-lg border border-stone-200 bg-white shadow-sm lg:w-[280px]">
-                    <div className="border-b border-stone-200 px-5 py-4">
-                        <h3 className="text-base font-bold text-zinc-900">Bộ lọc</h3>
-                    </div>
-
+                
+                <aside className="w-full shrink-0 rounded-2xl border border-emerald-100/80 bg-white shadow-[0_4px_24px_rgba(6,78,59,0.06)] lg:w-[280px]">
+                
                     <div className="px-5">
                         <FilterSection title="Danh mục">
-                            <div className="flex flex-wrap gap-2">
-                                {loading ? (
-                                    <span className="text-xs text-neutral-400">
-                                        Đang tải...
-                                    </span>
-                                ) : visibleCategories.length > 0 ? (
-                                    visibleCategories.map((category) => (
-                                        <TagButton
-                                            key={category.id}
-                                            active={selectedCategories.includes(
-                                                String(category.id),
-                                            )}
-                                            onClick={() =>
-                                                toggleCategory(String(category.id))
-                                            }
-                                        >
-                                            {category.name}
-                                            {category.product_count != null ? (
-                                                <span className="ml-1 opacity-70">
-                                                    ({category.product_count})
-                                                </span>
-                                            ) : null}
-                                        </TagButton>
-                                    ))
-                                ) : (
-                                    <span className="text-xs text-neutral-400">
-                                        Chưa có danh mục
-                                    </span>
-                                )}
-                            </div>
+                            <CategoryCheckboxDropdown
+                                categories={visibleCategories}
+                                selectedIds={selectedCategories}
+                                onChange={toggleCategory}
+                                loading={loading}
+                            />
                         </FilterSection>
 
                         <FilterSection title="Đơn vị tính">
@@ -243,11 +244,6 @@ export default function FilterProduct() {
                                             onClick={() => toggleUnit(unit.value)}
                                         >
                                             {unit.label}
-                                            {unit.count != null ? (
-                                                <span className="ml-1 opacity-70">
-                                                    ({unit.count})
-                                                </span>
-                                            ) : null}
                                         </TagButton>
                                     ))
                                 ) : (
@@ -332,7 +328,7 @@ export default function FilterProduct() {
                         <button
                             type="button"
                             onClick={handleApplyFilter}
-                            className="w-full rounded-md bg-emerald-700 py-3 text-sm font-semibold text-white transition-colors hover:bg-emerald-800"
+                            className="w-full rounded-xl bg-emerald-700 py-3 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-emerald-800"
                         >
                             Áp dụng bộ lọc
                         </button>
@@ -358,6 +354,8 @@ export default function FilterProduct() {
                                     categoryName={product.category_name}
                                     name={product.name}
                                     price={product.price}
+                                    priceValue={product.priceValue}
+                                    unitKey={product.unitKey}
                                     rating={product.rating}
                                     availableQuantity={product.available_quantity}
                                     unit={product.unit}

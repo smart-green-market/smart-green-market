@@ -245,22 +245,13 @@ export default function DocumentPage() {
                 search={search}
                 onSearch={setSearch}
                 searchPlaceholder="Tìm kiếm giấy tờ..."
+                filter={
+                    <Filter
+                        value={statusFilter}
+                        onChange={setStatusFilter}
+                    />
+                }
             />
-
-            {/* FILTER */}
-            <div className="flex items-center gap-3">
-
-                <span className="text-xs font-semibold text-neutral-400 uppercase tracking-wide font-['Geist',sans-serif]">
-                    Lọc:
-                </span>
-
-                <Filter
-                    value={statusFilter}
-                    onChange={
-                        setStatusFilter
-                    }
-                />
-            </div>
 
             {/* ERROR */}
             {error && (

@@ -19,10 +19,7 @@ function flattenDealerProductResults(data) {
 }
 
 function useMockFallback(error) {
-  console.warn(
-    "[dealerProductService] Dùng mock data tạm:",
-    error?.message ?? error,
-  );
+  console.warn("[dealerProductService] Dùng mock data tạm:", error?.message ?? error);
   return MOCK_DEALER_PRODUCTS;
 }
 
@@ -120,7 +117,7 @@ export const dealerProductService = {
     try {
       formData.append("dealer_product", id);
       const res = await axiosClient.post(`/dealer-product-images/`, formData, {
-        headers: { "Content-Type": "multipart/form-data" },
+        headers: { "Content-Type": "multipart/form-data" }
       });
       return res.data;
     } catch (error) {
@@ -130,9 +127,7 @@ export const dealerProductService = {
   },
   deleteImage: async (imageId) => {
     try {
-      const res = await axiosClient.delete(
-        `/dealer-product-images/${imageId}/`,
-      );
+      const res = await axiosClient.delete(`/dealer-product-images/${imageId}/`);
       return res.data;
     } catch (error) {
       console.error("Lỗi xóa ảnh sản phẩm:", error);
@@ -141,13 +136,10 @@ export const dealerProductService = {
   },
   setThumbnail: async (imageId) => {
     try {
-      const res = await axiosClient.patch(
-        `/dealer-product-images/${imageId}/`,
-        { is_thumbnail: true },
-        {
-          headers: { "Content-Type": "multipart/form-data" },
-        },
-      );
+     
+      const res = await axiosClient.patch(`/dealer-product-images/${imageId}/`,  { is_thumbnail: true }, {
+        headers: { "Content-Type": "multipart/form-data" }
+      });
       return res.data;
     } catch (error) {
       console.error("Lỗi đặt ảnh chính:", error);
@@ -156,13 +148,9 @@ export const dealerProductService = {
   },
   unsetThumbnail: async (imageId) => {
     try {
-      const res = await axiosClient.patch(
-        `/dealer-product-images/${imageId}/`,
-        { is_thumbnail: true },
-        {
-          headers: { "Content-Type": "multipart/form-data" },
-        },
-      );
+      const res = await axiosClient.patch(`/dealer-product-images/${imageId}/`, { is_thumbnail: true }, {
+        headers: { "Content-Type": "multipart/form-data" }
+      });
       return res.data;
     } catch (error) {
       console.error("Lỗi gỡ ảnh chính:", error);

@@ -39,8 +39,7 @@ export const dealerCustumerOrder = {
   //     ]
   //   }
 
-  getById: (id) =>
-    axiosClient.get(`/customer-orders/${id}/`).then((res) => res.data),
+  getById: (id) => axiosClient.get(`/customer-orders/${id}/`).then((res) => res.data),
 
   // {
   //     "id": 0,
@@ -106,26 +105,18 @@ export const dealerCustumerOrder = {
   //     "updated_at": "2026-06-20T04:45:13.573Z"
   //   }
 
-  Confirmed: (id) =>
-    axiosClient
-      .post(`/customer-orders/${id}/confirm/`, data)
-      .then((res) => res.data),
+  Confirmed: (id) => axiosClient.post(`/customer-orders/${id}/confirm/`, data).then((res) => res.data),
 
   //Chuyển pending → confirmed.
 
-  Processing: (id) =>
-    axiosClient
-      .post(`/customer-orders/${id}/start-processing/`, data)
-      .then((res) => res.data),
+  Processing: (id) => axiosClient.post(`/customer-orders/${id}/start-processing/`, data).then((res) => res.data),
 
   //Chuyển processing → shipping.
 
-  Shipping: (id) =>
-    axiosClient
-      .post(`/customer-orders/${id}/ship/`, data)
-      .then((res) => res.data),
+  Shipping: (id) => axiosClient.post(`/customer-orders/${id}/ship/`, data).then((res) => res.data),
 
   //Chuyển processing → shipping.
+
 };
 
 export const handleApiError = (error, defaultMessage = "Có lỗi xảy ra") => {

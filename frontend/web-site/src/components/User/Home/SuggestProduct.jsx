@@ -44,7 +44,11 @@ export default function SuggestProduct() {
             ) : items.length === 0 ? (
                 <p className="text-sm text-neutral-500">Chưa có sản phẩm nào.</p>
             ) : (
-                <DragScrollCarousel>
+                <DragScrollCarousel
+                    scrollAmount={220}
+                    navOffset="compact"
+                    trackClassName="gap-3"
+                >
                     {items.map((p) => (
                         <SuggestProductCard key={p.id} {...p} />
                     ))}

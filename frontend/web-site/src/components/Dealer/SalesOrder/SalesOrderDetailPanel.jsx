@@ -20,6 +20,18 @@ export default function SalesOrderDetailPanel({ order, onClose, onPrint, onConfi
   const products = fullData.items || [];
   const formatCurrency = (val) => new Intl.NumberFormat('vi-VN').format(Number(val || 0)) + ' đ';
 
+  const formatDateTimeVN = (isoString) => {
+    if (!isoString) return '';
+    const date = new Date(isoString);
+    return new Intl.DateTimeFormat('vi-VN', {
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit'
+    }).format(date);
+  };
+
   return (
     <div className="bg-white border border-neutral-100 rounded-3xl shadow-[0_8px_30px_rgb(0,0,0,0.06)] overflow-hidden font-['Geist',sans-serif] h-full flex flex-col animate-in zoom-in-95 fade-in duration-200 relative z-10">
       
@@ -72,7 +84,7 @@ export default function SalesOrderDetailPanel({ order, onClose, onPrint, onConfi
                 )}
                 <div className="flex items-center gap-1.5 text-xs text-neutral-500 font-medium">
                   <Calendar className="w-3.5 h-3.5 text-neutral-400" />
-                  <span>Ngày đặt: <span className="text-neutral-700">{order.date}</span></span>
+                  <span>Ngày giao dự kiến: <span className="text-neutral-700">{fullData.delivery_time ? formatDateTimeVN(fullData.delivery_time) : order.date}</span></span>
                 </div>
                 {fullData.delivery_address && (
                   <div className="flex items-start gap-1.5 text-xs text-neutral-500 font-medium">
@@ -104,7 +116,7 @@ export default function SalesOrderDetailPanel({ order, onClose, onPrint, onConfi
         <div className="space-y-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <h4 className="text-[11px] font-black text-neutral-400 uppercase tracking-widest">Sản phẩm xuất bán</h4>
+              <h4 className="text-[11px] font-black text-neutral-400 uppercase tracking-widest">Sản phẩm</h4>
             </div>
             <span className="bg-neutral-100 text-neutral-600 text-[10px] font-bold px-2 py-0.5 rounded-full">
               {products.length} Món
@@ -134,6 +146,19 @@ export default function SalesOrderDetailPanel({ order, onClose, onPrint, onConfi
             </ul>
           </div>
         </div>
+
+        {/* Note */}
+        {fullData.note && (
+          <div className="space-y-3 pb-2">
+            <div className="flex items-center gap-2">
+              <h4 className="text-[11px] font-black text-neutral-400 uppercase tracking-widest">Ghi chú</h4>
+              <div className="h-px bg-neutral-100 flex-1"></div>
+            </div>
+            <div className="bg-amber-50/50 border border-amber-100/50 rounded-2xl p-4 text-sm text-amber-800 leading-relaxed italic shadow-xs">
+              {fullData.note}
+            </div>
+          </div>
+        )}
 
         {/* Payment & Total */}
         <div className="space-y-4 pb-4">

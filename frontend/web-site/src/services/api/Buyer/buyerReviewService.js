@@ -1,284 +1,295 @@
 import axiosClient from "../axiosClient";
 
 export const buyerReviewService = {
-    
-    // Đánh giá sản phẩm sau đơn completed. Prefix: /api/storefronts/{dealer_slug}/.
-    // Buyer: pending-reviews → POST reviews (multipart) → PATCH/DELETE review. Public: GET products/{id}/reviews/ + summary.
-    
-    getAll: (dealer_slug, params = {}) =>
-        axiosClient
-            .get(`/storefronts/${dealer_slug}/reviews/`, { params })
-            .then((res) => res.data),
-    //Buyer đánh giá của tôi (danh sách)
+  // Đánh giá sản phẩm sau đơn completed. Prefix: /api/storefronts/{dealer_slug}/.
+  // Buyer: pending-reviews → POST reviews (multipart) → PATCH/DELETE review. Public: GET products/{id}/reviews/ + summary.
 
-    //in dealer_slug: string
+  getAll: (dealer_slug, params = {}) =>
+    axiosClient
+      .get(`/storefronts/${dealer_slug}/reviews/`, { params })
+      .then((res) => res.data),
+  //Buyer đánh giá của tôi (danh sách)
 
-    //Schema
-    // {
-    //     "count": 0,
-    //     "next": "string",
-    //     "previous": "string",
-    //     "page": 0,
-    //     "page_size": 0,
-    //     "has_more": true,
-    //     "results": [
-    //       {
-    //         "id": 0,
-    //         "dealer_product_id": 0,
-    //         "product_title": "string",
-    //         "order_id": 0,
-    //         "order_code": "string",
-    //         "customer_name": "string",
-    //         "rating": 5,
-    //         "comment": "string",
-    //         "images": [
-    //           {
-    //             "id": 0,
-    //             "image_url": "string",
-    //             "created_at": "2026-06-23T12:42:13.935Z"
-    //           }
-    //         ],
-    //         "is_mine": "string",
-    //         "created_at": "2026-06-23T12:42:13.935Z",
-    //         "updated_at": "2026-06-23T12:42:13.935Z"
-    //       }
-    //     ]
-    //   }
+  //in dealer_slug: string
 
-    getById: (dealer_slug, id) => axiosClient.get(`/storefronts/${dealer_slug}/reviews/${id}/`).then((res) => res.data),
-    //Buyer đánh giá của tôi (chi tiết)
+  //Schema
+  // {
+  //     "count": 0,
+  //     "next": "string",
+  //     "previous": "string",
+  //     "page": 0,
+  //     "page_size": 0,
+  //     "has_more": true,
+  //     "results": [
+  //       {
+  //         "id": 0,
+  //         "dealer_product_id": 0,
+  //         "product_title": "string",
+  //         "order_id": 0,
+  //         "order_code": "string",
+  //         "customer_name": "string",
+  //         "rating": 5,
+  //         "comment": "string",
+  //         "images": [
+  //           {
+  //             "id": 0,
+  //             "image_url": "string",
+  //             "created_at": "2026-06-23T12:42:13.935Z"
+  //           }
+  //         ],
+  //         "is_mine": "string",
+  //         "created_at": "2026-06-23T12:42:13.935Z",
+  //         "updated_at": "2026-06-23T12:42:13.935Z"
+  //       }
+  //     ]
+  //   }
 
-    //in dealer_slug: string, id: int
+  getById: (dealer_slug, id) =>
+    axiosClient
+      .get(`/storefronts/${dealer_slug}/reviews/${id}/`)
+      .then((res) => res.data),
+  //Buyer đánh giá của tôi (chi tiết)
 
-    //Schema
-    // {
-    //     "id": 0,
-    //     "dealer_product_id": 0,
-    //     "product_title": "string",
-    //     "order_id": 0,
-    //     "order_code": "string",
-    //     "customer_name": "string",
-    //     "rating": 5,
-    //     "comment": "string",
-    //     "images": [
-    //       {
-    //         "id": 0,
-    //         "image_url": "string",
-    //         "created_at": "2026-06-23T12:43:57.773Z"
-    //       }
-    //     ],
-    //     "is_mine": "string",
-    //     "created_at": "2026-06-23T12:43:57.773Z",
-    //     "updated_at": "2026-06-23T12:43:57.773Z"
-    //   }
+  //in dealer_slug: string, id: int
 
-    pendingReview: (dealer_slug, params = {}) =>
-        axiosClient
-            .get(`/storefronts/${dealer_slug}/me/pending-reviews/`, { params })
-            .then((res) => res.data),
-    //Buyer sản phẩm chờ đánh giá (danh sách)
+  //Schema
+  // {
+  //     "id": 0,
+  //     "dealer_product_id": 0,
+  //     "product_title": "string",
+  //     "order_id": 0,
+  //     "order_code": "string",
+  //     "customer_name": "string",
+  //     "rating": 5,
+  //     "comment": "string",
+  //     "images": [
+  //       {
+  //         "id": 0,
+  //         "image_url": "string",
+  //         "created_at": "2026-06-23T12:43:57.773Z"
+  //       }
+  //     ],
+  //     "is_mine": "string",
+  //     "created_at": "2026-06-23T12:43:57.773Z",
+  //     "updated_at": "2026-06-23T12:43:57.773Z"
+  //   }
 
-    //in dealer_slug: string
+  pendingReview: (dealer_slug, params = {}) =>
+    axiosClient
+      .get(`/storefronts/${dealer_slug}/me/pending-reviews/`, { params })
+      .then((res) => res.data),
+  //Buyer sản phẩm chờ đánh giá (danh sách)
 
-    //Schema
-    // [
-    //     {
-    //       "order_id": 0,
-    //       "order_code": "string",
-    //       "dealer_product_id": 0,
-    //       "product_title": "string",
-    //       "completed_at": "2026-06-23T12:45:05.571Z"
-    //     }
-    //   ]
+  //in dealer_slug: string
 
-    create: (dealer_slug, data) => {
-        const config =
-            data instanceof FormData
-                ? { headers: { "Content-Type": "multipart/form-data" } }
-                : undefined;
-        return axiosClient
-            .post(`/storefronts/${dealer_slug}/reviews/`, data, config)
-            .then((res) => res.data);
-    },
-    //Buyer tạo review
-    //in dealer_slug: string
+  //Schema
+  // [
+  //     {
+  //       "order_id": 0,
+  //       "order_code": "string",
+  //       "dealer_product_id": 0,
+  //       "product_title": "string",
+  //       "completed_at": "2026-06-23T12:45:05.571Z"
+  //     }
+  //   ]
 
-    //body
-    // {
-    //     "order_id": 0, (Required)
-    //     "dealer_product_id": 0, (Required)
-    //     "rating": 5, (Required)
-    //     "comment": "string",
-    //     "images": [ -> có thể add thêm ảnh tối đa 5 ảnh (Add string item)
-    //       {
-    //         "image_url": "string"
-    //       }
-    //     ]
-    //   }
+  create: (dealer_slug, data) => {
+    const config =
+      data instanceof FormData
+        ? { headers: { "Content-Type": "multipart/form-data" } }
+        : undefined;
+    return axiosClient
+      .post(`/storefronts/${dealer_slug}/reviews/`, data, config)
+      .then((res) => res.data);
+  },
+  //Buyer tạo review
+  //in dealer_slug: string
 
-    //schema
-    // {
-    //     "id": 0,
-    //     "dealer_product_id": 0,
-    //     "product_title": "string",
-    //     "order_id": 0,
-    //     "order_code": "string",
-    //     "customer_name": "string",
-    //     "rating": 5,
-    //     "comment": "string",
-    //     "images": [
-    //       {
-    //         "id": 0,
-    //         "image_url": "string",
-    //         "created_at": "2026-06-23T12:52:27.769Z"
-    //       }
-    //     ],
-    //     "is_mine": "string",
-    //     "created_at": "2026-06-23T12:52:27.769Z",
-    //     "updated_at": "2026-06-23T12:52:27.769Z"
-    //   }
-    
-    uploadImage: (dealer_slug, id, data) => {
-        const config =
-            data instanceof FormData
-                ? { headers: { "Content-Type": "multipart/form-data" } }
-                : undefined;
-        return axiosClient
-            .post(`/storefronts/${dealer_slug}/reviews/${id}/images/`, data, config)
-            .then((res) => res.data);
-    },
-    //Buyer tải lên ảnh review
-    //in dealer_slug: string, id: int
+  //body
+  // {
+  //     "order_id": 0, (Required)
+  //     "dealer_product_id": 0, (Required)
+  //     "rating": 5, (Required)
+  //     "comment": "string",
+  //     "images": [ -> có thể add thêm ảnh tối đa 5 ảnh (Add string item)
+  //       {
+  //         "image_url": "string"
+  //       }
+  //     ]
+  //   }
 
-    //body: images (array string)
-    //schema:
-    // [
-    //     {
-    //       "id": 0,
-    //       "image_url": "string",
-    //       "created_at": "2026-06-23T12:56:42.107Z"
-    //     }
-    //   ]
+  //schema
+  // {
+  //     "id": 0,
+  //     "dealer_product_id": 0,
+  //     "product_title": "string",
+  //     "order_id": 0,
+  //     "order_code": "string",
+  //     "customer_name": "string",
+  //     "rating": 5,
+  //     "comment": "string",
+  //     "images": [
+  //       {
+  //         "id": 0,
+  //         "image_url": "string",
+  //         "created_at": "2026-06-23T12:52:27.769Z"
+  //       }
+  //     ],
+  //     "is_mine": "string",
+  //     "created_at": "2026-06-23T12:52:27.769Z",
+  //     "updated_at": "2026-06-23T12:52:27.769Z"
+  //   }
 
-    update: (dealer_slug, id, data) => axiosClient.patch(`/storefronts/${dealer_slug}/reviews/${id}/`, data).then((res) => res.data),
-    //Buyer sửa review
-    //Chi tiết / sửa / xóa review của buyer.
+  uploadImage: (dealer_slug, id, data) => {
+    const config =
+      data instanceof FormData
+        ? { headers: { "Content-Type": "multipart/form-data" } }
+        : undefined;
+    return axiosClient
+      .post(`/storefronts/${dealer_slug}/reviews/${id}/images/`, data, config)
+      .then((res) => res.data);
+  },
+  //Buyer tải lên ảnh review
+  //in dealer_slug: string, id: int
 
-    //in dealer_slug: string, id: int
+  //body: images (array string)
+  //schema:
+  // [
+  //     {
+  //       "id": 0,
+  //       "image_url": "string",
+  //       "created_at": "2026-06-23T12:56:42.107Z"
+  //     }
+  //   ]
 
-    //body:
-    // {
-    //     "rating": 5,
-    //     "comment": "string",
-    //}
+  update: (dealer_slug, id, data) =>
+    axiosClient
+      .patch(`/storefronts/${dealer_slug}/reviews/${id}/`, data)
+      .then((res) => res.data),
+  //Buyer sửa review
+  //Chi tiết / sửa / xóa review của buyer.
 
-    //schema:
-    // {
-    //     "id": 0,
-    //     "dealer_product_id": 0,
-    //     "product_title": "string",
-    //     "order_id": 0,
-    //     "order_code": "string",
-    //     "customer_name": "string",
-    //     "rating": 5,
-    //     "comment": "string",
-    //     "images": [
-    //       {
-    //         "id": 0,
-    //         "image_url": "string",
-    //         "created_at": "2026-06-23T12:57:45.465Z"
-    //       }
-    //     ],
-    //     "is_mine": "string",
-    //     "created_at": "2026-06-23T12:57:45.465Z",
-    //     "updated_at": "2026-06-23T12:57:45.465Z"
-    //   }
+  //in dealer_slug: string, id: int
 
-    delete: (dealer_slug, id) => axiosClient.delete(`/storefronts/${dealer_slug}/reviews/${id}/`).then((res) => res.data),
-    //Buyer xóa review
-    //in dealer_slug: string, id: int
+  //body:
+  // {
+  //     "rating": 5,
+  //     "comment": "string",
+  //}
 
-    deleteImage: (dealer_slug, id, image_id) => axiosClient.delete(`/storefronts/${dealer_slug}/reviews/${id}/images/${image_id}/`).then((res) => res.data),
-    //Buyer xóa ảnh review
-    //in dealer_slug: string, id: int, image_id: int
+  //schema:
+  // {
+  //     "id": 0,
+  //     "dealer_product_id": 0,
+  //     "product_title": "string",
+  //     "order_id": 0,
+  //     "order_code": "string",
+  //     "customer_name": "string",
+  //     "rating": 5,
+  //     "comment": "string",
+  //     "images": [
+  //       {
+  //         "id": 0,
+  //         "image_url": "string",
+  //         "created_at": "2026-06-23T12:57:45.465Z"
+  //       }
+  //     ],
+  //     "is_mine": "string",
+  //     "created_at": "2026-06-23T12:57:45.465Z",
+  //     "updated_at": "2026-06-23T12:57:45.465Z"
+  //   }
 
-    // PUBLIC
+  delete: (dealer_slug, id) =>
+    axiosClient
+      .delete(`/storefronts/${dealer_slug}/reviews/${id}/`)
+      .then((res) => res.data),
+  //Buyer xóa review
+  //in dealer_slug: string, id: int
 
-    productReviews: (dealer_slug, product_id, params = {}) =>
-        axiosClient
-            .get(`/storefronts/${dealer_slug}/products/${product_id}/reviews/`, {
-                params,
-            })
-            .then((res) => res.data),
-    // Review công khai trên trang chi tiết SP.
-    // Phân trang (load more): ?page=1&page_size=20 (mặc định page=1, page_size=20, tối đa 100).
+  deleteImage: (dealer_slug, id, image_id) =>
+    axiosClient
+      .delete(`/storefronts/${dealer_slug}/reviews/${id}/images/${image_id}/`)
+      .then((res) => res.data),
+  //Buyer xóa ảnh review
+  //in dealer_slug: string, id: int, image_id: int
 
-    //in dealer_slug: string, product_id: int
+  // PUBLIC
 
-    //Schema
-    // {
-    //     "count": 0,
-    //     "next": "string",
-    //     "previous": "string",
-    //     "page": 0,
-    //     "page_size": 0,
-    //     "has_more": true,
-    //     "results": [
-    //       {
-    //         "id": 0,
-    //         "dealer_product_id": 0,
-    //         "product_title": "string",
-    //         "order_id": 0,
-    //         "order_code": "string",
-    //         "customer_name": "string",
-    //         "rating": 5,
-    //         "comment": "string",
-    //         "images": [
-    //           {
-    //             "id": 0,
-    //             "image_url": "string",
-    //             "created_at": "2026-06-23T12:47:36.680Z"
-    //           }
-    //         ],
-    //         "is_mine": "string",
-    //         "created_at": "2026-06-23T12:47:36.680Z",
-    //         "updated_at": "2026-06-23T12:47:36.680Z"
-    //       }
-    //     ]
-    //   }
+  productReviews: (dealer_slug, product_id, params = {}) =>
+    axiosClient
+      .get(`/storefronts/${dealer_slug}/products/${product_id}/reviews/`, {
+        params,
+      })
+      .then((res) => res.data),
+  // Review công khai trên trang chi tiết SP.
+  // Phân trang (load more): ?page=1&page_size=20 (mặc định page=1, page_size=20, tối đa 100).
 
-    productRating: (dealer_slug, product_id) =>
-        axiosClient
-            .get(
-                `/storefronts/${dealer_slug}/products/${product_id}/reviews/summary/`,
-            )
-            .then((res) => res.data),
-    //Tổng rating sản phẩm
-    //Tổng hợp rating — hiển thị sao trung bình.
+  //in dealer_slug: string, product_id: int
 
-    //in dealer_slug: string, product_id: int
+  //Schema
+  // {
+  //     "count": 0,
+  //     "next": "string",
+  //     "previous": "string",
+  //     "page": 0,
+  //     "page_size": 0,
+  //     "has_more": true,
+  //     "results": [
+  //       {
+  //         "id": 0,
+  //         "dealer_product_id": 0,
+  //         "product_title": "string",
+  //         "order_id": 0,
+  //         "order_code": "string",
+  //         "customer_name": "string",
+  //         "rating": 5,
+  //         "comment": "string",
+  //         "images": [
+  //           {
+  //             "id": 0,
+  //             "image_url": "string",
+  //             "created_at": "2026-06-23T12:47:36.680Z"
+  //           }
+  //         ],
+  //         "is_mine": "string",
+  //         "created_at": "2026-06-23T12:47:36.680Z",
+  //         "updated_at": "2026-06-23T12:47:36.680Z"
+  //       }
+  //     ]
+  //   }
 
-    //Schema
-    // {
-    //     "dealer_product_id": 0,
-    //     "review_count": 0,
-    //     "average_rating": 0,
-    //     "rating_distribution": {
-    //       "additionalProp1": 0,
-    //       "additionalProp2": 0,
-    //       "additionalProp3": 0
-    //     }
-    //   }
+  productRating: (dealer_slug, product_id) =>
+    axiosClient
+      .get(
+        `/storefronts/${dealer_slug}/products/${product_id}/reviews/summary/`,
+      )
+      .then((res) => res.data),
+  //Tổng rating sản phẩm
+  //Tổng hợp rating — hiển thị sao trung bình.
+
+  //in dealer_slug: string, product_id: int
+
+  //Schema
+  // {
+  //     "dealer_product_id": 0,
+  //     "review_count": 0,
+  //     "average_rating": 0,
+  //     "rating_distribution": {
+  //       "additionalProp1": 0,
+  //       "additionalProp2": 0,
+  //       "additionalProp3": 0
+  //     }
+  //   }
 };
 
 export const handleApiError = (error, defaultMessage = "Có lỗi xảy ra") => {
-    const data = error.response?.data;
-    const message =
-        data?.message ||
-        data?.detail ||
-        (typeof data === "string" ? data : null) ||
-        error.message ||
-        defaultMessage;
-    console.error("API Error:", error);
-    return message;
+  const data = error.response?.data;
+  const message =
+    data?.message ||
+    data?.detail ||
+    (typeof data === "string" ? data : null) ||
+    error.message ||
+    defaultMessage;
+  console.error("API Error:", error);
+  return message;
 };

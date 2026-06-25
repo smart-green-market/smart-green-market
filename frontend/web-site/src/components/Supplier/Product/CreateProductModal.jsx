@@ -203,6 +203,68 @@ export default function CreateProductModal({ isOpen, onClose, onSuccess, mode = 
 
     return () => { cancelled = true; };
   }, [isOpen, form.category, selectedSystemCategoryId, isPersonal]);
+<<<<<<< HEAD
+=======
+
+  // ─────────────────────────────────────────────────────────────
+  // [FETCH API] Danh sách SẢN PHẨM theo danh mục đã chọn
+  // Trigger ngay khi `form.category` thay đổi (tức ngay sau khi supplier
+  // chọn xong 1 danh mục ở select trên) — KHÔNG cần chờ submit.
+  // Mục đích: hiển thị các sản phẩm đã có sẵn trong danh mục đó để supplier
+  // chọn nhanh (tự điền tên, tránh tạo trùng lặp). Đây chỉ là gợi ý UI,
+  // không bắt buộc — supplier vẫn có thể tự nhập tên sản phẩm mới.
+  //   Endpoint : GET /product-masters/?category_id=<id>
+  //   Hàm gọi  : productMasterApi.getByCategory_id(form.category)
+  // ─────────────────────────────────────────────────────────────
+  useEffect(() => {
+    if (!isOpen) {
+      setProducts([]);
+      setSelectedProductId("");
+      return;
+    }
+
+    let cancelled = false;
+    setLoadingProducts(true);
+
+    productMasterService
+      .getByCategory_id(form.category)
+      .then((list) => {
+        console.log("API result", list);
+        if (!cancelled) {
+          const data = list || [];
+          setProducts(data);
+          if (data.length > 0) {
+            // Check if the currently selectedProductId still exists in the newly loaded list
+            const stillExists = data.some((p) => String(p.id) === selectedProductId);
+            if (stillExists) {
+              const picked = data.find((p) => String(p.id) === selectedProductId);
+              setForm((f) => ({ ...f, name: picked.name }));
+            } else {
+              const firstProduct = data[0];
+              setSelectedProductId(String(firstProduct.id));
+              setForm((f) => ({ ...f, name: firstProduct.name }));
+            }
+          } else {
+            setSelectedProductId("");
+            setForm((f) => ({ ...f, name: "" }));
+          }
+        }
+      })
+      .catch((err) => {
+        console.error("[CreateProductModal] fetch products by category error:", err);
+        if (!cancelled) {
+          setProducts([]);
+          setSelectedProductId("");
+          setForm((f) => ({ ...f, name: "" }));
+        }
+      })
+      .finally(() => {
+        if (!cancelled) setLoadingProducts(false);
+      });
+
+    return () => { cancelled = true; };
+  }, [isOpen, form.category]);
+>>>>>>> 7783b8ecb9eaedeca18ee90a3b6cd0bac6c5e429
 
   if (!isOpen) return null;
 
@@ -290,6 +352,7 @@ export default function CreateProductModal({ isOpen, onClose, onSuccess, mode = 
     setError(null);
 
     if (!form.category) {
+<<<<<<< HEAD
       setFieldErrors({ category: "Vui lòng chọn danh mục." });
       setError("Vui lòng chọn danh mục.");
       return;
@@ -301,6 +364,14 @@ export default function CreateProductModal({ isOpen, onClose, onSuccess, mode = 
     if (isPersonal && !form.name.trim()) {
       setFieldErrors({ name: "Vui lòng nhập tên sản phẩm." });
       setError("Vui lòng nhập tên sản phẩm.");
+=======
+      setFieldErrors({ category: "Danh mục: Vui lòng chọn nhóm rau/danh mục." });
+      setError("Danh mục: Vui lòng chọn nhóm rau/danh mục.");
+      return;
+    }
+    if (!selectedProductId) {
+      setError("Vui lòng chọn sản phẩm gợi ý từ danh mục.");
+>>>>>>> 7783b8ecb9eaedeca18ee90a3b6cd0bac6c5e429
       return;
     }
 
@@ -483,9 +554,7 @@ export default function CreateProductModal({ isOpen, onClose, onSuccess, mode = 
 
                 {/* Danh mục */}
                 <div className="mb-3">
-                  <label className={labelCls}>
-                    {isPersonal ? "Danh mục cá nhân (*)" : "Nhóm rau — danh mục (*)"}
-                  </label>
+                  <label className={labelCls}>Nhóm rau — danh mục (*)</label>
                   <select
                     value={form.category}
                     onChange={(e) => set("category", e.target.value)}
@@ -493,9 +562,7 @@ export default function CreateProductModal({ isOpen, onClose, onSuccess, mode = 
                     disabled={saving}
                   >
                     <option value="">
-                      {categories.length === 0
-                        ? (isPersonal ? "Bạn chưa có danh mục cá nhân nào" : "Đang tải danh mục...")
-                        : "— Chọn danh mục —"}
+                      {categories.length === 0 ? "Đang tải danh mục..." : "Tất cả sản phẩm"}
                     </option>
                     {categories.map((c) => (
                       <option key={c.id} value={String(c.id)}>
