@@ -66,6 +66,13 @@ export default function EditProfileModal({
             return;
         }
 
+        const maxSize = 5 * 1024 * 1024;
+        if (file.size > maxSize) {
+            appToast.warning("Ảnh không được lớn hơn 5MB.");
+            event.target.value = "";
+            return;
+        }
+
         if (avatarPreview) {
             URL.revokeObjectURL(avatarPreview);
         }
@@ -94,7 +101,7 @@ export default function EditProfileModal({
 
         appToast.success(
             avatarFile
-                ? "Cập nhật thông tin và ảnh đại diện thành công"
+                ? "Cập nhật thông tin thành công"
                 : "Cập nhật thông tin thành công",
         );
         onClose?.();

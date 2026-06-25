@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { Search, ShoppingCart, Newspaper, User } from "lucide-react";
+import { Search, ShoppingCart, Newspaper, User, Package } from "lucide-react";
 import { useAuth } from "../../../contexts/authProvider";
 import { isBuyerUser } from "../../../utils/buyerAuthUtils";
 import { useCart } from "../../../contexts/cartProvider";
@@ -10,7 +10,7 @@ function HeaderNavLink({ to, icon: Icon, label, title, badge }) {
     return (
         <Link
             to={to}
-            className="hover:scale-110 transition-transform duration-200 flex flex-col items-center gap-0.5 rounded-full p-2 text-zinc-700 no-underline transition-colors hover:bg-zinc-100 hover:text-green-600 md:rounded-lg md:px-3 md:py-1.5"
+            className="hover:scale-110 transition-transform duration-200 flex flex-col items-center gap-0.5 rounded-full p-2 text-white no-underline transition-colors hover:bg-white/10 md:rounded-lg md:px-3 md:py-1.5"
             title={title}
             aria-label={title}
         >
@@ -28,7 +28,7 @@ function HeaderNavLink({ to, icon: Icon, label, title, badge }) {
 function HeaderNavDivider() {
     return (
         <span
-            className="hidden px-1.5 text-sm text-neutral-300 md:inline"
+            className="hidden px-1.5 text-sm text-white/40 md:inline"
             aria-hidden
         >
             |
@@ -84,9 +84,20 @@ export default function Header() {
                         {searchInput}
                     </form>
 
-                    <div className="flex shrink-0 items-center gap-0.5 sm:gap-1 md:gap-0">
+                    <div
+                        className={`flex shrink-0 items-center gap-0.5 sm:gap-1 ${
+                            isLoggedIn ? "md:gap-0" : "md:gap-3"
+                        }`}
+                    >
+                        <HeaderNavLink
+                            to={paths.products}
+                            icon={Package}
+                            label="Sản phẩm"
+                            title="Sản phẩm"
+                        />
                         {isLoggedIn ? (
                             <>
+                                <HeaderNavDivider />
                                 <HeaderNavLink
                                     to={paths.orderStatus}
                                     icon={Newspaper}
@@ -101,7 +112,7 @@ export default function Header() {
                                     title="Giỏ hàng"
                                     badge={
                                         itemCount > 0 ? (
-                                            <span className="absolute -right-1.5 -top-1.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-emerald-700 px-1 text-[10px] font-bold text-white">
+                                            <span className="absolute -right-1.5 -top-1.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-white px-1 text-[10px] font-bold text-emerald-700">
                                                 {itemCount > 9
                                                     ? "9+"
                                                     : itemCount}
@@ -119,6 +130,7 @@ export default function Header() {
                             </>
                         ) : (
                             <>
+                                <HeaderNavDivider />
                                 <Link
                                     to={paths.login}
                                     className="whitespace-nowrap rounded-lg border border-white px-2.5 py-1.5 text-xs font-semibold text-white no-underline transition-colors hover:bg-white/10 sm:px-4 sm:py-2 sm:text-sm md:px-5"
