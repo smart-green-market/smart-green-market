@@ -21,7 +21,12 @@ export default function RecentlyViewedProducts() {
                 </div>
             </div>
 
-            <DragScrollCarousel showNav={items.length > 3}>
+            <DragScrollCarousel
+                showNav={items.length > 3}
+                scrollAmount={220}
+                navOffset="compact"
+                trackClassName="gap-3"
+            >
                 {items.map((product) => (
                     <SuggestProductCard key={product.id} {...product} />
                 ))}

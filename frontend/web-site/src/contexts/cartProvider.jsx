@@ -12,7 +12,9 @@ import { useDealerSlug } from "../hooks/useStorefrontPaths";
 import {
     buildCartItemFromProduct,
     getBuyerCartId,
+    getCartItemMaxQuantity,
     loadCartFromSession,
+    normalizeCartQuantity,
     resolveCartOwner,
     saveCartToSession,
 } from "../utils/cartUtils";
@@ -101,11 +103,15 @@ export function CartProvider({ children }) {
 
     const increaseQuantity = useCallback((id) => {
         setItems((prev) =>
-            prev.map((item) =>
-                String(item.id) === String(id)
-                    ? { ...item, quantity: item.quantity + 1 }
-                    : item,
-            ),
+            prev.map((item) => {
+                if (String(item.id) !== String(id)) return item;
+
+                const maxQuantity = getCartItemMaxQuantity(item);
+                const next = item.quantity + 1;
+                if (maxQuantity != null && next > maxQuantity) return item;
+
+                return { ...item, quantity: next };
+            }),
         );
     }, []);
 
@@ -113,9 +119,55 @@ export function CartProvider({ children }) {
         setItems((prev) =>
             prev.map((item) =>
                 String(item.id) === String(id)
-                    ? { ...item, quantity: Math.max(1, item.quantity - 1) }
+                    ? {
+                          ...item,
+                          quantity: normalizeCartQuantity(item.quantity - 1),
+                      }
                     : item,
             ),
+        );
+    }, []);
+
+    const setItemQuantity = useCallback((id, value) => {
+        setItems((prev) =>
+            prev.map((item) => {
+                if (String(item.id) !== String(id)) return item;
+
+                const maxQuantity = getCartItemMaxQuantity(item);
+                return {
+                    ...item,
+                    quantity: normalizeCartQuantity(value, maxQuantity),
+                };
+            }),
+        );
+    }, []);
+
+    const syncItemsWithCatalog = useCallback((catalogProducts) => {
+        if (!Array.isArray(catalogProducts) || catalogProducts.length === 0) {
+            return;
+        }
+
+        const stockById = new Map(
+            catalogProducts.map((product) => [
+                String(product.id),
+                product.available_quantity ?? null,
+            ]),
+        );
+
+        setItems((prev) =>
+            prev.map((item) => {
+                const latestStock = stockById.get(String(item.id));
+                const availableQuantity =
+                    latestStock ?? item.availableQuantity ?? null;
+                const maxQuantity = getCartItemMaxQuantity({ availableQuantity });
+
+                return {
+                    ...item,
+                    availableQuantity:
+                        maxQuantity != null ? maxQuantity : availableQuantity,
+                    quantity: normalizeCartQuantity(item.quantity, maxQuantity),
+                };
+            }),
         );
     }, []);
 
@@ -155,6 +207,8 @@ export function CartProvider({ children }) {
             removeItem,
             increaseQuantity,
             decreaseQuantity,
+            setItemQuantity,
+            syncItemsWithCatalog,
             toggleSelectItem,
             toggleAll,
             clearCart,
@@ -169,6 +223,8 @@ export function CartProvider({ children }) {
             removeItem,
             increaseQuantity,
             decreaseQuantity,
+            setItemQuantity,
+            syncItemsWithCatalog,
             toggleSelectItem,
             toggleAll,
             clearCart,

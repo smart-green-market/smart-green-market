@@ -65,7 +65,49 @@ function resolveDeliveryDateLabel(entry) {
   return getDeliveryDateLabel(dateKey);
 }
 
+function formatTimeValue(value) {
+  if (value == null || value === "") return "";
+
+  const raw = String(value).trim();
+  const timeMatch = /^(\d{1,2}):(\d{2})(?::\d{2})?$/.exec(raw);
+  if (timeMatch) {
+    const hour = String(timeMatch[1]).padStart(2, "0");
+    return `${hour}:${timeMatch[2]}`;
+  }
+
+  const parsed = new Date(raw);
+  if (!Number.isNaN(parsed.getTime())) {
+    return new Intl.DateTimeFormat("vi-VN", {
+      timeZone: VIETNAM_TIMEZONE,
+      hour: "2-digit",
+      minute: "2-digit",
+      hour12: false,
+    }).format(parsed);
+  }
+
+  return raw;
+}
+
+export function formatDeliverySlotTimeRange(startTime, endTime) {
+  const start = formatTimeValue(startTime);
+  const end = formatTimeValue(endTime);
+
+  if (start && end) return `${start} - ${end}`;
+  if (start) return `Từ ${start}`;
+  if (end) return `Đến ${end}`;
+  return "";
+}
+
 export function parseDeliverySlots(response) {
+  const slotTemplates = new Map(
+    (response?.slots ?? [])
+      .map((slot) => {
+        const id = slot.id ?? slot.slot ?? slot.delivery_slot ?? "";
+        return [id, slot];
+      })
+      .filter(([id]) => id),
+  );
+
   const dates = response?.dates ?? response?.results ?? [];
 
   if (!Array.isArray(dates)) return [];
@@ -73,11 +115,28 @@ export function parseDeliverySlots(response) {
   return dates
     .map((entry) => {
       const slots = (entry.slots ?? [])
-        .map((slot) => ({
-          id: slot.id ?? slot.slot ?? slot.delivery_slot ?? "",
-          name: slot.name ?? slot.label ?? slot.slot_name ?? slot.id ?? "",
-          available: slot.available !== false,
-        }))
+        .map((slot) => {
+          const id = slot.id ?? slot.slot ?? slot.delivery_slot ?? "";
+          const template = slotTemplates.get(id);
+          const startTime = slot.start_time ?? template?.start_time ?? "";
+          const endTime = slot.end_time ?? template?.end_time ?? "";
+
+          return {
+            id,
+            name:
+              slot.name ??
+              slot.label ??
+              slot.slot_name ??
+              template?.name ??
+              id ??
+              "",
+            available: slot.available !== false,
+            startTime,
+            endTime,
+            deliveryTime: slot.delivery_time ?? null,
+            timeLabel: formatDeliverySlotTimeRange(startTime, endTime),
+          };
+        })
         .filter((slot) => slot.id);
 
       return {

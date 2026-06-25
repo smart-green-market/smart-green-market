@@ -25,6 +25,22 @@ export function resolveCartOwner(user, dealerSlug) {
   };
 }
 
+export function getCartItemMaxQuantity(item) {
+  const max = item?.availableQuantity ?? item?.available_quantity;
+  if (max == null || max === "") return null;
+  const parsed = Number(max);
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : null;
+}
+
+export function normalizeCartQuantity(value, maxQuantity = null) {
+  const parsed = Number.parseInt(String(value).replace(/\D/g, ""), 10);
+  let next = Number.isNaN(parsed) || parsed < 1 ? 1 : parsed;
+  if (maxQuantity != null && maxQuantity > 0) {
+    next = Math.min(next, maxQuantity);
+  }
+  return next;
+}
+
 export function buildCartItemFromProduct(product, quantity = 1) {
   const price = Number(getProductPrice(product) ?? product.priceValue ?? 0);
   const rawUnit = product.unitKey ?? product.unit ?? "";
@@ -39,14 +55,20 @@ export function buildCartItemFromProduct(product, quantity = 1) {
     product.images?.[0]?.image_url ??
     "https://placehold.co/160x160";
 
+  const availableQuantity =
+    product.available_quantity ?? product.availableQuantity ?? null;
+  const maxQuantity = getCartItemMaxQuantity({ availableQuantity });
+
   return {
     id: product.id,
     name: product.name ?? product.title ?? "",
     price,
     unit,
-    quantity: Math.max(1, quantity),
+    quantity: normalizeCartQuantity(quantity, maxQuantity),
     selected: true,
     image,
+    availableQuantity:
+      maxQuantity != null ? maxQuantity : (availableQuantity ?? null),
   };
 }
 
@@ -61,14 +83,17 @@ function isValidCartItem(item) {
 }
 
 function normalizeCartItem(item) {
+  const maxQuantity = getCartItemMaxQuantity(item);
+
   return {
     id: item.id,
     name: item.name,
     price: Number(item.price),
     unit: item.unit ?? "kg",
-    quantity: Math.max(1, Number(item.quantity)),
+    quantity: normalizeCartQuantity(item.quantity, maxQuantity),
     selected: item.selected !== false,
     image: item.image ?? "https://placehold.co/160x160",
+    availableQuantity: maxQuantity ?? item.availableQuantity ?? null,
   };
 }
 

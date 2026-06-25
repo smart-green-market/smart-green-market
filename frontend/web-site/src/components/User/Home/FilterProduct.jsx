@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import {
     ChevronsLeft,
     ChevronsRight,
@@ -45,11 +46,23 @@ function parseInputPrice(value) {
     return digits ? Number(digits) : null;
 }
 
+function parseCategoryParam(value) {
+    if (!value) return [];
+    return String(value)
+        .split(",")
+        .map((item) => item.trim())
+        .filter(Boolean);
+}
+
 export default function FilterProduct() {
+    const [searchParams, setSearchParams] = useSearchParams();
+    const categoryParam = searchParams.get("category") ?? "";
     const { categories, products, loading, error } = useBuyerCatalog();
     const catalog = useMemo(() => products.map(toCardProduct), [products]);
 
-    const [selectedCategories, setSelectedCategories] = useState([]);
+    const [selectedCategories, setSelectedCategories] = useState(() =>
+        parseCategoryParam(categoryParam),
+    );
     const [selectedUnits, setSelectedUnits] = useState([]);
     const [selectedSuppliers, setSelectedSuppliers] = useState([]);
     const [stockFilter, setStockFilter] = useState("all");
@@ -63,6 +76,21 @@ export default function FilterProduct() {
 
     const [page, setPage] = useState(1);
 
+    useEffect(() => {
+        setSelectedCategories(parseCategoryParam(categoryParam));
+        setPage(1);
+    }, [categoryParam]);
+
+    const syncCategoryParam = (ids) => {
+        const params = new URLSearchParams(searchParams);
+        if (ids.length === 0) {
+            params.delete("category");
+        } else {
+            params.set("category", ids.join(","));
+        }
+        setSearchParams(params, { replace: true });
+    };
+
     const availableUnits = useMemo(
         () => buildUnitFilterOptions(products),
         [products],
@@ -74,8 +102,10 @@ export default function FilterProduct() {
     );
 
     const toggleCategory = (ids) => {
-        setSelectedCategories(ids.map(String));
+        const next = ids.map(String);
+        setSelectedCategories(next);
         setPage(1);
+        syncCategoryParam(next);
     };
 
     const toggleUnit = (unit) => {
@@ -181,10 +211,15 @@ export default function FilterProduct() {
                     {error}
                 </div>
             ) : null}
-
+            <div className="mb-6 flex items-center justify-between">
+            <h2 className="text-2xl font-bold text-emerald-950">
+                    Danh mục sản phẩm
+                </h2>
+            </div>
             <div className="flex flex-col gap-6 lg:flex-row lg:items-start">
+                
                 <aside className="w-full shrink-0 rounded-2xl border border-emerald-100/80 bg-white shadow-[0_4px_24px_rgba(6,78,59,0.06)] lg:w-[280px]">
-
+                
                     <div className="px-5">
                         <FilterSection title="Danh mục">
                             <CategoryCheckboxDropdown
@@ -319,6 +354,8 @@ export default function FilterProduct() {
                                     categoryName={product.category_name}
                                     name={product.name}
                                     price={product.price}
+                                    priceValue={product.priceValue}
+                                    unitKey={product.unitKey}
                                     rating={product.rating}
                                     availableQuantity={product.available_quantity}
                                     unit={product.unit}
