@@ -9,6 +9,7 @@ import {
 import { useBuyerCatalog } from "../../../hooks/useBuyerCatalog";
 import { buildUnitFilterOptions, buildSupplierFilterOptions, toCardProduct } from "../../../utils/userProductUtils";
 import FilterProductCard from "./FilterProductCard";
+import CategoryCheckboxDropdown from "./CategoryCheckboxDropdown";
 
 const PAGE_SIZE = 8;
 
@@ -72,11 +73,8 @@ export default function FilterProduct() {
         [products],
     );
 
-    const toggleCategory = (id) => {
-        const key = String(id);
-        setSelectedCategories((prev) =>
-            prev.includes(key) ? prev.filter((item) => item !== key) : [...prev, key],
-        );
+    const toggleCategory = (ids) => {
+        setSelectedCategories(ids.map(String));
         setPage(1);
     };
 
@@ -190,43 +188,22 @@ export default function FilterProduct() {
             ) : null}
 
             <div className="flex flex-col gap-6 lg:flex-row lg:items-start">
-                <aside className="w-full shrink-0 rounded-lg border border-stone-200 bg-white shadow-sm lg:w-[280px]">
-                    <div className="border-b border-stone-200 px-5 py-4">
-                        <h3 className="text-base font-bold text-zinc-900">Bộ lọc</h3>
+                <aside className="w-full shrink-0 rounded-2xl border border-emerald-100/80 bg-white shadow-[0_4px_24px_rgba(6,78,59,0.06)] lg:w-[280px]">
+                    <div className="border-b border-emerald-100 bg-gradient-to-r from-emerald-700 to-emerald-600 px-5 py-4">
+                        <h3 className="text-base font-bold text-white">Bộ lọc</h3>
+                        <p className="mt-0.5 text-xs text-emerald-100">
+                            Tìm nông sản tươi phù hợp
+                        </p>
                     </div>
 
                     <div className="px-5">
                         <FilterSection title="Danh mục">
-                            <div className="flex flex-wrap gap-2">
-                                {loading ? (
-                                    <span className="text-xs text-neutral-400">
-                                        Đang tải...
-                                    </span>
-                                ) : visibleCategories.length > 0 ? (
-                                    visibleCategories.map((category) => (
-                                        <TagButton
-                                            key={category.id}
-                                            active={selectedCategories.includes(
-                                                String(category.id),
-                                            )}
-                                            onClick={() =>
-                                                toggleCategory(String(category.id))
-                                            }
-                                        >
-                                            {category.name}
-                                            {category.product_count != null ? (
-                                                <span className="ml-1 opacity-70">
-                                                    ({category.product_count})
-                                                </span>
-                                            ) : null}
-                                        </TagButton>
-                                    ))
-                                ) : (
-                                    <span className="text-xs text-neutral-400">
-                                        Chưa có danh mục
-                                    </span>
-                                )}
-                            </div>
+                            <CategoryCheckboxDropdown
+                                categories={visibleCategories}
+                                selectedIds={selectedCategories}
+                                onChange={toggleCategory}
+                                loading={loading}
+                            />
                         </FilterSection>
 
                         <FilterSection title="Đơn vị tính">
@@ -327,7 +304,7 @@ export default function FilterProduct() {
                         <button
                             type="button"
                             onClick={handleApplyFilter}
-                            className="w-full rounded-md bg-emerald-700 py-3 text-sm font-semibold text-white transition-colors hover:bg-emerald-800"
+                            className="w-full rounded-xl bg-emerald-700 py-3 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-emerald-800"
                         >
                             Áp dụng bộ lọc
                         </button>
