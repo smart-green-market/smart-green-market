@@ -14,3 +14,4 @@ django-cors-headers==4.9.0
 cloudinary==1.44.2
 django-cloudinary-storage==0.3.0
 requests==2.34.2
+Faker==33.3.1

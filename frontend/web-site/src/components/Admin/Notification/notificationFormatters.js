@@ -31,9 +31,9 @@ export function matchesNotificationRecord(item, notificationId, receiptId) {
   if (!item || notificationId == null) return false;
 
   return (
-    item.id === notificationId ||
-    (receiptId != null &&
-      (item.receiptId === receiptId || item.receipt_id === receiptId))
+    item.id === notificationId
+    || (receiptId != null
+      && (item.receiptId === receiptId || item.receipt_id === receiptId))
   );
 }
 
@@ -69,12 +69,10 @@ export function mergeNotificationDetail(detail, fallback = {}) {
     title: detail.title ?? fallback.title,
     content: detail.content ?? fallback.content,
     referenceType: detail.reference_type ?? fallback.referenceType,
-    referenceTypeLabel:
-      detail.reference_type_label ?? fallback.referenceTypeLabel,
+    referenceTypeLabel: detail.reference_type_label ?? fallback.referenceTypeLabel,
     referenceId: detail.reference_id ?? fallback.referenceId,
     referenceStatus: detail.reference_status ?? fallback.referenceStatus,
-    referenceOrderCode:
-      detail.reference_order_code ?? fallback.referenceOrderCode,
+    referenceOrderCode: detail.reference_order_code ?? fallback.referenceOrderCode,
     createdAt: detail.created_at ?? fallback.createdAt,
     createdBy: detail.created_by ?? fallback.createdBy,
     isRead: fallback.isRead ?? detail.is_read,
