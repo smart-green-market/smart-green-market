@@ -25,6 +25,7 @@ export const NAV_SECTIONS = [
             { to: "/nha-cung-cap/san-pham", label: "Sản phẩm", icon: Package },
             { to: "/nha-cung-cap/chung-nhan", label: "Chứng nhận", icon: BadgeCheck },
             { to: "/nha-cung-cap/canh-tac", label: "Canh tác", icon: Sprout },
+            { to: "/nha-cung-cap/danh-muc", label: "Danh mục", icon: Sprout },
         ],
     },
     {
