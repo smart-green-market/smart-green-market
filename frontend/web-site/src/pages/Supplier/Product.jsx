@@ -34,6 +34,9 @@ export default function ProductSupplierPage() {
   const [statusFilter, setStatusFilter] = useState("");
   const [categoryFilter, setCategoryFilter] = useState("");
   const [categories, setCategories] = useState([]); // danh sách danh mục từ data
+  const [modalMode, setModalMode] = useState("catalog"); // "catalog" | "personal"
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [showAddCategory, setShowAddCategory] = useState(false);
 
   // Modal states
   const [deleteRow, setDeleteRow] = useState(null);
@@ -140,28 +143,36 @@ export default function ProductSupplierPage() {
       </div>
 
       {/* ── Toolbar ── */}
-      <div className="flex justify-between items-center">
-        <input
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          placeholder="Tìm kiếm sản phẩm..."
-          className="px-4 py-2 border border-neutral-200 rounded-lg text-sm w-72 outline-none focus:border-emerald-600"
-        />
-        <button
-          onClick={() => setCreateRow({})}
-          className="flex items-center gap-1.5 px-4 py-2 bg-emerald-800 text-white text-sm font-semibold rounded-lg hover:bg-emerald-700 transition-colors"
-        >
-          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-          </svg>
-          Thêm sản phẩm
-        </button>
+      <div className="flex justify-end items-center">
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => {
+              setModalMode("catalog");
+              setIsModalOpen(true);
+            }}
+            className="flex items-center gap-2 px-4 py-2 text-sm font-semibold text-white bg-green-700 hover:bg-green-800 rounded-lg"
+          >
+            <Plus className="w-4 h-4" />
+            Thêm sản phẩm
+          </button>
+
+          <button
+            onClick={() => {
+              setModalMode("personal");
+              setIsModalOpen(true);
+            }}
+            className="flex items-center gap-2 px-4 py-2 text-sm font-semibold text-white bg-blue-700 hover:bg-blue-800 rounded-lg"
+          >
+            <User className="w-4 h-4" />
+            Thêm sản phẩm cá nhân
+          </button>
+        </div>
       </div>
 
       {/* ── Filters ── */}
       <div className="flex items-center gap-4 flex-wrap">
         {/* Filter danh mục */}
-        <div className="flex items-center gap-2">
+        {/* <div className="flex items-center gap-2">
           <span className="text-xs font-semibold text-neutral-400 uppercase tracking-wide font-['Geist',sans-serif]">
             Danh mục:
           </span>
@@ -179,10 +190,10 @@ export default function ProductSupplierPage() {
               </button>
             ))}
           </div>
-        </div>
+        </div> */}
 
         {/* Filter nhanh: chờ duyệt */}
-        <button
+        {/* <button
           onClick={() => setStatusFilter(statusFilter === "pending" ? "" : "pending")}
           className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors border ${statusFilter === "pending"
             ? "bg-amber-500 text-white border-amber-500"
@@ -191,7 +202,7 @@ export default function ProductSupplierPage() {
         >
           <Clock size={12} />
           Chờ duyệt {stats.pending > 0 && `(${stats.pending})`}
-        </button>
+        </button> */}
       </div>
 
       {/* ── Table ── */}
