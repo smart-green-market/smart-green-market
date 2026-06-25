@@ -240,7 +240,7 @@ export function formatUserProduct(raw) {
 
 export function formatUnitLabel(unit) {
   if (!unit) return "";
-  return unit.startsWith("/") ? unit : `/${unit}`;
+  return unit.startsWith("/") ? unit : `${unit}`;
 }
 
 export function formatStorageDuration(days) {

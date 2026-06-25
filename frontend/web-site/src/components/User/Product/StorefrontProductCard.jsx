@@ -40,7 +40,7 @@ export default function StorefrontProductCard({
                 ) : null}
 
                 {!inStock ? (
-                    <div className="absolute inset-0 flex items-end bg-gradient-to-b from-black/25 to-transparent p-3">
+                    <div className="absolute inset-0 flex items-end  p-3">
                         <span className="rounded-full bg-white/95 px-2.5 py-1 text-[11px] font-semibold text-stone-600 shadow-sm">
                             Tạm hết hàng
                         </span>
@@ -53,18 +53,12 @@ export default function StorefrontProductCard({
                     {name}
                 </h3>
 
-                <div className="mt-2.5 flex flex-wrap items-center gap-2">
+                <div className="mb-2.5 flex flex-wrap items-center gap-2">
                     <ProductCardMeta
                         availableQuantity={availableQuantity}
                         unit={unit}
                         inStock={inStock}
                     />
-                    {rating != null && Number(rating) > 0 ? (
-                        <span className="inline-flex items-center gap-0.5 text-[11px] font-medium text-amber-600">
-                            <Star className="h-3 w-3 fill-current" />
-                            {Number(rating).toFixed(1)}
-                        </span>
-                    ) : null}
                 </div>
 
                 <div
