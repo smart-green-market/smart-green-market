@@ -36,6 +36,7 @@ export default function ProductSupplierPage() {
   const [categories, setCategories] = useState([]); // danh sách danh mục từ data
   const [modalMode, setModalMode] = useState("catalog"); // "catalog" | "personal"
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [showAddCategory, setShowAddCategory] = useState(false);
 
   // Modal states
   const [deleteRow, setDeleteRow] = useState(null);
