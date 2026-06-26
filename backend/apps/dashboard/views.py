@@ -1,13 +1,7 @@
 from datetime import timedelta
 from django.utils import timezone
 from django.db.models import Sum, Count, F, Q
-from django.db.models.functions import TruncDate
-from rest_framework import viewsets
-from rest_framework.permissions import IsAuthenticated
-from datetime import timedelta
-from django.utils import timezone
-from django.db.models import Sum, Count, F, Q
-from django.db.models.functions import TruncDate
+from django.db.models.functions import TruncDate, TruncMonth
 from rest_framework import viewsets
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
@@ -15,6 +9,8 @@ from rest_framework.decorators import action
 
 from apps.orders.models import Order, OrderStatus, OrderItem
 from apps.dealer_products.models import DealerInventoryBatch, DealerInventoryBatchStatus
+from apps.purchase_orders.models import PurchaseOrder, PurchaseOrderStatus, PurchaseOrderItem
+from apps.supplier_products.models import SupplierProduct, SupplierProductStatus
 
 class DealerDashboardViewSet(viewsets.ViewSet):
     """
@@ -191,6 +187,140 @@ class DealerDashboardViewSet(viewsets.ViewSet):
                 "sales": item['total_quantity'],
                 "revenue": item['total_revenue'],
                 "current_stock": stock
+            })
+
+        return Response(results)
+
+class SupplierDashboardViewSet(viewsets.ViewSet):
+    """
+    ViewSet cung cấp các API cho Dashboard của Nhà cung cấp (Supplier).
+    """
+    permission_classes = [IsAuthenticated]
+
+    def _get_supplier(self, request):
+        return getattr(request.user, 'supplier_profile', None)
+
+    @action(detail=False, methods=['get'])
+    def summary(self, request):
+        supplier = self._get_supplier(request)
+        if not supplier:
+            return Response({"detail": "User is not a supplier."}, status=403)
+
+        now = timezone.now()
+        this_month_start = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+        
+        # 1. Doanh thu (Revenue)
+        completed_orders = PurchaseOrder.objects.filter(
+            supplier=supplier,
+            status__in=[PurchaseOrderStatus.COMPLETED, PurchaseOrderStatus.DELIVERED]
+        )
+        
+        # Doanh thu tháng này
+        this_month_revenue = completed_orders.filter(
+            updated_at__gte=this_month_start
+        ).aggregate(total=Sum('total_amount'))['total'] or 0
+
+        # 2. Đơn hàng mới (New Orders)
+        new_orders_count = PurchaseOrder.objects.filter(
+            supplier=supplier,
+            created_at__gte=this_month_start
+        ).count()
+
+        # Số đơn hàng đang chờ xử lý
+        pending_orders_count = PurchaseOrder.objects.filter(
+            supplier=supplier,
+            status__in=[
+                PurchaseOrderStatus.PENDING_SUPPLIER_CONFIRMATION
+            ]
+        ).count()
+
+        # 3. Sản phẩm đang bán (Active Products)
+        active_products_count = SupplierProduct.objects.filter(
+            supplier=supplier,
+            status=SupplierProductStatus.ACTIVE
+        ).count()
+
+        return Response({
+            "revenue": {
+                "this_month": this_month_revenue
+            },
+            "orders": {
+                "new_this_month": new_orders_count,
+                "pending": pending_orders_count
+            },
+            "products": {
+                "active_count": active_products_count
+            }
+        })
+
+    @action(detail=False, methods=['get'], url_path='revenue-chart')
+    def revenue_chart(self, request):
+        supplier = self._get_supplier(request)
+        if not supplier:
+            return Response({"detail": "User is not a supplier."}, status=403)
+
+        now = timezone.now()
+        # Lấy ngày mùng 1 của 5 tháng trước (tổng 6 tháng bao gồm tháng hiện tại)
+        start_date = now
+        for _ in range(5):
+            start_date = (start_date.replace(day=1) - timedelta(days=1)).replace(day=1)
+        start_date = start_date.replace(day=1, hour=0, minute=0, second=0, microsecond=0) #về ngày mùng 1 đầu tháng của 5 tháng trước (đặt thời gian về 00:00:00). 
+
+        monthly_revenue = PurchaseOrder.objects.filter(
+            supplier=supplier,
+            status__in=[PurchaseOrderStatus.COMPLETED, PurchaseOrderStatus.DELIVERED],
+            updated_at__gte=start_date
+        ).annotate(
+            month=TruncMonth('updated_at') # làm tròn về đầu tháng cho nó cung dữ liệu để gom nhóm.
+        ).values('month').annotate(
+            total=Sum('total_amount')
+        ).order_by('month')
+
+        # Generate 6 months
+        revenue_dict = {}
+        curr_date = start_date
+        for _ in range(6):
+            month_key = curr_date.strftime('%Y-%m') # e.g. "2026-01"
+            revenue_dict[month_key] = 0
+            # Move to next month
+            next_month = curr_date.replace(day=28) + timedelta(days=4)
+            curr_date = next_month.replace(day=1)
+        # Điền doanh thu thực tế từ cơ sở dữ liệu
+        for item in monthly_revenue:
+            if item['month']:
+                month_key = item['month'].strftime('%Y-%m')
+                if month_key in revenue_dict:
+                    revenue_dict[month_key] = float(item['total'] or 0)
+        
+        result = [{"month": k, "revenue": v} for k, v in revenue_dict.items()]
+        return Response(result)
+
+    @action(detail=False, methods=['get'], url_path='top-products')
+    def top_products(self, request):
+        supplier = self._get_supplier(request)
+        if not supplier:
+            return Response({"detail": "User is not a supplier."}, status=403)
+
+        top_items = PurchaseOrderItem.objects.filter(
+            purchase_order__supplier=supplier,
+            purchase_order__status__in=[PurchaseOrderStatus.COMPLETED, PurchaseOrderStatus.DELIVERED]
+        ).values(
+            'supplier_product__id',
+            'supplier_product__name',
+            'supplier_product__category__name'
+        ).annotate(
+            total_quantity=Sum('quantity'),
+            total_revenue=Sum('subtotal')
+        ).order_by('-total_revenue')[:10]
+
+        results = []
+        for item in top_items:
+            results.append({
+                "id": item['supplier_product__id'],
+                "name": item['supplier_product__name'],
+                "category": item['supplier_product__category__name'] or "Chưa phân loại",
+                "sales": item['total_quantity'],
+                "revenue": item['total_revenue']
             })
 
         return Response(results)
