@@ -1,6 +1,9 @@
 import axiosClient from "./axiosClient";
 
 export const notificationService = {
+  getMyNotifications: () =>
+    axiosClient.get("/notifications/my/").then((res) => res.data),
+
   getAll: () =>
     axiosClient.get("/notifications/my/").then((res) => {
       const data = res.data;

@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Outlet, useNavigate } from "react-router-dom";
+import { Outlet, useNavigate, useLocation } from "react-router-dom";
 import { Menu } from "lucide-react";
 import SideBar from "../components/Dealer/UI/SideBar";
 import Logo from "../components/Dealer/UI/Logo";
@@ -9,6 +9,7 @@ import AppToaster from "../components/common/AppToaster";
 export default function DealerLayout() {
     const [isSidebarOpen, setIsSidebarOpen] = useState(true);
     const navigate = useNavigate();
+    const location = useLocation();
 
     return (
         <div className="min-h-screen bg-[#F8F9FA]">
@@ -47,7 +48,7 @@ export default function DealerLayout() {
             {/* ── Main content ──────────────────────────────────────────────── */}
             <main className={`pt-16 min-h-screen transition-all duration-300 ${isSidebarOpen ? "pl-64" : "pl-0"
                 }`}>
-                <Outlet />
+                <Outlet key={location.pathname + (location.state?.refresh ? `-${location.state.refresh}` : "")} />
             </main>
 
             <AppToaster />

@@ -45,7 +45,7 @@ export default function DealerCategoryPage() {
     const fetchCategories = async () => {
         setIsLoading(true);
         try {
-            const data = await categoryService.getAll({ page: currentPage, page_size: 10, search: debouncedSearchQuery, status: statusFilter });
+            const data = await categoryService.getAll({ page: currentPage, page_size: 9, search: debouncedSearchQuery, status: statusFilter });
             const results = data?.results || data || [];
             const mappedData = results.map(cat => ({
                 ...cat,
@@ -54,7 +54,7 @@ export default function DealerCategoryPage() {
                 count: "0 sản phẩm",
             }));
             setCategoryList(mappedData);
-            setTotalPages(Math.max(1, Math.ceil((data?.count || results.length) / 10)));
+            setTotalPages(Math.max(1, Math.ceil((data?.count || results.length) / 9)));
         } catch (err) {
             setError(handleApiError(err, "Không thể tải danh sách danh mục"));
         } finally {
