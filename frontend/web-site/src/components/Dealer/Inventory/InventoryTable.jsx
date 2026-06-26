@@ -1,8 +1,23 @@
-import { useState } from "react";
+import { useMemo } from "react";
 import { Eye } from "lucide-react";
 import Pagination from "../../common/Pagination";
+import SortableHeader from "../../common/SortableHeader";
+import useTableSort from "../../../hooks/useTableSort";
+
+const COLUMN_CONFIG = {
+  batchCode:   { key: "batchCode",   type: "string" },
+  productName: { key: "productName", type: "string" },
+  supplier:    { key: "supplier",    type: "string" },
+  stock:       { key: "stock",       type: "number" },
+  priceImport: { key: "priceImport", type: "currency" },
+  importDate:  { key: "importDate",  type: "date" },
+  expiryDate:  { key: "expiryDate",  type: "date" },
+  status:      { key: "status",      type: "string" },
+};
 
 export default function InventoryTable({ data, onRowClick, currentPage, totalPages, onPageChange }) {
+  const { sortedData, sortColumn, sortDirection, handleSort } = useTableSort(data, COLUMN_CONFIG);
+
   if (!data || data.length === 0) {
     return (
       <div className="w-full rounded-2xl border border-neutral-200 overflow-hidden bg-white shadow-xs font-['Geist',sans-serif] py-16 text-center">
@@ -20,19 +35,19 @@ export default function InventoryTable({ data, onRowClick, currentPage, totalPag
           <table className="w-full border-collapse text-left whitespace-nowrap">
             <thead>
               <tr className="bg-neutral-50 border-b border-neutral-200/60">
-                <th className="px-6 py-4 text-[11px] font-bold text-neutral-500 uppercase tracking-wider">Mã lô</th>
-                <th className="px-6 py-4 text-[11px] font-bold text-neutral-500 uppercase tracking-wider">Tên nông sản</th>
-                <th className="px-6 py-4 text-[11px] font-bold text-neutral-500 uppercase tracking-wider">Nhà cung cấp</th>
-                <th className="px-6 py-4 text-[11px] font-bold text-neutral-500 uppercase tracking-wider">Tồn kho</th>
-                <th className="px-6 py-4 text-[11px] font-bold text-neutral-500 uppercase tracking-wider">Giá mua</th>
-                <th className="px-6 py-4 text-[11px] font-bold text-neutral-500 uppercase tracking-wider">Ngày nhập</th>
-                <th className="px-6 py-4 text-[11px] font-bold text-neutral-500 uppercase tracking-wider">Hạn dùng</th>
-                <th className="px-6 py-4 text-[11px] font-bold text-neutral-500 uppercase tracking-wider text-center">Trạng thái</th>
+                <SortableHeader label="Mã lô" column="batchCode" sortColumn={sortColumn} sortDirection={sortDirection} onSort={handleSort} />
+                <SortableHeader label="Tên nông sản" column="productName" sortColumn={sortColumn} sortDirection={sortDirection} onSort={handleSort} />
+                <SortableHeader label="Nhà cung cấp" column="supplier" sortColumn={sortColumn} sortDirection={sortDirection} onSort={handleSort} />
+                <SortableHeader label="Tồn kho" column="stock" sortColumn={sortColumn} sortDirection={sortDirection} onSort={handleSort} />
+                <SortableHeader label="Giá mua" column="priceImport" sortColumn={sortColumn} sortDirection={sortDirection} onSort={handleSort} />
+                <SortableHeader label="Ngày nhập" column="importDate" sortColumn={sortColumn} sortDirection={sortDirection} onSort={handleSort} />
+                <SortableHeader label="Hạn dùng" column="expiryDate" sortColumn={sortColumn} sortDirection={sortDirection} onSort={handleSort} />
+                <SortableHeader label="Trạng thái" column="status" sortColumn={sortColumn} sortDirection={sortDirection} onSort={handleSort} align="center" />
                 <th className="px-6 py-4 text-[11px] font-bold text-neutral-500 uppercase tracking-wider text-right">Thao tác</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-neutral-100">
-              {data.map((row, index) => {
+              {sortedData.map((row, index) => {
                 const statusClass =
                   row.status === "Đang hoạt động"
                     ? "bg-emerald-100 text-emerald-800"

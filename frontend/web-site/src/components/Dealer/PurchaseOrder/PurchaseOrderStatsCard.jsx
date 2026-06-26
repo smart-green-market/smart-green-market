@@ -4,6 +4,13 @@ import {
   Wallet,
   Truck,
   CheckCircle2,
+  XCircle,
+  CheckSquare,
+  Coins,
+  Package,
+  PackageCheck,
+  CreditCard,
+  X,
 } from "lucide-react";
 
 const STAT_CARDS = [
@@ -19,7 +26,7 @@ const STAT_CARDS = [
     activeBg: "bg-gray-100",
   },
   {
-    key: "pending",
+    key: "pending_supplier_confirmation",
     label: "Chờ xác nhận",
     icon: Clock,
     filterValue: "pending_supplier_confirmation",
@@ -28,17 +35,6 @@ const STAT_CARDS = [
     countColor: "text-amber-700",
     borderColor: "border-amber-200",
     activeBg: "bg-amber-100",
-  },
-  {
-    key: "deposit",
-    label: "Chờ duyệt cọc",
-    icon: Wallet,
-    filterValue: "deposit_pending_verification",
-    bgColor: "bg-blue-50",
-    iconColor: "text-blue-500",
-    countColor: "text-blue-700",
-    borderColor: "border-blue-200",
-    activeBg: "bg-blue-100",
   },
   {
     key: "shipping",
@@ -62,48 +58,60 @@ const STAT_CARDS = [
     borderColor: "border-green-200",
     activeBg: "bg-green-100",
   },
+  {
+    key: "cancelled",
+    label: "Đã hủy",
+    icon: XCircle,
+    filterValue: "cancelled",
+    bgColor: "bg-red-50",
+    iconColor: "text-red-500",
+    countColor: "text-red-700",
+    borderColor: "border-red-200",
+    activeBg: "bg-red-100",
+  },
 ];
 
-export default function PurchaseOrderStatsCard({ orders = [], activeFilter = "", onFilterChange }) {
-  // Đếm số lượng đơn theo từng trạng thái
-  const counts = STAT_CARDS.reduce((acc, card) => {
-    acc[card.key] =
-      card.filterValue === ""
-        ? orders.length
-        : orders.filter((o) => (o.rawStatus || o.status) === card.filterValue).length;
-    return acc;
-  }, {});
+export default function PurchaseOrderStatsCard({ orders = [], activeFilter = "", onFilterChange, countStatus = null, totalCount = 0 }) {
 
   return (
-    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 mb-6">
+    <div className="flex gap-3 mb-6 overflow-x-auto pb-3 snap-x snap-mandatory [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
       {STAT_CARDS.map((card) => {
         const Icon = card.icon;
         const isActive = activeFilter === card.filterValue;
-        const count = counts[card.key] || 0;
+
+        // Lấy số lượng trực tiếp
+        let count = 0;
+        if (card.filterValue === "") {
+          count = totalCount;
+        } else if (countStatus) {
+          count = countStatus[card.filterValue] || 0;
+        } else {
+          count = orders.filter((o) => (o.rawStatus || o.status) === card.filterValue).length;
+        }
 
         return (
           <button
             key={card.key}
             onClick={() => onFilterChange?.(card.filterValue)}
-            className={`relative flex items-center gap-3 p-4 rounded-xl border transition-all duration-200 cursor-pointer group
+            className={`relative flex items-center gap-4 p-5 rounded-2xl border transition-all duration-200 cursor-pointer group shrink-0 w-[190px] sm:w-[215px] snap-start
               ${isActive
                 ? `${card.activeBg} ${card.borderColor} shadow-sm ring-1 ring-inset ${card.borderColor}`
                 : `bg-white border-gray-100 hover:border-gray-200 hover:shadow-sm`
               }`}
           >
             {/* Icon */}
-            <div className={`w-10 h-10 rounded-lg flex items-center justify-center shrink-0 transition-colors
+            <div className={`w-12 h-12 rounded-xl flex items-center justify-center shrink-0 transition-colors
               ${isActive ? card.bgColor : "bg-[#F8F9FA] group-hover:" + card.bgColor}`}
             >
-              <Icon className={`w-5 h-5 ${card.iconColor}`} />
+              <Icon className={`w-6 h-6 ${card.iconColor}`} />
             </div>
 
             {/* Text */}
             <div className="text-left min-w-0">
-              <p className={`text-xl font-bold leading-none ${isActive ? card.countColor : "text-[#333333]"}`}>
+              <p className={`text-2xl font-extrabold leading-none ${isActive ? card.countColor : "text-[#333333]"}`}>
                 {count}
               </p>
-              <p className="text-[11px] font-medium text-[#6B7280] mt-1 truncate">
+              <p className="text-xs font-semibold text-[#6B7280] mt-1.5 truncate">
                 {card.label}
               </p>
             </div>

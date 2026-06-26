@@ -1,6 +1,7 @@
-import { useState } from "react";
 import { Eye } from "lucide-react";
 import Pagination from "../../common/Pagination";
+import SortableHeader from "../../common/SortableHeader";
+import useTableSort from "../../../hooks/useTableSort";
 
 const STATUS_MAP = {
   active: { label: "Đang bán", cls: "bg-emerald-50 text-emerald-700" },
@@ -10,7 +11,16 @@ const STATUS_MAP = {
   deleted: { label: "Đã xóa", cls: "bg-red-100 text-red-900" },
 };
 
+const COLUMN_CONFIG = {
+  title:        { key: "title",        type: "string" },
+  retail_price: { key: "retail_price", type: "number" },
+  sold:         { key: "sold",         type: "number" },
+  status:       { key: "status",       type: "string" },
+};
+
 export default function ProductTable({ data, onRowClick, currentPage, totalPages, onPageChange }) {
+  const { sortedData, sortColumn, sortDirection, handleSort } = useTableSort(data, COLUMN_CONFIG);
+
   if (!data || data.length === 0) {
     return (
       <div className="w-full rounded-2xl border border-neutral-200 overflow-hidden bg-white shadow-xs font-['Geist',sans-serif] py-16 text-center">
@@ -28,15 +38,15 @@ export default function ProductTable({ data, onRowClick, currentPage, totalPages
           <table className="w-full border-collapse text-left whitespace-nowrap">
             <thead>
               <tr className="bg-neutral-50 border-b border-neutral-200/60">
-                <th className="px-6 py-4 text-[11px] font-bold text-neutral-500 uppercase tracking-wider">Sản phẩm</th>
-                <th className="px-6 py-4 text-[11px] font-bold text-neutral-500 uppercase tracking-wider">Giá bán lẻ</th>
-                <th className="px-6 py-4 text-[11px] font-bold text-neutral-500 uppercase tracking-wider">Đã bán</th>
-                <th className="px-6 py-4 text-[11px] font-bold text-neutral-500 uppercase tracking-wider text-center">Trạng thái</th>
+                <SortableHeader label="Sản phẩm" column="title" sortColumn={sortColumn} sortDirection={sortDirection} onSort={handleSort} />
+                <SortableHeader label="Giá bán lẻ" column="retail_price" sortColumn={sortColumn} sortDirection={sortDirection} onSort={handleSort} />
+                <SortableHeader label="Đã bán" column="sold" sortColumn={sortColumn} sortDirection={sortDirection} onSort={handleSort} />
+                <SortableHeader label="Trạng thái" column="status" sortColumn={sortColumn} sortDirection={sortDirection} onSort={handleSort} align="center" />
                 <th className="px-6 py-4 text-[11px] font-bold text-neutral-500 uppercase tracking-wider text-right">Thao tác</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-neutral-100">
-              {data.map((row, index) => {
+              {sortedData.map((row, index) => {
                 const images = row.images || [];
                 const thumbnail = row.thumbnail || images.find(img => img.is_thumbnail)?.image_url || images[0]?.image_url;
                 const info = STATUS_MAP[row.status] || { label: row.status, cls: "bg-neutral-100 text-neutral-500" };

@@ -1,17 +1,42 @@
-import { Download, Plus, Users, Award, TrendingUp } from "lucide-react";
+import { Download, Plus, Users, Award, TrendingUp, XCircle, Clock } from "lucide-react";
+
+const STAT_CARDS = [
+  {
+    key: "all",
+    label: "Tổng khách hàng",
+    icon: Users,
+    filterValue: "",
+    bgColor: "bg-gray-50",
+    iconColor: "text-gray-500",
+    countColor: "text-[#333333]",
+    borderColor: "border-gray-200",
+    activeBg: "bg-gray-100",
+  },
+  {
+    key: "active",
+    label: "Đang hoạt động",
+    icon: Award,
+    filterValue: "active",
+    bgColor: "bg-emerald-50",
+    iconColor: "text-emerald-500",
+    countColor: "text-emerald-700",
+    borderColor: "border-emerald-200",
+    activeBg: "bg-emerald-100",
+  }
+];
 
 export default function CustomerHeader({
   loading,
   pagination,
-  customers,
+  customers = [],
   onExport,
   onAdd,
+  activeFilter = "",
+  onFilterChange,
+  countStatus = null,
+  totalCount = 0,
+  totalOrders = 0,
 }) {
-  const activeCount = customers.filter((c) => c.status === "active").length;
-  const totalOrders = customers.reduce((sum, c) => sum + (c.total_orders || 0), 0);
-  const activePercentage = !loading && pagination?.count > 0
-    ? Math.round((activeCount / customers.length) * 100)
-    : 0;
 
   return (
     <>
@@ -24,7 +49,7 @@ export default function CustomerHeader({
           </p>
         </div>
         <div className="flex items-center gap-3">
-          <button
+          {/* <button
             onClick={onExport}
             className="flex items-center gap-2 px-4 py-2.5 bg-emerald-100 hover:bg-emerald-200 text-emerald-800 rounded-xl text-sm font-bold transition-colors"
           >
@@ -35,62 +60,71 @@ export default function CustomerHeader({
             className="flex items-center gap-2 px-4 py-2.5 bg-[#006A3A] hover:bg-[#005A30] text-white rounded-xl text-sm font-bold transition-colors shadow-md"
           >
             <Plus className="w-4 h-4" /> Thêm khách hàng
-          </button>
+          </button> */}
         </div>
       </div>
 
-      {/* Stat Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-        {/* Card 1 - Tổng khách hàng */}
-        <div className="bg-white rounded-2xl p-6 border border-neutral-100 shadow-[0_2px_10px_rgb(0,0,0,0.02)] relative overflow-hidden">
-          <div className="flex justify-between items-start mb-4">
-            <div className="w-10 h-10 rounded-full bg-emerald-50 flex items-center justify-center text-emerald-600">
-              <Users className="w-5 h-5" />
-            </div>
-          </div>
-          <div>
-            <p className="text-sm font-bold text-neutral-500 mb-1">Tổng khách hàng</p>
-            <h2 className="text-4xl font-black text-neutral-900 tracking-tight">
-              {loading ? "..." : pagination?.count || 0}
-            </h2>
-          </div>
-        </div>
+      {/* Stat Cards Container */}
+      <div className="flex flex-wrap gap-4 mb-6">
+        {STAT_CARDS.map((card) => {
+          const Icon = card.icon;
+          const isActive = activeFilter === card.filterValue;
 
-        {/* Card 2 - Hoạt động */}
-        <div className="bg-white rounded-2xl p-6 border border-neutral-100 shadow-[0_2px_10px_rgb(0,0,0,0.02)] relative overflow-hidden">
-          <div className="flex justify-between items-start mb-4">
-            <div className="w-10 h-10 rounded-full bg-emerald-50 flex items-center justify-center text-emerald-600">
-              <Award className="w-5 h-5" />
-            </div>
-            <div className="bg-neutral-100 text-neutral-600 px-2.5 py-1 rounded-full text-xs font-bold">
-              Trạng thái
-            </div>
-          </div>
-          <div>
-            <p className="text-sm font-bold text-neutral-500 mb-1">Đang hoạt động</p>
-            <div className="flex items-baseline gap-2">
-              <h2 className="text-4xl font-black text-neutral-900 tracking-tight">
-                {loading ? "..." : activeCount}
-              </h2>
-              <span className="text-sm font-bold text-neutral-400">
-                / {activePercentage}% tổng số
-              </span>
-            </div>
-          </div>
-        </div>
+          // Lấy số lượng trực tiếp
+          let count = 0;
+          if (card.filterValue === "") {
+            count = totalCount;
+          } else if (countStatus) {
+            count = countStatus[card.filterValue] || 0;
+          } else {
+            count = customers.filter((o) => o.status === card.filterValue).length;
+          }
 
-        {/* Card 3 - Tổng đơn hàng */}
-        <div className="bg-white rounded-2xl p-6 border border-neutral-100 shadow-[0_2px_10px_rgb(0,0,0,0.02)] relative overflow-hidden">
-          <div className="flex justify-between items-start mb-4">
-            <div className="w-10 h-10 rounded-full bg-sky-50 flex items-center justify-center text-sky-600">
-              <TrendingUp className="w-5 h-5" />
-            </div>
+          return (
+            <button
+              key={card.key}
+              onClick={() => onFilterChange?.(card.filterValue)}
+              className={`relative flex items-center gap-4 p-5 rounded-2xl border transition-all duration-200 cursor-pointer group w-full sm:w-[260px] min-h-[94px]
+                ${isActive
+                  ? `${card.activeBg} ${card.borderColor} shadow-sm ring-1 ring-inset ${card.borderColor}`
+                  : `bg-white border-gray-100 hover:border-gray-200 hover:shadow-sm`
+                }`}
+            >
+              {/* Icon */}
+              <div className={`w-12 h-12 rounded-xl flex items-center justify-center shrink-0 transition-colors
+                ${isActive ? card.bgColor : "bg-[#F8F9FA] group-hover:" + card.bgColor}`}
+              >
+                <Icon className={`w-6 h-6 ${card.iconColor}`} />
+              </div>
+
+              {/* Text */}
+              <div className="text-left min-w-0">
+                <p className={`text-2xl font-extrabold leading-none ${isActive ? card.countColor : "text-[#333333]"}`}>
+                  {count}
+                </p>
+                <p className="text-xs font-semibold text-[#6B7280] mt-1.5 truncate">
+                  {card.label}
+                </p>
+              </div>
+
+              {/* Active indicator dot */}
+              {isActive && (
+                <span className={`absolute top-2 right-2 w-1.5 h-1.5 rounded-full ${card.iconColor.replace("text-", "bg-")}`} />
+              )}
+            </button>
+          );
+        })}
+
+        {/* Tổng đơn hàng Card */}
+        <div className="bg-white border border-neutral-100 rounded-2xl p-5 flex items-center gap-4 shadow-xs transition-all hover:shadow-md min-h-[94px] w-full sm:w-[260px]">
+          <div className="w-12 h-12 rounded-xl bg-sky-50 flex items-center justify-center shrink-0 text-sky-600">
+            <TrendingUp className="w-6 h-6" />
           </div>
           <div>
-            <p className="text-sm font-bold text-neutral-500 mb-1">Tổng đơn hàng</p>
-            <h2 className="text-4xl font-black text-neutral-900 tracking-tight">
+            <p className="text-xs text-neutral-500 font-semibold tracking-wide uppercase mb-1">Tổng đơn hàng</p>
+            <p className="text-2xl font-extrabold leading-none text-neutral-900">
               {loading ? "..." : totalOrders}
-            </h2>
+            </p>
           </div>
         </div>
       </div>

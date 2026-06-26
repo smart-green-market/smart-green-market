@@ -54,7 +54,8 @@ export default function DealerDashboardPage() {
                 });
                 setChartData(formattedChart);
                 setTopProducts(topProductsData);
-                setRecentOrders(ordersData.results || ordersData);
+                const rawOrders = ordersData.results || ordersData;
+                setRecentOrders(Array.isArray(rawOrders) ? rawOrders.slice(0, 5) : []);
             } catch (error) {
                 console.error("Error fetching dashboard data:", error);
             } finally {
@@ -139,7 +140,7 @@ export default function DealerDashboardPage() {
                 </div>
                 <div className="flex items-center gap-3">
                     <span className="text-xs bg-emerald-100 text-emerald-800 font-bold px-3 py-1.5 rounded-full flex items-center gap-1.5">
-                        <CheckCircle2 className="w-3.5 h-3.5" /> Đại lý: {dealerProfile?.name || "Đang tải..."}
+                        <CheckCircle2 className="w-3.5 h-3.5" /> Đại lý: {dealerProfile?.store_name || "Đang tải..."}
                     </span>
                 </div>
             </div>

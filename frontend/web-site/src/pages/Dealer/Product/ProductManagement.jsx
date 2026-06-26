@@ -89,7 +89,7 @@ export default function DealerProductManagementPage() {
         </div>
       ) : (
         <>
-          <ProductStatsCards products={products} />
+          {/* <ProductStatsCards products={products} /> */}
 
           <SupplierFilter
             searchQuery={searchQuery}
