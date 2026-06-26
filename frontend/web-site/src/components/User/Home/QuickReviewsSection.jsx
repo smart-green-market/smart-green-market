@@ -1,4 +1,5 @@
 import { Star } from "lucide-react";
+import ScrollReveal from "../Ui/ScrollReveal";
 
 const REVIEWS = [
     {
@@ -41,7 +42,7 @@ export default function QuickReviewsSection() {
     return (
         <section className="bg-white py-14 sm:py-16">
             <div className="mx-auto max-w-[1280px] px-4 sm:px-6 lg:px-10">
-                <div className="mb-10 text-center">
+                <ScrollReveal variant="fade-up" className="mb-10 text-center">
                     <h2 className="text-2xl font-bold text-emerald-950 sm:text-3xl">
                         Khách hàng nói gì về chúng tôi
                     </h2>
@@ -49,14 +50,17 @@ export default function QuickReviewsSection() {
                         Nghe chia sẻ từ những khách hàng đã tin tưởng sử dụng sản
                         phẩm của Smart Green Market
                     </p>
-                </div>
+                </ScrollReveal>
 
                 <div className="grid grid-cols-1 gap-6 md:grid-cols-3">
-                    {REVIEWS.map((review) => (
-                        <article
+                    {REVIEWS.map((review, index) => (
+                        <ScrollReveal
                             key={review.name}
-                            className="rounded-2xl border border-stone-100 bg-stone-50/50 p-6 shadow-sm"
+                            variant="fade-up"
+                            delay={index * 100}
+                            duration={650}
                         >
+                            <article className="h-full rounded-2xl border border-stone-100 bg-stone-50/50 p-6 shadow-sm">
                             <div className="flex items-center gap-3">
                                 <img
                                     src={review.avatar}
@@ -78,7 +82,8 @@ export default function QuickReviewsSection() {
                             <div className="mt-4">
                                 <StarRating />
                             </div>
-                        </article>
+                            </article>
+                        </ScrollReveal>
                     ))}
                 </div>
             </div>

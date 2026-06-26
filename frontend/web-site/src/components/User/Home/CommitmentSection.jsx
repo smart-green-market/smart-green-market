@@ -6,6 +6,7 @@ import {
     Truck,
     Wallet,
 } from "lucide-react";
+import ScrollReveal from "../Ui/ScrollReveal";
 
 const COMMITMENTS = [
     {
@@ -56,33 +57,37 @@ export default function CommitmentSection() {
     return (
         <section className="bg-stone-50 py-14 sm:py-16">
             <div className="mx-auto max-w-[1280px] px-4 sm:px-6 lg:px-10">
-                <div className="mb-10 text-center">
+                <ScrollReveal variant="fade-up" className="mb-10 text-center">
                     <h2 className="text-2xl font-bold text-emerald-950 sm:text-3xl">
                         Tại sao chọn Smart Green Market?
                     </h2>
                     <p className="mt-2 text-sm text-neutral-500 sm:text-base">
                         6 lý do khách hàng tin tưởng và lựa chọn chúng tôi
                     </p>
-                </div>
+                </ScrollReveal>
 
                 <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
-                    {COMMITMENTS.map(({ icon: Icon, title, description, color }) => (
-                        <article
+                    {COMMITMENTS.map(({ icon: Icon, title, description, color }, index) => (
+                        <ScrollReveal
                             key={title}
-                            className="rounded-2xl border border-stone-100 bg-white p-6 shadow-sm transition-shadow hover:shadow-md"
+                            variant="fade-up"
+                            delay={index * 90}
+                            duration={650}
                         >
-                            <div
-                                className={`mb-4 flex h-12 w-12 items-center justify-center rounded-xl ${color}`}
-                            >
-                                <Icon className="h-6 w-6" />
-                            </div>
-                            <h3 className="text-base font-bold text-emerald-950">
-                                {title}
-                            </h3>
-                            <p className="mt-2 text-sm leading-relaxed text-neutral-600">
-                                {description}
-                            </p>
-                        </article>
+                            <article className="hover:scale-102 h-full rounded-2xl border border-stone-100 bg-white p-6 shadow-sm transition-shadow hover:shadow-md">
+                                <div
+                                    className={`mb-4 flex h-12 w-12 items-center justify-center rounded-xl ${color}`}
+                                >
+                                    <Icon className="h-6 w-6" />
+                                </div>
+                                <h3 className="text-base font-bold text-emerald-950">
+                                    {title}
+                                </h3>
+                                <p className="mt-2 text-sm leading-relaxed text-neutral-600">
+                                    {description}
+                                </p>
+                            </article>
+                        </ScrollReveal>
                     ))}
                 </div>
             </div>

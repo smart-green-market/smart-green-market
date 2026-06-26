@@ -1,5 +1,6 @@
 import { Link } from "react-router-dom";
 import { Eye, ShoppingCart, Sprout, Star, Users } from "lucide-react";
+import ScrollReveal from "../Ui/ScrollReveal";
 import { useStorefrontPaths } from "../../../hooks/useStorefrontPaths";
 
 const STATS = [
@@ -15,19 +16,22 @@ export default function StoreStatsSection() {
     return (
         <section className="bg-emerald-700 py-14 sm:py-16">
             <div className="mx-auto max-w-[1280px] px-4 sm:px-6 lg:px-10">
-                <div className="mb-10 text-center">
+                <ScrollReveal variant="fade-up" className="mb-10 text-center">
                     <h2 className="text-2xl font-bold text-white sm:text-3xl">
                         Smart Green Market trong con số
                     </h2>
                     <p className="mt-2 text-sm text-emerald-100 sm:text-base">
                         Những con số ấn tượng thể hiện sự tin tưởng của khách hàng
                     </p>
-                </div>
+                </ScrollReveal>
 
                 <div className="grid grid-cols-2 gap-6 lg:grid-cols-4">
                     {STATS.map(({ icon: Icon, value, label }, index) => (
-                        <div
+                        <ScrollReveal
                             key={label}
+                            variant="zoom-in"
+                            delay={index * 80}
+                            duration={600}
                             className={`flex flex-col items-center text-center ${
                                 index < STATS.length - 1
                                     ? "lg:border-r lg:border-white/20"
@@ -43,11 +47,12 @@ export default function StoreStatsSection() {
                             <p className="mt-1 text-xs text-emerald-100 sm:text-sm">
                                 {label}
                             </p>
-                        </div>
+                        </ScrollReveal>
                     ))}
                 </div>
 
-                <div className="mt-12 rounded-2xl bg-white px-6 py-10 text-center shadow-lg sm:px-10">
+                <ScrollReveal variant="fade-up" delay={120} className="mt-12">
+                    <div className="rounded-2xl bg-white px-6 py-10 text-center shadow-lg sm:px-10">
                     <h3 className="text-xl font-bold text-emerald-950 sm:text-2xl">
                         Sẵn sàng trải nghiệm nông sản tươi ngon?
                     </h3>
@@ -70,7 +75,8 @@ export default function StoreStatsSection() {
                             Xem sản phẩm
                         </Link>
                     </div>
-                </div>
+                    </div>
+                </ScrollReveal>
             </div>
         </section>
     );
