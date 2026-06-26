@@ -15,6 +15,11 @@ export function useStorefrontPaths() {
     entry: "/",
     home: prefix ? `${prefix}/trang-chu` : "/",
     products: prefix ? `${prefix}/san-pham` : "/",
+    productsWithCategory: (categoryId) => {
+      const base = prefix ? `${prefix}/san-pham` : "/";
+      if (categoryId == null || categoryId === "") return base;
+      return `${base}?category=${encodeURIComponent(categoryId)}`;
+    },
     product: (id) => (prefix ? `${prefix}/san-pham/${id}` : "/"),
     search: (query = "", extraParams = {}) => {
       const path = prefix ? `${prefix}/tim-kiem` : "/";

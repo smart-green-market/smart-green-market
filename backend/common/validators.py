@@ -8,10 +8,9 @@ from rest_framework.exceptions import ValidationError as DRFValidationError
 from .business_rules import (
     ALLOWED_IMAGE_CONTENT_TYPES,
     ALLOWED_IMAGE_EXTENSIONS,
-    MAX_UPLOAD_IMAGE_SIZE_BYTES,
-    MAX_UPLOAD_IMAGE_SIZE_MB,
     allowed_image_extensions_label,
 )
+from apps.system_config.services import get_system_settings
 
 
 def validate_image_upload(file):
@@ -33,9 +32,10 @@ def validate_image_upload(file):
             f"Chỉ chấp nhận: {allowed_image_extensions_label()}."
         )
 
-    if file.size > MAX_UPLOAD_IMAGE_SIZE_BYTES:
+    settings = get_system_settings()
+    if file.size > settings.max_upload_image_size_bytes:
         raise DRFValidationError(
-            f"Dung lượng ảnh vượt quá {MAX_UPLOAD_IMAGE_SIZE_MB}MB "
+            f"Dung lượng ảnh vượt quá {settings.max_upload_image_size_mb}MB "
             f"(hiện tại: {file.size / (1024 * 1024):.2f}MB)."
         )
 

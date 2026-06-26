@@ -94,10 +94,15 @@ export default function OrderPage() {
         [deliveryDates, selectedDate],
     );
 
-    const selectedDeliverySlotName = useMemo(() => {
-        const slot = selectedDeliveryDate?.slots?.find((item) => item.id === selectedSlot);
-        return slot?.name ?? "";
+    const selectedDeliverySlot = useMemo(() => {
+        return (
+            selectedDeliveryDate?.slots?.find((item) => item.id === selectedSlot) ??
+            null
+        );
     }, [selectedDeliveryDate, selectedSlot]);
+
+    const selectedDeliverySlotName = selectedDeliverySlot?.name ?? "";
+    const selectedDeliverySlotTime = selectedDeliverySlot?.timeLabel ?? "";
 
     useEffect(() => {
         if (checkoutItems.length === 0) return;
@@ -338,6 +343,7 @@ export default function OrderPage() {
                 shippingFee={CHECKOUT_SHIPPING_FEE}
                 deliveryLabel={selectedDeliveryDate?.label ?? ""}
                 deliverySlotName={selectedDeliverySlotName}
+                deliverySlotTime={selectedDeliverySlotTime}
                 address={selectedAddress}
                 note={note}
             />

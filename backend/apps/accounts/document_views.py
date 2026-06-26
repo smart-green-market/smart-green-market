@@ -20,6 +20,7 @@ from common.pagination import paginate_queryset
 from common.permission import IsAdmin, IsAdminOrSupplier, IsSupplierOrDealer
 from common.querysets import (
     ORDER_DOCUMENT,
+    ORDER_DOCUMENT_BY_ACCOUNT,
     _apply_order,
     filter_admin_or_dealer_account,
     filter_admin_or_supplier_account,
@@ -168,7 +169,7 @@ class AccountDocumentViewSet(viewsets.ModelViewSet):
                 qs = qs.filter(account_id=account_id)
             return _apply_order(
                 qs,
-                ORDER_DOCUMENT,
+                ORDER_DOCUMENT_BY_ACCOUNT,
                 pending_field="status",
             )
         if self.request.user.role == AccountRole.DEALER:

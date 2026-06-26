@@ -2,7 +2,8 @@ import { formatCurrency } from "../components/User/Cart/mockData";
 
 const API_ORIGIN = "https://smart-green-market-api.onrender.com";
 
-export const PRODUCT_IMAGE_FALLBACK = "https://placehold.co/600x750/e8f5ef/006c49?text=Nông+sản";
+export const PRODUCT_IMAGE_FALLBACK =
+  "https://placehold.co/600x750/e8f5ef/006c49?text=Nông+sản";
 
 export function resolveMediaUrl(url) {
   if (!url || typeof url !== "string") return null;
@@ -42,7 +43,9 @@ function buildDealerImages(raw) {
   }
 
   if (Array.isArray(raw?.supplier_product?.images)) {
-    raw.supplier_product.images.forEach((img, index) => pushImage(img, index + 100));
+    raw.supplier_product.images.forEach((img, index) =>
+      pushImage(img, index + 100),
+    );
   }
 
   const thumbnail = extractImageUrl(raw?.thumbnail);
@@ -107,7 +110,9 @@ export function parseDealerProductList(response) {
 }
 
 export function getProductPrice(product) {
-  return product?.retail_price ?? product?.wholesale_price ?? product?.price ?? null;
+  return (
+    product?.retail_price ?? product?.wholesale_price ?? product?.price ?? null
+  );
 }
 
 function resolveCategoryId(raw) {
@@ -119,11 +124,10 @@ function resolveCategoryId(raw) {
 
 function resolveCategoryName(raw) {
   if (raw?.category_name) return raw.category_name;
-  if (typeof raw?.category === "object") return raw.category?.name ?? "Nông sản";
+  if (typeof raw?.category === "object")
+    return raw.category?.name ?? "Nông sản";
   return "Nông sản";
 }
-
-
 
 export function formatDealerProduct(raw) {
   const images = buildDealerImages(raw);
@@ -160,7 +164,10 @@ export function formatDealerProduct(raw) {
     min_storage_temp: raw.min_storage_temp,
     max_storage_temp: raw.max_storage_temp,
     status,
-    verified_at: raw.status === "active" || raw.status === "approved" ? raw.updated_at : null,
+    verified_at:
+      raw.status === "active" || raw.status === "approved"
+        ? raw.updated_at
+        : null,
     verified_by_username: raw.dealer?.account_username ?? null,
     created_at: raw.created_at,
     updated_at: raw.updated_at,
@@ -174,7 +181,7 @@ export function formatDealerProduct(raw) {
     supplier_name: raw.supplier_name ?? raw.supplier_product_name ?? "",
     dealer: raw.dealer ?? null,
     dealer_name: raw.dealer?.store_name ?? "",
-    rating: raw.rating ?? 4.5,
+    rating: raw.rating != null ? Number(raw.rating) : null,
     sold: raw.sold ?? 0,
     source: "dealer",
   };
@@ -225,7 +232,7 @@ export function formatUserProduct(raw) {
     category_id: raw.category?.id,
     supplier: raw.supplier ?? null,
     supplier_name: raw.supplier?.company_name ?? "",
-    rating: raw.rating ?? 4.5,
+    rating: raw.rating != null ? Number(raw.rating) : null,
     sold: raw.sold ?? 0,
     source: "supplier",
   };
@@ -255,7 +262,9 @@ export function formatStorageTemperature(min, max) {
 }
 
 export function formatProductPrice(price) {
-  const value = Number(getProductPrice({ retail_price: price, wholesale_price: price, price }));
+  const value = Number(
+    getProductPrice({ retail_price: price, wholesale_price: price, price }),
+  );
   if (price == null || price === "" || Number.isNaN(value)) return "Liên hệ";
   return formatCurrency(value);
 }

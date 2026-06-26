@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Package, ShoppingCart, Lock, Clock } from "lucide-react";
+import { Package, ShoppingCart, Lock, Clock, Search, Filter, Plus, User } from "lucide-react";
 import ProductTable from "../../components/Supplier/Product/ProductTable";
 import DeleteConfirmModal from "../../components/common/DeleteConfirmModal";
 import ConfirmModal from "../../components/common/ConfirmModal";
@@ -245,9 +245,10 @@ export default function ProductSupplierPage() {
       />
 
       <CreateProductModal
-        isOpen={createRow !== null}
-        onClose={() => setCreateRow(null)}
-        onSuccess={() => { setCreateRow(null); fetchProducts(); }}
+        isOpen={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
+        onSuccess={(p) => { /* reload list */ }}
+        mode={modalMode}
       />
 
       <DetailProductModal

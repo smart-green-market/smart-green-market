@@ -10,6 +10,11 @@ import { addRecentlyViewed } from "../../utils/recentlyViewedUtils";
 import { recordProductView } from "../../utils/buyerInteractionUtils";
 import { useAuth } from "../../contexts/authProvider";
 import { handleApiError } from "../../services/api/Buyer/buyerCatalogService";
+import {
+    buyerReviewService,
+    handleApiError as handleReviewApiError,
+} from "../../services/api/Buyer/buyerReviewService";
+import { mapProductReviewSummary } from "../../utils/buyerReviewUtils";
 import ProductDetailGallery from "../../components/User/Product/ProductDetailGallery";
 import ProductDetailPurchase from "../../components/User/Product/ProductDetailPurchase";
 import ProductDetailSpecs from "../../components/User/Product/ProductDetailSpecs";
@@ -26,7 +31,9 @@ export default function ProductDetailPage() {
     const { user } = useAuth();
     const [product, setProduct] = useState(null);
     const [related, setRelated] = useState([]);
-    const [reviewSummary, setReviewSummary] = useState(null);
+    const [reviewSummary, setReviewSummary] = useState(() =>
+        mapProductReviewSummary(null),
+    );
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState("");
 
@@ -54,10 +61,24 @@ export default function ProductDetailPage() {
             }
 
             try {
-                const detail = await fetchBuyerProductById(paths.slug, id);
+                const [detail, ratingData] = await Promise.all([
+                    fetchBuyerProductById(paths.slug, id),
+                    buyerReviewService
+                        .productRating(paths.slug, id)
+                        .catch((err) => {
+                            console.error(
+                                handleReviewApiError(
+                                    err,
+                                    "Không thể tải tổng hợp đánh giá",
+                                ),
+                            );
+                            return null;
+                        }),
+                ]);
                 if (cancelled) return;
 
                 setProduct(detail);
+                setReviewSummary(mapProductReviewSummary(ratingData));
 
                 const relatedList = await fetchRelatedBuyerProducts(
                     paths.slug,
@@ -96,10 +117,16 @@ export default function ProductDetailPage() {
         if (!product) return [];
         return [
             { label: "Cửa hàng", to: paths.home },
-            { label: product.category_name || "Nông sản", to: paths.home },
+            {
+                label: product.category_name || "Nông sản",
+                to:
+                    product.category_id != null
+                        ? paths.productsWithCategory(product.category_id)
+                        : paths.products,
+            },
             { label: product.name, to: null },
         ];
-    }, [product, paths.home]);
+    }, [product, paths.home, paths.products]);
 
     if (loading) {
         return (
@@ -156,14 +183,9 @@ export default function ProductDetailPage() {
                     />
                     <ProductDetailPurchase
                         product={product}
-                        rating={
-                            reviewSummary?.average_rating ??
-                            product.rating ??
-                            0
-                        }
-                        reviewCount={
-                            reviewSummary?.review_count ?? product.sold ?? 0
-                        }
+                        averageRating={reviewSummary.average}
+                        reviewCount={reviewSummary.total}
+                        ratingLoading={loading}
                     />
                 </div>
 
@@ -175,7 +197,7 @@ export default function ProductDetailPage() {
                     <ProductReviews
                         dealerSlug={paths.slug}
                         productId={product.id}
-                        onSummaryLoaded={setReviewSummary}
+                        summary={reviewSummary}
                     />
                 </div>
             </div>

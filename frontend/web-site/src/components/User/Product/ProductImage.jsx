@@ -9,6 +9,7 @@ export default function ProductImage({
     className = "",
     eager = false,
     fallback = PRODUCT_IMAGE_FALLBACK,
+    alwaysCover = false,
 }) {
     const resolvedSrc = src || fallback;
     const [currentSrc, setCurrentSrc] = useState(resolvedSrc);
@@ -19,20 +20,28 @@ export default function ProductImage({
         setObjectFit("cover");
     }, [resolvedSrc]);
 
-    const handleLoad = useCallback((event) => {
-        const img = event.currentTarget;
-        const { naturalWidth, naturalHeight, clientWidth, clientHeight } = img;
+    const handleLoad = useCallback(
+        (event) => {
+            if (alwaysCover) return;
 
-        if (!naturalWidth || !naturalHeight || !clientWidth || !clientHeight) return;
+            const img = event.currentTarget;
+            const { naturalWidth, naturalHeight, clientWidth, clientHeight } = img;
 
-        const scaleX = clientWidth / naturalWidth;
-        const scaleY = clientHeight / naturalHeight;
-        const upscale = Math.max(scaleX, scaleY);
+            if (!naturalWidth || !naturalHeight || !clientWidth || !clientHeight) {
+                return;
+            }
 
-        setObjectFit(upscale > UPSCALE_THRESHOLD ? "contain" : "cover");
-    }, []);
+            const scaleX = clientWidth / naturalWidth;
+            const scaleY = clientHeight / naturalHeight;
+            const upscale = Math.max(scaleX, scaleY);
 
-    const fitClass = objectFit === "contain" ? "object-contain" : "object-cover";
+            setObjectFit(upscale > UPSCALE_THRESHOLD ? "contain" : "cover");
+        },
+        [alwaysCover],
+    );
+
+    const fitClass =
+        alwaysCover || objectFit === "cover" ? "object-cover" : "object-contain";
 
     return (
         <img

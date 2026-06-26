@@ -6,7 +6,8 @@ from apps.dealers.models import DealerProfileStatus
 from apps.categories.utils import category_assignable_by_user
 from apps.supplier_products.models import SupplierProduct, SupplierProductStatus
 from common.approval_nested import ApprovalCategoryNestedSerializer, ApprovalDealerNestedSerializer
-from common.business_rules import MAX_IMAGES_PER_PRODUCT, allowed_image_extensions_label
+from apps.system_config.services import get_system_settings
+from common.business_rules import allowed_image_extensions_label
 from common.files import build_media_url
 from common.openapi_enums import schema_choice_field
 from common.validators import require_rejection_reason, validate_image_upload
@@ -63,9 +64,9 @@ class DealerProductImageSerializer(serializers.ModelSerializer):
             self.instance, "dealer_product", None
         )
         if product and self.instance is None:
-            if product.images.count() >= MAX_IMAGES_PER_PRODUCT:
+            if product.images.count() >= get_system_settings().max_images_per_product:
                 raise serializers.ValidationError(
-                    f"Mỗi sản phẩm tối đa {MAX_IMAGES_PER_PRODUCT} ảnh."
+                    f"Mỗi sản phẩm tối đa {get_system_settings().max_images_per_product} ảnh."
                 )
         if self.instance is None and not attrs.get("image_url"):
             raise serializers.ValidationError(
@@ -167,6 +168,40 @@ class DealerProductListSerializer(DealerProductReadSerializer):
 
     class Meta(DealerProductReadSerializer.Meta):
         fields = DealerProductReadSerializer.Meta.fields + ["dealer"]
+
+
+class DealerProductDetailSerializer(DealerProductListSerializer):
+    """Chi tiết sản phẩm đại lý — thêm hướng dẫn bảo quản từ NCC gốc."""
+
+    storage_duration_days = serializers.IntegerField(
+        source="supplier_product.storage_duration_days",
+        read_only=True,
+        allow_null=True,
+        help_text="Số ngày bảo quản được",
+    )
+    min_storage_temp = serializers.DecimalField(
+        source="supplier_product.min_storage_temp",
+        max_digits=5,
+        decimal_places=2,
+        read_only=True,
+        allow_null=True,
+        help_text="Nhiệt độ bảo quản tối thiểu (°C)",
+    )
+    max_storage_temp = serializers.DecimalField(
+        source="supplier_product.max_storage_temp",
+        max_digits=5,
+        decimal_places=2,
+        read_only=True,
+        allow_null=True,
+        help_text="Nhiệt độ bảo quản tối đa (°C)",
+    )
+
+    class Meta(DealerProductListSerializer.Meta):
+        fields = DealerProductListSerializer.Meta.fields + [
+            "storage_duration_days",
+            "min_storage_temp",
+            "max_storage_temp",
+        ]
 
 
 class DealerProductSerializer(serializers.ModelSerializer):

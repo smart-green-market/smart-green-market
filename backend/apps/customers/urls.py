@@ -3,7 +3,9 @@ from rest_framework.routers import DefaultRouter
 
 from .storefront_views import StorefrontLoginView, StorefrontRegisterView
 from .storefront_catalog_views import (
+    StorefrontBestsellerProductListView,
     StorefrontCategoryListView,
+    StorefrontDealerProfileView,
     StorefrontProductDetailView,
     StorefrontProductListView,
 )
@@ -60,9 +62,19 @@ urlpatterns = [
         name="storefront-login",
     ),
     path(
+        "storefronts/<slug:dealer_slug>/",
+        StorefrontDealerProfileView.as_view(),
+        name="storefront-dealer-profile",
+    ),
+    path(
         "storefronts/<slug:dealer_slug>/categories/",
         StorefrontCategoryListView.as_view(),
         name="storefront-categories",
+    ),
+    path(
+        "storefronts/<slug:dealer_slug>/products/bestsellers/",
+        StorefrontBestsellerProductListView.as_view(),
+        name="storefront-products-bestsellers",
     ),
     path(
         "storefronts/<slug:dealer_slug>/products/",

@@ -3,11 +3,11 @@
 from rest_framework import serializers
 from drf_spectacular.utils import inline_serializer
 
-from common.business_rules import MAX_IMAGES_PER_CERTIFICATION
+from apps.system_config.services import SYSTEM_SETTINGS_DEFAULTS
 from common.openapi_files import IMAGE_FILE_HELP
 
 _IMAGE_HELP = (
-    f"{IMAGE_FILE_HELP}. Tối đa {MAX_IMAGES_PER_CERTIFICATION} ảnh/chứng nhận."
+    f"{IMAGE_FILE_HELP}. Tối đa {SYSTEM_SETTINGS_DEFAULTS['max_images_per_certification']} ảnh/chứng nhận."
 )
 
 CertificationCreateForm = inline_serializer(

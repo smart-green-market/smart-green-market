@@ -23,6 +23,8 @@ from common.verify_openapi import (
 )
 from common.permission import IsActive, IsAdmin
 from common.querysets import filter_categories_for_user, ORDER_CATEGORY
+from common.pagination import LoadMorePagination
+from common.status_counts import build_count_status, filter_by_status_param
 from .models import Category, CategoryScope, CategoryStatus
 from .utils import user_can_manage_category
 from .serializers import (
@@ -157,21 +159,33 @@ class CategoryViewSet(viewsets.ModelViewSet):
         )
         if self.action in ("list", "retrieve", "verify", "lock", "unlock"):
             qs = _annotate_category_product_count(qs, self.request.user)
-            
-        if self.action == "list":
-            status_filter = self.request.query_params.get("status")
-            if status_filter:
-                qs = qs.filter(status=status_filter.strip())
-                
-            search = self.request.query_params.get("search")
-            if search:
-                search = search.strip()
-                qs = qs.filter(
-                    Q(name__icontains=search) | 
-                    Q(description__icontains=search)
-                )
-                
         return qs
+
+    def _apply_category_list_filters(self, qs, request, *, apply_status=True):
+        search = request.query_params.get("search")
+        if search:
+            search = search.strip()
+            qs = qs.filter(
+                Q(name__icontains=search) | Q(description__icontains=search)
+            )
+        if apply_status:
+            qs = filter_by_status_param(
+                qs, request.query_params.get("status"), field="status"
+            )
+        return qs
+
+    def list(self, request, *args, **kwargs):
+        base_qs = self._apply_category_list_filters(
+            self.filter_queryset(self.get_queryset()),
+            request,
+            apply_status=False,
+        )
+        count_status = build_count_status(base_qs, field="status", choices=CategoryStatus)
+        qs = filter_by_status_param(base_qs, request.query_params.get("status"), field="status")
+        paginator = LoadMorePagination()
+        page = paginator.paginate_queryset(qs, request, view=self)
+        serializer = self.get_serializer(page, many=True)
+        return paginator.get_paginated_response(serializer.data, count_status=count_status)
 
     def _ensure_can_edit(self, category):
         """Kiểm tra quyền sửa danh mục — admin hoặc người tạo danh mục riêng."""

@@ -7,7 +7,8 @@ function normalizeOrderItem(item) {
     dealer_product_id: item.dealer_product_id,
     product_name: item.product_name ?? item.name ?? "",
     product_unit: item.product_unit ?? item.unit ?? "",
-    product_thumbnail_url: item.product_thumbnail_url ?? item.thumbnail_url ?? "",
+    product_thumbnail_url:
+      item.product_thumbnail_url ?? item.thumbnail_url ?? "",
     quantity: item.quantity ?? 0,
     unit_price: item.unit_price ?? item.price ?? 0,
     subtotal: item.subtotal ?? item.line_total ?? 0,
@@ -79,7 +80,9 @@ export function parseBuyerOrderDetail(raw) {
     debt_amount: raw.debt_amount ?? 0,
     items: (raw.items ?? []).map(normalizeOrderItem).filter(Boolean),
     payments: (raw.payments ?? []).map(normalizePayment).filter(Boolean),
-    status_histories: (raw.status_histories ?? []).map(normalizeStatusHistory).filter(Boolean),
+    status_histories: (raw.status_histories ?? [])
+      .map(normalizeStatusHistory)
+      .filter(Boolean),
     delivered_at: raw.delivered_at ?? null,
     completed_at: raw.completed_at ?? null,
     updated_at: raw.updated_at ?? null,
@@ -95,7 +98,10 @@ export function parseBuyerOrderList(response) {
 }
 
 export const buyerOrder = {
-  getAll: (dealer_slug) => axiosClient.get(`/storefronts/${dealer_slug}/orders/`).then((res) => res.data),
+  getAll: (dealer_slug) =>
+    axiosClient
+      .get(`/storefronts/${dealer_slug}/orders/`)
+      .then((res) => res.data),
 
   // {
   //     "count": 0,
@@ -124,9 +130,12 @@ export const buyerOrder = {
   //         "created_at": "2026-06-20T04:35:49.764Z"
   //       }
   //     ]
-  //   }     
+  //   }
 
-  getById: (dealer_slug, id) => axiosClient.get(`/storefronts/${dealer_slug}/orders/${id}/`).then((res) => res.data),
+  getById: (dealer_slug, id) =>
+    axiosClient
+      .get(`/storefronts/${dealer_slug}/orders/${id}/`)
+      .then((res) => res.data),
 
   // {
   //     "id": 0,
@@ -192,7 +201,10 @@ export const buyerOrder = {
   //     "updated_at": "2026-06-20T04:36:33.562Z"
   //   }
 
-  create: (dealer_slug, data) => axiosClient.post(`/storefronts/${dealer_slug}/orders/`, data).then((res) => res.data),
+  create: (dealer_slug, data) =>
+    axiosClient
+      .post(`/storefronts/${dealer_slug}/orders/`, data)
+      .then((res) => res.data),
 
   // {
   //     "items": [
@@ -209,14 +221,51 @@ export const buyerOrder = {
   //Phí ship cố định 10.000 VND, thanh toán COD. Trừ tồn ngay. Trạng thái ban đầu: pending.
 
   confirmReceived: (dealer_slug, id) =>
-    axiosClient.post(`/storefronts/${dealer_slug}/orders/${id}/confirm-received/`).then((res) => res.data),
+    axiosClient
+      .post(`/storefronts/${dealer_slug}/orders/${id}/confirm-received/`)
+      .then((res) => res.data),
 
   // Buyer xác nhận: shipping → delivered (Nhận hàng) hoặc delivered → completed (Hoàn thành).
 
   //Khung giờ giao hàng
 
-  getDelivery: (dealer_slug) => axiosClient.get(`/storefronts/${dealer_slug}/delivery-slots/`).then((res) => res.data),
+  getDelivery: (dealer_slug) =>
+    axiosClient
+      .get(`/storefronts/${dealer_slug}/delivery-slots/`)
+      .then((res) => res.data),
+  //Khung giờ giao hàng
   //Trả danh sách ngày (2 ngày: hôm nay và ngày mai) và slot Sáng/Chiều. FE hiển thị toàn bộ slot; slot available=false thì disable nhưng vẫn hiển thị.
+
+  // {
+  //   "timezone": "string",
+  //   "min_lead_hours": 0,
+  //   "morning_cutoff_hour": 0,
+  //   "max_booking_days": 0,
+  //   "slots": [
+  //     {
+  //       "id": "string",
+  //       "name": "string",
+  //       "start_time": "string",
+  //       "end_time": "string"
+  //     }
+  //   ],
+  //   "generated_at": "string",
+  //   "dates": [
+  //     {
+  //       "date": "string",
+  //       "slots": [
+  //         {
+  //           "id": "string",
+  //           "name": "string",
+  //           "start_time": "string",
+  //           "end_time": "string",
+  //           "available": true,
+  //           "delivery_time": "string"
+  //         }
+  //       ]
+  //     }
+  //   ]
+  // }
 };
 
 export const handleApiError = (error, defaultMessage = "Có lỗi xảy ra") => {
