@@ -151,6 +151,9 @@ export const supplierService = {
     axiosClient.post(`/suppliers/${id}/verify/`, data).then((res) => res.data),
 
   // id
+  getbyIdSupplier: (id) =>{
+  return axiosClient.get(`/suppliers/${id}/documents/`)
+  }
 };
 
 // Xử lý bug
