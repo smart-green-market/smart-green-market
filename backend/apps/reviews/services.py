@@ -26,12 +26,7 @@ def get_product_reviews_queryset(*, dealer=None, dealer_product_id=None):
     return qs
 
 
-def get_review_summary(*, dealer, dealer_product_id: int) -> dict:
-    """Tổng hợp rating cho một sản phẩm."""
-    qs = ProductReview.objects.filter(
-        dealer=dealer,
-        dealer_product_id=dealer_product_id,
-    )
+def _aggregate_review_summary(qs) -> dict:
     agg = qs.aggregate(
         average_rating=Avg("rating"),
         review_count=Count("id"),
@@ -42,11 +37,25 @@ def get_review_summary(*, dealer, dealer_product_id: int) -> dict:
 
     average = agg["average_rating"]
     return {
-        "dealer_product_id": dealer_product_id,
         "review_count": agg["review_count"] or 0,
         "average_rating": round(float(average), 2) if average is not None else None,
         "rating_distribution": distribution,
     }
+
+
+def get_dealer_review_summary(*, dealer) -> dict:
+    """Tổng hợp rating toàn gian hàng — trang About."""
+    return _aggregate_review_summary(ProductReview.objects.filter(dealer=dealer))
+
+
+def get_review_summary(*, dealer, dealer_product_id: int) -> dict:
+    """Tổng hợp rating cho một sản phẩm."""
+    qs = ProductReview.objects.filter(
+        dealer=dealer,
+        dealer_product_id=dealer_product_id,
+    )
+    summary = _aggregate_review_summary(qs)
+    return {"dealer_product_id": dealer_product_id, **summary}
 
 
 def _resolve_dealer_product(*, dealer, dealer_product_id: int) -> DealerProduct:

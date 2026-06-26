@@ -17,9 +17,12 @@ from common.verify_openapi import (
 )
 from common.permission import IsActive, IsAdmin, IsAdminOrDealer, IsDealer
 from common.querysets import ORDER_IMAGE, ORDER_NEWEST, ORDER_UPDATED, filter_admin_or_dealer_account
+from common.pagination import LoadMorePagination
+from common.status_counts import build_count_status, filter_by_status_param
 
 from .models import (
     DealerInventoryBatch,
+    DealerInventoryBatchStatus,
     DealerInventoryTransaction,
     DealerProduct,
     DealerProductImage,
@@ -34,6 +37,7 @@ from .serializers import (
     DealerInventoryBatchSerializer,
     DealerInventoryTransactionSerializer,
     DealerInventoryWastageSerializer,
+    DealerProductDetailSerializer,
     DealerProductImageSerializer,
     DealerProductListSerializer,
     DealerProductSerializer,
@@ -80,7 +84,11 @@ def _filter_inventory_scope(qs, user):
             )
         },
     ),
-    retrieve=extend_schema(tags=["Dealer Products"], summary="Chi tiết sản phẩm đại lý"),
+    retrieve=extend_schema(
+        tags=["Dealer Products"],
+        summary="Chi tiết sản phẩm đại lý",
+        responses={200: DealerProductDetailSerializer},
+    ),
     create=extend_schema(tags=["Dealer Products"], summary="Đăng sản phẩm bán lẻ"),
     update=extend_schema(tags=["Dealer Products"], summary="Cập nhật sản phẩm"),
     partial_update=extend_schema(tags=["Dealer Products"], summary="Cập nhật một phần"),
@@ -97,7 +105,9 @@ class DealerProductViewSet(viewsets.ModelViewSet):
     serializer_class = DealerProductSerializer
 
     def get_serializer_class(self):
-        if self.action in ("list", "retrieve", "verify"):
+        if self.action == "retrieve":
+            return DealerProductDetailSerializer
+        if self.action in ("list", "verify"):
             return DealerProductListSerializer
         return DealerProductSerializer
 
@@ -112,22 +122,37 @@ class DealerProductViewSet(viewsets.ModelViewSet):
         qs = _filter_dealer_product_scope(self.queryset, self.request.user)
         if self.action in ("list", "retrieve", "verify"):
             qs = annotate_dealer_product_stock(qs)
-            
-        if self.action == "list":
-            status_filter = self.request.query_params.get("status")
-            if status_filter:
-                qs = qs.filter(status=status_filter.strip())
-                
-            search = self.request.query_params.get("search")
-            if search:
-                search = search.strip()
-                qs = qs.filter(
-                    Q(title__icontains=search) |
-                    Q(category__name__icontains=search) |
-                    Q(supplier_product__supplier__company_name__icontains=search)
-                )
-                
         return qs
+
+    def _apply_dealer_product_list_filters(self, qs, request, *, apply_status=True):
+        search = request.query_params.get("search")
+        if search:
+            search = search.strip()
+            qs = qs.filter(
+                Q(title__icontains=search)
+                | Q(category__name__icontains=search)
+                | Q(supplier_product__supplier__company_name__icontains=search)
+            )
+        if apply_status:
+            qs = filter_by_status_param(
+                qs, request.query_params.get("status"), field="status"
+            )
+        return qs
+
+    def list(self, request, *args, **kwargs):
+        base_qs = self._apply_dealer_product_list_filters(
+            self.filter_queryset(self.get_queryset()),
+            request,
+            apply_status=False,
+        )
+        count_status = build_count_status(
+            base_qs, field="status", choices=DealerProductStatus
+        )
+        qs = filter_by_status_param(base_qs, request.query_params.get("status"), field="status")
+        paginator = LoadMorePagination()
+        page = paginator.paginate_queryset(qs, request, view=self)
+        serializer = self.get_serializer(page, many=True)
+        return paginator.get_paginated_response(serializer.data, count_status=count_status)
 
     def perform_create(self, serializer):
         product = serializer.save()
@@ -276,31 +301,32 @@ class DealerInventoryBatchViewSet(viewsets.ReadOnlyModelViewSet):
         return _filter_inventory_scope(self.queryset, self.request.user)
 
     def list(self, request, *args, **kwargs):
-        from common.pagination import LoadMorePagination
-        
         qs = self.get_queryset()
-        
+
         search = request.query_params.get("search", "").strip()
         if search:
             qs = qs.filter(
-                Q(batch_number__icontains=search) |
-                Q(dealer_product__title__icontains=search) |
-                Q(dealer_product__category__name__icontains=search) |
-                Q(dealer_product__supplier_product__supplier__company_name__icontains=search)
+                Q(batch_number__icontains=search)
+                | Q(dealer_product__title__icontains=search)
+                | Q(dealer_product__category__name__icontains=search)
+                | Q(dealer_product__supplier_product__supplier__company_name__icontains=search)
             )
-            
-        status_param = request.query_params.get("status", "").strip()
-        if status_param:
-            qs = qs.filter(status=status_param)
-            
+
         dp_id = request.query_params.get("dealer_product", "").strip()
         if dp_id.isdigit():
             qs = qs.filter(dealer_product_id=dp_id)
-            
+
+        count_status = build_count_status(
+            qs, field="status", choices=DealerInventoryBatchStatus
+        )
+
+        status_param = request.query_params.get("status", "").strip()
+        qs = filter_by_status_param(qs, status_param, field="status")
+
         paginator = LoadMorePagination()
         page = paginator.paginate_queryset(qs, request, view=self)
         data = self.get_serializer(page, many=True).data
-        return paginator.get_paginated_response(data)
+        return paginator.get_paginated_response(data, count_status=count_status)
 
     @extend_schema(
         tags=["Dealer Inventory"],

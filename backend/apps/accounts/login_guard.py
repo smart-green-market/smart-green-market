@@ -5,18 +5,19 @@ from datetime import timedelta
 from django.utils import timezone
 from rest_framework.exceptions import ValidationError
 
-from common.business_rules import LOGIN_LOCKOUT_MINUTES, MAX_LOGIN_ATTEMPTS
+from apps.system_config.services import get_system_settings
 from .models import LoginAttempt
 
 
 def check_login_allowed(username):
     """Kiểm tra username có bị khóa đăng nhập hay không, tự mở khóa nếu đã hết hạn."""
     attempt, _ = LoginAttempt.objects.get_or_create(username=username)
+    settings = get_system_settings()
     if attempt.locked_until and attempt.locked_until > timezone.now():
         remaining = attempt.locked_until - timezone.now()
         minutes = max(1, int(remaining.total_seconds() // 60) + 1)
         raise ValidationError(
-            f"Đăng nhập sai quá {MAX_LOGIN_ATTEMPTS} lần. "
+            f"Đăng nhập sai quá {settings.max_login_attempts} lần. "
             f"Vui lòng thử lại sau {minutes} phút.",
             code="account_locked",
         )
@@ -29,9 +30,12 @@ def check_login_allowed(username):
 def record_failed_login(username):
     """Ghi nhận một lần đăng nhập thất bại và khóa tài khoản nếu vượt ngưỡng."""
     attempt, _ = LoginAttempt.objects.get_or_create(username=username)
+    settings = get_system_settings()
     attempt.failed_count += 1
-    if attempt.failed_count >= MAX_LOGIN_ATTEMPTS:
-        attempt.locked_until = timezone.now() + timedelta(minutes=LOGIN_LOCKOUT_MINUTES)
+    if attempt.failed_count >= settings.max_login_attempts:
+        attempt.locked_until = timezone.now() + timedelta(
+            minutes=settings.login_lockout_minutes
+        )
         attempt.failed_count = 0
     attempt.save()
 

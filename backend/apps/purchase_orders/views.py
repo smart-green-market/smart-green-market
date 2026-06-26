@@ -34,6 +34,7 @@ from common.openapi import PAGINATION_QUERY_HELP, paginated_response_schema
 from common.openapi_files import multipart_request
 from common.permission import IsAdmin, IsAdminOrSupplier, IsDealer, IsSupplier
 from common.querysets import ORDER_NEWEST, filter_purchase_orders
+from common.status_counts import build_count_status, filter_by_status_param
 
 from common.verify_openapi import (
     PO_REJECT,
@@ -67,6 +68,7 @@ from .models import (
     PurchaseOrderPayment,
     PurchaseOrderPaymentStatus,
     PurchaseOrderPaymentType,
+    PurchaseOrderStatus,
 )
 from .serializers import (
     CancelOrderSerializer,
@@ -193,7 +195,6 @@ class PurchaseOrderViewSet(viewsets.GenericViewSet):
 
         qs = self.get_queryset()
 
-        # Search
         search = request.query_params.get("search", "").strip()
         if search:
             qs = qs.filter(
@@ -204,25 +205,25 @@ class PurchaseOrderViewSet(viewsets.GenericViewSet):
                 | Q(supplier__company_name__icontains=search)
             )
 
-        # Filters
-        status_param = request.query_params.get("status", "").strip()
-        if status_param:
-            qs = qs.filter(status=status_param)
-            
         dealer_id = request.query_params.get("dealer", "").strip()
         if dealer_id.isdigit():
             qs = qs.filter(dealer_id=dealer_id)
-            
+
         supplier_id = request.query_params.get("supplier", "").strip()
         if supplier_id.isdigit():
             qs = qs.filter(supplier_id=supplier_id)
+
+        count_status = build_count_status(qs, field="status", choices=PurchaseOrderStatus)
+
+        status_param = request.query_params.get("status", "").strip()
+        qs = filter_by_status_param(qs, status_param, field="status")
 
         paginator = LoadMorePagination()
         page = paginator.paginate_queryset(qs, request, view=self)
         data = PurchaseOrderListSerializer(
             page, many=True, context={"request": request}
         ).data
-        return paginator.get_paginated_response(data)
+        return paginator.get_paginated_response(data, count_status=count_status)
 
     def retrieve(self, request, pk=None):
         order = self.get_object()

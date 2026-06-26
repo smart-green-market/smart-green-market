@@ -12,6 +12,8 @@ ORDER_CATEGORY = ("sort_order", "name")
 ORDER_NEWEST = ("-created_at", "-id")
 ORDER_UPDATED = ("-updated_at", "-created_at", "-id")
 ORDER_DOCUMENT = ("document_type", "-created_at")
+# Admin list: gom 3 loại giấy tờ theo tài khoản để phân trang không cắt mất tax_certificate.
+ORDER_DOCUMENT_BY_ACCOUNT = ("account_id", "document_type", "-created_at")
 ORDER_IMAGE = ("sort_order", "id")
 ORDER_CULTIVATION = ("step_order", "id")
 

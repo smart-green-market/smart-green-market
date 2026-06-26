@@ -117,6 +117,7 @@ INSTALLED_APPS = [
     "apps.reviews",
     "apps.certifications",
     "apps.notifications",
+    "apps.system_config",
 ]
 
 if CLOUDINARY_URL:
@@ -153,44 +154,7 @@ SIMPLE_JWT = {
 SPECTACULAR_SETTINGS = {
     "TITLE": "Smart Green Market API",
     "DESCRIPTION": (
-        "API cho nền tảng Smart Green Market — chợ nông sản xanh.\n\n"
-        "## Xác thực\n"
-        "Hầu hết endpoint yêu cầu header `Authorization: Bearer <access_token>`.\n"
-        "Token lấy từ **Đăng ký** (`POST /api/register/`) hoặc **Đăng nhập** (`POST /api/login/`).\n\n"
-        "## Luồng đăng ký Supplier (2 bước)\n"
-        "1. **Bước 1** — `POST /api/register/` với `role=supplier` → nhận `access` + `refresh`.\n"
-        "2. **Bước 2** — Dùng token vừa nhận:\n"
-        "   - `POST /api/suppliers/` — tạo hồ sơ công ty\n"
-        "   - `POST /api/account-documents/` — upload 3 giấy tờ một lần (multipart)\n\n"
-        "## Luồng Admin duyệt Supplier\n"
-        "1. `GET /api/suppliers/{supplier_id}/` — xem hồ sơ + `documents[]`\n"
-        "2. `POST /api/account-documents/{document_id}/verify/` — duyệt từng giấy tờ\n"
-        "3. `POST /api/suppliers/{supplier_id}/verify/` — duyệt supplier (cần đủ 3 giấy tờ approved)\n\n"
-        "Supplier mới có `status=pending`, chờ Admin duyệt.\n\n"
-        "## Luồng đăng ký Dealer (2 bước)\n"
-        "1. **Bước 1** — `POST /api/register/` với `role=dealer` → nhận `access` + `refresh`.\n"
-        "2. **Bước 2** — Dùng token vừa nhận:\n"
-        "   - `POST /api/dealers/` — tạo hồ sơ cửa hàng\n"
-        "   - `POST /api/account-documents/` — upload 3 giấy tờ (multipart)\n\n"
-        "## Luồng Admin duyệt Dealer\n"
-        "1. `GET /api/dealers/{id}/` — xem hồ sơ + `documents[]`\n"
-        "2. Duyệt giấy tờ từng file\n"
-        "3. `POST /api/dealers/{id}/verify/` với `{ \"status\": \"active\" }`\n\n"
-        "## Luồng đại lý tạo phiếu nhập\n"
-        "1. `GET /api/suppliers/` — danh sách NCC đã duyệt (dealer catalog)\n"
-        "2. `GET /api/suppliers/{supplier_id}/` — chi tiết NCC (liên hệ, chứng nhận, quy mô)\n"
-        "3. `GET /api/suppliers/{supplier_id}/products/` — chọn sản phẩm đặt hàng\n"
-        "4. `GET /api/purchase-order-config/` — min/max tiền đơn, % cọc, ngày giao\n"
-        "5. `POST /api/purchase-orders/` — gửi phiếu nhập\n"
-        "6. NCC `POST .../confirm/` → dealer `GET .../payment-qr/?payment_type=deposit` → "
-        "`POST .../submit-deposit/`\n\n"
-        "## Vai trò (role)\n"
-        "| Role | Mô tả |\n"
-        "|------|-------|\n"
-        "| `buyer` | Người mua — đăng ký xong dùng ngay (`status=active`) |\n"
-        "| `supplier` | Nhà cung cấp — cần duyệt hồ sơ & giấy tờ |\n"
-        "| `dealer` | Đại lý — cần duyệt tương tự supplier |\n"
-        "| `admin` | Quản trị — duyệt supplier, document, sản phẩm, chứng nhận |\n"
+       
     ),
     "VERSION": "1.0.0",
     "SERVE_INCLUDE_SCHEMA": False,
