@@ -1,7 +1,7 @@
-import axiosClient from "../axiosClient";
+import axiosClient from "./axiosClient";
 
 export const dealerCustumerOrder = {
-  getAll: () => axiosClient.get(`/customer-orders/`).then((res) => res.data),
+  getAll: (params) => axiosClient.get(`/customer-orders/`, { params }).then((res) => res.data),
 
   // {
   //     "count": 123,

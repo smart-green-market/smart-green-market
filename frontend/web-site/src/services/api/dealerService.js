@@ -47,6 +47,9 @@ export const dealerService = {
   getStorefrontLink: () =>
     axiosClient.get("/dealers/me/storefront-link/").then((res) => res.data),
 
+  // Lấy thông tin Dealer đang đăng nhập
+  getMe: () => axiosClient.get("/dealers/me/").then((res) => res.data),
+
   update: (id, data) =>
     axiosClient.patch(`/dealers/${id}/`, data).then((res) => res.data),
 

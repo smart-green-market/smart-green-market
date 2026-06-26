@@ -118,6 +118,7 @@ INSTALLED_APPS = [
     "apps.certifications",
     "apps.notifications",
     "apps.system_config",
+    "apps.dashboard",
 ]
 
 if CLOUDINARY_URL:
