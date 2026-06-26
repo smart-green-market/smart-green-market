@@ -1,9 +1,13 @@
 import { useEffect, useState } from "react";
 import {
   buyerCatalogService,
-  handleApiError,
+  handleApiError as handleCatalogApiError,
 } from "../services/api/Buyer/buyerCatalogService";
-import { formatBuyerProduct } from "../utils/userProductUtils";
+import {
+  buyerProductService,
+  handleApiError as handleProductApiError,
+} from "../services/api/Buyer/buyerProductService";
+import { formatBuyerProduct, toCardProduct } from "../utils/userProductUtils";
 import { useDealerSlug } from "./useStorefrontPaths";
 
 const catalogCache = new Map();
@@ -58,7 +62,9 @@ export function useBuyerCatalog() {
       })
       .catch((err) => {
         if (!cancelled) {
-          setError(handleApiError(err, "Không thể tải dữ liệu cửa hàng"));
+          setError(
+            handleCatalogApiError(err, "Không thể tải dữ liệu cửa hàng"),
+          );
         }
       })
       .finally(() => {
@@ -109,7 +115,7 @@ export function useBuyerProductSearch({
       })
       .catch((err) => {
         if (!cancelled) {
-          setError(handleApiError(err, "Không thể tìm kiếm sản phẩm"));
+          setError(handleCatalogApiError(err, "Không thể tìm kiếm sản phẩm"));
         }
       })
       .finally(() => {
@@ -120,6 +126,50 @@ export function useBuyerProductSearch({
       cancelled = true;
     };
   }, [slug, search, ordering, category]);
+
+  return { slug, products, loading, error };
+}
+
+export function useBestSellerProducts() {
+  const slug = useDealerSlug();
+  const [products, setProducts] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    let cancelled = false;
+
+    if (!slug) {
+      setProducts([]);
+      setError("Chưa xác định cửa hàng.");
+      setLoading(false);
+      return;
+    }
+
+    setLoading(true);
+    setError("");
+
+    buyerProductService
+      .getBestSeller(slug)
+      .then((rows) => {
+        if (cancelled) return;
+        setProducts((rows ?? []).map(formatBuyerProduct).map(toCardProduct));
+      })
+      .catch((err) => {
+        if (!cancelled) {
+          setError(
+            handleProductApiError(err, "Không thể tải sản phẩm bán chạy"),
+          );
+        }
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [slug]);
 
   return { slug, products, loading, error };
 }
