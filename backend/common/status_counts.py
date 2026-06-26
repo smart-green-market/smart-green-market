@@ -9,7 +9,14 @@ def build_count_status(queryset, *, field, choices):
     Tính trên queryset đã scope + search, chưa lọc status tab hiện tại.
     """
     counts = {choice.value: 0 for choice in choices}
-    for row in queryset.values(field).annotate(_count=Count("pk")):
+    pk_name = queryset.model._meta.pk.name
+    # Xóa order_by / annotate ưu tiên pending — nếu không Django GROUP BY thêm
+    # _pending_priority + pk → mỗi dòng count=1, dict ghi đè còn 1/status.
+    for row in (
+        queryset.order_by()
+        .values(field)
+        .annotate(_count=Count(pk_name, distinct=True))
+    ):
         key = row[field]
         if key is None:
             continue
