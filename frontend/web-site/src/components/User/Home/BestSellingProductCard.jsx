@@ -10,7 +10,11 @@ export default function BestSellingProductCard({
     unitKey = "kg",
     available_quantity = 0,
     in_stock = true,
+    sold = 0,
 }) {
+    const badgeLabel =
+        sold > 0 ? `Bán chạy • ${sold.toLocaleString("vi-VN")}+` : "Bán chạy";
+
     return (
         <StorefrontProductCard
             id={id}
@@ -22,7 +26,7 @@ export default function BestSellingProductCard({
             image={image}
             availableQuantity={available_quantity}
             inStock={in_stock}
-            badge="Bán chạy"
+            badge={badgeLabel}
             showAddToCart
             layout="carousel"
         />

@@ -1,230 +1,503 @@
-import { useState, useEffect, useCallback } from 'react';
-import { HardDrive, Shield, ShoppingCart, RefreshCw } from 'lucide-react';
-import { AdminPageLoadError, AdminPageLoading } from '../../components/Admin/UI/AdminFetchState';
-import { settingService, handleApiError } from '../../services/api/settingService';
+import { useState, useEffect, useCallback, useMemo } from "react";
+import {
+    HardDrive,
+    RefreshCw,
+    Save,
+    Shield,
+    ShoppingCart,
+    Truck,
+    Undo2,
+} from "lucide-react";
+import { AdminPageLoadError, AdminPageLoading } from "../../components/Admin/UI/AdminFetchState";
+import ConfirmModal from "../../components/common/ConfirmModal";
+import { settingService, handleApiError } from "../../services/api/settingService";
 
-// ── Field hiển thị chỉ đọc ──────────────────────────────────────────────────
-function ReadField({ label, value, suffix, hint }) {
-  return (
-    <div className="flex flex-col gap-1.5">
-      <label className="text-neutral-700 text-xs font-bold uppercase tracking-wide">
-        {label}
-      </label>
-      <div className="relative flex items-center">
-        <div className="w-full px-4 py-3 bg-neutral-50 text-base font-mono rounded-lg border border-neutral-200 text-zinc-900">
-          {value ?? '—'}
+const EDITABLE_FIELDS = [
+    "max_upload_image_size_mb",
+    "max_categories_per_supplier",
+    "max_products_per_supplier",
+    "max_images_per_product",
+    "max_images_per_certification",
+    "max_login_attempts",
+    "login_lockout_minutes",
+    "min_order_amount",
+    "max_order_amount",
+    "min_deposit_percent",
+    "max_deposit_percent",
+    "default_deposit_percent",
+    "min_delivery_lead_days",
+    "shipping_fee",
+    "min_lead_hours",
+    "morning_cutoff_hour",
+    "max_booking_days",
+];
+
+const FIELD_META = {
+    max_upload_image_size_mb: {
+        label: "Giới hạn dung lượng ảnh (MB)",
+        suffix: "MB",
+        hint: "Kích thước tệp tối đa cho phép upload.",
+        min: 0,
+        step: 1,
+    },
+    max_images_per_product: {
+        label: "Số lượng ảnh tối đa của sản phẩm",
+        hint: "Số lượng ảnh tối đa cho một sản phẩm.",
+        min: 0,
+        step: 1,
+    },
+    max_images_per_certification: {
+        label: "Số lượng ảnh tối đa của chứng chỉ",
+        hint: "Số lượng ảnh tối đa cho một chứng chỉ.",
+        min: 0,
+        step: 1,
+    },
+    max_categories_per_supplier: {
+        label: "Giới hạn đăng ký danh mục",
+        hint: "Số lượng danh mục tối đa mỗi nhà cung cấp.",
+        min: 0,
+        step: 1,
+    },
+    max_products_per_supplier: {
+        label: "Giới hạn đăng ký sản phẩm",
+        hint: "Số lượng sản phẩm tối đa mỗi nhà cung cấp.",
+        min: 0,
+        step: 1,
+    },
+    max_login_attempts: {
+        label: "Giới hạn số lần đăng nhập thất bại",
+        suffix: "lần",
+        hint: "Khóa tài khoản tạm thời sau số lần thử không đúng.",
+        min: 0,
+        step: 1,
+    },
+    login_lockout_minutes: {
+        label: "Thời gian khóa tài khoản",
+        suffix: "phút",
+        hint: "Thời gian khóa sau khi vượt số lần đăng nhập sai.",
+        min: 0,
+        step: 1,
+    },
+    min_order_amount: {
+        label: "Giá trị đơn hàng tối thiểu",
+        suffix: "VNĐ",
+        hint: "Số tiền tối thiểu để đặt một đơn hàng.",
+        min: 0,
+        step: 1,
+    },
+    max_order_amount: {
+        label: "Giá trị đơn hàng tối đa",
+        suffix: "VNĐ",
+        hint: "Số tiền tối đa cho phép trên một đơn hàng.",
+        min: 0,
+        step: 1,
+    },
+    min_deposit_percent: {
+        label: "Tỷ lệ đặt cọc tối thiểu",
+        suffix: "%",
+        hint: "Phần trăm đặt cọc thấp nhất được phép.",
+        min: 0,
+        max: 100,
+        step: 0.01,
+    },
+    max_deposit_percent: {
+        label: "Tỷ lệ đặt cọc tối đa",
+        suffix: "%",
+        hint: "Phần trăm đặt cọc cao nhất được phép.",
+        min: 0,
+        max: 100,
+        step: 0.01,
+    },
+    default_deposit_percent: {
+        label: "Tỷ lệ đặt cọc mặc định",
+        suffix: "%",
+        hint: "Tỷ lệ đặt cọc áp dụng mặc định khi tạo đơn.",
+        min: 0,
+        max: 100,
+        step: 0.01,
+    },
+    min_delivery_lead_days: {
+        label: "Số ngày giao hàng tối thiểu",
+        suffix: "ngày",
+        hint: "Thời gian chờ giao hàng tối thiểu kể từ khi đặt đơn.",
+        min: 0,
+        step: 1,
+    },
+    shipping_fee: {
+        label: "Phí giao hàng mặc định",
+        suffix: "VNĐ",
+        hint: "Phí ship áp dụng mặc định cho đơn hàng.",
+        min: 0,
+        step: 1,
+    },
+    min_lead_hours: {
+        label: "Thời gian đặt trước tối thiểu",
+        suffix: "giờ",
+        hint: "Số giờ tối thiểu phải đặt trước khi giao hàng.",
+        min: 0,
+        step: 1,
+    },
+    morning_cutoff_hour: {
+        label: "Giờ cắt đơn buổi sáng",
+        suffix: "h",
+        hint: "Giờ cuối cùng trong ngày để nhận đơn giao buổi sáng (0–23).",
+        min: 0,
+        max: 23,
+        step: 1,
+    },
+    max_booking_days: {
+        label: "Số ngày đặt trước tối đa",
+        suffix: "ngày",
+        hint: "Khách có thể chọn ngày giao trong khoảng bao nhiêu ngày tới.",
+        min: 0,
+        step: 1,
+    },
+};
+
+const SECTIONS = [
+    {
+        id: "storage",
+        title: "Lưu trữ & Hình ảnh",
+        icon: HardDrive,
+        fields: [
+            "max_upload_image_size_mb",
+            "max_images_per_product",
+            "max_images_per_certification",
+            "max_categories_per_supplier",
+            "max_products_per_supplier",
+        ],
+    },
+    {
+        id: "security",
+        title: "Bảo mật",
+        icon: Shield,
+        fields: ["max_login_attempts", "login_lockout_minutes"],
+    },
+    {
+        id: "order",
+        title: "Đơn hàng & Thanh toán",
+        icon: ShoppingCart,
+        fields: [
+            "min_order_amount",
+            "max_order_amount",
+            "min_deposit_percent",
+            "max_deposit_percent",
+            "default_deposit_percent",
+            "min_delivery_lead_days",
+        ],
+    },
+    {
+        id: "delivery",
+        title: "Giao hàng",
+        icon: Truck,
+        fields: [
+            "shipping_fee",
+            "min_lead_hours",
+            "morning_cutoff_hour",
+            "max_booking_days",
+        ],
+    },
+];
+
+function pickEditableValues(source) {
+    return EDITABLE_FIELDS.reduce((acc, key) => {
+        const value = source?.[key];
+        acc[key] = value == null || value === "" ? "" : String(value);
+        return acc;
+    }, {});
+}
+
+function buildPatch(formValues, originalValues) {
+    const patch = {};
+
+    EDITABLE_FIELDS.forEach((key) => {
+        const nextRaw = formValues[key];
+        const prevRaw = originalValues[key];
+
+        if (nextRaw === prevRaw) return;
+
+        const nextNum = Number(nextRaw);
+        if (nextRaw === "" || Number.isNaN(nextNum)) return;
+
+        patch[key] = nextNum;
+    });
+
+    return patch;
+}
+
+function formatUpdatedAt(value) {
+    if (!value) return "—";
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return "—";
+    return date.toLocaleString("vi-VN");
+}
+
+function EditableField({ fieldKey, value, onChange }) {
+    const meta = FIELD_META[fieldKey];
+
+    return (
+        <div className="flex flex-col gap-1.5">
+            <label
+                htmlFor={fieldKey}
+                className="text-xs font-bold uppercase tracking-wide text-neutral-700"
+            >
+                {meta.label}
+            </label>
+            <div className="relative flex items-center">
+                <input
+                    id={fieldKey}
+                    type="number"
+                    value={value}
+                    min={meta.min}
+                    max={meta.max}
+                    step={meta.step ?? 1}
+                    onChange={(event) => onChange(fieldKey, event.target.value)}
+                    className="w-full rounded-lg border border-neutral-300 bg-white px-4 py-3 font-mono text-base text-zinc-900 outline-none transition-colors focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20"
+                />
+                {meta.suffix ? (
+                    <span className="pointer-events-none absolute right-4 text-base font-medium text-neutral-500">
+                        {meta.suffix}
+                    </span>
+                ) : null}
+            </div>
+            {meta.hint ? (
+                <p className="text-xs text-neutral-500">{meta.hint}</p>
+            ) : null}
         </div>
-        {suffix && (
-          <span className="absolute right-4 text-neutral-500 text-base font-medium pointer-events-none">
-            {suffix}
-          </span>
-        )}
-      </div>
-      {hint && <p className="text-neutral-500 text-xs">{hint}</p>}
-    </div>
-  );
+    );
 }
 
 export default function SettingsAside() {
-  const [config, setConfig] = useState(null);
-  const [isFetching, setIsFetching] = useState(true);
-  const [loadError, setLoadError] = useState('');
+    const [config, setConfig] = useState(null);
+    const [formValues, setFormValues] = useState(() => pickEditableValues(null));
+    const [originalValues, setOriginalValues] = useState(() =>
+        pickEditableValues(null),
+    );
+    const [isFetching, setIsFetching] = useState(true);
+    const [isSaving, setIsSaving] = useState(false);
+    const [loadError, setLoadError] = useState("");
+    const [confirmOpen, setConfirmOpen] = useState(false);
 
-  const fetchConfig = useCallback(async () => {
-    try {
-      setIsFetching(true);
-      setLoadError('');
-      const data = await settingService.get();
-      setConfig(data);
-    } catch (err) {
-      setLoadError(handleApiError(err, 'Không thể tải cấu hình hệ thống'));
-    } finally {
-      setIsFetching(false);
+    const applyConfig = useCallback((data) => {
+        setConfig(data);
+        const editable = pickEditableValues(data);
+        setFormValues(editable);
+        setOriginalValues(editable);
+    }, []);
+
+    const fetchConfig = useCallback(async () => {
+        try {
+            setIsFetching(true);
+            setLoadError("");
+            const data = await settingService.get();
+            applyConfig(data);
+        } catch (err) {
+            setLoadError(handleApiError(err, "Không thể tải cấu hình hệ thống"));
+        } finally {
+            setIsFetching(false);
+        }
+    }, [applyConfig]);
+
+    useEffect(() => {
+        fetchConfig();
+    }, [fetchConfig]);
+
+    const isDirty = useMemo(
+        () => JSON.stringify(formValues) !== JSON.stringify(originalValues),
+        [formValues, originalValues],
+    );
+
+    const changedCount = useMemo(() => {
+        return EDITABLE_FIELDS.filter((key) => formValues[key] !== originalValues[key])
+            .length;
+    }, [formValues, originalValues]);
+
+    const handleFieldChange = (key, value) => {
+        setFormValues((prev) => ({ ...prev, [key]: value }));
+    };
+
+    const handleReset = () => {
+        setFormValues(originalValues);
+    };
+
+    const handleConfirmUpdate = async () => {
+        const patch = buildPatch(formValues, originalValues);
+        if (!Object.keys(patch).length) return;
+
+        setIsSaving(true);
+        try {
+            const updated = await settingService.update(patch);
+            applyConfig(updated);
+        } catch (err) {
+            throw new Error(handleApiError(err, "Không thể cập nhật cấu hình"));
+        } finally {
+            setIsSaving(false);
+        }
+    };
+
+    if (isFetching) {
+        return (
+            <aside className="min-h-screen w-full max-w-full bg-neutral-50 p-4 font-sans antialiased text-zinc-900 md:p-8">
+                <AdminPageLoading message="Đang tải cấu hình hệ thống..." />
+            </aside>
+        );
     }
-  }, []);
 
-  useEffect(() => {
-    fetchConfig();
-  }, [fetchConfig]);
+    if (loadError) {
+        return (
+            <aside className="min-h-screen w-full max-w-full bg-neutral-50 p-4 font-sans antialiased text-zinc-900 md:p-8">
+                <AdminPageLoadError message={loadError} onRetry={fetchConfig} />
+            </aside>
+        );
+    }
 
-  // ── Loading lần đầu ──────────────────────────────────────────────────────
-  if (isFetching) {
+    const allowedTypes = Array.isArray(config?.allowed_image_types)
+        ? config.allowed_image_types
+        : [];
+
     return (
-      <aside className="w-full max-w-full p-4 md:p-8 font-sans antialiased text-zinc-900 bg-neutral-50 min-h-screen">
-        <AdminPageLoading message="Đang tải cấu hình hệ thống..." />
-      </aside>
-    );
-  }
+        <aside className="min-h-screen w-full max-w-full bg-neutral-50 p-4 font-sans antialiased text-zinc-900 md:p-8">
+            <div className="flex w-full flex-col items-start justify-start gap-8 rounded-lg border border-neutral-200 bg-white px-6 py-8 shadow-sm md:px-8 md:pb-16 md:pt-10">
+                <div className="flex w-full flex-wrap items-start justify-between gap-4">
+                    <div>
+                        <h1 className="font-['Noto_Serif',serif] text-2xl font-semibold leading-8 text-zinc-900">
+                            Cấu hình hệ thống
+                        </h1>
+                        <p className="mt-1 text-sm text-neutral-500">
+                            Xem và chỉnh sửa giới hạn nghiệp vụ toàn hệ thống.
+                        </p>
+                        <p className="mt-2 text-xs text-neutral-400">
+                            Cập nhật lần cuối:{" "}
+                            <span className="font-medium text-neutral-600">
+                                {formatUpdatedAt(config?.updated_at)}
+                            </span>
+                            {config?.updated_by_username
+                                ? ` · bởi ${config.updated_by_username}`
+                                : null}
+                        </p>
+                    </div>
 
-  // ── Lỗi tải dữ liệu ──────────────────────────────────────────────────────
-  if (loadError) {
-    return (
-      <aside className="w-full max-w-full p-4 md:p-8 font-sans antialiased text-zinc-900 bg-neutral-50 min-h-screen">
-        <AdminPageLoadError message={loadError} onRetry={fetchConfig} />
-      </aside>
-    );
-  }
+                    <div className="flex flex-wrap items-center gap-2">
+                        <button
+                            type="button"
+                            onClick={fetchConfig}
+                            disabled={isSaving}
+                            title="Tải lại"
+                            className="cursor-pointer inline-flex shrink-0 items-center gap-2 rounded-lg border border-neutral-300 px-4 py-2.5 text-sm font-semibold text-neutral-700 transition-colors hover:bg-neutral-50 disabled:opacity-50"
+                        >
+                            <RefreshCw className="h-4 w-4" />
+                            Tải lại
+                        </button>
 
-  const allowedTypes = Array.isArray(config?.allowed_image_types)
-    ? config.allowed_image_types
-    : [];
+                        {isDirty ? (
+                            <>
+                                <button
+                                    type="button"
+                                    onClick={handleReset}
+                                    disabled={isSaving}
+                                    className="cursor-pointer inline-flex items-center gap-2 rounded-lg border border-neutral-300 px-4 py-2.5 text-sm font-semibold text-neutral-700 transition-colors hover:bg-neutral-50 disabled:opacity-50"
+                                >
+                                    <Undo2 className="h-4 w-4" />
+                                    Hoàn tác
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => setConfirmOpen(true)}
+                                    disabled={isSaving}
+                                    className="cursor-pointer inline-flex items-center gap-2 rounded-lg bg-emerald-800 px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-emerald-700 disabled:opacity-50"
+                                >
+                                    <Save className="h-4 w-4" />
+                                    Cập nhật ({changedCount})
+                                </button>
+                            </>
+                        ) : null}
+                    </div>
+                </div>
 
-  return (
-    <aside className="w-full max-w-full p-4 md:p-8 font-sans antialiased text-zinc-900 bg-neutral-50 min-h-screen">
-      <div className="w-full px-6 py-8 md:px-8 md:pt-10 md:pb-16 bg-white rounded-lg shadow-sm border border-neutral-200 flex flex-col justify-start items-start gap-8">
+                {isDirty ? (
+                    <div className="w-full rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+                        Bạn đã thay đổi {changedCount} trường cấu hình. Nhấn{" "}
+                        <strong>Cập nhật</strong> để lưu thay đổi.
+                    </div>
+                ) : null}
 
-        {/* HEADER */}
-        <div className="self-stretch flex items-center justify-between gap-3">
-          <div>
-            <h1 className="text-zinc-900 text-2xl font-semibold leading-8 font-['Noto_Serif',serif]">
-              Cấu hình hệ thống
-            </h1>
-            <p className="text-neutral-500 text-sm mt-1">
-              Giới hạn nghiệp vụ hiện tại (upload, danh mục, sản phẩm, đăng nhập).
-            </p>
-          </div>
-          <button
-            type="button"
-            onClick={fetchConfig}
-            title="Tải lại"
-            className="px-4 py-2.5 rounded-lg border border-neutral-300 text-neutral-700 text-sm font-semibold inline-flex items-center gap-2 hover:bg-neutral-50 transition-colors shrink-0"
-          >
-            <RefreshCw className="w-4 h-4" />
-            Tải lại
-          </button>
-        </div>
+                {SECTIONS.map(({ id, title, icon: Icon, fields }) => (
+                    <div key={id} className="flex w-full flex-col gap-6">
+                        <div className="inline-flex w-full items-center gap-3 border-b border-neutral-200 pb-4">
+                            <Icon className="h-5 w-5 text-emerald-950" />
+                            <h2 className="font-serif text-xl font-semibold leading-7 text-zinc-900">
+                                {title}
+                            </h2>
+                        </div>
 
-        {/* KHỐI 1: LƯU TRỮ & HÌNH ẢNH */}
-        <div className="self-stretch flex flex-col justify-start items-start gap-6">
-          <div className="self-stretch pb-4 border-b border-neutral-200 inline-flex justify-start items-center gap-3">
-            <HardDrive className="w-5 h-5 text-emerald-950" />
-            <h2 className="text-zinc-900 text-xl font-semibold font-serif leading-7">Lưu trữ &amp; Hình ảnh</h2>
-          </div>
+                        <div className="grid w-full grid-cols-1 gap-6 md:grid-cols-2">
+                            {fields.map((fieldKey) => (
+                                <EditableField
+                                    key={fieldKey}
+                                    fieldKey={fieldKey}
+                                    value={formValues[fieldKey]}
+                                    onChange={handleFieldChange}
+                                />
+                            ))}
+                        </div>
 
-          <div className="self-stretch grid grid-cols-1 md:grid-cols-2 gap-6">
-            <ReadField
-              label="Giới hạn dung lượng ảnh (MB)"
-              value={config?.max_upload_image_size_mb}
-              suffix="MB"
-              hint="Kích thước tệp tối đa cho phép upload."
-            />
-            <ReadField
-              label="Số lượng ảnh tối đa của sản phẩm"
-              value={config?.max_images_per_product}
-              hint="Số lượng ảnh tối đa cho một sản phẩm."
-            />
-            <ReadField
-              label="Số lượng ảnh tối đa của chứng chỉ"
-              value={config?.max_images_per_certification}
-              hint="Số lượng ảnh tối đa cho một chứng chỉ."
-            />
-            <ReadField
-              label="Giới hạn đăng ký danh mục"
-              value={config?.max_categories_per_supplier}
-              hint="Số lượng danh mục tối đa mỗi nhà cung cấp."
-            />
-            <ReadField
-              label="Giới hạn đăng ký sản phẩm"
-              value={config?.max_products_per_supplier}
-              hint="Số lượng sản phẩm tối đa mỗi nhà cung cấp."
-            />
-          </div>
-
-          {/* Loại file được phép — hiển thị dạng chip */}
-          <div className="self-stretch flex flex-col gap-1.5">
-            <label className="text-neutral-700 text-xs font-bold uppercase tracking-wide">
-              Các loại file ảnh được phép upload
-            </label>
-            <div className="w-full px-4 py-3 bg-neutral-50 rounded-lg border border-neutral-200 flex flex-wrap gap-2">
-              {allowedTypes.length > 0 ? (
-                allowedTypes.map((type) => (
-                  <span
-                    key={type}
-                    className="px-2.5 py-1 rounded-md bg-emerald-100 text-emerald-800 text-xs font-mono font-semibold"
-                  >
-                    {type}
-                  </span>
-                ))
-              ) : (
-                <span className="text-neutral-400 text-sm">—</span>
-              )}
+                        {id === "storage" ? (
+                            <div className="flex w-full flex-col gap-1.5">
+                                <label className="text-xs font-bold uppercase tracking-wide text-neutral-700">
+                                    Các loại file ảnh được phép upload
+                                </label>
+                                <div className="flex w-full flex-wrap gap-2 rounded-lg border border-neutral-200 bg-neutral-50 px-4 py-3">
+                                    {allowedTypes.length > 0 ? (
+                                        allowedTypes.map((type) => (
+                                            <span
+                                                key={type}
+                                                className="rounded-md bg-emerald-100 px-2.5 py-1 font-mono text-xs font-semibold text-emerald-800"
+                                            >
+                                                {type}
+                                            </span>
+                                        ))
+                                    ) : (
+                                        <span className="text-sm text-neutral-400">—</span>
+                                    )}
+                                </div>
+                                <p className="text-xs text-neutral-500">
+                                    Trường này cố định trong hệ thống, không thể chỉnh sửa qua
+                                    giao diện.
+                                </p>
+                            </div>
+                        ) : null}
+                    </div>
+                ))}
             </div>
-            <p className="text-neutral-500 text-xs">
-              Tổng cộng {allowedTypes.length} định dạng được chấp nhận.
-            </p>
-          </div>
-        </div>
 
-        {/* KHỐI 2: BẢO MẬT */}
-        <div className="self-stretch flex flex-col justify-start items-start gap-6">
-          <div className="self-stretch pb-4 border-b border-neutral-200 inline-flex justify-start items-center gap-3">
-            <Shield className="w-5 h-5 text-emerald-950" />
-            <h2 className="text-zinc-900 text-xl font-semibold font-serif leading-7">Bảo mật</h2>
-          </div>
-
-          <div className="self-stretch grid grid-cols-1 md:grid-cols-2 gap-6">
-            <ReadField
-              label="Giới hạn số lần đăng nhập thất bại"
-              value={config?.max_login_attempts}
-              suffix="lần"
-              hint="Khóa tài khoản tạm thời sau số lần thử không đúng."
+            <ConfirmModal
+                isOpen={confirmOpen}
+                onClose={() => setConfirmOpen(false)}
+                onConfirm={handleConfirmUpdate}
+                title="Xác nhận cập nhật cấu hình"
+                message={
+                    <div className="space-y-3 text-sm leading-6">
+                        <p>
+                            Bạn sắp cập nhật{" "}
+                            <strong>{changedCount} trường</strong> cấu hình hệ thống. Thay
+                            đổi có thể ảnh hưởng đến upload, đặt hàng, giao hàng và bảo mật
+                            trên toàn nền tảng.
+                        </p>
+                        <p className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-amber-900">
+                            <strong>Cảnh báo:</strong> Thay đổi có hiệu lực sau khi cache hết
+                            hạn (tối đa ~5 phút) hoặc ngay sau request tiếp theo trên cùng
+                            worker.
+                        </p>
+                        <p>Bạn có chắc chắn muốn tiếp tục?</p>
+                    </div>
+                }
+                confirmText="Cập nhật"
+                cancelText="Hủy"
+                variant="warning"
+                successMessage="Đã cập nhật cấu hình hệ thống."
+                errorMessage="Không thể cập nhật cấu hình. Vui lòng thử lại."
+                loading={isSaving}
             />
-            <ReadField
-              label="Thời gian khóa tài khoản"
-              value={config?.login_lockout_minutes}
-              suffix="phút"
-              hint="Thời gian khóa sau khi vượt số lần đăng nhập sai."
-            />
-          </div>
-        </div>
-        
-      {/* KHỐI 3: ĐƠN HÀNG & THANH TOÁN */}
-      <div className="self-stretch flex flex-col justify-start items-start gap-6">
-          <div className="self-stretch pb-4 border-b border-neutral-200 inline-flex justify-start items-center gap-3">
-            <ShoppingCart className="w-5 h-5 text-emerald-950" />
-            <h2 className="text-zinc-900 text-xl font-semibold font-serif leading-7">Đơn hàng &amp; Thanh toán</h2>
-          </div>
-
-          <div className="self-stretch grid grid-cols-1 md:grid-cols-2 gap-6">
-            <ReadField
-              label="Giá trị đơn hàng tối thiểu"
-              value={config?.min_order_amount}
-              suffix="VNĐ"
-              hint="Số tiền tối thiểu để đặt một đơn hàng."
-            />
-            <ReadField
-              label="Giá trị đơn hàng tối đa"
-              value={config?.max_order_amount}
-              suffix="VNĐ"
-              hint="Số tiền tối đa cho phép trên một đơn hàng."
-            />
-            <ReadField
-              label="Tỷ lệ đặt cọc tối thiểu"
-              value={config?.min_deposit_percent}
-              suffix="%"
-              hint="Phần trăm đặt cọc thấp nhất được phép."
-            />
-            <ReadField
-              label="Tỷ lệ đặt cọc tối đa"
-              value={config?.max_deposit_percent}
-              suffix="%"
-              hint="Phần trăm đặt cọc cao nhất được phép."
-            />
-            <ReadField
-              label="Tỷ lệ đặt cọc mặc định"
-              value={config?.default_deposit_percent}
-              suffix="%"
-              hint="Tỷ lệ đặt cọc áp dụng mặc định khi tạo đơn."
-            />
-            <ReadField
-              label="Số ngày giao hàng tối thiểu"
-              value={config?.min_delivery_lead_days}
-              suffix="ngày"
-              hint="Thời gian chờ giao hàng tối thiểu kể từ khi đặt đơn."
-            />
-          </div>
-        </div>
-      </div>
-    </aside>
-  );
+        </aside>
+    );
 }

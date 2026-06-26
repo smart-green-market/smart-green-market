@@ -40,5 +40,10 @@ export function useStorefrontPaths() {
     orderStatus: prefix ? `${prefix}/theo-doi-don-hang` : "/",
     policies: prefix ? `${prefix}/chinh-sach` : "/",
     support: prefix ? `${prefix}/ho-tro` : "/",
+    about: prefix ? `${prefix}/ve-chung-toi` : "/",
+    aboutSection: (sectionId = "ve-chung-toi") => {
+      const base = prefix ? `${prefix}/ve-chung-toi` : "/";
+      return sectionId ? `${base}#${sectionId}` : base;
+    },
   };
 }

@@ -2,19 +2,19 @@ import { Link } from "react-router-dom";
 import { FaFacebook, FaInstagram, FaYoutube } from "react-icons/fa";
 import { useStorefrontPaths } from "../../../hooks/useStorefrontPaths";
 
+const FOOTER_LINK_CLASS =
+    "block py-1 text-sm leading-snug text-white/75 no-underline transition-all duration-200 hover:border-l-2 hover:border-lime-300 hover:pl-3 hover:text-lime-300";
+
 function FooterLinkColumn({ title, links }) {
     return (
         <div>
             <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-white">
                 {title}
             </h3>
-            <ul className="flex flex-col gap-1.5">
+            <ul className="flex flex-col gap-0.5">
                 {links.map((item) => (
                     <li key={item.hash}>
-                        <Link
-                            to={item.to}
-                            className="text-sm text-white/75 no-underline transition-colors hover:text-white"
-                        >
+                        <Link to={item.to} className={FOOTER_LINK_CLASS}>
                             {item.label}
                         </Link>
                     </li>
@@ -51,12 +51,20 @@ export default function Footer() {
         to: `${paths.support}#${item.hash}`,
     }));
 
+    const companyLinks = [
+        { label: "Về chúng tôi", hash: "ve-chung-toi" },
+        { label: "Liên hệ", hash: "lien-he" },
+    ].map((item) => ({
+        ...item,
+        to: paths.aboutSection(item.hash),
+    }));
+
     return (
         <footer className="mt-10 w-full bg-emerald-700 text-white">
             <div className="mx-auto max-w-[1280px] px-4 py-6 sm:px-6 lg:px-10 lg:py-8">
                 <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-12 lg:gap-8">
                     {/* Brand */}
-                    <div className="sm:col-span-2 lg:col-span-5">
+                    <div className="sm:col-span-2 lg:col-span-4">
                         <Link
                             to={paths.home}
                             className="text-xl font-bold text-white no-underline"
@@ -80,8 +88,9 @@ export default function Footer() {
                         </div>
                     </div>
 
-                    {/* Links — 2 cột trên mobile/tablet, cạnh nhau trên desktop */}
-                    <div className="grid grid-cols-2 gap-4 sm:col-span-2 lg:col-span-4 lg:col-start-7">
+                    {/* Links */}
+                    <div className="grid grid-cols-2 gap-4 sm:col-span-2 sm:grid-cols-3 lg:col-span-8 lg:col-start-5">
+                        <FooterLinkColumn title="Công ty" links={companyLinks} />
                         <FooterLinkColumn title="Chính sách" links={policyLinks} />
                         <FooterLinkColumn title="Hỗ trợ" links={supportLinks} />
                     </div>

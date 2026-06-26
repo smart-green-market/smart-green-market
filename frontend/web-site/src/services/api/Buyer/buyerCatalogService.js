@@ -121,6 +121,14 @@ export const buyerCatalogService = {
   //     "storage_duration_days": 0,
   //     "min_storage_temp": "",
   //     "max_storage_temp": "-51"
+  //     "cultivation_processes": [
+  //     {
+  //       "id": 0,
+  //       "step_order": 2147483647,
+  //       "process_name": "string",
+  //       "description": "string"
+  //     }
+  //   ]
   //   }
 };
 

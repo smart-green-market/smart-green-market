@@ -16,6 +16,15 @@ const DOCUMENT_TYPE_LABELS = {
     tax_certificate: "Giấy chứng nhận thuế",
 };
 
+function getDocumentTypeLabel(row) {
+    return (
+        row.document_type_label
+        || DOCUMENT_TYPE_LABELS[row.document_type]
+        || row.document_type
+        || "—"
+    );
+}
+
 // ── Column definitions ────────────────────────────────────────────────────────
 const buildColumns = (onView) => [
     {
@@ -38,11 +47,7 @@ const buildColumns = (onView) => [
         grow: 1,
         cell: (row) => (
             <span className="text-sm font-semibold font-['Geist',sans-serif]">
-                {
-                    DOCUMENT_TYPE_LABELS[
-                        row.document_type
-                    ] || row.document_type
-                }
+                {getDocumentTypeLabel(row)}
             </span>
         ),
     },
@@ -61,7 +66,7 @@ const buildColumns = (onView) => [
         selector: (row) => row.createdAt,
         sortable: true,
         center: true,
-        width: '150px',
+        width: '200px',
         cell: (row) => (
             <span className="font-bold text-sm font-semibold font-['Geist',sans-serif]">
                 {formatDateTime(row.createdAt)}
@@ -73,8 +78,7 @@ const buildColumns = (onView) => [
         selector: (row) => row.status,
         sortable: true,
         center: true,
-        
-        grow: 1,
+        width: "150px",
         cell: (row) => {
             const st = STATUS_CONFIG[row.status] ?? STATUS_CONFIG.pending;
             return (
@@ -86,7 +90,7 @@ const buildColumns = (onView) => [
     },
     {
     name: "Thao tác",
-    width: "250px",
+    width: "150px",
     center: true,
     cell: (row) => (
       <div className="flex items-center gap-1 pr-2">
@@ -104,16 +108,17 @@ const buildColumns = (onView) => [
 ];
 
 export default function DocumentTable({ data, search, statusFilter, onView }) {
-    const filtered = data.filter((row) => {
-        const documentTypeLabel =
-            DOCUMENT_TYPE_LABELS[
-                row.document_type
-            ] || row.document_type;
-        // 1. Lọc theo ô tìm kiếm (Tìm text theo loại, tên cty, trạng thái)
-        const matchName = documentTypeLabel.toLowerCase().includes(search.toLowerCase()) ||
-                        row.supplier?.company_name.toLowerCase().includes(search.toLowerCase());
+    const normalizedSearch = search.trim().toLowerCase();
 
-        // 2. Logic phân loại bộ lọc nút bấm
+    const filtered = data.filter((row) => {
+        const documentTypeLabel = getDocumentTypeLabel(row);
+        const companyName = row.supplier?.company_name ?? "";
+
+        const matchName =
+            !normalizedSearch
+            || documentTypeLabel.toLowerCase().includes(normalizedSearch)
+            || companyName.toLowerCase().includes(normalizedSearch);
+
         const statusGroup = ["approved", "rejected", "pending"];
         const docTypeGroup = ["business_license", "id_card", "tax_certificate"];
 
@@ -121,14 +126,12 @@ export default function DocumentTable({ data, search, statusFilter, onView }) {
 
         if (statusFilter) {
             if (statusGroup.includes(statusFilter)) {
-                // Nếu nút được bấm thuộc nhóm Trạng thái
                 matchFilter = row.status === statusFilter;
             } else if (docTypeGroup.includes(statusFilter)) {
-                // Nếu nút được bấm thuộc nhóm Loại chứng chỉ
                 matchFilter = row.document_type === statusFilter;
             }
         }
-        
+
         return matchName && matchFilter;
     });
 
