@@ -5,12 +5,43 @@ import { accountService } from "../../services/api/accountService";
 import { bankService } from "../../services/api/bankService";
 import SupplierPageHeader, { SUPPLIER_PAGE_CLASS } from "../../components/Supplier/UI/SupplierPageHeader";
 import { extractSupplierApiMessage } from "../../utils/supplierValidation";
-import ChangePasswordModal from "./ChangePassWord"
+import ChangePasswordModal from "./ChangePassWord";
 
-// ---- Helpers ----
+// ══════════════════════════════════════
+// DESIGN TOKENS — khớp với HTML mẫu GreenMarket
+// ══════════════════════════════════════
+const T = {
+  bg:      "#f3f4f6",
+  surface: "#ffffff",
+  surface2:"#f9fafb",
+  border:  "#e5e7eb",
+  border2: "#d1d5db",
+  text1:   "#111827",
+  text2:   "#565f6b",
+  text3:   "#80899a",
+  green9:  "#0f3d20",
+  green8:  "#1a5c2a",
+  green7:  "#166534",
+  green3:  "#6ee7b7",
+  green1:  "#d1fae5",
+  green0:  "#EAF3DE",
+  green0t: "#3B6D11",
+  amber0:  "#FAEEDA",
+  amber8:  "#854F0B",
+  blue0:   "#E6F1FB",
+  blue8:   "#185FA5",
+  purple0: "#EEEDFE",
+  purple8: "#534AB7",
+  red0:    "#FCEBEB",
+  red8:    "#A32D2D",
+};
+
+// ══════════════════════════════════════
+// HELPERS
+// ══════════════════════════════════════
 const verificationLabel = {
   approved: "Đã xác minh",
-  pending: "Chờ xét duyệt",
+  pending:  "Chờ xét duyệt",
   rejected: "Từ chối",
 };
 const statusLabel = { active: "Đang hoạt động", inactive: "Ngừng hoạt động" };
@@ -25,235 +56,301 @@ function formatPhone(phone) {
   if (!phone) return "—";
   return phone.replace(/(\d{4})(\d{3})(\d{3})/, "$1 $2 $3");
 }
-
 function getChangedFields(initial, current) {
   const changed = {};
   Object.keys(initial).forEach((key) => {
-    if (current[key] !== initial[key]) {
-      changed[key] = current[key];
-    }
+    if (current[key] !== initial[key]) changed[key] = current[key];
   });
   return changed;
 }
-
 const SUPPLIER_BANK_KEYS = ["bank_name", "bank_bin", "account_number", "account_name"];
 
 function normalizeSupplierForm(data = {}) {
   return {
-    company_name: data.company_name || "",
-    tax_code: data.tax_code || "",
-    phone: data.phone || "",
-    address: data.address || "",
-    description: data.description || "",
-    bank_name: data.bank_name || "",
-    bank_bin: String(data.bank_bin || ""),
+    company_name:   data.company_name   || "",
+    tax_code:       data.tax_code       || "",
+    phone:          data.phone          || "",
+    address:        data.address        || "",
+    description:    data.description    || "",
+    bank_name:      data.bank_name      || "",
+    bank_bin:       String(data.bank_bin || ""),
     account_number: data.account_number || "",
-    account_name: data.account_name || "",
+    account_name:   data.account_name   || "",
   };
 }
-
 function buildSupplierUpdatePayload(supplier, form) {
   const initial = normalizeSupplierForm(supplier);
   const current = normalizeSupplierForm(form);
   const changed = getChangedFields(initial, current);
-
   const bankChanged = SUPPLIER_BANK_KEYS.some((key) => key in changed);
-  if (bankChanged) {
-    SUPPLIER_BANK_KEYS.forEach((key) => {
-      changed[key] = current[key];
-    });
-  }
-
+  if (bankChanged) SUPPLIER_BANK_KEYS.forEach((key) => { changed[key] = current[key]; });
   return changed;
 }
-
 function extractSupplierErrorMessage(error, fallback = "Cập nhật thất bại. Vui lòng thử lại!") {
   return extractSupplierApiMessage(error, fallback);
 }
-
 function toNumberOrNull(value) {
   const parsed = Number(value);
   return Number.isFinite(parsed) ? parsed : null;
 }
-
 function getLoggedInUser() {
   try {
-    const savedUser = localStorage.getItem("user");
-    return savedUser ? JSON.parse(savedUser) : null;
-  } catch {
-    return null;
-  }
+    const s = localStorage.getItem("user");
+    return s ? JSON.parse(s) : null;
+  } catch { return null; }
 }
-
 function normalizeSupplierDetail(raw, fallbackUser = null) {
   if (!raw) return null;
-
   const apiAccount = raw.account && typeof raw.account === "object" ? raw.account : null;
   const userAccount = fallbackUser || {};
-
   const account = {
-    id: apiAccount?.id ?? userAccount.id ?? null,
-    username: apiAccount?.username ?? userAccount.username ?? "",
-    email: apiAccount?.email ?? userAccount.email ?? "",
-    full_name:
-      apiAccount?.full_name ??
-      userAccount.full_name ??
-      userAccount.username ??
-      "",
-    phone: apiAccount?.phone ?? userAccount.phone ?? "",
-    avatar_url:
-      apiAccount?.avatar_url ??
-      apiAccount?.avatar ??
-      userAccount.avatar_url ??
-      userAccount.avatar ??
-      null,
-    role: apiAccount?.role ?? userAccount.role ?? "supplier",
-    status: apiAccount?.status ?? userAccount.status ?? "active",
+    id:         apiAccount?.id         ?? userAccount.id         ?? null,
+    username:   apiAccount?.username   ?? userAccount.username   ?? "",
+    email:      apiAccount?.email      ?? userAccount.email      ?? "",
+    full_name:  apiAccount?.full_name  ?? userAccount.full_name  ?? userAccount.username ?? "",
+    phone:      apiAccount?.phone      ?? userAccount.phone      ?? "",
+    avatar_url: apiAccount?.avatar_url ?? apiAccount?.avatar    ?? userAccount.avatar_url ?? userAccount.avatar ?? null,
+    role:       apiAccount?.role       ?? userAccount.role       ?? "supplier",
+    status:     apiAccount?.status     ?? userAccount.status     ?? "active",
     created_at: apiAccount?.created_at ?? userAccount.created_at ?? null,
     updated_at: apiAccount?.updated_at ?? userAccount.updated_at ?? null,
   };
-
   return {
-    ...raw,
-    account,
-    company_name: raw.company_name ?? "",
-    tax_code: raw.tax_code ?? "",
-    phone: raw.phone ?? "",
-    address: raw.address ?? "",
-    description: raw.description ?? "",
-    bank_name: raw.bank_name ?? "",
-    bank_bin: raw.bank_bin != null ? String(raw.bank_bin) : "",
-    account_number: raw.account_number ?? "",
-    account_name: raw.account_name ?? "",
+    ...raw, account,
+    company_name:        raw.company_name        ?? "",
+    tax_code:            raw.tax_code            ?? "",
+    phone:               raw.phone               ?? "",
+    address:             raw.address             ?? "",
+    description:         raw.description         ?? "",
+    bank_name:           raw.bank_name           ?? "",
+    bank_bin:            raw.bank_bin != null ? String(raw.bank_bin) : "",
+    account_number:      raw.account_number      ?? "",
+    account_name:        raw.account_name        ?? "",
     verification_status: raw.verification_status ?? "pending",
-    verified_by_username: raw.verified_by_username ?? "",
-    rejection_reason: raw.rejection_reason ?? "",
+    verified_by_username:raw.verified_by_username ?? "",
+    rejection_reason:    raw.rejection_reason    ?? "",
   };
 }
-
 async function fetchCurrentSupplierProfile() {
   const user = getLoggedInUser();
   const userId = toNumberOrNull(user?.id);
-
-  if (!userId) {
-    throw new Error("Không tìm thấy thông tin tài khoản đăng nhập.");
-  }
-
+  if (!userId) throw new Error("Không tìm thấy thông tin tài khoản đăng nhập.");
   const directSupplierId =
     toNumberOrNull(user?.supplier_id) ??
     toNumberOrNull(user?.supplier?.id) ??
     toNumberOrNull(user?.supplier);
-
   if (directSupplierId) {
-    const supplierDetail = await supplierService.getById(directSupplierId);
-    return normalizeSupplierDetail(supplierDetail, user);
+    return normalizeSupplierDetail(await supplierService.getById(directSupplierId), user);
   }
-
   const suppliers = await supplierService.getAll();
   const list = Array.isArray(suppliers) ? suppliers : [];
-
-  const supplierSummary = list.find((item) => {
-    const accountId =
-      toNumberOrNull(item?.account) ??
-      toNumberOrNull(item?.account_id) ??
-      toNumberOrNull(item?.account?.id);
-
+  const found = list.find((item) => {
+    const accountId = toNumberOrNull(item?.account) ?? toNumberOrNull(item?.account_id) ?? toNumberOrNull(item?.account?.id);
     if (accountId && accountId === userId) return true;
-
-    const usernameMatches =
-      item?.account?.username &&
-      user?.username &&
-      item.account.username === user.username;
-
-    const emailMatches =
-      item?.account?.email &&
-      user?.email &&
-      item.account.email === user.email;
-
-    return usernameMatches || emailMatches;
+    return (item?.account?.username && item.account.username === user?.username) ||
+           (item?.account?.email    && item.account.email    === user?.email);
   });
-
-  if (supplierSummary?.id) {
-    const supplierDetail = await supplierService.getById(supplierSummary.id);
-    return normalizeSupplierDetail(supplierDetail, user);
-  }
-
-  if (list.length === 1 && list[0]?.id) {
-    const supplierDetail = await supplierService.getById(list[0].id);
-    return normalizeSupplierDetail(supplierDetail, user);
-  }
-
+  if (found?.id) return normalizeSupplierDetail(await supplierService.getById(found.id), user);
+  if (list.length === 1 && list[0]?.id) return normalizeSupplierDetail(await supplierService.getById(list[0].id), user);
   throw new Error("Không tìm thấy hồ sơ nhà cung cấp của tài khoản này.");
 }
 
-// ---- Sub-components ----
+// ══════════════════════════════════════
+// REUSABLE ATOMS
+// ══════════════════════════════════════
+
+/** Badge pill nhỏ */
+function Pill({ children, color = "g" }) {
+  const map = {
+    g:  { bg: T.green0,  text: T.green0t },
+    a:  { bg: T.amber0,  text: T.amber8  },
+    b:  { bg: T.blue0,   text: T.blue8   },
+    p:  { bg: T.purple0, text: T.purple8 },
+    gr: { bg: "#f3f4f6", text: T.text2   },
+    r:  { bg: T.red0,    text: T.red8    },
+  };
+  const { bg, text } = map[color] || map.gr;
+  return (
+    <span style={{
+      display: "inline-flex", alignItems: "center",
+      padding: "2px 10px", borderRadius: 20,
+      fontSize: 11, fontWeight: 600,
+      background: bg, color: text,
+    }}>
+      {children}
+    </span>
+  );
+}
+
+/** Icon tròn nhỏ */
+function InfoIco({ icon, color = "gr" }) {
+  const map = {
+    g:  { bg: T.green0,   text: T.green0t },
+    a:  { bg: T.amber0,   text: T.amber8  },
+    b:  { bg: T.blue0,    text: T.blue8   },
+    gr: { bg: T.surface2, text: T.text2   },
+  };
+  const { bg, text } = map[color] || map.gr;
+  return (
+    <div style={{
+      width: 28, height: 28, borderRadius: 8, background: bg, color: text,
+      display: "flex", alignItems: "center", justifyContent: "center",
+      fontSize: 14, flexShrink: 0,
+    }}>
+      <i className={`ti ${icon}`} />
+    </div>
+  );
+}
+
+/** Một dòng thông tin (icon + label + value) */
+function InfoRow({ icon, label, value, iconColor }) {
+  return (
+    <div style={{
+      display: "flex", alignItems: "flex-start", gap: 10,
+      padding: "9px 0", borderBottom: `0.5px solid ${T.border}`,
+    }}>
+      <InfoIco icon={icon} color={iconColor} />
+      <div style={{ minWidth: 0 }}>
+        <div style={{ fontSize: 10, color: T.text3 }}>{label}</div>
+        <div style={{ fontSize: 12, color: T.text1, fontWeight: 500, marginTop: 2, wordBreak: "break-word" }}>
+          {value || "—"}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/** Card wrapper */
+function Card({ children, style }) {
+  return (
+    <div style={{
+      background: T.surface, border: `0.5px solid ${T.border}`,
+      borderRadius: 12, overflow: "hidden", ...style,
+    }}>
+      {children}
+    </div>
+  );
+}
+
+/** Card Header */
+function CardHead({ iconClass, iconColor = "g", title, right }) {
+  const map = {
+    g:  { bg: T.green0,  text: T.green0t },
+    a:  { bg: T.amber0,  text: T.amber8  },
+    b:  { bg: T.blue0,   text: T.blue8   },
+    gr: { bg: T.surface2,text: T.text2   },
+  };
+  const { bg, text } = map[iconColor] || map.g;
+  return (
+    <div style={{
+      display: "flex", alignItems: "center", justifyContent: "space-between",
+      padding: "12px 16px", borderBottom: `0.5px solid ${T.border}`,
+    }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+        <div style={{
+          width: 28, height: 28, borderRadius: 8, background: bg, color: text,
+          display: "flex", alignItems: "center", justifyContent: "center", fontSize: 14,
+        }}>
+          <i className={`ti ${iconClass}`} />
+        </div>
+        <span style={{ fontSize: 13, fontWeight: 500, color: T.text1 }}>{title}</span>
+      </div>
+      {right}
+    </div>
+  );
+}
+
+/** Nút chỉnh sửa nhỏ */
+function EditBtn({ onClick, label = "Chỉnh sửa" }) {
+  return (
+    <button
+      onClick={onClick}
+      style={{
+        display: "flex", alignItems: "center", gap: 6,
+        padding: "0 12px", height: 30, borderRadius: 8,
+        background: T.green8, color: "#fff",
+        fontSize: 11, fontWeight: 500, cursor: "pointer", border: "none",
+      }}
+      onMouseOver={e => e.currentTarget.style.background = T.green7}
+      onMouseOut={e => e.currentTarget.style.background = T.green8}
+    >
+      <i className="ti ti-edit" style={{ fontSize: 13 }} />
+      {label}
+    </button>
+  );
+}
+
+/** Nút ghost nhỏ */
+function GhostBtn({ onClick, children }) {
+  return (
+    <button
+      onClick={onClick}
+      style={{
+        display: "flex", alignItems: "center", gap: 6,
+        padding: "0 12px", height: 30, borderRadius: 8,
+        background: T.surface, color: T.text2,
+        fontSize: 11, fontWeight: 500, cursor: "pointer",
+        border: `0.5px solid ${T.border}`,
+      }}
+      onMouseOver={e => e.currentTarget.style.background = T.surface2}
+      onMouseOut={e => e.currentTarget.style.background = T.surface}
+    >
+      {children}
+    </button>
+  );
+}
+
+// ══════════════════════════════════════
+// AVATAR
+// ══════════════════════════════════════
 function Avatar({ name, url }) {
   const initials = name
     ? name.split(" ").slice(-2).map((w) => w[0]).join("").toUpperCase()
     : "?";
-  if (url)
-    return <img src={url} alt={name} className="w-32 h-32 rounded-xl object-cover" />;
+  if (url) {
+    return (
+      <img
+        src={url} alt={name}
+        style={{ width: 64, height: 64, borderRadius: 16, objectFit: "cover" }}
+      />
+    );
+  }
   return (
-    <div className="w-32 h-32 rounded-xl bg-gradient-to-br from-[#2D6A4F] to-[#52B788] flex items-center justify-center text-white font-bold text-xl select-none">
+    <div style={{
+      width: 64, height: 64, borderRadius: 16,
+      background: T.green8, display: "flex", alignItems: "center",
+      justifyContent: "center", fontSize: 22, fontWeight: 700, color: "#fff",
+      userSelect: "none",
+    }}>
       {initials}
     </div>
   );
 }
 
-// ---- Modal xác nhận đổi ảnh đại diện ----
+// ══════════════════════════════════════
+// MODAL — Confirm Avatar
+// ══════════════════════════════════════
 function AvatarConfirmModal({ previewUrl, onConfirm, onCancel, isSaving }) {
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-      <div className="absolute inset-0 bg-black/40" onClick={!isSaving ? onCancel : undefined} />
-      <div className="relative bg-white rounded-xl shadow-2xl w-full max-w-sm p-6 z-10">
-        <h3 className="text-base font-semibold text-gray-900 mb-1">Xác nhận cập nhật ảnh</h3>
-        <p className="text-xs text-gray-400 mb-5">Ảnh đại diện mới của bạn sẽ được lưu sau khi xác nhận.</p>
-
-        {/* Preview */}
-        <div className="flex justify-center mb-6">
-          <div className="relative">
-            <img
-              src={previewUrl}
-              alt="Preview"
-              className="w-24 h-24 rounded-2xl object-cover ring-4 ring-[#D8F3DC] shadow-md"
-            />
-            <span className="absolute -bottom-2 -right-2 bg-[#2D6A4F] text-white text-[10px] font-semibold px-2 py-0.5 rounded-full shadow">
-              Mới
-            </span>
+    <div style={{ position: "fixed", inset: 0, zIndex: 50, display: "flex", alignItems: "center", justifyContent: "center", padding: 16 }}>
+      <div style={{ position: "absolute", inset: 0, background: "rgba(0,0,0,0.4)" }} onClick={!isSaving ? onCancel : undefined} />
+      <div style={{ position: "relative", background: "#fff", borderRadius: 14, boxShadow: "0 20px 60px rgba(0,0,0,.2)", width: "100%", maxWidth: 360, padding: 24, zIndex: 10 }}>
+        <h3 style={{ fontSize: 14, fontWeight: 600, color: T.text1, marginBottom: 4 }}>Xác nhận cập nhật ảnh</h3>
+        <p style={{ fontSize: 11, color: T.text3, marginBottom: 20 }}>Ảnh đại diện mới sẽ được lưu sau khi xác nhận.</p>
+        <div style={{ display: "flex", justifyContent: "center", marginBottom: 20 }}>
+          <div style={{ position: "relative" }}>
+            <img src={previewUrl} alt="Preview" style={{ width: 80, height: 80, borderRadius: 16, objectFit: "cover", outline: `3px solid ${T.green1}` }} />
+            <span style={{
+              position: "absolute", bottom: -8, right: -8,
+              background: T.green8, color: "#fff", fontSize: 9,
+              fontWeight: 700, padding: "2px 8px", borderRadius: 20,
+            }}>Mới</span>
           </div>
         </div>
-
-        <div className="flex gap-3">
-          <button
-            onClick={onCancel}
-            disabled={isSaving}
-            className="flex-1 px-4 py-2.5 rounded-lg border border-gray-200 text-sm font-medium text-gray-600 hover:bg-gray-50 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            Hủy
-          </button>
-          <button
-            onClick={onConfirm}
-            disabled={isSaving}
-            className={`flex-1 px-4 py-2.5 rounded-lg text-white text-sm font-medium transition-all flex items-center justify-center gap-2 ${
-              isSaving ? "bg-[#52B788] cursor-not-allowed" : "bg-[#2D6A4F] hover:bg-[#1B4332]"
-            }`}
-          >
-            {isSaving ? (
-              <>
-                <svg className="animate-spin w-4 h-4 text-white" fill="none" viewBox="0 0 24 24">
-                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
-                </svg>
-                Đang lưu...
-              </>
-            ) : (
-              <>
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                </svg>
-                Xác nhận
-              </>
-            )}
+        <div style={{ display: "flex", gap: 10 }}>
+          <button onClick={onCancel} disabled={isSaving} style={{ flex: 1, padding: "9px 0", borderRadius: 9, border: `0.5px solid ${T.border}`, background: T.surface, color: T.text2, fontSize: 12, fontWeight: 500, cursor: "pointer" }}>Hủy</button>
+          <button onClick={onConfirm} disabled={isSaving} style={{ flex: 1, padding: "9px 0", borderRadius: 9, border: "none", background: isSaving ? "#52B788" : T.green8, color: "#fff", fontSize: 12, fontWeight: 500, cursor: isSaving ? "not-allowed" : "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}>
+            {isSaving ? (<><SpinIcon />Đang lưu...</>) : (<><i className="ti ti-check" />Xác nhận</>)}
           </button>
         </div>
       </div>
@@ -261,462 +358,752 @@ function AvatarConfirmModal({ previewUrl, onConfirm, onCancel, isSaving }) {
   );
 }
 
-function Badge({ label, variant = "default" }) {
-  const styles = {
-    green: "bg-[#D8F3DC] text-[#1B4332] border border-[#B7E4C7]",
-    yellow: "bg-yellow-50 text-yellow-800 border border-yellow-200",
-    red: "bg-red-50 text-red-700 border border-red-200",
-    blue: "bg-blue-50 text-blue-700 border border-blue-200",
-    gray: "bg-gray-100 text-gray-600 border border-gray-200",
-    default: "bg-gray-100 text-gray-600 border border-gray-200",
-  };
+function SpinIcon() {
   return (
-    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold ${styles[variant]}`}>
-      {label}
-    </span>
+    <svg style={{ width: 14, height: 14, animation: "spin 1s linear infinite" }} fill="none" viewBox="0 0 24 24">
+      <circle style={{ opacity: .25 }} cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+      <path style={{ opacity: .75 }} fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+    </svg>
   );
 }
 
-function InfoField({ label, value, wide = false }) {
-  return (
-    <div className={wide ? "col-span-2" : ""}>
-      <p className="text-[11px] font-semibold text-gray-400 uppercase tracking-wider mb-1">{label}</p>
-      <p className="text-sm font-medium text-gray-800">{value || "—"}</p>
-    </div>
-  );
-}
+// ══════════════════════════════════════
+// MODAL — Shared input style
+// ══════════════════════════════════════
+const inputStyle = (changed) => ({
+  width: "100%", padding: "8px 12px", borderRadius: 9,
+  border: `0.5px solid ${changed ? T.green8 : T.border}`,
+  fontSize: 12, color: T.text1, background: T.surface,
+  outline: "none", fontFamily: "inherit",
+  transition: "border-color .15s",
+});
 
-// ---- Section: Thông tin cá nhân ----
-function PersonalSection({ supplier, onEdit, onPickAvatar, onOpenChangePassword }) {
-  const { account } = supplier;
+function ModalWrap({ title, onClose, isSaving, onSave, isDirty, children }) {
   return (
-    <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
-      {/* Header */}
-      <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
-        <div>
-          <h2 className="font-semibold text-gray-900">Thông tin cá nhân</h2>
-          <p className="text-xs text-gray-400 mt-0.5">Thông tin tài khoản đăng nhập</p>
-        </div>
-        <div className="flex items-center gap-2">
+    <div style={{ position: "fixed", inset: 0, zIndex: 50, display: "flex", alignItems: "center", justifyContent: "center", padding: 16 }}>
+      <div style={{ position: "absolute", inset: 0, background: "rgba(0,0,0,0.4)" }} onClick={!isSaving ? onClose : undefined} />
+      <div style={{ position: "relative", background: "#fff", borderRadius: 14, boxShadow: "0 20px 60px rgba(0,0,0,.2)", width: "100%", maxWidth: 440, padding: 24, zIndex: 10, maxHeight: "90vh", overflowY: "auto" }}>
+        <h3 style={{ fontSize: 14, fontWeight: 600, color: T.text1, marginBottom: 18 }}>{title}</h3>
+        <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>{children}</div>
+        <div style={{ display: "flex", gap: 10, marginTop: 20 }}>
+          <button onClick={onClose} disabled={isSaving} style={{ flex: 1, padding: "9px 0", borderRadius: 9, border: `0.5px solid ${T.border}`, background: T.surface, color: T.text2, fontSize: 12, fontWeight: 500, cursor: "pointer" }}>Hủy</button>
           <button
-            type="button"
-            onClick={onOpenChangePassword}
-            className="flex items-center gap-2 px-4 py-2 border border-[#2D6A4F] text-[#2D6A4F] hover:bg-[#D8F3DC] text-sm font-medium rounded-lg transition-colors"
+            onClick={onSave}
+            disabled={isSaving || !isDirty}
+            style={{
+              flex: 1, padding: "9px 0", borderRadius: 9, border: "none",
+              background: isSaving ? "#52B788" : isDirty ? T.green8 : T.green1,
+              color: "#fff", fontSize: 12, fontWeight: 500,
+              cursor: (isSaving || !isDirty) ? "not-allowed" : "pointer",
+              display: "flex", alignItems: "center", justifyContent: "center", gap: 6,
+            }}
           >
-            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
-                d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
-            </svg>
-            Đổi mật khẩu
-          </button>
-          <label className="flex items-center gap-2 px-4 py-2 border border-[#2D6A4F] text-[#2D6A4F] hover:bg-[#D8F3DC] text-sm font-medium rounded-lg transition-colors cursor-pointer">
-            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
-                d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
-            </svg>
-            Cập nhật ảnh
-            <input
-              type="file"
-              accept="image/png,image/jpeg,image/webp"
-              className="hidden"
-              onChange={onPickAvatar}
-            />
-          </label>
-          <button
-            onClick={onEdit}
-            className="flex items-center gap-2 px-4 py-2 bg-[#2D6A4F] hover:bg-[#1B4332] text-white text-sm font-medium rounded-lg transition-colors"
-          >
-            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
-            </svg>
-            Chỉnh sửa
+            {isSaving ? (<><SpinIcon />Đang lưu...</>) : "Lưu thay đổi"}
           </button>
         </div>
       </div>
-
-      <div className="p-6">
-        {/* Avatar row */}
-        <div className="flex items-center gap-4 mb-6 pb-6 border-b border-gray-100">
-          <div className="relative">
-            <Avatar name={account.full_name} url={account.avatar_url} />
-            <span
-              className={`absolute -bottom-1 -right-1 w-4 h-4 rounded-full border-2 border-white ${account.status === "active" ? "bg-[#52B788]" : "bg-gray-300"}`}
-            />
-          </div>
-          <div>
-            <p className="font-semibold text-gray-900">{account.full_name}</p>
-            <p className="text-sm text-gray-500 mb-2">@{account.username}</p>
-            <div className="flex gap-2 flex-wrap">
-              <Badge label="Nhà cung cấp" variant="blue" />
-              <Badge
-                label={statusLabel[account.status] || account.status}
-                variant={account.status === "active" ? "green" : "gray"}
-              />
-            </div>
-          </div>
-        </div>
-
-        {/* Fields */}
-        <div className="grid grid-cols-2 gap-x-8 gap-y-5">
-          <InfoField label="Họ và tên" value={account.full_name} />
-          <InfoField label="Email" value={account.email} />
-          <InfoField label="Số điện thoại" value={formatPhone(account.phone)} />
-          <InfoField label="Tên đăng nhập" value={account.username} />
-          <InfoField label="Ngày tạo tài khoản" value={formatDate(account.created_at)} />
-          <InfoField label="Cập nhật lần cuối" value={formatDate(account.updated_at)} />
-        </div>
-      </div>
     </div>
   );
 }
 
-// ---- Section: Thông tin doanh nghiệp ----
-function CompanySection({ supplier, onEdit }) {
-  const vs = supplier.verification_status;
-  const vsBanner = {
-    approved: { bg: "bg-[#D8F3DC] border-[#B7E4C7]", text: "text-[#1B4332]", sub: "text-[#2D6A4F]", icon: "✅" },
-    pending:  { bg: "bg-yellow-50 border-yellow-200", text: "text-yellow-800", sub: "text-yellow-600", icon: "⏳" },
-    rejected: { bg: "bg-red-50 border-red-200", text: "text-red-800", sub: "text-red-600", icon: "❌" },
-  }[vs] || { bg: "bg-gray-50 border-gray-200", text: "text-gray-700", sub: "text-gray-500", icon: "❓" };
-
+function FieldGroup({ label, children }) {
   return (
-    <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
-      {/* Header */}
-      <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
-        <div>
-          <h2 className="font-semibold text-gray-900">Thông tin doanh nghiệp</h2>
-          <p className="text-xs text-gray-400 mt-0.5">Thông tin pháp lý và liên hệ công ty</p>
-        </div>
-        <button
-          onClick={onEdit}
-          className="flex items-center gap-2 px-4 py-2 bg-[#2D6A4F] hover:bg-[#1B4332] text-white text-sm font-medium rounded-lg transition-colors"
-        >
-          <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
-          </svg>
-          Chỉnh sửa
-        </button>
-      </div>
-
-      <div className="p-6">
-        {/* Fields */}
-        <div className="grid grid-cols-2 gap-x-8 gap-y-5">
-          <InfoField label="Mã nhà cung cấp" value={`#${supplier.id}`} />
-          <InfoField label="Tên công ty" value={supplier.company_name} />
-          <InfoField label="Mã số thuế" value={supplier.tax_code} />
-          <InfoField label="Số điện thoại doanh nghiệp" value={formatPhone(supplier.phone)} />
-          <InfoField label="Địa chỉ" value={supplier.address} wide />
-          <InfoField label="Mô tả" value={supplier.description} wide />
-
-          <div className="col-span-2 border-t border-dashed border-gray-200 pt-1">
-            <p className="text-[11px] font-semibold text-gray-400 uppercase tracking-wider">Thông tin ngân hàng</p>
-          </div>
-
-          <InfoField label="Tên ngân hàng" value={supplier.bank_name} />
-          <InfoField label="Mã BIN ngân hàng" value={supplier.bank_bin} />
-          <InfoField label="Số tài khoản" value={supplier.account_number} />
-          <InfoField label="Tên chủ tài khoản" value={supplier.account_name} />
-
-          <div className="col-span-2 border-t border-dashed border-gray-200 pt-1">
-            <p className="text-[11px] font-semibold text-gray-400 uppercase tracking-wider">Thông tin xác minh</p>
-          </div>
-
-          <InfoField
-            label="Trạng thái xác minh"
-            value={verificationLabel[supplier.verification_status] || supplier.verification_status}
-          />
-          <InfoField label="Thời điểm xác minh" value={formatDate(supplier.verified_at)} />
-          {supplier.rejection_reason ? (
-            <InfoField label="Lý do từ chối" value={supplier.rejection_reason} />
-          ) : (
-            <InfoField label="Lý do từ chối" value="Không có" />
-          )}
-
-          <div className="col-span-2 border-t border-dashed border-gray-200 pt-1">
-            <p className="text-[11px] font-semibold text-gray-400 uppercase tracking-wider">Thời gian</p>
-          </div>
-
-          <InfoField label="Ngày đăng ký" value={formatDate(supplier.created_at)} />
-          <InfoField label="Cập nhật lần cuối" value={formatDate(supplier.updated_at)} />
-        </div>
-      </div>
+    <div>
+      <label style={{ fontSize: 10, color: T.text3, textTransform: "uppercase", letterSpacing: ".6px", display: "block", marginBottom: 6, fontWeight: 500 }}>{label}</label>
+      {children}
     </div>
   );
 }
 
-// ---- Modal chỉnh sửa thông tin cá nhân ----
+// ══════════════════════════════════════
+// MODAL — Chỉnh sửa thông tin cá nhân
+// ══════════════════════════════════════
 function EditPersonalModal({ account, onClose, onSave, isSaving }) {
-  const initial = {
-    full_name: account.full_name,
-    email: account.email,
-    phone: account.phone,
-  };
-
+  const initial = { full_name: account.full_name, email: account.email, phone: account.phone };
   const [form, setForm] = useState(initial);
-
-  const isDirty = Object.keys(initial).some((key) => form[key] !== initial[key]);
-
+  const isDirty = Object.keys(initial).some((k) => form[k] !== initial[k]);
   const fields = [
     { label: "Họ và tên", key: "full_name", type: "text" },
-    { label: "Email", key: "email", type: "email" },
+    { label: "Email",     key: "email",     type: "email" },
     { label: "Số điện thoại", key: "phone", type: "tel" },
   ];
-
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-      <div className="absolute inset-0 bg-black/40" onClick={!isSaving ? onClose : undefined} />
-      <div className="relative bg-white rounded-xl shadow-2xl w-full max-w-md p-6 z-10">
-        <h3 className="text-base font-semibold text-gray-900 mb-5">Chỉnh sửa thông tin cá nhân</h3>
-        <div className="flex flex-col gap-4">
-          {fields.map(({ label, key, type }) => (
-            <div key={key}>
-              <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide block mb-1.5">{label}</label>
-              <input
-                type={type}
-                value={form[key]}
-                onChange={(e) => setForm((f) => ({ ...f, [key]: e.target.value }))}
-                disabled={isSaving}
-                className={`w-full px-3 py-2.5 rounded-lg border text-sm focus:outline-none focus:ring-2 focus:ring-[#D8F3DC] transition-all ${
-                  form[key] !== initial[key]
-                    ? "border-[#2D6A4F] focus:border-[#2D6A4F]"
-                    : "border-gray-200 focus:border-[#52B788]"
-                }`}
-              />
-            </div>
+    <ModalWrap title="Chỉnh sửa thông tin cá nhân" onClose={onClose} isSaving={isSaving} onSave={() => onSave(form)} isDirty={isDirty}>
+      {fields.map(({ label, key, type }) => (
+        <FieldGroup key={key} label={label}>
+          <input
+            type={type} value={form[key]}
+            onChange={(e) => setForm((f) => ({ ...f, [key]: e.target.value }))}
+            disabled={isSaving}
+            style={inputStyle(form[key] !== initial[key])}
+          />
+        </FieldGroup>
+      ))}
+    </ModalWrap>
+  );
+}
+
+// ══════════════════════════════════════
+// MODAL — Chỉnh sửa thông tin doanh nghiệp
+// ══════════════════════════════════════
+function EditCompanyModal({ supplier, onClose, onSave, isSaving }) {
+  const initial = normalizeSupplierForm(supplier);
+  const [form, setForm] = useState(initial);
+  const [banks, setBanks] = useState([]);
+  useEffect(() => {
+    bankService.getAll().then(setBanks).catch(console.error);
+  }, []);
+  const isDirty = Object.keys(initial).some((k) => form[k] !== initial[k]);
+  const fields = [
+    { label: "Tên công ty",             key: "company_name", type: "text" },
+    { label: "Mã số thuế",              key: "tax_code",     type: "text" },
+    { label: "SĐT doanh nghiệp",        key: "phone",        type: "tel"  },
+    { label: "Địa chỉ",                 key: "address",      type: "text" },
+  ];
+  const bankFields = [
+    { label: "Số tài khoản",        key: "account_number", type: "text" },
+    { label: "Tên chủ tài khoản",   key: "account_name",   type: "text" },
+  ];
+  const handleBankChange = (bin) => {
+    const bank = banks.find((b) => String(b.bin) === String(bin));
+    setForm((p) => ({ ...p, bank_bin: String(bank?.bin || bin), bank_name: bank?.name || "" }));
+  };
+  return (
+    <ModalWrap title="Chỉnh sửa thông tin doanh nghiệp" onClose={onClose} isSaving={isSaving} onSave={() => onSave(form)} isDirty={isDirty}>
+      {fields.map(({ label, key, type }) => (
+        <FieldGroup key={key} label={label}>
+          <input type={type} value={form[key]} onChange={(e) => setForm((f) => ({ ...f, [key]: e.target.value }))} disabled={isSaving} style={inputStyle(form[key] !== initial[key])} />
+        </FieldGroup>
+      ))}
+      <FieldGroup label="Mô tả">
+        <textarea
+          rows={3} value={form.description}
+          onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))}
+          disabled={isSaving}
+          style={{ ...inputStyle(form.description !== initial.description), resize: "none" }}
+        />
+      </FieldGroup>
+
+      {/* Ngân hàng */}
+      <div style={{ borderTop: `0.5px dashed ${T.border}`, paddingTop: 12 }}>
+        <p style={{ fontSize: 10, color: T.text3, textTransform: "uppercase", letterSpacing: ".6px", fontWeight: 500, marginBottom: 12 }}>Thông tin ngân hàng</p>
+        <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+          <FieldGroup label="Ngân hàng">
+            <select value={form.bank_bin} onChange={(e) => handleBankChange(e.target.value)} disabled={isSaving} style={inputStyle(form.bank_bin !== initial.bank_bin)}>
+              <option value="">-- Chọn ngân hàng --</option>
+              {banks.map((b) => <option key={b.bin} value={String(b.bin)}>{b.name}</option>)}
+            </select>
+          </FieldGroup>
+          {bankFields.map(({ label, key, type }) => (
+            <FieldGroup key={key} label={label}>
+              <input type={type} value={form[key]} onChange={(e) => setForm((f) => ({ ...f, [key]: e.target.value }))} disabled={isSaving} style={inputStyle(form[key] !== initial[key])} />
+            </FieldGroup>
           ))}
         </div>
-        <div className="flex gap-3 mt-6">
-          <button
-            onClick={onClose}
-            disabled={isSaving}
-            className="flex-1 px-4 py-2.5 rounded-lg border border-gray-200 text-sm font-medium text-gray-600 hover:bg-gray-50 transition-all"
-          >
-            Hủy
-          </button>
-          <button
-            onClick={() => onSave(form)}
-            disabled={isSaving || !isDirty}
-            className={`flex-1 px-4 py-2.5 rounded-lg text-white text-sm font-medium transition-all flex items-center justify-center ${
-              isSaving
-                ? "bg-[#52B788] cursor-not-allowed"
-                : isDirty
-                ? "bg-[#2D6A4F] hover:bg-[#1B4332] cursor-pointer"
-                : "bg-[#B7E4C7] cursor-not-allowed opacity-70"
-            }`}
-          >
-            {isSaving ? (
-              <>
-                <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                </svg>
-                Đang lưu...
-              </>
-            ) : (
-              "Lưu thay đổi"
-            )}
-          </button>
+      </div>
+    </ModalWrap>
+  );
+}
+
+// ══════════════════════════════════════
+// SECTION — Profile Hero (giống profile-hero trong HTML mẫu)
+// ══════════════════════════════════════
+function ProfileHero({ supplier, onEditPersonal, onPickAvatar, onOpenChangePassword }) {
+  const { account } = supplier;
+  const vs = supplier.verification_status;
+  const vsColor = vs === "approved" ? "g" : vs === "pending" ? "a" : "r";
+  const vsLabel = verificationLabel[vs] || vs;
+  const initials = account.full_name
+    ? account.full_name.split(" ").slice(-2).map((w) => w[0]).join("").toUpperCase()
+    : "?";
+
+  return (
+    <div style={{ background: T.surface, border: `0.5px solid ${T.border}`, borderRadius: 14, overflow: "hidden" }}>
+      {/* Cover */}
+      <div style={{ height: 72, background: `linear-gradient(135deg, ${T.green9}, ${T.green8})`, position: "relative" }}>
+        {/* Decorative dots */}
+        <div style={{ position: "absolute", right: 24, top: 16, width: 40, height: 40, borderRadius: "50%", background: "rgba(255,255,255,.06)" }} />
+        <div style={{ position: "absolute", right: 48, top: 8, width: 20, height: 20, borderRadius: "50%", background: "rgba(255,255,255,.04)" }} />
+      </div>
+
+      {/* Body */}
+      <div style={{ padding: "0 20px 20px" }}>
+        {/* Avatar */}
+        <div style={{ position: "relative", display: "inline-block" }}>
+          <div style={{
+            width: 72, height: 72, borderRadius: 18,
+            background: T.green8, border: `3px solid ${T.surface}`,
+            marginTop: -32, display: "flex", alignItems: "center", justifyContent: "center",
+            fontSize: 24, fontWeight: 700, color: "#fff", overflow: "hidden", flexShrink: 0,
+          }}>
+            {account.avatar_url
+              ? <img src={account.avatar_url} alt={account.full_name} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+              : initials
+            }
+          </div>
+          {/* Online dot */}
+          <span style={{
+            position: "absolute", bottom: 2, right: 2,
+            width: 12, height: 12, borderRadius: "50%",
+            background: account.status === "active" ? "#22c55e" : T.border2,
+            border: `2px solid ${T.surface}`,
+          }} />
+        </div>
+
+        {/* Name + actions row */}
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 12, flexWrap: "wrap", paddingTop: 10 }}>
+          <div>
+            <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 6 }}>
+              <span style={{ fontSize: 17, fontWeight: 700, color: T.text1 }}>
+                {account.full_name || account.username}
+              </span>
+              {vs === "approved" && (
+                <i className="ti ti-rosette-discount-check" style={{ fontSize: 17, color: T.blue8 }} title="Đã xác minh" />
+              )}
+            </div>
+            <div style={{ fontSize: 12, color: T.text2, marginTop: 2 }}>
+              @{account.username} · {account.email}
+            </div>
+            {/* Tags */}
+            <div style={{ display: "flex", gap: 6, marginTop: 10, flexWrap: "wrap" }}>
+              <Pill color="b">Nhà cung cấp</Pill>
+              <Pill color={vsColor}>{vsLabel}</Pill>
+              <Pill color={account.status === "active" ? "g" : "gr"}>
+                {statusLabel[account.status] || account.status}
+              </Pill>
+              {supplier.company_name && <Pill color="gr">{supplier.company_name}</Pill>}
+            </div>
+          </div>
+
+          {/* Action buttons */}
+          <div style={{ display: "flex", gap: 8, flexWrap: "wrap", paddingTop: 4 }}>
+            <GhostBtn onClick={onOpenChangePassword}>
+              <i className="ti ti-lock" style={{ fontSize: 13 }} />
+              Đổi mật khẩu
+            </GhostBtn>
+            <label style={{
+              display: "flex", alignItems: "center", gap: 6,
+              padding: "0 12px", height: 30, borderRadius: 8,
+              background: T.surface, color: T.text2,
+              fontSize: 11, fontWeight: 500, cursor: "pointer",
+              border: `0.5px solid ${T.border}`,
+            }}>
+              <i className="ti ti-camera" style={{ fontSize: 13 }} />
+              Cập nhật ảnh
+              <input type="file" accept="image/png,image/jpeg,image/webp" style={{ display: "none" }} onChange={onPickAvatar} />
+            </label>
+            <EditBtn onClick={onEditPersonal} />
+          </div>
         </div>
       </div>
     </div>
   );
 }
 
-// ---- Modal chỉnh sửa thông tin doanh nghiệp ----
-function EditCompanyModal({ supplier, onClose, onSave, isSaving }) {
-  const initial = normalizeSupplierForm(supplier);
+// ══════════════════════════════════════
+// SECTION — Thông tin cá nhân
+// ══════════════════════════════════════
+function PersonalInfoCard({ supplier }) {
+  const { account } = supplier;
+  return (
+    <Card>
+      <CardHead iconClass="ti-user" iconColor="b" title="Thông tin tài khoản" />
+      <div style={{ padding: "0 16px" }}>
+        <InfoRow icon="ti-id-badge-2"    label="Họ và tên"         value={account.full_name}            />
+        <InfoRow icon="ti-at"            label="Tên đăng nhập"     value={`@${account.username}`}       />
+        <InfoRow icon="ti-mail"          label="Email"             value={account.email}                />
+        <InfoRow icon="ti-phone"         label="Số điện thoại"     value={formatPhone(account.phone)}   />
+        <InfoRow icon="ti-calendar"      label="Ngày tạo tài khoản"value={formatDate(account.created_at)} />
+        <InfoRow icon="ti-refresh"       label="Cập nhật lần cuối" value={formatDate(account.updated_at)} iconColor="a" />
+      </div>
+    </Card>
+  );
+}
 
-  const [form, setForm] = useState(initial);
-  const [banks, setBanks] = useState([]);
+// ══════════════════════════════════════
+// SECTION — Thông tin doanh nghiệp
+// ══════════════════════════════════════
+function CompanyInfoCard({ supplier, onEdit }) {
+  return (
+    <Card>
+      <CardHead
+        iconClass="ti-building-store"
+        iconColor="g"
+        title="Thông tin doanh nghiệp"
+        right={<EditBtn onClick={onEdit} />}
+      />
+      <div style={{ padding: "0 16px" }}>
+        <InfoRow icon="ti-hash"          label="Mã nhà cung cấp"          value={`#${supplier.id}`}                  iconColor="gr" />
+        <InfoRow icon="ti-building"      label="Tên công ty"               value={supplier.company_name}              />
+        <InfoRow icon="ti-receipt-tax"   label="Mã số thuế"                value={supplier.tax_code}                  />
+        <InfoRow icon="ti-phone-call"    label="SĐT doanh nghiệp"          value={formatPhone(supplier.phone)}        />
+        <InfoRow icon="ti-map-pin"       label="Địa chỉ"                   value={supplier.address}                   iconColor="a" />
+        <InfoRow icon="ti-align-left"    label="Mô tả"                     value={supplier.description}               iconColor="gr" />
+      </div>
+    </Card>
+  );
+}
 
-  useEffect(() => {
-    const fetchBanks = async () => {
-      try {
-        const response = await bankService.getAll();
-        setBanks(response);
-      } catch (error) {
-        console.error("Lỗi khi tải danh sách ngân hàng:", error);
-      }
-    };
-    fetchBanks();
-  }, []);
+// ══════════════════════════════════════
+// SECTION — Ngân hàng
+// ══════════════════════════════════════
+function BankCard({ supplier }) {
+  const hasBankInfo = supplier.bank_name || supplier.account_number;
+  return (
+    <Card>
+      <CardHead iconClass="ti-credit-card" iconColor="b" title="Thông tin ngân hàng" />
+      <div style={{ padding: "0 16px" }}>
+        {hasBankInfo ? (
+          <>
+            <InfoRow icon="ti-building-bank" label="Tên ngân hàng"    value={supplier.bank_name}      />
+            <InfoRow icon="ti-barcode"        label="Mã BIN"           value={supplier.bank_bin}       iconColor="gr" />
+            <InfoRow icon="ti-credit-card"    label="Số tài khoản"     value={supplier.account_number} />
+            <InfoRow icon="ti-user-check"     label="Tên chủ tài khoản"value={supplier.account_name}  iconColor="a" />
+          </>
+        ) : (
+          <div style={{ padding: "20px 0", textAlign: "center", color: T.text3, fontSize: 12 }}>
+            <i className="ti ti-credit-card" style={{ fontSize: 28, color: T.border2, display: "block", marginBottom: 8 }} />
+            Chưa có thông tin ngân hàng
+          </div>
+        )}
+      </div>
+    </Card>
+  );
+}
 
-  const isDirty = Object.keys(initial).some((key) => form[key] !== initial[key]);
-
-  const fields = [
-    { label: "Tên công ty", key: "company_name", type: "text" },
-    { label: "Mã số thuế", key: "tax_code", type: "text" },
-    { label: "Số điện thoại doanh nghiệp", key: "phone", type: "tel" },
-    { label: "Địa chỉ", key: "address", type: "text" },
-  ];
-
-  const bankFields = [
-    { label: "Số tài khoản", key: "account_number", type: "text" },
-    { label: "Tên chủ tài khoản", key: "account_name", type: "text" },
-  ];
-
-  const handleBankChange = (bankBin) => {
-    const bank = banks.find((item) => String(item.bin) === String(bankBin));
-    setForm((prev) => ({
-      ...prev,
-      bank_bin: String(bank?.bin || bankBin),
-      bank_name: bank?.name || "",
-    }));
-  };
-
-  const inputClass = (key) =>
-    `w-full px-3 py-2.5 rounded-lg border text-sm focus:outline-none focus:ring-2 focus:ring-[#D8F3DC] transition-all disabled:bg-gray-100 disabled:text-gray-500 ${
-      form[key] !== initial[key]
-        ? "border-[#2D6A4F] focus:border-[#2D6A4F]"
-        : "border-gray-200 focus:border-[#52B788]"
-    }`;
+// ══════════════════════════════════════
+// SECTION — Xác minh
+// ══════════════════════════════════════
+function VerificationCard({ supplier }) {
+  const vs = supplier.verification_status;
+  const vsColor = vs === "approved" ? "g" : vs === "pending" ? "a" : "r";
+  const vsBannerConfig = {
+    approved: { bg: T.green0, text: T.green0t, border: "#B7E4C7", icon: "ti-rosette-discount-check" },
+    pending:  { bg: T.amber0, text: T.amber8,  border: "#F6D28A", icon: "ti-clock"                  },
+    rejected: { bg: T.red0,   text: T.red8,    border: "#F3B8B8", icon: "ti-x"                      },
+  }[vs] || { bg: T.surface2, text: T.text2, border: T.border, icon: "ti-help" };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-      <div className="absolute inset-0 bg-black/40" onClick={!isSaving ? onClose : undefined} />
-      <div className="relative bg-white rounded-xl shadow-2xl w-full max-w-md p-6 z-10 max-h-[90vh] overflow-y-auto">
-        <h3 className="text-base font-semibold text-gray-900 mb-5">Chỉnh sửa thông tin doanh nghiệp</h3>
-        <div className="flex flex-col gap-4">
-          {fields.map(({ label, key, type }) => (
-            <div key={key}>
-              <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide block mb-1.5">{label}</label>
-              <input
-                type={type}
-                value={form[key]}
-                onChange={(e) => setForm((f) => ({ ...f, [key]: e.target.value }))}
-                disabled={isSaving}
-                className={inputClass(key)}
-              />
-            </div>
-          ))}
+    <Card>
+      <CardHead iconClass="ti-shield-check" iconColor="g" title="Trạng thái xác minh" />
+      <div style={{ padding: 16 }}>
+        {/* Banner trạng thái */}
+        <div style={{
+          background: vsBannerConfig.bg, border: `0.5px solid ${vsBannerConfig.border}`,
+          borderRadius: 10, padding: "12px 14px",
+          display: "flex", alignItems: "center", gap: 10, marginBottom: 14,
+        }}>
+          <i className={`ti ${vsBannerConfig.icon}`} style={{ fontSize: 18, color: vsBannerConfig.text, flexShrink: 0 }} />
           <div>
-            <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide block mb-1.5">Mô tả</label>
-            <textarea
-              rows={3}
-              value={form.description}
-              onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))}
-              disabled={isSaving}
-              className={`w-full px-3 py-2.5 rounded-lg border text-sm focus:outline-none focus:ring-2 focus:ring-[#D8F3DC] transition-all resize-none disabled:bg-gray-100 disabled:text-gray-500 ${
-                form.description !== initial.description
-                  ? "border-[#2D6A4F] focus:border-[#2D6A4F]"
-                  : "border-gray-200 focus:border-[#52B788]"
-              }`}
-            />
+            <div style={{ fontSize: 12, fontWeight: 600, color: vsBannerConfig.text }}>
+              {verificationLabel[vs] || vs}
+            </div>
+            {vs === "approved" && <div style={{ fontSize: 11, color: vsBannerConfig.text, marginTop: 2 }}>Hồ sơ đã được phê duyệt</div>}
+            {vs === "pending"  && <div style={{ fontSize: 11, color: vsBannerConfig.text, marginTop: 2 }}>Đang chờ quản trị viên xét duyệt</div>}
+            {vs === "rejected" && supplier.rejection_reason && (
+              <div style={{ fontSize: 11, color: vsBannerConfig.text, marginTop: 2 }}>Lý do: {supplier.rejection_reason}</div>
+            )}
           </div>
+        </div>
 
-          <div className="border-t border-dashed border-gray-200 pt-2">
-            <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">Thông tin ngân hàng</p>
-            <div className="flex flex-col gap-4">
-              <div>
-                <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide block mb-1.5">Ngân hàng</label>
-                <select
-                  value={form.bank_bin}
-                  onChange={(e) => handleBankChange(e.target.value)}
-                  disabled={isSaving}
-                  className={inputClass("bank_bin")}
-                >
-                  <option value="">-- Chọn ngân hàng --</option>
-                  {banks.map((bank) => (
-                    <option key={bank.bin} value={String(bank.bin)}>
-                      {bank.name}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              {bankFields.map(({ label, key, type }) => (
-                <div key={key}>
-                  <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide block mb-1.5">{label}</label>
-                  <input
-                    type={type}
-                    value={form[key]}
-                    onChange={(e) => setForm((f) => ({ ...f, [key]: e.target.value }))}
-                    disabled={isSaving}
-                    className={inputClass(key)}
-                  />
+        <div style={{ padding: "0" }}>
+          <InfoRow icon="ti-calendar-check" label="Thời điểm xác minh"  value={formatDate(supplier.verified_at)}  />
+          <InfoRow icon="ti-calendar"        label="Ngày đăng ký"         value={formatDate(supplier.created_at)}  iconColor="gr" />
+          <InfoRow icon="ti-refresh"         label="Cập nhật lần cuối"    value={formatDate(supplier.updated_at)}  iconColor="a"  />
+        </div>
+      </div>
+    </Card>
+  );
+}
+
+// ══════════════════════════════════════
+// SECTION — Hồ sơ tài liệu
+// ══════════════════════════════════════
+const DOC_STATUS_MAP = {
+  approved: { color: "g", label: "Đã duyệt",      icon: "ti-circle-check"  },
+  pending:  { color: "a", label: "Chờ duyệt",      icon: "ti-clock"         },
+  rejected: { color: "r", label: "Từ chối",        icon: "ti-x"             },
+};
+
+const DOC_TYPE_ICON = {
+  business_license: "ti-license",
+  id_card:          "ti-id-badge-2",
+  tax_certificate:  "ti-receipt-tax",
+  other:            "ti-file-description",
+};
+
+function DocCard({ doc, onPreview }) {
+  const s  = DOC_STATUS_MAP[doc.status] || DOC_STATUS_MAP.pending;
+  const ic = DOC_TYPE_ICON[doc.document_type] || DOC_TYPE_ICON.other;
+  const isImage = /\.(png|jpe?g|webp|gif|bmp|svg)$/i.test(doc.file_url);
+
+  return (
+    <div style={{
+      background: T.surface, border: `0.5px solid ${T.border}`,
+      borderRadius: 12, overflow: "hidden",
+      display: "flex", flexDirection: "column",
+      transition: "box-shadow .15s",
+    }}
+      onMouseOver={e => e.currentTarget.style.boxShadow = "0 4px 16px rgba(0,0,0,.08)"}
+      onMouseOut={e  => e.currentTarget.style.boxShadow = "none"}
+    >
+      {/* Thumbnail */}
+      <div
+        onClick={() => onPreview(doc)}
+        style={{
+          height: 140, background: T.surface2, position: "relative",
+          display: "flex", alignItems: "center", justifyContent: "center",
+          cursor: "pointer", overflow: "hidden",
+        }}
+      >
+        {isImage ? (
+          <img
+            src={doc.file_url}
+            alt={doc.document_type_label}
+            style={{ width: "100%", height: "100%", objectFit: "cover", transition: "transform .2s" }}
+            onMouseOver={e => e.currentTarget.style.transform = "scale(1.04)"}
+            onMouseOut={e  => e.currentTarget.style.transform = "scale(1)"}
+          />
+        ) : (
+          <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 8 }}>
+            <i className="ti ti-file-description" style={{ fontSize: 36, color: T.border2 }} />
+            <span style={{ fontSize: 10, color: T.text3 }}>Nhấn để xem</span>
+          </div>
+        )}
+        {/* Overlay zoom hint */}
+        <div style={{
+          position: "absolute", inset: 0,
+          background: "rgba(15,61,32,0)",
+          display: "flex", alignItems: "center", justifyContent: "center",
+          transition: "background .2s",
+        }}
+          onMouseOver={e => { e.currentTarget.style.background = "rgba(15,61,32,0.35)"; }}
+          onMouseOut={e  => { e.currentTarget.style.background = "rgba(15,61,32,0)"; }}
+        >
+          <i className="ti ti-zoom-in" style={{ fontSize: 22, color: "#fff", opacity: 0, transition: "opacity .2s" }}
+            ref={el => {
+              if (!el) return;
+              el.parentNode.onmouseenter = () => el.style.opacity = "1";
+              el.parentNode.onmouseleave = () => el.style.opacity = "0";
+            }}
+          />
+        </div>
+        {/* Status badge nổi */}
+        <div style={{ position: "absolute", top: 8, right: 8 }}>
+          <Pill color={s.color}><i className={`ti ${s.icon}`} style={{ fontSize: 10, marginRight: 3 }} />{s.label}</Pill>
+        </div>
+      </div>
+
+      {/* Body */}
+      <div style={{ padding: "12px 14px", flex: 1 }}>
+        {/* Doc type + icon */}
+        <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
+          <div style={{
+            width: 28, height: 28, borderRadius: 8, background: T.blue0, color: T.blue8,
+            display: "flex", alignItems: "center", justifyContent: "center", fontSize: 14, flexShrink: 0,
+          }}>
+            <i className={`ti ${ic}`} />
+          </div>
+          <span style={{ fontSize: 12, fontWeight: 600, color: T.text1 }}>{doc.document_type_label}</span>
+        </div>
+
+        {/* Meta info */}
+        <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+          {doc.verified_by_username && (
+            <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+              <i className="ti ti-user-check" style={{ fontSize: 11, color: T.text3 }} />
+              <span style={{ fontSize: 11, color: T.text3 }}>Duyệt bởi: <strong style={{ color: T.text2 }}>{doc.verified_by_username}</strong></span>
+            </div>
+          )}
+          {doc.verified_at && (
+            <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+              <i className="ti ti-calendar-check" style={{ fontSize: 11, color: T.text3 }} />
+              <span style={{ fontSize: 11, color: T.text3 }}>{formatDate(doc.verified_at)}</span>
+            </div>
+          )}
+          <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+            <i className="ti ti-calendar" style={{ fontSize: 11, color: T.text3 }} />
+            <span style={{ fontSize: 11, color: T.text3 }}>Nộp: {formatDate(doc.created_at)}</span>
+          </div>
+        </div>
+      </div>
+
+      {/* Footer */}
+      <div style={{
+        padding: "8px 14px", borderTop: `0.5px solid ${T.border}`,
+        display: "flex", justifyContent: "flex-end",
+      }}>
+        <a
+          href={doc.file_url}
+          target="_blank"
+          rel="noreferrer"
+          style={{
+            display: "inline-flex", alignItems: "center", gap: 5,
+            fontSize: 11, color: T.blue8, fontWeight: 500, textDecoration: "none",
+          }}
+        >
+          <i className="ti ti-external-link" style={{ fontSize: 12 }} />
+          Xem gốc
+        </a>
+      </div>
+    </div>
+  );
+}
+
+/** Lightbox preview */
+function DocLightbox({ doc, onClose }) {
+  const isImage = /\.(png|jpe?g|webp|gif|bmp|svg)$/i.test(doc.file_url);
+  return (
+    <div
+      style={{
+        position: "fixed", inset: 0, zIndex: 9000,
+        display: "flex", alignItems: "center", justifyContent: "center",
+        padding: 16, background: "rgba(0,0,0,0.75)",
+        animation: "fadeSlideUp .2s ease",
+      }}
+      onClick={onClose}
+    >
+      <div
+        style={{ position: "relative", maxWidth: 860, width: "100%" }}
+        onClick={e => e.stopPropagation()}
+      >
+        {/* Close */}
+        <button
+          onClick={onClose}
+          style={{
+            position: "absolute", top: -14, right: -14, zIndex: 10,
+            width: 32, height: 32, borderRadius: "50%",
+            background: "#fff", border: "none", cursor: "pointer",
+            display: "flex", alignItems: "center", justifyContent: "center",
+            boxShadow: "0 4px 12px rgba(0,0,0,.3)",
+          }}
+        >
+          <i className="ti ti-x" style={{ fontSize: 16, color: T.text1 }} />
+        </button>
+
+        {/* Header */}
+        <div style={{
+          background: T.green9, borderRadius: "12px 12px 0 0",
+          padding: "12px 16px", display: "flex", alignItems: "center", gap: 10,
+        }}>
+          <i className={`ti ${DOC_TYPE_ICON[doc.document_type] || "ti-file-description"}`}
+            style={{ fontSize: 16, color: T.green3 }} />
+          <span style={{ fontSize: 13, fontWeight: 600, color: T.green1 }}>{doc.document_type_label}</span>
+          <div style={{ marginLeft: "auto" }}>
+            <Pill color={DOC_STATUS_MAP[doc.status]?.color || "gr"}>
+              {DOC_STATUS_MAP[doc.status]?.label || doc.status}
+            </Pill>
+          </div>
+        </div>
+
+        {/* Content */}
+        <div style={{
+          background: "#fff", borderRadius: "0 0 12px 12px",
+          overflow: "hidden",
+        }}>
+          {isImage ? (
+            <img
+              src={doc.file_url}
+              alt={doc.document_type_label}
+              style={{ width: "100%", maxHeight: 560, objectFit: "contain", display: "block" }}
+            />
+          ) : (
+            <div style={{ padding: 40, textAlign: "center" }}>
+              <i className="ti ti-file-description" style={{ fontSize: 48, color: T.border2, display: "block", marginBottom: 12 }} />
+              <p style={{ fontSize: 13, color: T.text2, marginBottom: 16 }}>Không thể hiển thị preview. Mở file gốc để xem.</p>
+              <a href={doc.file_url} target="_blank" rel="noreferrer"
+                style={{
+                  display: "inline-flex", alignItems: "center", gap: 6,
+                  padding: "8px 16px", borderRadius: 9,
+                  background: T.green8, color: "#fff", fontSize: 12, fontWeight: 500,
+                  textDecoration: "none",
+                }}
+              >
+                <i className="ti ti-external-link" />Mở file gốc
+              </a>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function DocumentsCard({ documents, isLoading, error }) {
+  const [lightbox, setLightbox] = useState(null);
+
+  return (
+    <>
+      <Card>
+        <CardHead
+          iconClass="ti-folder-open"
+          iconColor="b"
+          title="Hồ sơ tài liệu"
+          right={
+            <span style={{ fontSize: 11, color: T.text3 }}>
+              {isLoading ? "Đang tải..." : `${documents.length} tài liệu`}
+            </span>
+          }
+        />
+
+        <div style={{ padding: 16 }}>
+          {isLoading && (
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(200px,1fr))", gap: 12 }}>
+              {[1, 2, 3].map(i => (
+                <div key={i} style={{
+                  borderRadius: 12, overflow: "hidden",
+                  border: `0.5px solid ${T.border}`,
+                  animation: "pulse 1.5s ease-in-out infinite",
+                }}>
+                  <div style={{ height: 140, background: T.surface2 }} />
+                  <div style={{ padding: 12 }}>
+                    <div style={{ height: 10, background: T.border, borderRadius: 5, width: "60%", marginBottom: 8 }} />
+                    <div style={{ height: 8, background: T.border, borderRadius: 4, width: "40%" }} />
+                  </div>
                 </div>
               ))}
             </div>
-          </div>
+          )}
+
+          {!isLoading && error && (
+            <div style={{
+              display: "flex", alignItems: "center", gap: 10,
+              background: T.red0, border: `0.5px solid #F3B8B8`,
+              borderRadius: 10, padding: "12px 14px",
+            }}>
+              <i className="ti ti-alert-circle" style={{ fontSize: 16, color: T.red8 }} />
+              <span style={{ fontSize: 12, color: T.red8 }}>{error}</span>
+            </div>
+          )}
+
+          {!isLoading && !error && documents.length === 0 && (
+            <div style={{
+              display: "flex", flexDirection: "column", alignItems: "center",
+              padding: "32px 20px", gap: 10, textAlign: "center",
+            }}>
+              <i className="ti ti-folder-off" style={{ fontSize: 36, color: T.border2 }} />
+              <span style={{ fontSize: 13, fontWeight: 500, color: T.text2 }}>Chưa có tài liệu nào</span>
+              <span style={{ fontSize: 11, color: T.text3 }}>Hồ sơ tài liệu sẽ hiển thị tại đây sau khi được tải lên</span>
+            </div>
+          )}
+
+          {!isLoading && !error && documents.length > 0 && (
+            <div style={{
+              display: "grid",
+              gridTemplateColumns: "repeat(auto-fill, minmax(210px, 1fr))",
+              gap: 12,
+            }}>
+              {documents.map(doc => (
+                <DocCard key={doc.id} doc={doc} onPreview={setLightbox} />
+              ))}
+            </div>
+          )}
         </div>
-        <div className="flex gap-3 mt-6">
-          <button
-            onClick={onClose}
-            disabled={isSaving}
-            className="flex-1 px-4 py-2.5 rounded-lg border border-gray-200 text-sm font-medium text-gray-600 hover:bg-gray-50 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            Hủy
-          </button>
-          <button
-            onClick={() => onSave(form)}
-            disabled={isSaving || !isDirty}
-            className={`flex-1 px-4 py-2.5 rounded-lg text-white text-sm font-medium transition-all flex items-center justify-center ${
-              isSaving
-                ? "bg-[#52B788] cursor-not-allowed"
-                : isDirty
-                ? "bg-[#2D6A4F] hover:bg-[#1B4332] cursor-pointer"
-                : "bg-[#B7E4C7] cursor-not-allowed opacity-70"
-            }`}
-          >
-            {isSaving ? (
-              <>
-                <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                </svg>
-                Đang lưu...
-              </>
-            ) : (
-              "Lưu thay đổi"
-            )}
-          </button>
+      </Card>
+
+      {lightbox && <DocLightbox doc={lightbox} onClose={() => setLightbox(null)} />}
+    </>
+  );
+}
+
+// ══════════════════════════════════════
+// LOADING / ERROR STATES
+// ══════════════════════════════════════
+function LoadingState() {
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+      {[1, 2, 3].map((i) => (
+        <div key={i} style={{
+          background: T.surface, border: `0.5px solid ${T.border}`,
+          borderRadius: 12, padding: 20,
+          animation: "pulse 1.5s ease-in-out infinite",
+        }}>
+          <div style={{ height: 14, background: T.border, borderRadius: 7, width: "40%", marginBottom: 12 }} />
+          <div style={{ height: 10, background: T.border, borderRadius: 5, width: "70%", marginBottom: 8 }} />
+          <div style={{ height: 10, background: T.border, borderRadius: 5, width: "55%" }} />
         </div>
-      </div>
+      ))}
+      <style>{`@keyframes pulse{0%,100%{opacity:1}50%{opacity:.5}}`}</style>
     </div>
   );
 }
 
+// ══════════════════════════════════════
+// MAIN PAGE
+// ══════════════════════════════════════
 export default function SupplierInfoPage() {
   const location = useLocation();
-  const navigate = useNavigate();
-  const [supplier, setSupplier] = useState(null);
-  const [isLoadingSupplier, setIsLoadingSupplier] = useState(true);
-  const [supplierError, setSupplierError] = useState("");
-  const [editingPersonal, setEditingPersonal] = useState(false);
-  const [editingCompany, setEditingCompany] = useState(false);
-  const [isUpdatingPersonal, setIsUpdatingPersonal] = useState(false);
-  const [isUpdatingCompany, setIsUpdatingCompany] = useState(false);
-  const [showChangePassword, setShowChangePassword] = useState(false);
+  const navigate  = useNavigate();
+  const [supplier,            setSupplier]            = useState(null);
+  const [isLoadingSupplier,   setIsLoadingSupplier]   = useState(true);
+  const [supplierError,       setSupplierError]       = useState("");
+  const [editingPersonal,     setEditingPersonal]     = useState(false);
+  const [editingCompany,      setEditingCompany]      = useState(false);
+  const [isUpdatingPersonal,  setIsUpdatingPersonal]  = useState(false);
+  const [isUpdatingCompany,   setIsUpdatingCompany]   = useState(false);
+  const [showChangePassword,  setShowChangePassword]  = useState(false);
+  const [avatarPreview,       setAvatarPreview]       = useState(null);
+  const [avatarFile,          setAvatarFile]          = useState(null);
+  const [uploadingAvatar,     setUploadingAvatar]     = useState(false);
+  // Documents
+  const [documents,           setDocuments]           = useState([]);
+  const [isLoadingDocs,       setIsLoadingDocs]       = useState(false);
+  const [docsError,           setDocsError]           = useState("");
+  // Toast notification
+  const [toast,               setToast]               = useState(null);
 
-  // Avatar confirm flow
-  const [avatarPreview, setAvatarPreview] = useState(null);
-  const [avatarFile, setAvatarFile] = useState(null);
-  const [uploadingAvatar, setUploadingAvatar] = useState(false);
+  const showToast = (msg, type = "success") => {
+    setToast({ msg, type });
+    setTimeout(() => setToast(null), 3500);
+  };
 
+  // ── Load profile ──
   useEffect(() => {
-    const loadSupplierProfile = async () => {
+    const load = async () => {
       try {
         setIsLoadingSupplier(true);
         setSupplierError("");
-        const profile = await fetchCurrentSupplierProfile();
-        setSupplier(profile);
-      } catch (error) {
-        console.error("Lỗi tải thông tin nhà cung cấp:", error);
-        setSupplierError(
-          error?.response?.data?.message ||
-            error?.response?.data?.detail ||
-            error?.message ||
-            "Không thể tải thông tin nhà cung cấp."
-        );
+        setSupplier(await fetchCurrentSupplierProfile());
+      } catch (err) {
+        console.error("Lỗi tải thông tin nhà cung cấp:", err);
+        setSupplierError(err?.response?.data?.message || err?.response?.data?.detail || err?.message || "Không thể tải thông tin nhà cung cấp.");
       } finally {
         setIsLoadingSupplier(false);
       }
     };
-
-    loadSupplierProfile();
+    load();
   }, []);
 
+  // ── Load documents sau khi có supplier ID ──
+  useEffect(() => {
+    if (!supplier?.id) return;
+    const loadDocs = async () => {
+      try {
+        setIsLoadingDocs(true);
+        setDocsError("");
+        const res = await supplierService.getbyIdSupplier(supplier.id);
+        // API trả về { results: [...] } hoặc array trực tiếp
+        const list = Array.isArray(res?.data?.results)
+          ? res.data.results
+          : Array.isArray(res?.results)
+          ? res.results
+          : Array.isArray(res?.data)
+          ? res.data
+          : Array.isArray(res)
+          ? res
+          : [];
+        setDocuments(list);
+      } catch (err) {
+        console.error("Lỗi tải hồ sơ tài liệu:", err);
+        setDocsError(err?.response?.data?.message || err?.message || "Không thể tải hồ sơ tài liệu.");
+      } finally {
+        setIsLoadingDocs(false);
+      }
+    };
+    loadDocs();
+  }, [supplier?.id]);
+
+  // ── Open change-password via router state ──
   useEffect(() => {
     if (location.state?.openChangePassword) {
       setShowChangePassword(true);
@@ -724,6 +1111,7 @@ export default function SupplierInfoPage() {
     }
   }, [location.pathname, location.state, navigate]);
 
+  // ── Avatar ──
   const handlePickAvatar = (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -731,122 +1119,81 @@ export default function SupplierInfoPage() {
     setAvatarPreview(URL.createObjectURL(file));
     e.target.value = "";
   };
-
   const handleConfirmAvatar = async () => {
     if (!avatarFile) return;
     try {
       setUploadingAvatar(true);
-      const formData = new FormData();
-      formData.append("avatar", avatarFile);
-
-      const data = await accountService.updateAvatar(formData);
-      const nextAvatarUrl = data?.avatar_url || data?.data?.avatar_url || avatarPreview;
-
-      setSupplier((s) => ({ ...s, account: { ...s.account, avatar_url: nextAvatarUrl } }));
+      const fd = new FormData();
+      fd.append("avatar", avatarFile);
+      const data = await accountService.updateAvatar(fd);
+      const nextUrl = data?.avatar_url || data?.data?.avatar_url || avatarPreview;
+      setSupplier((s) => ({ ...s, account: { ...s.account, avatar_url: nextUrl } }));
       URL.revokeObjectURL(avatarPreview);
-      setAvatarPreview(null);
-      setAvatarFile(null);
-      alert("Cập nhật ảnh đại diện thành công!");
+      setAvatarPreview(null); setAvatarFile(null);
+      showToast("Cập nhật ảnh đại diện thành công!");
     } catch (err) {
-      console.error("Lỗi upload avatar:", err);
-      alert(extractSupplierErrorMessage(err, "Tải ảnh đại diện thất bại. Vui lòng chọn ảnh khác và thử lại."));
-    } finally {
-      setUploadingAvatar(false);
-    }
+      console.error(err);
+      showToast(extractSupplierErrorMessage(err, "Tải ảnh thất bại. Vui lòng thử lại."), "error");
+    } finally { setUploadingAvatar(false); }
   };
-
   const handleCancelAvatar = () => {
     if (avatarPreview) URL.revokeObjectURL(avatarPreview);
-    setAvatarPreview(null);
-    setAvatarFile(null);
+    setAvatarPreview(null); setAvatarFile(null);
   };
 
+  // ── Save personal ──
   const handleSavePersonal = async (form) => {
     if (!supplier) return;
-
-    const changedFields = getChangedFields(
-      {
-        full_name: supplier.account.full_name,
-        email: supplier.account.email,
-        phone: supplier.account.phone,
-      },
+    const changed = getChangedFields(
+      { full_name: supplier.account.full_name, email: supplier.account.email, phone: supplier.account.phone },
       form
     );
-
-    if (!Object.keys(changedFields).length) {
-      setEditingPersonal(false);
-      return;
-    }
-
+    if (!Object.keys(changed).length) { setEditingPersonal(false); return; }
     try {
       setIsUpdatingPersonal(true);
-      await accountService.update(changedFields);
-      const nextAccount = { ...supplier.account, ...changedFields };
-      setSupplier((s) => ({ ...s, account: nextAccount }));
-
-      const savedUser = getLoggedInUser();
-      if (savedUser) {
-        localStorage.setItem("user", JSON.stringify({ ...savedUser, ...changedFields }));
-      }
+      await accountService.update(changed);
+      setSupplier((s) => ({ ...s, account: { ...s.account, ...changed } }));
+      const saved = getLoggedInUser();
+      if (saved) localStorage.setItem("user", JSON.stringify({ ...saved, ...changed }));
       setEditingPersonal(false);
-      alert("Cập nhật thông tin cá nhân thành công!");
-    } catch (error) {
-      console.error("Lỗi khi cập nhật tài khoản:", error);
-      alert(extractSupplierErrorMessage(error, "Cập nhật thông tin cá nhân thất bại. Vui lòng kiểm tra lại thông tin."));
-    } finally {
-      setIsUpdatingPersonal(false);
-    }
+      showToast("Cập nhật thông tin cá nhân thành công!");
+    } catch (err) {
+      console.error(err);
+      showToast(extractSupplierErrorMessage(err, "Cập nhật thất bại. Vui lòng thử lại."), "error");
+    } finally { setIsUpdatingPersonal(false); }
   };
 
+  // ── Save company ──
   const handleSaveCompany = async (form) => {
     if (!supplier) return;
-
-    const changedFields = buildSupplierUpdatePayload(supplier, form);
-
-    if (!Object.keys(changedFields).length) {
-      setEditingCompany(false);
-      return;
-    }
-
-    const bankTouched = SUPPLIER_BANK_KEYS.some((key) => key in changedFields);
+    const changed = buildSupplierUpdatePayload(supplier, form);
+    if (!Object.keys(changed).length) { setEditingCompany(false); return; }
+    const bankTouched = SUPPLIER_BANK_KEYS.some((k) => k in changed);
     if (bankTouched) {
-      const missingBankField = SUPPLIER_BANK_KEYS.find((key) => !String(changedFields[key] || "").trim());
-      if (missingBankField) {
-        const bankFieldLabels = {
-          bank_name: "Tên ngân hàng",
-          bank_bin: "Mã ngân hàng",
-          account_number: "Số tài khoản",
-          account_name: "Tên chủ tài khoản",
-        };
-        alert(`${bankFieldLabels[missingBankField] || "Thông tin ngân hàng"}: Không được để trống.`);
-        return;
-      }
+      const labels = { bank_name: "Tên ngân hàng", bank_bin: "Mã ngân hàng", account_number: "Số tài khoản", account_name: "Tên chủ tài khoản" };
+      const missing = SUPPLIER_BANK_KEYS.find((k) => !String(changed[k] || "").trim());
+      if (missing) { showToast(`${labels[missing]}: Không được để trống.`, "error"); return; }
     }
-
     try {
       setIsUpdatingCompany(true);
-      await supplierService.update(supplier.id, changedFields);
-      setSupplier((s) => ({ ...s, ...changedFields }));
+      await supplierService.update(supplier.id, changed);
+      setSupplier((s) => ({ ...s, ...changed }));
       setEditingCompany(false);
-      alert("Cập nhật thông tin doanh nghiệp thành công!");
-    } catch (error) {
-      console.error("Lỗi khi cập nhật thông tin doanh nghiệp:", error);
-      alert(extractSupplierErrorMessage(error, "Cập nhật thông tin doanh nghiệp thất bại. Vui lòng kiểm tra lại thông tin."));
-    } finally {
-      setIsUpdatingCompany(false);
-    }
+      showToast("Cập nhật thông tin doanh nghiệp thành công!");
+    } catch (err) {
+      console.error(err);
+      showToast(extractSupplierErrorMessage(err, "Cập nhật thất bại. Vui lòng thử lại."), "error");
+    } finally { setIsUpdatingCompany(false); }
   };
 
-  // ChangePasswordModal đã tự gọi accountService.updatePassword bên trong,
-  // nên ở đây không cần gọi API nữa — chỉ dùng làm callback sau khi đổi thành công (nếu cần).
   const handleChangePassword = () => {};
 
+  // ── Render ──
   if (isLoadingSupplier) {
     return (
       <div className={SUPPLIER_PAGE_CLASS}>
-        <div className="bg-white rounded-xl border border-gray-200 p-6 text-sm text-gray-500">
-          Đang tải thông tin nhà cung cấp...
-        </div>
+        <SupplierPageHeader title="Thông tin nhà cung cấp" description="Quản lý thông tin tài khoản và doanh nghiệp của bạn" />
+        <LoadingState />
       </div>
     );
   }
@@ -854,12 +1201,14 @@ export default function SupplierInfoPage() {
   if (supplierError) {
     return (
       <div className={SUPPLIER_PAGE_CLASS}>
-        <SupplierPageHeader
-          title="Thông tin nhà cung cấp"
-          description="Quản lý thông tin tài khoản và doanh nghiệp của bạn"
-        />
-        <div className="bg-red-50 border border-red-200 text-red-700 rounded-xl p-4 text-sm">
-          {supplierError}
+        <SupplierPageHeader title="Thông tin nhà cung cấp" description="Quản lý thông tin tài khoản và doanh nghiệp của bạn" />
+        <div style={{
+          background: T.red0, border: `0.5px solid #F3B8B8`,
+          borderRadius: 12, padding: "14px 16px",
+          display: "flex", alignItems: "center", gap: 10,
+        }}>
+          <i className="ti ti-alert-circle" style={{ fontSize: 18, color: T.red8, flexShrink: 0 }} />
+          <span style={{ fontSize: 12, color: T.red8 }}>{supplierError}</span>
         </div>
       </div>
     );
@@ -869,21 +1218,60 @@ export default function SupplierInfoPage() {
 
   return (
     <div className={SUPPLIER_PAGE_CLASS}>
+      {/* CSS animations inline */}
+      <style>{`
+        @import url("https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/tabler-icons.min.css");
+        @keyframes fadeSlideUp {
+          from { opacity: 0; transform: translateY(10px); }
+          to   { opacity: 1; transform: translateY(0); }
+        }
+        @keyframes toastIn {
+          from { opacity: 0; transform: translateX(20px); }
+          to   { opacity: 1; transform: translateX(0); }
+        }
+        @keyframes spin {
+          to { transform: rotate(360deg); }
+        }
+        .sgm-info-row-last { border-bottom: none !important; }
+      `}</style>
+
       <SupplierPageHeader
         title="Thông tin nhà cung cấp"
         description="Quản lý thông tin tài khoản và doanh nghiệp của bạn"
       />
 
-      <div className="flex flex-col gap-4">
-        <PersonalSection
+      {/* ── Main layout ── */}
+      <div style={{ display: "flex", flexDirection: "column", gap: 14, animation: "fadeSlideUp .3s ease" }}>
+
+        {/* Profile Hero */}
+        <ProfileHero
           supplier={supplier}
-          onEdit={() => setEditingPersonal(true)}
+          onEditPersonal={() => setEditingPersonal(true)}
           onPickAvatar={handlePickAvatar}
           onOpenChangePassword={() => setShowChangePassword(true)}
         />
-        <CompanySection supplier={supplier} onEdit={() => setEditingCompany(true)} />
+
+        {/* Two-column grid */}
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+          <PersonalInfoCard supplier={supplier} />
+          <VerificationCard supplier={supplier} />
+        </div>
+
+        {/* Company + Bank */}
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+          <CompanyInfoCard supplier={supplier} onEdit={() => setEditingCompany(true)} />
+          <BankCard supplier={supplier} />
+        </div>
+
+        {/* Documents — full width */}
+        <DocumentsCard
+          documents={documents}
+          isLoading={isLoadingDocs}
+          error={docsError}
+        />
       </div>
 
+      {/* ── Modals ── */}
       {editingPersonal && (
         <EditPersonalModal
           account={supplier.account}
@@ -892,7 +1280,6 @@ export default function SupplierInfoPage() {
           isSaving={isUpdatingPersonal}
         />
       )}
-
       {editingCompany && (
         <EditCompanyModal
           supplier={supplier}
@@ -901,7 +1288,6 @@ export default function SupplierInfoPage() {
           isSaving={isUpdatingCompany}
         />
       )}
-
       {avatarPreview && (
         <AvatarConfirmModal
           previewUrl={avatarPreview}
@@ -910,12 +1296,26 @@ export default function SupplierInfoPage() {
           isSaving={uploadingAvatar}
         />
       )}
-
       <ChangePasswordModal
         isOpen={showChangePassword}
         onClose={() => setShowChangePassword(false)}
         onSubmit={handleChangePassword}
       />
+
+      {/* ── Toast notification ── */}
+      {toast && (
+        <div style={{
+          position: "fixed", bottom: 24, right: 24, zIndex: 9999,
+          display: "flex", alignItems: "center", gap: 10,
+          background: toast.type === "error" ? T.red8 : T.green8,
+          color: "#fff", borderRadius: 10, padding: "10px 16px",
+          fontSize: 12, fontWeight: 500, boxShadow: "0 8px 24px rgba(0,0,0,.18)",
+          animation: "toastIn .25s ease",
+        }}>
+          <i className={`ti ${toast.type === "error" ? "ti-alert-circle" : "ti-circle-check"}`} style={{ fontSize: 16 }} />
+          {toast.msg}
+        </div>
+      )}
     </div>
   );
 }
