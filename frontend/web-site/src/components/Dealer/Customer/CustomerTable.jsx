@@ -42,9 +42,11 @@ export default function CustomerTable({
       case "active":
         return { label: "Hoạt động", className: "bg-emerald-100/60 text-emerald-700 border-emerald-200/50" };
       case "inactive":
-        return { label: "Ngừng hoạt động", className: "bg-neutral-100 text-neutral-600 border-neutral-200/50" };
+        return { label: "Không hoạt động", className: "bg-neutral-100 text-neutral-600 border-neutral-200/50" };
       case "banned":
-        return { label: "Bị khóa", className: "bg-red-100/60 text-red-700 border-red-200/50" };
+        return { label: "Bị cấm", className: "bg-red-100/60 text-red-700 border-red-200/50" };
+      case "pending":
+        return { label: "Chờ duyệt", className: "bg-amber-100/60 text-amber-700 border-amber-200/50" };
       default:
         return { label: status || "N/A", className: "bg-neutral-100 text-neutral-600 border-neutral-200/50" };
     }
@@ -97,10 +99,10 @@ export default function CustomerTable({
       {/* Table Content */}
       {!loading && !error && customers.length > 0 && (
         <div className="overflow-x-auto">
-          <table className="w-full text-left border-collapse">
+          <table className="w-full text-left border-collapse whitespace-nowrap">
             <thead>
               <tr className="border-b border-neutral-100 bg-white">
-                <th className="py-4 px-6 text-[11px] font-black text-neutral-500 uppercase tracking-wider w-[30%]">Tên khách hàng</th>
+                <th className="py-4 px-6 text-[11px] font-black text-neutral-500 uppercase tracking-wider">Tên khách hàng</th>
                 <th className="py-4 px-6 text-[11px] font-black text-neutral-500 uppercase tracking-wider">Email</th>
                 <th className="py-4 px-6 text-[11px] font-black text-neutral-500 uppercase tracking-wider">Số điện thoại</th>
                 <th className="py-4 px-6 text-[11px] font-black text-neutral-500 uppercase tracking-wider">Tổng chi tiêu</th>

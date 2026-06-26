@@ -3,11 +3,11 @@
 from rest_framework import serializers
 from drf_spectacular.utils import inline_serializer
 
-from common.business_rules import MAX_IMAGES_PER_PRODUCT
+from apps.system_config.services import SYSTEM_SETTINGS_DEFAULTS
 from common.openapi_files import IMAGE_FILE_HELP
 
 _IMAGE_HELP = (
-    f"{IMAGE_FILE_HELP}. Tối đa {MAX_IMAGES_PER_PRODUCT} ảnh/sản phẩm."
+    f"{IMAGE_FILE_HELP}. Tối đa {SYSTEM_SETTINGS_DEFAULTS['max_images_per_product']} ảnh/sản phẩm."
 )
 
 SupplierProductImageBulkUploadForm = inline_serializer(

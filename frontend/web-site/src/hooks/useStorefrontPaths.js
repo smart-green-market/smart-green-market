@@ -2,37 +2,48 @@ import { useParams } from "react-router-dom";
 import { getStoredDealerSlug } from "../utils/buyerAuthUtils";
 
 export function useDealerSlug() {
-    const { dealerSlug } = useParams();
-    return dealerSlug || getStoredDealerSlug() || "";
+  const { dealerSlug } = useParams();
+  return dealerSlug || getStoredDealerSlug() || "";
 }
 
 export function useStorefrontPaths() {
-    const slug = useDealerSlug();
-    const prefix = slug ? `/cua-hang/${encodeURIComponent(slug)}` : "";
+  const slug = useDealerSlug();
+  const prefix = slug ? `/cua-hang/${encodeURIComponent(slug)}` : "";
 
-    return {
-        slug,
-        entry: "/",
-        home: prefix ? `${prefix}/trang-chu` : "/",
-        product: (id) => (prefix ? `${prefix}/san-pham/${id}` : "/"),
-        search: (query = "", extraParams = {}) => {
-            const path = prefix ? `${prefix}/tim-kiem` : "/";
-            const params = new URLSearchParams();
-            const trimmed = String(query).trim();
-            if (trimmed) params.set("q", trimmed);
-            Object.entries(extraParams).forEach(([key, value]) => {
-                if (value != null && value !== "") params.set(key, value);
-            });
-            const qs = params.toString();
-            return qs ? `${path}?${qs}` : path;
-        },
-        cart: prefix ? `${prefix}/gio-hang` : "/",
-        checkout: prefix ? `${prefix}/dat-hang` : "/",
-        login: prefix ? `${prefix}/dang-nhap` : "/",
-        register: prefix ? `${prefix}/dang-ky` : "/",
-        account: prefix ? `${prefix}/tai-khoan` : "/",
-        orderStatus: prefix ? `${prefix}/theo-doi-don-hang` : "/",
-        policies: prefix ? `${prefix}/chinh-sach` : "/",
-        support: prefix ? `${prefix}/ho-tro` : "/",
-    };
+  return {
+    slug,
+    entry: "/",
+    home: prefix ? `${prefix}/trang-chu` : "/",
+    products: prefix ? `${prefix}/san-pham` : "/",
+    productsWithCategory: (categoryId) => {
+      const base = prefix ? `${prefix}/san-pham` : "/";
+      if (categoryId == null || categoryId === "") return base;
+      return `${base}?category=${encodeURIComponent(categoryId)}`;
+    },
+    product: (id) => (prefix ? `${prefix}/san-pham/${id}` : "/"),
+    search: (query = "", extraParams = {}) => {
+      const path = prefix ? `${prefix}/tim-kiem` : "/";
+      const params = new URLSearchParams();
+      const trimmed = String(query).trim();
+      if (trimmed) params.set("q", trimmed);
+      Object.entries(extraParams).forEach(([key, value]) => {
+        if (value != null && value !== "") params.set(key, value);
+      });
+      const qs = params.toString();
+      return qs ? `${path}?${qs}` : path;
+    },
+    cart: prefix ? `${prefix}/gio-hang` : "/",
+    checkout: prefix ? `${prefix}/dat-hang` : "/",
+    login: prefix ? `${prefix}/dang-nhap` : "/",
+    register: prefix ? `${prefix}/dang-ky` : "/",
+    account: prefix ? `${prefix}/tai-khoan` : "/",
+    orderStatus: prefix ? `${prefix}/theo-doi-don-hang` : "/",
+    policies: prefix ? `${prefix}/chinh-sach` : "/",
+    support: prefix ? `${prefix}/ho-tro` : "/",
+    about: prefix ? `${prefix}/ve-chung-toi` : "/",
+    aboutSection: (sectionId = "ve-chung-toi") => {
+      const base = prefix ? `${prefix}/ve-chung-toi` : "/";
+      return sectionId ? `${base}#${sectionId}` : base;
+    },
+  };
 }

@@ -1,4 +1,4 @@
-"""Quy tắc nghiệp vụ hệ thống — có thể đọc qua GET /api/system-config/."""
+"""Quy tắc nghiệp vụ hệ thống — đọc từ DB (admin chỉnh qua PATCH /api/system-config/)."""
 
 from datetime import timedelta
 from decimal import Decimal
@@ -6,8 +6,7 @@ from decimal import Decimal
 from django.utils import timezone
 from rest_framework.exceptions import ValidationError
 
-MAX_UPLOAD_IMAGE_SIZE_MB = 5
-MAX_UPLOAD_IMAGE_SIZE_BYTES = MAX_UPLOAD_IMAGE_SIZE_MB * 1024 * 1024
+from apps.system_config.services import get_system_settings
 
 ALLOWED_IMAGE_CONTENT_TYPES = {
     "image/jpeg",
@@ -41,34 +40,17 @@ def allowed_image_extensions_label():
     """Trả chuỗi danh sách phần mở rộng ảnh cho phép (dùng trong thông báo lỗi)."""
     return ", ".join(sorted(ext.lstrip(".") for ext in ALLOWED_IMAGE_EXTENSIONS))
 
-DEFAULT_DEPOSIT_PERCENT = 30
-MIN_DEPOSIT_PERCENT = 10
-MAX_DEPOSIT_PERCENT = 50
-
-MIN_ORDER_AMOUNT = 500_000
-MAX_ORDER_AMOUNT = 500_000_000
-MIN_DELIVERY_LEAD_DAYS = 2
-
-# Đơn hàng buyer (B2C storefront)
-CUSTOMER_ORDER_SHIPPING_FEE = 10_000
-
-MAX_CATEGORIES_PER_SUPPLIER = 5
-MAX_PRODUCTS_PER_SUPPLIER = 100
-MAX_IMAGES_PER_PRODUCT = 5
-MAX_IMAGES_PER_CERTIFICATION = 5
-MAX_LOGIN_ATTEMPTS = 5
-LOGIN_LOCKOUT_MINUTES = 15
-
 
 def get_purchase_order_config():
-    """Cấu hình phiếu nhập — expose qua GET /api/purchase-order-config/ cho UI trước khi đặt hàng."""
+    """Cấu hình phiếu nhập — expose qua GET /api/purchase-order-config/."""
+    s = get_system_settings()
     return {
-        "min_order_amount": MIN_ORDER_AMOUNT,
-        "max_order_amount": MAX_ORDER_AMOUNT,
-        "min_deposit_percent": MIN_DEPOSIT_PERCENT,
-        "max_deposit_percent": MAX_DEPOSIT_PERCENT,
-        "min_delivery_lead_days": MIN_DELIVERY_LEAD_DAYS,
-        "default_deposit_percent": DEFAULT_DEPOSIT_PERCENT,
+        "min_order_amount": s.min_order_amount,
+        "max_order_amount": s.max_order_amount,
+        "min_deposit_percent": s.min_deposit_percent,
+        "max_deposit_percent": s.max_deposit_percent,
+        "min_delivery_lead_days": s.min_delivery_lead_days,
+        "default_deposit_percent": s.default_deposit_percent,
     }
 
 
@@ -76,30 +58,32 @@ def get_customer_order_config():
     """Cấu hình đơn buyer — phí ship cố định + khung giờ giao."""
     from apps.orders.delivery_slots import get_delivery_slot_config
 
+    s = get_system_settings()
     return {
-        "shipping_fee": CUSTOMER_ORDER_SHIPPING_FEE,
+        "shipping_fee": s.shipping_fee,
         "payment_type": "cod",
         **get_delivery_slot_config(),
     }
 
 
 def validate_order_amount(total_amount):
-    """Kiểm tra tổng tiền đơn trong [MIN_ORDER_AMOUNT, MAX_ORDER_AMOUNT] — gọi sau build_order_items."""
+    """Kiểm tra tổng tiền đơn trong [min, max] — gọi sau build_order_items."""
+    s = get_system_settings()
     total = Decimal(total_amount)
-    if MIN_ORDER_AMOUNT and total < Decimal(MIN_ORDER_AMOUNT):
+    if s.min_order_amount and total < Decimal(s.min_order_amount):
         raise ValidationError(
             {
                 "total_amount": (
-                    f"Tổng đơn tối thiểu {MIN_ORDER_AMOUNT:,} VND "
+                    f"Tổng đơn tối thiểu {s.min_order_amount:,} VND "
                     f"(hiện tại {total:,.0f} VND)."
                 ).replace(",", ".")
             }
         )
-    if MAX_ORDER_AMOUNT and total > Decimal(MAX_ORDER_AMOUNT):
+    if s.max_order_amount and total > Decimal(s.max_order_amount):
         raise ValidationError(
             {
                 "total_amount": (
-                    f"Tổng đơn tối đa {MAX_ORDER_AMOUNT:,} VND "
+                    f"Tổng đơn tối đa {s.max_order_amount:,} VND "
                     f"(hiện tại {total:,.0f} VND)."
                 ).replace(",", ".")
             }
@@ -107,15 +91,16 @@ def validate_order_amount(total_amount):
 
 
 def validate_requested_delivery_time(requested_delivery_time):
-    """Thời gian giao phải sau ít nhất MIN_DELIVERY_LEAD_DAYS ngày kể từ hiện tại."""
-    if MIN_DELIVERY_LEAD_DAYS <= 0:
+    """Thời gian giao phải sau ít nhất min_delivery_lead_days ngày kể từ hiện tại."""
+    s = get_system_settings()
+    if s.min_delivery_lead_days <= 0:
         return
-    earliest = timezone.now() + timedelta(days=MIN_DELIVERY_LEAD_DAYS)
+    earliest = timezone.now() + timedelta(days=s.min_delivery_lead_days)
     if requested_delivery_time < earliest:
         raise ValidationError(
             {
                 "requested_delivery_time": (
-                    f"Thời gian giao phải sau ít nhất {MIN_DELIVERY_LEAD_DAYS} ngày "
+                    f"Thời gian giao phải sau ít nhất {s.min_delivery_lead_days} ngày "
                     f"kể từ bây giờ (sớm nhất: {earliest.strftime('%d/%m/%Y %H:%M')})."
                 )
             }
@@ -124,14 +109,15 @@ def validate_requested_delivery_time(requested_delivery_time):
 
 def validate_deposit_percent(percent):
     """Kiểm tra % cọc NCC chốt khi confirm — gọi từ supplier_confirm_order."""
+    s = get_system_settings()
     value = Decimal(percent)
-    min_p = Decimal(MIN_DEPOSIT_PERCENT)
-    max_p = Decimal(MAX_DEPOSIT_PERCENT)
+    min_p = Decimal(s.min_deposit_percent)
+    max_p = Decimal(s.max_deposit_percent)
     if value < min_p or value > max_p:
         raise ValidationError(
             {
                 "deposit_percent": (
-                    f"Tỷ lệ cọc phải từ {MIN_DEPOSIT_PERCENT}% đến {MAX_DEPOSIT_PERCENT}%."
+                    f"Tỷ lệ cọc phải từ {s.min_deposit_percent}% đến {s.max_deposit_percent}%."
                 )
             }
         )
@@ -139,20 +125,26 @@ def validate_deposit_percent(percent):
 
 
 def get_public_config():
-    """Trả dict cấu hình nghiệp vụ công khai cho API system-config."""
+    """Trả dict cấu hình nghiệp vụ cho API system-config."""
+    s = get_system_settings()
     purchase_orders = get_purchase_order_config()
     customer_orders = get_customer_order_config()
     return {
-        "max_upload_image_size_mb": MAX_UPLOAD_IMAGE_SIZE_MB,
+        "max_upload_image_size_mb": s.max_upload_image_size_mb,
         "allowed_image_types": sorted(ALLOWED_IMAGE_EXTENSIONS),
-        "max_categories_per_supplier": MAX_CATEGORIES_PER_SUPPLIER,
-        "max_products_per_supplier": MAX_PRODUCTS_PER_SUPPLIER,
-        "max_images_per_product": MAX_IMAGES_PER_PRODUCT,
-        "max_images_per_certification": MAX_IMAGES_PER_CERTIFICATION,
-        "max_login_attempts": MAX_LOGIN_ATTEMPTS,
-        "login_lockout_minutes": LOGIN_LOCKOUT_MINUTES,
+        "max_categories_per_supplier": s.max_categories_per_supplier,
+        "max_products_per_supplier": s.max_products_per_supplier,
+        "max_images_per_product": s.max_images_per_product,
+        "max_images_per_certification": s.max_images_per_certification,
+        "max_login_attempts": s.max_login_attempts,
+        "login_lockout_minutes": s.login_lockout_minutes,
         "purchase_orders": purchase_orders,
         "customer_orders": customer_orders,
+        "updated_at": s.updated_at,
+        "updated_by": s.updated_by_id,
+        "updated_by_username": (
+            s.updated_by.username if s.updated_by_id else None
+        ),
         **purchase_orders,
         **customer_orders,
     }

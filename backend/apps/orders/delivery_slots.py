@@ -7,12 +7,10 @@ from zoneinfo import ZoneInfo
 from django.utils import timezone
 from rest_framework.exceptions import ErrorDetail, ValidationError
 
+from apps.system_config.services import get_system_settings
+
 # Giờ nghiệp vụ VN (+07) — không đổi TIME_ZONE Django (UTC).
 VN_TZ = ZoneInfo("Asia/Ho_Chi_Minh")
-
-MIN_LEAD_HOURS = 6
-MORNING_CUTOFF_HOUR = 23
-MAX_BOOKING_DAYS = 2
 
 INVALID_DELIVERY_SLOT_MSG = "Khung giờ giao hàng không còn khả dụng."
 
@@ -35,11 +33,12 @@ SLOT_BY_ID = {slot.id: slot for slot in DELIVERY_SLOT_DEFINITIONS}
 
 def get_delivery_slot_config():
     """Cấu hình slot — expose qua system-config / API."""
+    s = get_system_settings()
     return {
         "timezone": "Asia/Ho_Chi_Minh",
-        "min_lead_hours": MIN_LEAD_HOURS,
-        "morning_cutoff_hour": MORNING_CUTOFF_HOUR,
-        "max_booking_days": MAX_BOOKING_DAYS,
+        "min_lead_hours": s.min_lead_hours,
+        "morning_cutoff_hour": s.morning_cutoff_hour,
+        "max_booking_days": s.max_booking_days,
         "slots": [
             {
                 "id": slot.id,
@@ -61,17 +60,19 @@ def slot_start_datetime(delivery_date: date, slot: DeliverySlotDef) -> datetime:
 
 
 def _booking_window(now=None):
-    """Cửa sổ đặt: MAX_BOOKING_DAYS ngày lịch (hôm nay + N-1 ngày)."""
+    """Cửa sổ đặt: max_booking_days ngày lịch (hôm nay + N-1 ngày)."""
+    max_days = get_system_settings().max_booking_days
     today = _now_vn(now).date()
-    return today, today + timedelta(days=MAX_BOOKING_DAYS - 1)
+    return today, today + timedelta(days=max_days - 1)
 
 
 def is_slot_available(delivery_date: date, slot_id: str, *, now=None) -> bool:
-    """Một slot khả dụng khi thỏa lead time, cut-off sáng mai, chưa qua, trong 2 ngày."""
+    """Một slot khả dụng khi thỏa lead time, cut-off sáng mai, chưa qua, trong cửa sổ đặt."""
     slot = SLOT_BY_ID.get(slot_id)
     if slot is None:
         return False
 
+    s = get_system_settings()
     now_aware = now or timezone.now()
     now_vn = now_aware.astimezone(VN_TZ)
     slot_start = slot_start_datetime(delivery_date, slot)
@@ -83,14 +84,14 @@ def is_slot_available(delivery_date: date, slot_id: str, *, now=None) -> bool:
     if slot_start <= now_aware:
         return False
 
-    if slot_start < now_aware + timedelta(hours=MIN_LEAD_HOURS):
+    if slot_start < now_aware + timedelta(hours=s.min_lead_hours):
         return False
 
     tomorrow_vn = now_vn.date() + timedelta(days=1)
     if (
         delivery_date == tomorrow_vn
         and slot_id == "morning"
-        and now_vn.hour >= MORNING_CUTOFF_HOUR
+        and now_vn.hour >= s.morning_cutoff_hour
     ):
         return False
 

@@ -233,7 +233,39 @@ export const buyerOrder = {
     axiosClient
       .get(`/storefronts/${dealer_slug}/delivery-slots/`)
       .then((res) => res.data),
+  //Khung giờ giao hàng
   //Trả danh sách ngày (2 ngày: hôm nay và ngày mai) và slot Sáng/Chiều. FE hiển thị toàn bộ slot; slot available=false thì disable nhưng vẫn hiển thị.
+
+  // {
+  //   "timezone": "string",
+  //   "min_lead_hours": 0,
+  //   "morning_cutoff_hour": 0,
+  //   "max_booking_days": 0,
+  //   "slots": [
+  //     {
+  //       "id": "string",
+  //       "name": "string",
+  //       "start_time": "string",
+  //       "end_time": "string"
+  //     }
+  //   ],
+  //   "generated_at": "string",
+  //   "dates": [
+  //     {
+  //       "date": "string",
+  //       "slots": [
+  //         {
+  //           "id": "string",
+  //           "name": "string",
+  //           "start_time": "string",
+  //           "end_time": "string",
+  //           "available": true,
+  //           "delivery_time": "string"
+  //         }
+  //       ]
+  //     }
+  //   ]
+  // }
 };
 
 export const handleApiError = (error, defaultMessage = "Có lỗi xảy ra") => {

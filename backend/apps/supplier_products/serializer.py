@@ -6,11 +6,8 @@ from common.approval_nested import (
     ApprovalCategoryNestedSerializer,
     ApprovalSupplierNestedSerializer,
 )
-from common.business_rules import (
-    MAX_IMAGES_PER_PRODUCT,
-    MAX_PRODUCTS_PER_SUPPLIER,
-    allowed_image_extensions_label,
-)
+from apps.system_config.services import get_system_settings
+from common.business_rules import allowed_image_extensions_label
 from common.openapi_enums import schema_choice_field
 from common.validators import require_rejection_reason, validate_image_upload
 from apps.categories.utils import category_assignable_by_user
@@ -87,9 +84,9 @@ class SupplierProductImageSerializer(serializers.ModelSerializer):
             self.instance, "supplier_product", None
         )
         if product and self.instance is None:
-            if product.images.count() >= MAX_IMAGES_PER_PRODUCT:
+            if product.images.count() >= get_system_settings().max_images_per_product:
                 raise serializers.ValidationError(
-                    f"Mỗi sản phẩm tối đa {MAX_IMAGES_PER_PRODUCT} ảnh."
+                    f"Mỗi sản phẩm tối đa {get_system_settings().max_images_per_product} ảnh."
                 )
         if self.instance is None and not attrs.get("image_url"):
             raise serializers.ValidationError(
@@ -172,12 +169,12 @@ class SupplierProductImageBulkUploadSerializer(serializers.Serializer):
             validate_image_upload(file)
 
         current_count = product.images.count()
-        if current_count + len(files) > MAX_IMAGES_PER_PRODUCT:
-            remaining = max(0, MAX_IMAGES_PER_PRODUCT - current_count)
+        if current_count + len(files) > get_system_settings().max_images_per_product:
+            remaining = max(0, get_system_settings().max_images_per_product - current_count)
             raise serializers.ValidationError(
                 {
                     "images": (
-                        f"Mỗi sản phẩm tối đa {MAX_IMAGES_PER_PRODUCT} ảnh. "
+                        f"Mỗi sản phẩm tối đa {get_system_settings().max_images_per_product} ảnh. "
                         f"Còn upload được {remaining} ảnh."
                     )
                 }
@@ -419,9 +416,9 @@ class SupplierProductSerializer(serializers.ModelSerializer):
         """Tạo sản phẩm mới với trạng thái chờ duyệt."""
         request = self.context["request"]
         supplier = request.user.supplier_profile
-        if SupplierProduct.objects.filter(supplier=supplier).count() >= MAX_PRODUCTS_PER_SUPPLIER:
+        if SupplierProduct.objects.filter(supplier=supplier).count() >= get_system_settings().max_products_per_supplier:
             raise serializers.ValidationError(
-                f"Mỗi nhà cung cấp tối đa {MAX_PRODUCTS_PER_SUPPLIER} sản phẩm."
+                f"Mỗi nhà cung cấp tối đa {get_system_settings().max_products_per_supplier} sản phẩm."
             )
         validated_data["supplier"] = supplier
         validated_data.setdefault("status", SupplierProductStatus.PENDING)

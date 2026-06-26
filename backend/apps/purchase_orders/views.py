@@ -19,7 +19,7 @@ Router: config/urls.py → purchase_orders/urls.py → PurchaseOrderViewSet
 Config công khai: GET /api/purchase-order-config/
 """
 
-from django.db.models import Prefetch
+from django.db.models import Prefetch, Q
 
 from drf_spectacular.utils import OpenApiParameter, extend_schema, extend_schema_view
 from rest_framework import status, viewsets
@@ -34,6 +34,7 @@ from common.openapi import PAGINATION_QUERY_HELP, paginated_response_schema
 from common.openapi_files import multipart_request
 from common.permission import IsAdmin, IsAdminOrSupplier, IsDealer, IsSupplier
 from common.querysets import ORDER_NEWEST, filter_purchase_orders
+from common.status_counts import build_count_status, filter_by_status_param
 
 from common.verify_openapi import (
     PO_REJECT,
@@ -67,6 +68,7 @@ from .models import (
     PurchaseOrderPayment,
     PurchaseOrderPaymentStatus,
     PurchaseOrderPaymentType,
+    PurchaseOrderStatus,
 )
 from .serializers import (
     CancelOrderSerializer,
@@ -109,7 +111,14 @@ def _detail_response(order, request):
     list=extend_schema(
         tags=["Purchase Orders"],
         summary="[Danh sách] Phiếu nhập",
-        description=PO_LIST_DESCRIPTION + PAGINATION_QUERY_HELP,
+        description=(
+            "Admin: tất cả. Supplier: đơn gửi tới NCC mình. Dealer: đơn của đại lý mình."
+            + PAGINATION_QUERY_HELP
+        ),
+        parameters=[
+            OpenApiParameter("search", str, description="Tìm kiếm theo mã đơn, tên/SĐT người nhận, đại lý hoặc NCC", required=False),
+            OpenApiParameter("status", str, description="Lọc theo trạng thái đơn hàng", required=False),
+        ],
         responses={
             200: paginated_response_schema(
                 PurchaseOrderListSerializer,
@@ -184,12 +193,37 @@ class PurchaseOrderViewSet(viewsets.GenericViewSet):
     def list(self, request):
         from common.pagination import LoadMorePagination
 
+        qs = self.get_queryset()
+
+        search = request.query_params.get("search", "").strip()
+        if search:
+            qs = qs.filter(
+                Q(order_code__icontains=search)
+                | Q(receiver_name__icontains=search)
+                | Q(receiver_phone__icontains=search)
+                | Q(dealer__store_name__icontains=search)
+                | Q(supplier__company_name__icontains=search)
+            )
+
+        dealer_id = request.query_params.get("dealer", "").strip()
+        if dealer_id.isdigit():
+            qs = qs.filter(dealer_id=dealer_id)
+
+        supplier_id = request.query_params.get("supplier", "").strip()
+        if supplier_id.isdigit():
+            qs = qs.filter(supplier_id=supplier_id)
+
+        count_status = build_count_status(qs, field="status", choices=PurchaseOrderStatus)
+
+        status_param = request.query_params.get("status", "").strip()
+        qs = filter_by_status_param(qs, status_param, field="status")
+
         paginator = LoadMorePagination()
-        page = paginator.paginate_queryset(self.get_queryset(), request, view=self)
+        page = paginator.paginate_queryset(qs, request, view=self)
         data = PurchaseOrderListSerializer(
             page, many=True, context={"request": request}
         ).data
-        return paginator.get_paginated_response(data)
+        return paginator.get_paginated_response(data, count_status=count_status)
 
     def retrieve(self, request, pk=None):
         order = self.get_object()

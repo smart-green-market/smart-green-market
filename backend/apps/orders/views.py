@@ -1,8 +1,8 @@
 """API đơn hàng buyer — dealer / admin quản lý."""
 
-from django.db.models import Count, Prefetch
+from django.db.models import Count, Prefetch, Q
 
-from drf_spectacular.utils import extend_schema, extend_schema_view
+from drf_spectacular.utils import extend_schema, extend_schema_view, OpenApiParameter
 from rest_framework import status, viewsets
 from rest_framework.decorators import action
 from rest_framework.permissions import IsAuthenticated
@@ -14,9 +14,10 @@ from common.openapi import PAGINATION_QUERY_HELP, paginated_response_schema
 from common.pagination import LoadMorePagination
 from common.permission import IsAdmin, IsAdminOrDealer, IsDealer
 from common.querysets import ORDER_NEWEST, filter_customer_orders
+from common.status_counts import build_count_status, filter_by_status_param
 
 from . import services
-from .models import Order
+from .models import Order, OrderStatus
 from .serializers import NoteSerializer, OrderDetailSerializer, OrderListSerializer
 
 
@@ -52,6 +53,10 @@ def _detail_response(order, request):
             "Admin: tất cả. Dealer: đơn gửi tới cửa hàng mình."
             + PAGINATION_QUERY_HELP
         ),
+        parameters=[
+            OpenApiParameter("search", str, description="Tìm kiếm theo mã đơn, khách hàng", required=False),
+            OpenApiParameter("status", str, description="Lọc theo trạng thái", required=False),
+        ],
         responses={
             200: paginated_response_schema(OrderListSerializer, "PaginatedCustomerOrder"),
         },
@@ -72,10 +77,24 @@ class CustomerOrderViewSet(viewsets.GenericViewSet):
         qs = self.queryset.annotate(item_count=Count("items"))
         if self.action == "retrieve":
             qs = _detail_queryset().annotate(item_count=Count("items"))
-        status_filter = self.request.query_params.get("status")
-        qs = filter_customer_orders(qs, self.request.user, ordering=ORDER_NEWEST)
-        if status_filter:
-            qs = qs.filter(status=status_filter.strip())
+        return filter_customer_orders(qs, self.request.user, ordering=ORDER_NEWEST)
+
+    def _apply_customer_order_list_filters(self, qs, request, *, apply_status=True):
+        search = request.query_params.get("search")
+        if search:
+            search = search.strip()
+            qs = qs.filter(
+                Q(order_code__icontains=search)
+                | Q(customer__user__first_name__icontains=search)
+                | Q(customer__user__last_name__icontains=search)
+                | Q(customer__user__phone__icontains=search)
+                | Q(receiver_name__icontains=search)
+                | Q(receiver_phone__icontains=search)
+            )
+        if apply_status:
+            qs = filter_by_status_param(
+                qs, request.query_params.get("status"), field="status"
+            )
         return qs
 
     def get_permissions(self):
@@ -86,10 +105,15 @@ class CustomerOrderViewSet(viewsets.GenericViewSet):
         return [IsAuthenticated()]
 
     def list(self, request):
+        base_qs = self._apply_customer_order_list_filters(
+            self.get_queryset(), request, apply_status=False
+        )
+        count_status = build_count_status(base_qs, field="status", choices=OrderStatus)
+        qs = filter_by_status_param(base_qs, request.query_params.get("status"), field="status")
         paginator = LoadMorePagination()
-        page = paginator.paginate_queryset(self.get_queryset(), request, view=self)
+        page = paginator.paginate_queryset(qs, request, view=self)
         data = OrderListSerializer(page, many=True, context={"request": request}).data
-        return paginator.get_paginated_response(data)
+        return paginator.get_paginated_response(data, count_status=count_status)
 
     def retrieve(self, request, pk=None):
         order = self.get_object()

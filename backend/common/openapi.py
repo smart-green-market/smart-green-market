@@ -31,6 +31,14 @@ def paginated_response_schema(item_serializer, name="PaginatedList"):
             "has_more": serializers.BooleanField(
                 help_text="true nếu còn dữ liệu để tải thêm",
             ),
+            "count_status": serializers.DictField(
+                child=serializers.IntegerField(),
+                required=False,
+                help_text=(
+                    "Số bản ghi theo từng trạng thái (scope + search, "
+                    "không áp filter status tab hiện tại) — dùng badge tab UI"
+                ),
+            ),
             "results": item_serializer(many=True),
         },
     )
@@ -251,6 +259,53 @@ SystemConfigResponseSerializer = inline_serializer(
         "default_deposit_percent": serializers.IntegerField(
             help_text="Tỷ lệ cọc mặc định (%) khi NCC xác nhận phiếu nhập",
         ),
+        "shipping_fee": serializers.IntegerField(
+            help_text="Phí giao hàng buyer B2C (VND)",
+        ),
+        "min_lead_hours": serializers.IntegerField(
+            help_text="Lead time tối thiểu (giờ) trước slot giao",
+        ),
+        "morning_cutoff_hour": serializers.IntegerField(
+            help_text="Từ giờ này không đặt slot sáng ngày mai",
+        ),
+        "max_booking_days": serializers.IntegerField(
+            help_text="Số ngày lịch cho phép đặt giao",
+        ),
+        "updated_at": serializers.DateTimeField(
+            help_text="Thời điểm cập nhật cấu hình gần nhất",
+        ),
+        "updated_by": serializers.IntegerField(
+            allow_null=True,
+            help_text="ID admin cập nhật gần nhất",
+        ),
+        "updated_by_username": serializers.CharField(
+            allow_null=True,
+            help_text="Username admin cập nhật gần nhất",
+        ),
+    },
+)
+
+
+SystemConfigUpdateSerializer = inline_serializer(
+    name="SystemConfigUpdate",
+    fields={
+        "max_upload_image_size_mb": serializers.IntegerField(required=False),
+        "max_categories_per_supplier": serializers.IntegerField(required=False),
+        "max_products_per_supplier": serializers.IntegerField(required=False),
+        "max_images_per_product": serializers.IntegerField(required=False),
+        "max_images_per_certification": serializers.IntegerField(required=False),
+        "max_login_attempts": serializers.IntegerField(required=False),
+        "login_lockout_minutes": serializers.IntegerField(required=False),
+        "min_order_amount": serializers.IntegerField(required=False),
+        "max_order_amount": serializers.IntegerField(required=False),
+        "min_deposit_percent": serializers.IntegerField(required=False),
+        "max_deposit_percent": serializers.IntegerField(required=False),
+        "default_deposit_percent": serializers.IntegerField(required=False),
+        "min_delivery_lead_days": serializers.IntegerField(required=False),
+        "shipping_fee": serializers.IntegerField(required=False),
+        "min_lead_hours": serializers.IntegerField(required=False),
+        "morning_cutoff_hour": serializers.IntegerField(required=False),
+        "max_booking_days": serializers.IntegerField(required=False),
     },
 )
 

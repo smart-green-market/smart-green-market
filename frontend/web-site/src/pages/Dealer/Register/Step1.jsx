@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import { Link } from "react-router-dom";
 import { accountService } from "../../../services/api/accountService";
 import { authService } from "../../../services/api/authAdminService";
+import { saveAuthTokens } from "../../../services/token/authTokenStorage";
 import { extractApiError } from "../../../utils/extractApiError";
 import {
     attemptResumeDealerRegistration,
@@ -27,7 +28,10 @@ export default function Step1({ onNext }) {
         }));
 
     const saveSession = (loginResult) => {
-        localStorage.setItem("access_token", loginResult.access);
+        saveAuthTokens({
+            access: loginResult.access,
+            refresh: loginResult.refresh,
+        });
         localStorage.setItem("user", JSON.stringify(loginResult.account));
     };
 
@@ -156,11 +160,10 @@ export default function Step1({ onNext }) {
                 type="button"
                 onClick={handleSubmit}
                 disabled={loading}
-                className={`mt-2 flex w-full items-center justify-center gap-2 rounded-xl py-4 text-[15px] font-bold text-white transition-all ${
-                    loading
-                        ? "cursor-not-allowed bg-gray-400"
-                        : "bg-[#006c49] hover:-translate-y-0.5 hover:bg-[#005038]"
-                }`}
+                className={`mt-2 flex w-full items-center justify-center gap-2 rounded-xl py-4 text-[15px] font-bold text-white transition-all ${loading
+                    ? "cursor-not-allowed bg-gray-400"
+                    : "bg-[#006c49] hover:-translate-y-0.5 hover:bg-[#005038]"
+                    }`}
             >
                 {loading ? "Đang xử lý..." : "Tiếp tục"}
             </button>

@@ -1,22 +1,30 @@
 """API catalog sản phẩm buyer — danh mục, tìm kiếm, chi tiết."""
 
+from django.db.models import Prefetch
+
 from drf_spectacular.utils import OpenApiParameter, extend_schema
 from rest_framework.exceptions import NotFound, ValidationError
 from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from apps.dealers.models import DealerProfile
+from apps.accounts.models import AccountDocument, AccountDocumentStatus, AccountStatus
+from apps.dealers.models import DealerProfile, DealerProfileStatus
 
 from .catalog_services import (
     apply_storefront_product_filters,
+    build_storefront_dealer_about_context,
+    get_storefront_bestseller_products_qs,
     get_storefront_categories_qs,
     get_storefront_product_detail,
     get_storefront_products_qs,
+    parse_bestseller_limit,
 )
 from .services import get_active_dealer_by_slug
 from .storefront_catalog_serializers import (
+    StorefrontBestsellerProductSerializer,
     StorefrontCategorySerializer,
+    StorefrontDealerProfileSerializer,
     StorefrontProductDetailSerializer,
     StorefrontProductListSerializer,
 )
@@ -63,6 +71,57 @@ def _get_dealer_or_404(dealer_slug):
         return get_active_dealer_by_slug(dealer_slug)
     except DealerProfile.DoesNotExist as exc:
         raise NotFound("Gian hàng không tồn tại hoặc chưa hoạt động.") from exc
+
+
+def _get_dealer_profile_for_about(dealer_slug):
+    """Dealer active kèm giấy tờ đã duyệt — phục vụ trang About."""
+    try:
+        return (
+            DealerProfile.objects.select_related("account")
+            .prefetch_related(
+                Prefetch(
+                    "account__documents",
+                    queryset=AccountDocument.objects.filter(
+                        status=AccountDocumentStatus.APPROVED,
+                    ).only("document_type"),
+                ),
+            )
+            .get(
+                slug=dealer_slug,
+                status=DealerProfileStatus.ACTIVE,
+                account__status=AccountStatus.ACTIVE,
+            )
+        )
+    except DealerProfile.DoesNotExist as exc:
+        raise NotFound("Gian hàng không tồn tại hoặc chưa hoạt động.") from exc
+
+
+class StorefrontDealerProfileView(APIView):
+    """Thông tin gian hàng công khai — trang Giới thiệu / Liên hệ."""
+
+    permission_classes = [AllowAny]
+
+    @extend_schema(
+        tags=["Storefront Catalog"],
+        operation_id="storefront_catalog_dealer_retrieve",
+        summary="Thông tin gian hàng đại lý",
+        description=(
+            "Buyer xem trang Giới thiệu / Liên hệ: hồ sơ cửa hàng, liên hệ, "
+            "chỉ số gian hàng, tổng hợp đánh giá, chính sách giao hàng. "
+            "Danh mục / SP bán chạy gọi API riêng. Chỉ gian hàng đang hoạt động."
+        ),
+        responses={200: StorefrontDealerProfileSerializer},
+        auth=[],
+    )
+    def get(self, request, dealer_slug):
+        dealer = _get_dealer_profile_for_about(dealer_slug)
+        about = build_storefront_dealer_about_context(dealer)
+        return Response(
+            StorefrontDealerProfileSerializer(
+                dealer,
+                context={"request": request, **about},
+            ).data
+        )
 
 
 class StorefrontCategoryListView(APIView):
@@ -142,6 +201,57 @@ class StorefrontProductListView(APIView):
         return paginate_queryset(self, request, products_qs, serialize)
 
 
+class StorefrontBestsellerProductListView(APIView):
+    """Top sản phẩm bán chạy trên gian hàng — public."""
+
+    permission_classes = [AllowAny]
+
+    @extend_schema(
+        tags=["Storefront Catalog"],
+        operation_id="storefront_catalog_products_bestsellers",
+        summary="Sản phẩm bán chạy",
+        description=(
+            "Buyer xem top sản phẩm bán chạy nhất của cửa hàng. "
+            "Xếp hạng theo tổng `quantity` trên các đơn buyer đã xác nhận "
+            "(confirmed → completed), chỉ sản phẩm `active`. "
+            "Không cần đăng nhập."
+        ),
+        parameters=[
+            OpenApiParameter(
+                name="limit",
+                type=int,
+                location=OpenApiParameter.QUERY,
+                required=False,
+                description="Số sản phẩm trả về (mặc định 10, tối đa 20)",
+            ),
+            OpenApiParameter(
+                name="in_stock",
+                type=bool,
+                location=OpenApiParameter.QUERY,
+                required=False,
+                description="true — chỉ sản phẩm còn tồn khả dụng",
+            ),
+        ],
+        responses={200: StorefrontBestsellerProductSerializer(many=True)},
+        auth=[],
+    )
+    def get(self, request, dealer_slug):
+        dealer = _get_dealer_or_404(dealer_slug)
+        limit = parse_bestseller_limit(request.query_params.get("limit"))
+        products_qs = get_storefront_bestseller_products_qs(dealer)
+        in_stock = request.query_params.get("in_stock")
+        if in_stock is not None and str(in_stock).lower() in ("true", "1", "yes"):
+            products_qs = products_qs.filter(available_quantity__gt=0)
+        products = list(products_qs[:limit])
+        return Response(
+            StorefrontBestsellerProductSerializer(
+                products,
+                many=True,
+                context={"request": request},
+            ).data
+        )
+
+
 class StorefrontProductDetailView(APIView):
     """Chi tiết một sản phẩm trên gian hàng — public."""
 
@@ -153,7 +263,8 @@ class StorefrontProductDetailView(APIView):
         summary="Chi tiết sản phẩm",
         description=(
             "Buyer xem thông tin đầy đủ sản phẩm: ảnh, giá, tồn khả dụng, "
-            "hướng dẫn bảo quản. Chỉ sản phẩm `active` của đúng gian hàng."
+            "hướng dẫn bảo quản, quy trình canh tác từ NCC gốc. "
+            "Chỉ sản phẩm `active` của đúng gian hàng."
         ),
         responses={200: StorefrontProductDetailSerializer},
         auth=[],

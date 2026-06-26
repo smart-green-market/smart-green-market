@@ -1,20 +1,32 @@
-import Slogan from "../../components/User/Home/Slogan";
 import Banner from "../../components/User/Home/Banner";
-import SuggestProduct from "../../components/User/Home/SuggestProduct";
-import BestSellingProduct from "../../components/User/Home/BestSellingProduct";
-import FavProduct from "../../components/User/Home/FavProduct";
-import FilterProduct from "../../components/User/Home/FilterProduct";
-import RecentlyViewedProducts from "../../components/User/Home/RecentlyViewedProducts";
+import ViewAllProductsCTA from "../../components/User/Home/ViewAllProductsCTA";
+import CommitmentSection from "../../components/User/Home/CommitmentSection";
+import StoreStatsSection from "../../components/User/Home/StoreStatsSection";
+import QuickReviewsSection from "../../components/User/Home/QuickReviewsSection";
+import ScrollReveal from "../../components/User/Ui/ScrollReveal";
+import { useBuyerCatalog } from "../../hooks/useBuyerCatalog";
+import Slogan from "../../components/User/Home/Slogan";
 
 export default function HomePage() {
+    const { products } = useBuyerCatalog();
+
     return (
         <div className="flex w-full flex-col gap-0 bg-gray-50 pb-16">
-            <Slogan />
-            <Banner />
-            <RecentlyViewedProducts />
-            <SuggestProduct />
-            <BestSellingProduct />
-            <FilterProduct />
+            <ScrollReveal variant="fade" duration={500}>
+                <Slogan />
+            </ScrollReveal>
+
+            <ScrollReveal variant="zoom-in" delay={80} duration={800}>
+                <Banner />
+            </ScrollReveal>
+
+            <ScrollReveal variant="fade-up" delay={60}>
+                <ViewAllProductsCTA productCount={products.length} />
+            </ScrollReveal>
+
+            <CommitmentSection />
+            <StoreStatsSection />
+            <QuickReviewsSection />
         </div>
     );
 }

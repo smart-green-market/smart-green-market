@@ -46,11 +46,11 @@ from apps.dealers.models import DealerProfileStatus
 from apps.supplier_products.models import SupplierProduct, SupplierProductStatus
 from apps.suppliers.models import Supplier, SupplierVerificationStatus
 from common.business_rules import (
-    DEFAULT_DEPOSIT_PERCENT,
     validate_deposit_percent,
     validate_order_amount,
     validate_requested_delivery_time,
 )
+from apps.system_config.services import get_system_settings
 from common.validators import REJECTION_REASON_REQUIRED_MSG
 from common.vietqr import build_supplier_payment_qr
 
@@ -320,7 +320,11 @@ def supplier_confirm_order(order, user, deposit_percent=None, note=""):
     if order.status != PurchaseOrderStatus.PENDING_SUPPLIER_CONFIRMATION:
         raise ValidationError({"detail": "Chỉ xác nhận phiếu đang chờ NCC."})
 
-    raw_percent = deposit_percent if deposit_percent is not None else DEFAULT_DEPOSIT_PERCENT
+    raw_percent = (
+        deposit_percent
+        if deposit_percent is not None
+        else get_system_settings().default_deposit_percent
+    )
     percent = validate_deposit_percent(raw_percent)
 
     order.deposit_percent = percent

@@ -1,13 +1,13 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { canLockProduct, canUnlockProduct } from "./productSellingUtils";
-import { Eye, Lock, Unlock, Trash2, Award } from "lucide-react";
+import { Eye, Lock, Unlock, Trash2, Award, ArrowUp, ArrowDown, ArrowUpDown } from "lucide-react";
 
 const STATUS_CONFIG = {
-  pending:  { label: "Chờ duyệt",  cls: "pill-a" },
-  active:   { label: "Đang bán",   cls: "pill-g" },
-  inactive: { label: "Đã khóa",   cls: "pill-gr" },
-  rejected: { label: "Từ chối",   cls: "pill-r"  },
-  deleted:  { label: "Đã xóa",    cls: "pill-gr" },
+  pending: { label: "Chờ duyệt", cls: "pill-a" },
+  active: { label: "Đang bán", cls: "pill-g" },
+  inactive: { label: "Đã khóa", cls: "pill-gr" },
+  rejected: { label: "Từ chối", cls: "pill-r" },
+  deleted: { label: "Đã xóa", cls: "pill-gr" },
 };
 
 const fmtPrice = (val) => {
@@ -16,7 +16,15 @@ const fmtPrice = (val) => {
 };
 
 const PAGE_SIZE = 8;
-
+const SORT_ACCESSORS = {
+  name: (row) => row.name ?? "",
+  category: (row) => row.category?.name ?? "",
+  daily_production_capacity: (row) =>
+    Number(row.daily_production_capacity) || 0,
+  wholesale_price: (row) =>
+    Number(row.wholesale_price) || 0,
+  status: (row) => row.status ?? "",
+};
 function Pagination({ page, total, onChange }) {
   const totalPages = Math.ceil(total / PAGE_SIZE);
   if (totalPages <= 1) return null;
@@ -42,6 +50,15 @@ function Pagination({ page, total, onChange }) {
     </div>
   );
 }
+function SortIcon({ active, direction }) {
+  if (!active) {
+    return <ArrowUpDown className="w-3 h-3 shrink-0" />;
+  }
+
+  return direction === "asc"
+    ? <ArrowUp className="w-3 h-3 shrink-0" />
+    : <ArrowDown className="w-3 h-3 shrink-0" />;
+}
 
 export default function ProductTable({
   data, search, statusFilter, categoryFilter,
@@ -50,17 +67,45 @@ export default function ProductTable({
   const [page, setPage] = useState(1);
 
   const filtered = data.filter((row) => {
-    const matchName     = (row.name ?? "").toLowerCase().includes((search ?? "").toLowerCase());
-    const matchStatus   = statusFilter   ? row.status === statusFilter : true;
+    const matchName = (row.name ?? "").toLowerCase().includes((search ?? "").toLowerCase());
+    const matchStatus = statusFilter ? row.status === statusFilter : true;
     const matchCategory = categoryFilter
       ? String(row.category?.id) === String(categoryFilter) || row.category?.name === categoryFilter
       : true;
     return matchName && matchStatus && matchCategory;
   });
+  const [sort, setSort] = useState(null);
+  const toggleSort = (key) => {
+    setSort((prev) => {
+      if (prev?.key !== key) return { key, dir: "asc" };
+      if (prev.dir === "asc") return { key, dir: "desc" };
+      return null;
+    });
+  };
 
   useEffect(() => { setPage(1); }, [search, statusFilter, categoryFilter]);
 
-  const paginated = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
+  const sorted = useMemo(() => {
+    if (!sort) return filtered;
+
+    const accessor = SORT_ACCESSORS[sort.key];
+    if (!accessor) return filtered;
+
+    return [...filtered].sort((a, b) => {
+      const av = accessor(a);
+      const bv = accessor(b);
+
+      if (av === bv) return 0;
+
+      const factor = sort.dir === "asc" ? 1 : -1;
+      return av > bv ? factor : -factor;
+    });
+  }, [filtered, sort]);
+
+  const paginated = sorted.slice(
+    (page - 1) * PAGE_SIZE,
+    page * PAGE_SIZE
+  );
 
   return (
     <>
@@ -244,7 +289,7 @@ export default function ProductTable({
             <div className="prod-card-head-ico">
               <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
-                  d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 10V11"/>
+                  d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 10V11" />
               </svg>
             </div>
             <span className="prod-card-head-title">Danh sách sản phẩm</span>
@@ -256,11 +301,55 @@ export default function ProductTable({
           {/* Header */}
           <div className="plh">
             <div className="pc-img" />
-            <div className="pc-name">Sản phẩm</div>
+            <div className="pc-name">
+              <span
+                className="inline-flex items-center gap-1 cursor-pointer select-none hover:text-[#111827]"
+                onClick={() => toggleSort("name")}
+              >
+                Sản phẩm
+                <SortIcon
+                  active={sort?.key === "name"}
+                  direction={sort?.dir}
+                />
+              </span>
+            </div>
             <div className="pc-cat">Danh mục</div>
-            <div className="pc-cap">Năng suất</div>
-            <div className="pc-price">Giá sỉ</div>
-            <div className="pc-status">Trạng thái</div>
+            <div className="pc-cap">
+              <span
+                className="inline-flex items-center gap-1 cursor-pointer select-none hover:text-[#111827]"
+                onClick={() => toggleSort("daily_production_capacity")}
+              >
+                Năng suất
+                <SortIcon
+                  active={sort?.key === "daily_production_capacity"}
+                  direction={sort?.dir}
+                />
+              </span>
+            </div>
+            <div className="pc-price">
+              <span
+                className="inline-flex items-center justify-end gap-1 cursor-pointer select-none hover:text-[#111827] w-full"
+                onClick={() => toggleSort("wholesale_price")}
+              >
+                Giá sỉ
+                <SortIcon
+                  active={sort?.key === "wholesale_price"}
+                  direction={sort?.dir}
+                />
+              </span>
+            </div>
+            <div className="pc-status">
+              <span
+                className="inline-flex items-center justify-center gap-1 cursor-pointer select-none hover:text-[#111827]"
+                onClick={() => toggleSort("status")}
+              >
+                Trạng thái
+                <SortIcon
+                  active={sort?.key === "status"}
+                  direction={sort?.dir}
+                />
+              </span>
+            </div>
             <div className="pc-act" />
           </div>
 
@@ -269,13 +358,13 @@ export default function ProductTable({
             <div className="prod-empty">Không tìm thấy sản phẩm phù hợp.</div>
           ) : (
             paginated.map((row) => {
-              const st       = STATUS_CONFIG[row.status] ?? STATUS_CONFIG.pending;
-              const thumb    = Array.isArray(row.images)
+              const st = STATUS_CONFIG[row.status] ?? STATUS_CONFIG.pending;
+              const thumb = Array.isArray(row.images)
                 ? (row.images.find((img) => img.is_thumbnail) || row.images[0])?.image_url
                 : null;
-              const certs    = Array.isArray(row.certifications) ? row.certifications : [];
+              const certs = Array.isArray(row.certifications) ? row.certifications : [];
               const isToggling = togglingId === row.id;
-              const showLock   = canLockProduct(row.status);
+              const showLock = canLockProduct(row.status);
               const showUnlock = canUnlockProduct(row.status);
 
               return (
@@ -292,7 +381,7 @@ export default function ProductTable({
                   <div className="pc-name">
                     <div className="p-name-wrap">
                       <div className="p-name">
-                        <span style={{overflow:"hidden",textOverflow:"ellipsis"}}>{row.name}</span>
+                        <span style={{ overflow: "hidden", textOverflow: "ellipsis" }}>{row.name}</span>
                         {certs.map((c, i) => (
                           <span key={i} className="cert-tag">
                             <Award size={9} />
@@ -302,7 +391,7 @@ export default function ProductTable({
                       </div>
                       <div className="p-sku">
                         {row.unit ? `${row.unit}` : ""}
-                        {row.sku  ? ` · ${row.sku}` : ""}
+                        {row.sku ? ` · ${row.sku}` : ""}
                       </div>
                     </div>
                   </div>
@@ -353,9 +442,9 @@ export default function ProductTable({
                           <Unlock size={14} />
                         </button>
                       )}
-                      <button className="p-act danger" title="Xóa" onClick={() => onDelete(row)}>
+                      {/* <button className="p-act danger" title="Xóa" onClick={() => onDelete(row)}>
                         <Trash2 size={14} />
-                      </button>
+                      </button> */}
                     </div>
                   </div>
                 </div>

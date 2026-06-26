@@ -3,7 +3,7 @@
 from django.db.models.deletion import ProtectedError
 from django.db.models import Count, F, Q
 from django.utils import timezone
-from drf_spectacular.utils import extend_schema, extend_schema_view
+from drf_spectacular.utils import extend_schema, extend_schema_view, OpenApiParameter
 from rest_framework import viewsets
 from rest_framework.decorators import action
 from rest_framework.exceptions import PermissionDenied, ValidationError
@@ -23,6 +23,8 @@ from common.verify_openapi import (
 )
 from common.permission import IsActive, IsAdmin
 from common.querysets import filter_categories_for_user, ORDER_CATEGORY
+from common.pagination import LoadMorePagination
+from common.status_counts import build_count_status, filter_by_status_param
 from .models import Category, CategoryScope, CategoryStatus
 from .utils import user_can_manage_category
 from .serializers import (
@@ -88,7 +90,13 @@ def _annotate_category_product_count(qs, user):
             "Mỗi danh mục kèm `product_count`."
             + PAGINATION_QUERY_HELP
         ),
-        responses={200: paginated_response_schema(CategoryListSerializer, "PaginatedCategory")},
+        parameters=[
+            OpenApiParameter("search", str, description="Tìm kiếm theo tên hoặc mô tả", required=False),
+            OpenApiParameter("status", str, description="Lọc theo trạng thái", required=False),
+        ],
+        responses={
+            200: paginated_response_schema(CategoryListSerializer, "PaginatedCategory")
+        },
     ),
     retrieve=extend_schema(
         tags=["Categories"],
@@ -152,6 +160,32 @@ class CategoryViewSet(viewsets.ModelViewSet):
         if self.action in ("list", "retrieve", "verify", "lock", "unlock"):
             qs = _annotate_category_product_count(qs, self.request.user)
         return qs
+
+    def _apply_category_list_filters(self, qs, request, *, apply_status=True):
+        search = request.query_params.get("search")
+        if search:
+            search = search.strip()
+            qs = qs.filter(
+                Q(name__icontains=search) | Q(description__icontains=search)
+            )
+        if apply_status:
+            qs = filter_by_status_param(
+                qs, request.query_params.get("status"), field="status"
+            )
+        return qs
+
+    def list(self, request, *args, **kwargs):
+        base_qs = self._apply_category_list_filters(
+            self.filter_queryset(self.get_queryset()),
+            request,
+            apply_status=False,
+        )
+        count_status = build_count_status(base_qs, field="status", choices=CategoryStatus)
+        qs = filter_by_status_param(base_qs, request.query_params.get("status"), field="status")
+        paginator = LoadMorePagination()
+        page = paginator.paginate_queryset(qs, request, view=self)
+        serializer = self.get_serializer(page, many=True)
+        return paginator.get_paginated_response(serializer.data, count_status=count_status)
 
     def _ensure_can_edit(self, category):
         """Kiểm tra quyền sửa danh mục — admin hoặc người tạo danh mục riêng."""

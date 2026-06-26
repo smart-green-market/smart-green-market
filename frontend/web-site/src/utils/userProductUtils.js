@@ -129,6 +129,20 @@ function resolveCategoryName(raw) {
   return "Nông sản";
 }
 
+function normalizeCultivationProcesses(list) {
+  if (!Array.isArray(list)) return [];
+
+  return [...list]
+    .filter((item) => item && (item.process_name || item.description))
+    .sort((a, b) => (a.step_order ?? 0) - (b.step_order ?? 0))
+    .map((item, index) => ({
+      id: item.id ?? `step-${index}`,
+      stepOrder: item.step_order ?? index + 1,
+      name: item.process_name ?? "",
+      description: item.description ?? "",
+    }));
+}
+
 export function formatDealerProduct(raw) {
   const images = buildDealerImages(raw);
   const thumbnail =
@@ -181,8 +195,11 @@ export function formatDealerProduct(raw) {
     supplier_name: raw.supplier_name ?? raw.supplier_product_name ?? "",
     dealer: raw.dealer ?? null,
     dealer_name: raw.dealer?.store_name ?? "",
-    rating: raw.rating ?? 4.5,
-    sold: raw.sold ?? 0,
+    rating: raw.rating != null ? Number(raw.rating) : null,
+    sold: raw.total_sold ?? raw.sold ?? 0,
+    cultivation_processes: normalizeCultivationProcesses(
+      raw.cultivation_processes,
+    ),
     source: "dealer",
   };
 }
@@ -232,7 +249,7 @@ export function formatUserProduct(raw) {
     category_id: raw.category?.id,
     supplier: raw.supplier ?? null,
     supplier_name: raw.supplier?.company_name ?? "",
-    rating: raw.rating ?? 4.5,
+    rating: raw.rating != null ? Number(raw.rating) : null,
     sold: raw.sold ?? 0,
     source: "supplier",
   };
@@ -240,7 +257,7 @@ export function formatUserProduct(raw) {
 
 export function formatUnitLabel(unit) {
   if (!unit) return "";
-  return unit.startsWith("/") ? unit : `/${unit}`;
+  return unit.startsWith("/") ? unit : `${unit}`;
 }
 
 export function formatStorageDuration(days) {

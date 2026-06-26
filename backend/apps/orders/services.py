@@ -27,7 +27,7 @@ from apps.dealer_products.models import (
     DealerProductStatus,
 )
 from apps.dealers.models import DealerProfileStatus
-from common.business_rules import CUSTOMER_ORDER_SHIPPING_FEE
+from apps.system_config.services import get_system_settings
 
 from .models import (
     CustomerPayment,
@@ -214,7 +214,7 @@ def _build_order_items(order, validated_items, user):
             _deduct_batch(batch, batch_qty, order.order_code, user)
             subtotal += line_subtotal
 
-    shipping_fee = Decimal(CUSTOMER_ORDER_SHIPPING_FEE)
+    shipping_fee = Decimal(get_system_settings().shipping_fee)
     discount = Decimal("0")
     total_amount = subtotal - discount + shipping_fee
     if total_amount <= 0:

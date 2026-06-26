@@ -13,7 +13,7 @@ from apps.supplier_products.serializer import (
 )
 from common.approval_nested import ApprovalAccountNestedSerializer
 from common.openapi_enums import schema_choice_field
-from common.business_rules import MAX_CATEGORIES_PER_SUPPLIER
+from apps.system_config.services import get_system_settings
 from common.validators import require_rejection_reason
 
 
@@ -230,9 +230,10 @@ class CategorySerializer(serializers.ModelSerializer):
                     created_by=user,
                     scope=CategoryScope.CUSTOM,
                 ).count()
-                if count >= MAX_CATEGORIES_PER_SUPPLIER:
+                settings = get_system_settings()
+                if count >= settings.max_categories_per_supplier:
                     raise serializers.ValidationError(
-                        f"Mỗi tài khoản tối đa {MAX_CATEGORIES_PER_SUPPLIER} danh mục riêng."
+                        f"Mỗi tài khoản tối đa {settings.max_categories_per_supplier} danh mục riêng."
                     )
             attrs.pop("scope", None)
         elif user.role != AccountRole.ADMIN:

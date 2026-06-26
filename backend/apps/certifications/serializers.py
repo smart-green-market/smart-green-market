@@ -4,10 +4,8 @@ from django.utils import timezone
 from rest_framework import serializers
 
 from common.approval_nested import ApprovalSupplierNestedSerializer
-from common.business_rules import (
-    MAX_IMAGES_PER_CERTIFICATION,
-    allowed_image_extensions_label,
-)
+from apps.system_config.services import get_system_settings
+from common.business_rules import allowed_image_extensions_label
 from common.openapi_enums import schema_choice_field
 from common.validators import require_rejection_reason, validate_image_upload
 from .models import (
@@ -83,9 +81,9 @@ class CertificationImageSerializer(serializers.ModelSerializer):
             self.instance, "certification", None
         )
         if certification and self.instance is None:
-            if certification.images.count() >= MAX_IMAGES_PER_CERTIFICATION:
+            if certification.images.count() >= get_system_settings().max_images_per_certification:
                 raise serializers.ValidationError(
-                    f"Mỗi chứng nhận tối đa {MAX_IMAGES_PER_CERTIFICATION} ảnh."
+                    f"Mỗi chứng nhận tối đa {get_system_settings().max_images_per_certification} ảnh."
                 )
         if self.instance is None and not attrs.get("image_url"):
             raise serializers.ValidationError(
@@ -135,12 +133,12 @@ class CertificationImageBulkUploadSerializer(serializers.Serializer):
             validate_image_upload(file)
 
         current_count = certification.images.count()
-        if current_count + len(files) > MAX_IMAGES_PER_CERTIFICATION:
-            remaining = max(0, MAX_IMAGES_PER_CERTIFICATION - current_count)
+        if current_count + len(files) > get_system_settings().max_images_per_certification:
+            remaining = max(0, get_system_settings().max_images_per_certification - current_count)
             raise serializers.ValidationError(
                 {
                     "images": (
-                        f"Mỗi chứng nhận tối đa {MAX_IMAGES_PER_CERTIFICATION} ảnh. "
+                        f"Mỗi chứng nhận tối đa {get_system_settings().max_images_per_certification} ảnh. "
                         f"Còn upload được {remaining} ảnh."
                     )
                 }
@@ -385,11 +383,11 @@ class CertificationCreateSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError(
                 {"images": "Vui lòng chọn ít nhất 1 ảnh scan (field `images`)."}
             )
-        if len(files) > MAX_IMAGES_PER_CERTIFICATION:
+        if len(files) > get_system_settings().max_images_per_certification:
             raise serializers.ValidationError(
                 {
                     "images": (
-                        f"Mỗi chứng nhận tối đa {MAX_IMAGES_PER_CERTIFICATION} ảnh."
+                        f"Mỗi chứng nhận tối đa {get_system_settings().max_images_per_certification} ảnh."
                     )
                 }
             )

@@ -2,8 +2,7 @@ import axiosClient from "./axiosClient";
 
 export const dealerProductImage = {
   // USER
-  getAll: () =>
-    axiosClient.get("/dealer-product-images/").then((res) => res.data.results),
+  getAll: () => axiosClient.get("/dealer-product-images/").then((res) => res.data.results),
 
   // {
   //   "count": 123,
@@ -21,8 +20,7 @@ export const dealerProductImage = {
   //   ]
   // }
 
-  getById: (id) =>
-    axiosClient.get(`/dealer-product-images/${id}/`).then((res) => res.data),
+  getById: (id) => axiosClient.get(`/dealer-product-images/${id}/`).then((res) => res.data),
 
   //  {
   //   "id": 0,
@@ -33,8 +31,7 @@ export const dealerProductImage = {
   //   "created_at": "2026-06-20T04:25:39.344Z"
   // }
 
-  create: (data) =>
-    axiosClient.post("/dealer-product-images/", data).then((res) => res.data),
+  create: (data) => axiosClient.post("/dealer-product-images/", data).then((res) => res.data),
 
   // {
   //   "dealer_product": 0,
@@ -42,10 +39,7 @@ export const dealerProductImage = {
   //   "is_thumbnail": true,
   // }
 
-  update: (id, data) =>
-    axiosClient
-      .put(`/dealer-product-images/${id}/`, data)
-      .then((res) => res.data),
+  update: (id, data) => axiosClient.put(`/dealer-product-images/${id}/`, data).then((res) => res.data),
 
   // {
   //   "dealer_product": 0,

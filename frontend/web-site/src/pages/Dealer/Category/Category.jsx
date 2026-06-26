@@ -14,11 +14,22 @@ export default function DealerCategoryPage() {
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState(null);
     const [searchQuery, setSearchQuery] = useState("");
+    const [debouncedSearchQuery, setDebouncedSearchQuery] = useState("");
     const [statusFilter, setStatusFilter] = useState("");
     const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
     const [categoryToUpdate, setCategoryToUpdate] = useState(null);
     const [currentPage, setCurrentPage] = useState(1);
     const [totalPages, setTotalPages] = useState(1);
+
+    useEffect(() => {
+        const timer = setTimeout(() => {
+            if (debouncedSearchQuery !== searchQuery) {
+                setDebouncedSearchQuery(searchQuery);
+                setCurrentPage(1);
+            }
+        }, 500);
+        return () => clearTimeout(timer);
+    }, [searchQuery, debouncedSearchQuery]);
 
     const mapCategoryStatus = (status) => {
         const statusMap = {
@@ -34,7 +45,7 @@ export default function DealerCategoryPage() {
     const fetchCategories = async () => {
         setIsLoading(true);
         try {
-            const data = await categoryService.getAll({ page: currentPage, page_size: 10, search: searchQuery, status: statusFilter });
+            const data = await categoryService.getAll({ page: currentPage, page_size: 9, search: debouncedSearchQuery, status: statusFilter });
             const results = data?.results || data || [];
             const mappedData = results.map(cat => ({
                 ...cat,
@@ -43,7 +54,7 @@ export default function DealerCategoryPage() {
                 count: "0 sản phẩm",
             }));
             setCategoryList(mappedData);
-            setTotalPages(Math.max(1, Math.ceil((data?.count || results.length) / 10)));
+            setTotalPages(Math.max(1, Math.ceil((data?.count || results.length) / 9)));
         } catch (err) {
             setError(handleApiError(err, "Không thể tải danh sách danh mục"));
         } finally {
@@ -53,7 +64,7 @@ export default function DealerCategoryPage() {
 
     useEffect(() => {
         fetchCategories();
-    }, [currentPage, searchQuery, statusFilter]);
+    }, [currentPage, debouncedSearchQuery, statusFilter]);
 
     const filteredCategories = categoryList; // Đã filter trên API
 
@@ -145,7 +156,7 @@ export default function DealerCategoryPage() {
             {/* Filter */}
             <SupplierFilter
                 searchQuery={searchQuery}
-                onSearchChange={(val) => { setSearchQuery(val); setCurrentPage(1); }}
+                onSearchChange={(val) => setSearchQuery(val)}
                 statusFilter={statusFilter}
                 onStatusChange={(val) => { setStatusFilter(val); setCurrentPage(1); }}
                 filterOptions={filterOptions}

@@ -2,7 +2,7 @@
 
 from django.db.models import Count, Prefetch, Q, Sum
 from django.utils import timezone
-from drf_spectacular.utils import OpenApiExample, OpenApiResponse, extend_schema, extend_schema_view
+from drf_spectacular.utils import OpenApiExample, OpenApiParameter, OpenApiResponse, extend_schema, extend_schema_view
 from rest_framework import viewsets
 from rest_framework.decorators import action
 from rest_framework.exceptions import ValidationError
@@ -35,7 +35,12 @@ from common.verify_openapi import (
     SUPPLIER_VERIFY_REJECT,
     VERIFY_REJECT_HELP,
 )
-from common.pagination import paginate_queryset
+from common.pagination import LoadMorePagination, paginate_queryset
+from common.status_counts import (
+    build_count_status,
+    filter_by_status_param,
+    normalize_supplier_verification_status,
+)
 from common.permission import (
     IsAdmin,
     IsAdminOrDealer,
@@ -139,6 +144,10 @@ def _supplier_catalog_product_q(supplier, *, dealer_catalog=False):
             "Dealer: catalog NCC đã duyệt. Chi tiết `GET /api/suppliers/{id}/` kèm `products[]`."
             + PAGINATION_QUERY_HELP
         ),
+        parameters=[
+            OpenApiParameter("search", str, description="Tìm kiếm theo tên công ty, địa chỉ", required=False),
+            OpenApiParameter("status", str, description="Lọc theo trạng thái", required=False),
+        ],
         responses={
             200: paginated_response_schema(SupplierListSerializer, "PaginatedSupplier"),
         },
@@ -293,13 +302,41 @@ class SupplierViewSet(viewsets.ModelViewSet):
                     .order_by("-updated_at", "-created_at", "-id"),
                 ),
             )
-        return filter_admin_or_supplier_account(
+        qs = filter_admin_or_supplier_account(
             qs,
             user,
             account_lookup="account",
             ordering=ORDER_NEWEST,
             pending_field="verification_status",
         )
+        return qs
+
+    def _apply_supplier_list_search(self, qs, request):
+        search = request.query_params.get("search")
+        if search:
+            search = search.strip()
+            qs = qs.filter(
+                Q(company_name__icontains=search) | Q(address__icontains=search)
+            )
+        return qs
+
+    def list(self, request, *args, **kwargs):
+        base_qs = self._apply_supplier_list_search(
+            self.filter_queryset(self.get_queryset()), request
+        )
+        count_status = build_count_status(
+            base_qs, field="verification_status", choices=SupplierVerificationStatus
+        )
+        status_param = normalize_supplier_verification_status(
+            request.query_params.get("status")
+        )
+        qs = filter_by_status_param(
+            base_qs, status_param, field="verification_status"
+        )
+        paginator = LoadMorePagination()
+        page = paginator.paginate_queryset(qs, request, view=self)
+        serializer = self.get_serializer(page, many=True)
+        return paginator.get_paginated_response(serializer.data, count_status=count_status)
 
     def get_serializer_context(self):
         ctx = super().get_serializer_context()

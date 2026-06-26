@@ -1,16 +1,19 @@
 """API hồ sơ khách hàng, địa chỉ và quản lý khách theo đại lý."""
 
-from drf_spectacular.utils import extend_schema, extend_schema_view
+from django.db.models import Q
+from drf_spectacular.utils import extend_schema, extend_schema_view, OpenApiParameter
 from rest_framework import viewsets
 from rest_framework.exceptions import PermissionDenied, ValidationError
 from rest_framework.parsers import FormParser, JSONParser, MultiPartParser
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
-from apps.accounts.models import AccountRole
+from apps.accounts.models import AccountRole, AccountStatus
 from common.openapi import PAGINATION_QUERY_HELP, paginated_response_schema
 from common.openapi_files import multipart_request
 from common.permission import IsAdmin, IsAdminOrDealer
+from common.pagination import LoadMorePagination
+from common.status_counts import build_count_status, filter_by_status_param
 
 from .models import CustomerAddress, CustomerProfile
 from .openapi import (
@@ -43,6 +46,10 @@ def _customer_profile_queryset():
                 "PaginatedDealerCustomer",
             )
         },
+        parameters=[
+            OpenApiParameter("search", str, description="Tìm kiếm theo tên, email, sđt", required=False),
+            OpenApiParameter("status", str, description="Lọc theo trạng thái tài khoản", required=False),
+        ],
     ),
     retrieve=extend_schema(tags=["Dealer Customers"], summary="Chi tiết khách hàng"),
     partial_update=extend_schema(
@@ -73,6 +80,40 @@ class DealerCustomerViewSet(viewsets.ModelViewSet):
                 return qs.none()
             qs = qs.filter(user__store_dealer=user.dealer_profile)
         return qs
+
+    def _apply_dealer_customer_list_filters(self, qs, request, *, apply_status=True):
+        search = request.query_params.get("search")
+        if search:
+            search = search.strip()
+            qs = qs.filter(
+                Q(user__first_name__icontains=search)
+                | Q(user__last_name__icontains=search)
+                | Q(user__email__icontains=search)
+                | Q(user__phone__icontains=search)
+                | Q(user__username__icontains=search)
+            )
+        if apply_status:
+            qs = filter_by_status_param(
+                qs, request.query_params.get("status"), field="user__status"
+            )
+        return qs
+
+    def list(self, request, *args, **kwargs):
+        base_qs = self._apply_dealer_customer_list_filters(
+            self.filter_queryset(self.get_queryset()),
+            request,
+            apply_status=False,
+        )
+        count_status = build_count_status(
+            base_qs, field="user__status", choices=AccountStatus
+        )
+        qs = filter_by_status_param(
+            base_qs, request.query_params.get("status"), field="user__status"
+        )
+        paginator = LoadMorePagination()
+        page = paginator.paginate_queryset(qs, request, view=self)
+        serializer = self.get_serializer(page, many=True)
+        return paginator.get_paginated_response(serializer.data, count_status=count_status)
 
     def get_serializer_class(self):
         if self.action in ("update", "partial_update"):
