@@ -15,6 +15,9 @@ from django.db.models import Q
 from django.utils import timezone
 from rest_framework.exceptions import ValidationError
 
+from apps.dealer_products.inventory_expiry import mark_expired_inventory_batches
+from apps.dealer_products.inventory_queries import get_sellable_batches_qs
+from apps.dealer_products.age_discount import price_for_order_allocation
 from apps.customers.models import CustomerAddress
 from apps.customers.services import update_favorite_category_from_order
 from apps.marketing.services import track_purchase_interactions_for_order
@@ -83,18 +86,7 @@ def _ensure_not_terminal(order):
 
 
 def _active_batches_qs(dealer_product):
-    today = timezone.localdate()
-    return (
-        DealerInventoryBatch.objects.select_for_update()
-        .filter(
-            dealer_product=dealer_product,
-            status=DealerInventoryBatchStatus.ACTIVE,
-            remaining_quantity__gt=0,
-            deleted_at__isnull=True,
-        )
-        .filter(Q(expiry_date__isnull=True) | Q(expiry_date__gte=today))
-        .order_by("import_date", "created_at", "id")
-    )
+    return get_sellable_batches_qs(dealer_product, for_update=True)
 
 
 def _allocate_batches(dealer_product, quantity):
@@ -193,11 +185,11 @@ def _build_order_items(order, validated_items, user):
     for row in validated_items:
         product = row["dealer_product"]
         quantity = row["quantity"]
-        unit_price = product.retail_price
         unit = product.supplier_product.unit if product.supplier_product_id else ""
 
         allocations = _allocate_batches(product, quantity)
         for batch, batch_qty in allocations:
+            unit_price = price_for_order_allocation(batch, batch_qty)
             line_subtotal = unit_price * batch_qty
             import_price = batch.import_price
             OrderItem.objects.create(
@@ -282,6 +274,8 @@ def create_customer_order(
     """Buyer đặt hàng — status pending, trừ tồn ngay, thanh toán COD."""
     if dealer.status != DealerProfileStatus.ACTIVE:
         raise ValidationError({"detail": "Cửa hàng chưa hoạt động, không thể đặt hàng."})
+
+    mark_expired_inventory_batches(dealer_profile_id=dealer.id)
 
     _validate_delivery_time(delivery_time)
     address = _resolve_customer_address(customer, customer_address_id)

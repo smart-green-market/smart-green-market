@@ -1,5 +1,6 @@
 from rest_framework.routers import DefaultRouter
 
+from .age_discount_views import AgeDiscountPolicyViewSet
 from .views import (
     DealerInventoryBatchViewSet,
     DealerInventoryTransactionViewSet,
@@ -16,5 +17,6 @@ router.register(
     DealerInventoryTransactionViewSet,
     basename="dealer-inventory-transaction",
 )
+router.register("age-discount-policies", AgeDiscountPolicyViewSet, basename="age-discount-policy")
 
 urlpatterns = router.urls
