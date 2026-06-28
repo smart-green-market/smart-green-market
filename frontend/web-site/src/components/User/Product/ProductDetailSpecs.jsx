@@ -6,7 +6,9 @@ import {
     formatStorageDuration,
     formatStorageTemperature,
     formatUnitLabel,
-    getProductPrice,
+    getEffectiveProductPrice,
+    getRetailProductPrice,
+    hasProductDiscount,
 } from "../../../utils/userProductUtils";
 
 function SpecRow({ label, value, highlight = false }) {
@@ -132,6 +134,10 @@ export default function ProductDetailSpecs({ product }) {
             ? formatUnitLabel(product.unit)
             : `/${formatUnitLabel(product.unit)}`
         : "";
+    const hasDiscount = hasProductDiscount(product);
+    const priceLabel = hasDiscount
+        ? `${formatProductPrice(getEffectiveProductPrice(product))}${unitSuffix} (giá gốc ${formatProductPrice(getRetailProductPrice(product))}${unitSuffix})`
+        : `${formatProductPrice(getEffectiveProductPrice(product))}${unitSuffix}`;
 
     return (
         <section className="flex flex-col gap-6">
@@ -158,9 +164,13 @@ export default function ProductDetailSpecs({ product }) {
                     <SpecRow label="Danh mục" value={product.category_name} />
                     <SpecRow label="Đơn vị tính" value={product.unit} />
                     <SpecRow
-                        label="Giá bán"
-                        value={`${formatProductPrice(getProductPrice(product))}${unitSuffix}`}
+                        label={hasDiscount ? "Giá ưu đãi" : "Giá bán"}
+                        value={priceLabel}
                         highlight
+                    />
+                    <SpecRow
+                        label="Hạn sử dụng gần nhất"
+                        value={formatDateVi(product.nearest_expiry_date)}
                     />
                     <SpecRow label="Nhà cung cấp gốc" value={product.supplier_name} />
                     <SpecRow
@@ -188,14 +198,6 @@ export default function ProductDetailSpecs({ product }) {
                     <SpecRow
                         label="Ngày đăng bán"
                         value={formatDateVi(product.created_at)}
-                    />
-                    <SpecRow
-                        label="Đã kiểm duyệt"
-                        value={
-                            product.verified_at
-                                ? `${formatDateVi(product.verified_at)}${product.verified_by_username ? ` bởi ${product.verified_by_username}` : ""}`
-                                : null
-                        }
                     />
                 </SpecSection>
 

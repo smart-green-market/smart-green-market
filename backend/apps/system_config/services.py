@@ -22,6 +22,7 @@ SYSTEM_SETTINGS_DEFAULTS = {
     "max_deposit_percent": 50,
     "default_deposit_percent": 30,
     "min_delivery_lead_days": 2,
+    "max_delivery_delay_days": 7,
     "shipping_fee": 10_000,
     "min_lead_hours": 6,
     "morning_cutoff_hour": 23,

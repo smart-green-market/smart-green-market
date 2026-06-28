@@ -46,6 +46,8 @@ export const buyerCatalogService = {
   // in dealer_slug: string
   //sortBy: category, ordering (price, name, updated_at, stock (mặc định: updated_at))
   //search: string ( tên SP, mô tả, tên NCC gốc, tên danh mục)
+
+  //schema
   // {
   //     "count": 0,
   //     "next": "string",
@@ -53,12 +55,23 @@ export const buyerCatalogService = {
   //     "page": 0,
   //     "page_size": 0,
   //     "has_more": true,
+  //     "count_status": {
+  //       "additionalProp1": 0,
+  //       "additionalProp2": 0,
+  //       "additionalProp3": 0
+  //     },
   //     "results": [
   //       {
   //         "id": 0,
   //         "title": "string",
   //         "description": "string",
-  //         "retail_price": "39983.8",
+  //         "retail_price": "-199469566.46", --> Giá gốc
+  //         "effective_price": "string", --> Giá sau giảm
+  //         "discount_amount": "string", --> Số tiền được giảm
+  //         "discount_percent": "string", --> Phần trăm giảm
+  //         "has_age_discount": "string", --> Có đang giảm giá hay không
+  //         "nearest_expiry_date": "string", --> Ngày hết hạn gần nhất
+  //         "age_discount_reason": "string", --> Lý do giảm giá
   //         "thumbnail": "string",
   //         "category": {
   //           "id": 0,
@@ -68,8 +81,8 @@ export const buyerCatalogService = {
   //         "unit": "string",
   //         "available_quantity": 0,
   //         "in_stock": true,
-  //         "created_at": "2026-06-17T02:56:51.428Z",
-  //         "updated_at": "2026-06-17T02:56:51.428Z",
+  //         "created_at": "2026-06-28T07:52:47.211Z",
+  //         "updated_at": "2026-06-28T07:52:47.211Z",
   //         "images": [
   //           {
   //             "id": 0,
@@ -77,7 +90,7 @@ export const buyerCatalogService = {
   //             "image_url": "string",
   //             "is_thumbnail": true,
   //             "sort_order": 2147483647,
-  //             "created_at": "2026-06-17T02:56:51.428Z"
+  //             "created_at": "2026-06-28T07:52:47.211Z"
   //           }
   //         ]
   //       }
@@ -90,11 +103,18 @@ export const buyerCatalogService = {
       .then((res) => res.data),
 
   // in dealer_slug: string, product_id: number
+  //Schema
   // {
   //     "id": 0,
   //     "title": "string",
   //     "description": "string",
-  //     "retail_price": "09639077",
+  //         "retail_price": "-199469566.46", --> Giá gốc
+  //         "effective_price": "string", --> Giá sau giảm
+  //         "discount_amount": "string", --> Số tiền được giảm
+  //         "discount_percent": "string", --> Phần trăm giảm
+  //         "has_age_discount": "string", --> Có đang giảm giá hay không
+  //         "nearest_expiry_date": "string", --> Ngày hết hạn gần nhất
+  //         "age_discount_reason": "string", --> Lý do giảm giá
   //     "thumbnail": "string",
   //     "category": {
   //       "id": 0,
@@ -104,8 +124,8 @@ export const buyerCatalogService = {
   //     "unit": "string",
   //     "available_quantity": 0,
   //     "in_stock": true,
-  //     "created_at": "2026-06-17T02:58:13.529Z",
-  //     "updated_at": "2026-06-17T02:58:13.529Z",
+  //     "created_at": "2026-06-28T09:06:56.638Z",
+  //     "updated_at": "2026-06-28T09:06:56.638Z",
   //     "images": [
   //       {
   //         "id": 0,
@@ -113,22 +133,22 @@ export const buyerCatalogService = {
   //         "image_url": "string",
   //         "is_thumbnail": true,
   //         "sort_order": 2147483647,
-  //         "created_at": "2026-06-17T02:58:13.529Z"
+  //         "created_at": "2026-06-28T09:06:56.638Z"
   //       }
   //     ],
   //     "supplier_product_name": "string",
   //     "supplier_name": "string",
   //     "storage_duration_days": 0,
-  //     "min_storage_temp": "",
-  //     "max_storage_temp": "-51"
+  //     "min_storage_temp": "-611",
+  //     "max_storage_temp": "-0",
   //     "cultivation_processes": [
-  //     {
-  //       "id": 0,
-  //       "step_order": 2147483647,
-  //       "process_name": "string",
-  //       "description": "string"
-  //     }
-  //   ]
+  //       {
+  //         "id": 0,
+  //         "step_order": 2147483647,
+  //         "process_name": "string",
+  //         "description": "string"
+  //       }
+  //     ]
   //   }
 };
 

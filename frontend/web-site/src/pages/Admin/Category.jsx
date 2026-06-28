@@ -1,29 +1,47 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { AdminInitialLoadGate } from "../../components/Admin/UI/AdminFetchState";
+import AdminFilterStatsCards from "../../components/Admin/UI/AdminFilterStatsCards";
+import { CATEGORY_STAT_CARDS } from "../../components/Admin/UI/adminFilterStatsPresets";
 import Toolbar from "../../components/Admin/UI/Toolbar";
 import Filter from "../../components/Admin/Category/CategoryFilter";
 import CategoryTable from "../../components/Admin/Category/CategoryTable";
 import CategoryViewModal from "../../components/Admin/Category/CategoryViewModal";
 import CategoryFormModal from "../../components/Admin/Category/CategoryFormModal";
 import {
+    buildCategoryListParams,
     buildSystemCategoryPayload,
     formatCategoryDetail,
     formatCategoryRow,
 } from "../../components/Admin/Category/categoryHelpers";
 import { appToast } from "../../components/common/toast";
+import { buildCountsFromCards } from "../../utils/adminFilterStatsUtils";
 import { categoryService, handleApiError } from "../../services/api/categoryService";
 
 export default function CategoryPage() {
     const [data, setData] = useState([]);
+    const [statsData, setStatsData] = useState([]);
+    const [isStatsLoading, setIsStatsLoading] = useState(true);
     const [isFetching, setIsFetching] = useState(true);
     const [loadError, setLoadError] = useState("");
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState("");
     const [search, setSearch] = useState("");
-    const [statusFilter, setStatusFilter] = useState("pending");
+    const [statusFilter, setStatusFilter] = useState("");
     const [viewRow, setViewRow] = useState(null);
     const [actionLoading, setActionLoading] = useState(false);
     const [isCreateOpen, setIsCreateOpen] = useState(false);
+
+    const fetchCategoryStats = useCallback(async () => {
+        try {
+            setIsStatsLoading(true);
+            const response = await categoryService.getAllForAdmin({});
+            setStatsData(response.map(formatCategoryRow));
+        } catch (error) {
+            console.error(handleApiError(error, "Không thể tải thống kê danh mục"));
+        } finally {
+            setIsStatsLoading(false);
+        }
+    }, []);
 
     const fetchCategories = useCallback(async ({ initial = false } = {}) => {
         try {
@@ -34,7 +52,9 @@ export default function CategoryPage() {
                 setLoading(true);
             }
 
-            const response = await categoryService.getAll();
+            const response = await categoryService.getAllForAdmin(
+                buildCategoryListParams(statusFilter),
+            );
             setData(response.map(formatCategoryRow));
         } catch (error) {
             const message = handleApiError(
@@ -54,7 +74,7 @@ export default function CategoryPage() {
                 setLoading(false);
             }
         }
-    }, []);
+    }, [statusFilter]);
 
     const handleViewCategory = useCallback(async (row) => {
         try {
@@ -76,13 +96,26 @@ export default function CategoryPage() {
         fetchCategories({ initial: true });
     }, [fetchCategories]);
 
+    useEffect(() => {
+        fetchCategoryStats();
+    }, [fetchCategoryStats]);
+
+    const categoryStats = useMemo(
+        () => buildCountsFromCards(statsData, CATEGORY_STAT_CARDS, { field: "status" }),
+        [statsData],
+    );
+
+    const refreshCategoryData = useCallback(async () => {
+        await Promise.all([fetchCategories(), fetchCategoryStats()]);
+    }, [fetchCategories, fetchCategoryStats]);
+
     const handleCreateSystem = async (formData) => {
         try {
             setActionLoading(true);
             setError("");
             await categoryService.createSystem(buildSystemCategoryPayload(formData));
             appToast.success("Đã tạo danh mục hệ thống.");
-            await fetchCategories();
+            await refreshCategoryData();
         } catch (error) {
             const message = handleApiError(error, "Không thể tạo danh mục hệ thống");
             setError(message);
@@ -102,7 +135,7 @@ export default function CategoryPage() {
             );
             setViewRow(formatCategoryDetail(updated));
             appToast.success("Đã cập nhật danh mục hệ thống.");
-            await fetchCategories();
+            await refreshCategoryData();
         } catch (error) {
             const message = handleApiError(error, "Không thể cập nhật danh mục");
             throw new Error(message);
@@ -117,10 +150,24 @@ export default function CategoryPage() {
             setError("");
             await categoryService.delete(category.id);
             setViewRow(null);
-            appToast.success("Đã xóa danh mục hệ thống.");
-            await fetchCategories();
+            appToast.success("Đã xóa danh mục.");
+            await refreshCategoryData();
         } catch (error) {
             const message = handleApiError(error, "Không thể xóa danh mục");
+
+            // Hiển thị toast cảnh báo riêng khi danh mục còn sản phẩm
+            if (
+                error?.response?.status === 409 ||
+                message.toLowerCase().includes("sản phẩm") ||
+                message.toLowerCase().includes("product")
+            ) {
+                appToast.warning(
+                    "Không thể xóa danh mục này vì vẫn còn sản phẩm liên kết. Hãy xóa hoặc chuyển sản phẩm trước.",
+                );
+            } else {
+                appToast.error(message);
+            }
+
             setError(message);
             throw new Error(message);
         } finally {
@@ -137,7 +184,7 @@ export default function CategoryPage() {
             });
             setViewRow(null);
             appToast.success("Đã duyệt danh mục.");
-            await fetchCategories();
+            await refreshCategoryData();
         } catch (error) {
             const message = handleApiError(error, "Không thể duyệt danh mục");
             setError(message);
@@ -156,7 +203,7 @@ export default function CategoryPage() {
             });
             setViewRow(null);
             appToast.success("Đã từ chối danh mục.");
-            await fetchCategories();
+            await refreshCategoryData();
         } catch (error) {
             const msg = handleApiError(error, "Không thể từ chối danh mục");
             console.error(msg);
@@ -172,7 +219,7 @@ export default function CategoryPage() {
             await categoryService.lock(category.id);
             setViewRow(null);
             appToast.success("Đã khóa danh mục.");
-            await fetchCategories();
+            await refreshCategoryData();
         } catch (error) {
             const message = handleApiError(error, "Không thể khóa danh mục");
             setError(message);
@@ -188,7 +235,7 @@ export default function CategoryPage() {
             await categoryService.unlock(category.id);
             setViewRow(null);
             appToast.success("Đã mở khóa danh mục.");
-            await fetchCategories();
+            await refreshCategoryData();
         } catch (error) {
             const message = handleApiError(error, "Không thể mở khóa danh mục");
             setError(message);
@@ -206,6 +253,13 @@ export default function CategoryPage() {
             loadingMessage="Đang tải danh sách danh mục..."
         >
             <div className="flex flex-col gap-6 px-8 pt-6 pb-10">
+                <AdminFilterStatsCards
+                    counts={categoryStats}
+                    activeFilter={statusFilter}
+                    onFilterChange={setStatusFilter}
+                    loading={isStatsLoading}
+                />
+
                 <Toolbar
                     search={search}
                     onSearch={setSearch}

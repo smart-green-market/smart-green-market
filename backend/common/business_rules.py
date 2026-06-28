@@ -50,6 +50,7 @@ def get_purchase_order_config():
         "min_deposit_percent": s.min_deposit_percent,
         "max_deposit_percent": s.max_deposit_percent,
         "min_delivery_lead_days": s.min_delivery_lead_days,
+        "max_delivery_delay_days": s.max_delivery_delay_days,
         "default_deposit_percent": s.default_deposit_percent,
     }
 
@@ -105,6 +106,40 @@ def validate_requested_delivery_time(requested_delivery_time):
                 )
             }
         )
+
+
+def validate_confirmed_delivery_time(order, confirmed_delivery_time):
+    """NCC chốt ngày giao — có thể sớm hơn dealer mong muốn, muộn tối đa max_delay."""
+    if confirmed_delivery_time is None:
+        raise ValidationError(
+            {"confirmed_delivery_time": "Bắt buộc nhập ngày giao NCC cam kết."}
+        )
+    s = get_system_settings()
+    now = timezone.now()
+    if s.min_delivery_lead_days > 0:
+        earliest = now + timedelta(days=int(s.min_delivery_lead_days))
+        if confirmed_delivery_time < earliest:
+            raise ValidationError(
+                {
+                    "confirmed_delivery_time": (
+                        f"Ngày giao cam kết phải sau ít nhất {s.min_delivery_lead_days} ngày "
+                        f"kể từ bây giờ (sớm nhất: {earliest.strftime('%d/%m/%Y %H:%M')})."
+                    )
+                }
+            )
+    max_delay = int(getattr(s, "max_delivery_delay_days", 7) or 7)
+    latest = order.requested_delivery_time + timedelta(days=max_delay)
+    if confirmed_delivery_time > latest:
+        raise ValidationError(
+            {
+                "confirmed_delivery_time": (
+                    f"Ngày giao cam kết không được muộn hơn {max_delay} ngày so với "
+                    f"thời gian dealer mong muốn "
+                    f"(muộn nhất: {latest.strftime('%d/%m/%Y %H:%M')})."
+                )
+            }
+        )
+    return confirmed_delivery_time
 
 
 def validate_deposit_percent(percent):

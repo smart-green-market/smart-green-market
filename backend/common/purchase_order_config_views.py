@@ -7,6 +7,7 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from apps.purchase_orders.openapi import PO_CONFIG_DESCRIPTION
+from common.business_rules import get_purchase_order_config
 
 PurchaseOrderConfigSerializer = inline_serializer(
     name="PurchaseOrderConfig",
@@ -24,7 +25,10 @@ PurchaseOrderConfigSerializer = inline_serializer(
             help_text="Tỷ lệ cọc tối đa (%)",
         ),
         "min_delivery_lead_days": serializers.IntegerField(
-            help_text="Số ngày tối thiểu từ lúc đặt đến thời gian giao mong muốn",
+            help_text="Số ngày tối thiểu từ lúc đặt/confirm đến ngày giao cam kết",
+        ),
+        "max_delivery_delay_days": serializers.IntegerField(
+            help_text="NCC cam kết giao muộn nhất = requested + N ngày",
         ),
         "default_deposit_percent": serializers.IntegerField(
             help_text="Tỷ lệ cọc mặc định (%) nếu NCC không nhập",

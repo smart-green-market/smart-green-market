@@ -24,6 +24,7 @@ class SystemSettingsUpdateSerializer(serializers.ModelSerializer):
             "max_deposit_percent",
             "default_deposit_percent",
             "min_delivery_lead_days",
+            "max_delivery_delay_days",
             "shipping_fee",
             "min_lead_hours",
             "morning_cutoff_hour",
@@ -71,6 +72,11 @@ class SystemSettingsUpdateSerializer(serializers.ModelSerializer):
         if data["max_booking_days"] < 1:
             raise serializers.ValidationError(
                 {"max_booking_days": "Số ngày đặt trước phải >= 1."}
+            )
+
+        if data["max_delivery_delay_days"] < 1:
+            raise serializers.ValidationError(
+                {"max_delivery_delay_days": "Số ngày trễ tối đa phải >= 1."}
             )
 
         return attrs

@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from "react";
 import { canLockProduct, canUnlockProduct } from "./productSellingUtils";
-import { Eye, Lock, Unlock, Trash2, Award, ArrowUp, ArrowDown, ArrowUpDown } from "lucide-react";
+import { Eye, Lock, Unlock, Trash2, Award, ArrowUp, ArrowDown, ArrowUpDown,ClipboardList } from "lucide-react";
 
 const STATUS_CONFIG = {
   pending: { label: "Chờ duyệt", cls: "pill-a" },
@@ -18,7 +18,10 @@ const fmtPrice = (val) => {
 const PAGE_SIZE = 8;
 const SORT_ACCESSORS = {
   name: (row) => row.name ?? "",
-  category: (row) => row.category?.name ?? "",
+  pending_order_quantity: (row) =>
+    Number(row.pending_order_quantity) || 0,
+  preparation_quantity: (row) =>
+    Number(row.preparation_quantity) || 0,
   daily_production_capacity: (row) =>
     Number(row.daily_production_capacity) || 0,
   wholesale_price: (row) =>
@@ -62,7 +65,7 @@ function SortIcon({ active, direction }) {
 
 export default function ProductTable({
   data, search, statusFilter, categoryFilter,
-  onView, onDelete, onLockSelling, onUnlockSelling, togglingId,
+  onView, onDelete, onLockSelling, onUnlockSelling, togglingId, onListOrders,
 }) {
   const [page, setPage] = useState(1);
 
@@ -172,7 +175,7 @@ export default function ProductTable({
              pc-act    → cột nút thao tác
         ─────────────────────────────────────────────────────── */
         .pc-img    { width:52px;  flex-shrink:0; }
-        .pc-name   { flex:1;     min-width:200px; }
+        .pc-name   { flex:1;     min-width:120px; }
         .pc-cat    { width:120px; flex-shrink:0; }
         .pc-cap    { width:120px; flex-shrink:0; }
         .pc-price  { width:110px; flex-shrink:0; text-align:right; }
@@ -280,6 +283,10 @@ export default function ProductTable({
         .pg-btn.on { background:#0f3d20; color:#fff; }
         .pg-btn:disabled { opacity:.3; cursor:not-allowed; }
         .pg-ellipsis { width:28px; text-align:center; color:#9ca3af; font-size:12px; }
+        .p-act-placeholder {
+  visibility: hidden;
+  pointer-events: none;
+}
       `}</style>
 
       <div className="prod-card">
@@ -313,7 +320,31 @@ export default function ProductTable({
                 />
               </span>
             </div>
-            <div className="pc-cat">Danh mục</div>
+            <div className="pc-cap">
+              <span
+                className="inline-flex items-center gap-1 cursor-pointer select-none hover:text-[#111827]"
+                onClick={() => toggleSort("pending_order_quantity")}
+              >
+                SL cần duyệt
+                <SortIcon
+                  active={sort?.key === "pending_order_quantity"}
+                  direction={sort?.dir}
+                />
+              </span>
+            </div>
+            <div className="pc-cap">
+              <span
+                className="inline-flex items-center gap-1 cursor-pointer select-none hover:text-[#111827]"
+                onClick={() => toggleSort("preparation_quantity")}
+              >
+                SL cần chuẩn bị
+                <SortIcon
+                  active={sort?.key === "preparation_quantity"}
+                  direction={sort?.dir}
+                />
+              </span>
+            </div>
+            {/* <div className="pc-cat">Danh mục</div> */}
             <div className="pc-cap">
               <span
                 className="inline-flex items-center gap-1 cursor-pointer select-none hover:text-[#111827]"
@@ -395,11 +426,27 @@ export default function ProductTable({
                       </div>
                     </div>
                   </div>
+                  {/* Số lượng cần duyệt */}
+                  <div className="pc-cap">
+                    <span className="cell-text-dim">
+                      {row.pending_order_quantity != null && row.pending_order_quantity !== ""
+                        ? `${row.pending_order_quantity} kg`
+                        : "—"}
+                    </span>
+                  </div>
+                  {/* Số lượng cần chuẩn bị */}
+                  <div className="pc-cap">
+                    <span className="cell-text-dim">
+                      {row.preparation_quantity != null && row.preparation_quantity !== ""
+                        ? `${row.preparation_quantity} kg`
+                        : "—"}
+                    </span>
+                  </div>
 
                   {/* Danh mục */}
-                  <div className="pc-cat">
+                  {/* <div className="pc-cat">
                     <span className="cell-text-dim">{row.category?.name ?? "—"}</span>
-                  </div>
+                  </div> */}
 
                   {/* Năng suất */}
                   <div className="pc-cap">
@@ -426,25 +473,33 @@ export default function ProductTable({
                       <button className="p-act" title="Xem chi tiết" onClick={() => onView(row)}>
                         <Eye size={14} />
                       </button>
-                      {showLock && (
-                        <button
-                          className="p-act warn" title="Khóa bán"
-                          disabled={isToggling} onClick={() => onLockSelling?.(row)}
-                        >
-                          <Lock size={14} />
-                        </button>
-                      )}
-                      {showUnlock && (
-                        <button
-                          className="p-act success" title="Mở khóa"
-                          disabled={isToggling} onClick={() => onUnlockSelling?.(row)}
-                        >
-                          <Unlock size={14} />
-                        </button>
-                      )}
-                      {/* <button className="p-act danger" title="Xóa" onClick={() => onDelete(row)}>
+                      <button className="p-act" title="Xem đơn hàng" onClick={() => onListOrders?.(row)}>
+                        <ClipboardList size={14} />
+                      </button>
+                      {showLock ? (
+  <button
+    className="p-act warn"
+    title="Khóa bán"
+    disabled={isToggling}
+    onClick={() => onLockSelling?.(row)}
+  >
+    <Lock size={14} />
+  </button>
+) : showUnlock ? (
+  <button
+    className="p-act success"
+    title="Mở khóa"
+    disabled={isToggling}
+    onClick={() => onUnlockSelling?.(row)}
+  >
+    <Unlock size={14} />
+  </button>
+) : (
+  <div className="p-act p-act-placeholder" />
+)}
+                      <button className="p-act danger" title="Xóa" onClick={() => onDelete(row)}>
                         <Trash2 size={14} />
-                      </button> */}
+                      </button>
                     </div>
                   </div>
                 </div>
@@ -465,4 +520,5 @@ export default function ProductTable({
       </div>
     </>
   );
+  
 }

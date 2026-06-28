@@ -1,6 +1,7 @@
 """Gửi thông báo khi trạng thái phiếu nhập thay đổi."""
 
 from django.contrib.auth import get_user_model
+from django.utils import timezone
 
 from common.notification_messages import purchase_order_status_updated
 from common.notifications import notify_account
@@ -33,3 +34,41 @@ def notify_purchase_order_status_change(order, *, actor, old_status=""):
             created_by=actor,
             notif_type=notif_type,
         )
+
+
+def notify_delivery_time_adjusted(order, *, actor):
+    """Thông báo dealer khi ngày giao NCC cam kết khác ngày dealer mong muốn."""
+    if order.confirmed_delivery_time is None:
+        return
+    if order.confirmed_delivery_time == order.requested_delivery_time:
+        return
+
+    req_label = timezone.localtime(order.requested_delivery_time).strftime(
+        "%d/%m/%Y %H:%M"
+    )
+    conf_label = timezone.localtime(order.confirmed_delivery_time).strftime(
+        "%d/%m/%Y %H:%M"
+    )
+
+    if order.confirmed_delivery_time < order.requested_delivery_time:
+        content = (
+            f"Phiếu {order.order_code}: NCC giao sớm hơn dự kiến — "
+            f"dealer mong {req_label}, NCC cam kết {conf_label}."
+        )
+        notif_type = "info"
+    else:
+        content = (
+            f"Phiếu {order.order_code}: NCC giao muộn hơn dự kiến — "
+            f"dealer mong {req_label}, NCC cam kết {conf_label}."
+        )
+        notif_type = "warning"
+
+    notify_account(
+        account=order.dealer.account,
+        title=f"[Phiếu nhập] {order.order_code} — Lịch giao đã điều chỉnh",
+        content=content,
+        reference_type="purchase_order",
+        reference_id=order.id,
+        created_by=actor,
+        notif_type=notif_type,
+    )

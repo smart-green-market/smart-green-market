@@ -1,11 +1,37 @@
 import axiosClient from "./axiosClient";
+import { normalizeListResponse } from "../../utils/adminDashboardUtils";
 
 export const categoryService = {
   // USER
-  getAll: (params) => axiosClient.get("/categories/", { params }).then((res) => {
-    if (params && params.page) return res.data;
-    return res.data.results || res.data;
-  }),
+  getAll: (params) =>
+    axiosClient.get("/categories/", { params }).then((res) => {
+      if (params?.page) return res.data;
+      return normalizeListResponse(res.data);
+    }),
+
+  getAllForAdmin: async (filters = {}) => {
+    const pageSize = 100;
+    let page = 1;
+    const all = [];
+
+    while (true) {
+      const data = await axiosClient
+        .get("/categories/", {
+          params: { ...filters, page, page_size: pageSize },
+        })
+        .then((res) => res.data);
+
+      const batch = normalizeListResponse(data);
+      all.push(...batch);
+
+      const hasMore = Boolean(data?.next ?? data?.has_more);
+      if (!hasMore || batch.length === 0 || batch.length < pageSize) break;
+      page += 1;
+      if (page > 50) break;
+    }
+
+    return all;
+  },
 
   // {
   //   "count": 123,
@@ -76,7 +102,8 @@ export const categoryService = {
   //   "products": "string"
   // }
 
-  createSystem: (data) => axiosClient.post("/categories/", data).then((res) => res.data),
+  createSystem: (data) =>
+    axiosClient.post("/categories/", data).then((res) => res.data),
 
   //Admin tạo scope=system (active ngay). Supplier/Dealer tạo danh mục riêng (custom) → status=pending, chờ Admin duyệt. Tối đa danh mục riêng theo /api/system-config/.
   // {
@@ -105,9 +132,6 @@ export const categoryService = {
   //   "description": "string",
   //   "sort_order": 2147483647
   // }
-
-  delete: (id) =>
-    axiosClient.delete(`/categories/${id}/`).then((res) => res.data),
 
   lock: (id) =>
     axiosClient.post(`/categories/${id}/lock/`).then((res) => res.data),
@@ -139,6 +163,10 @@ export const categoryService = {
   // Supplier
   getsupplierCategories: () =>
     axiosClient.get("/categories/").then((res) => res.data.results),
+
+  delete: (id) =>
+    axiosClient.delete(`/categories/${id}/`).then((res) => res.data),
+  // Chặn khi còn sản phẩm NCC/đại lý hoặc product master gắn. Admin hoặc người tạo danh mục riêng mới có quyền dùng delete (Đã cấu hình tại backend)
 };
 
 // Xử lý bug
