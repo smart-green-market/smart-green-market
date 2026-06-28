@@ -12,4 +12,8 @@ export const dealerInventoryService = {
   // Ghi nhận hao hụt tồn kho
   recordWastage: (id, data) =>
     axiosClient.post(`/dealer-inventory-batches/${id}/record-wastage/`, data).then((res) => res.data),
+
+  // Cập nhật ngày hết hạn
+  setExpiryDate: (id, data) =>
+    axiosClient.post(`/dealer-inventory-batches/${id}/set-expiry-date/`, data).then((res) => res.data),
 };

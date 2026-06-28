@@ -4,7 +4,11 @@ export default function StatsCards({ stats }) {
             {stats.map((stat, idx) => {
                 const Icon = stat.icon;
                 return (
-                    <div key={idx} className="bg-white border border-emerald-100/50 rounded-2xl p-5 shadow-xs hover:shadow-md hover:-translate-y-0.5 transition-all duration-300">
+                    <div 
+                        key={idx} 
+                        className={`bg-white border border-emerald-100/50 rounded-2xl p-5 shadow-xs hover:shadow-md hover:-translate-y-0.5 transition-all duration-300 ${stat.onClick ? 'cursor-pointer' : ''}`}
+                        onClick={stat.onClick}
+                    >
                         <div className="flex justify-between items-start">
                             <div>
                                 <p className="text-xs font-semibold text-neutral-500 uppercase tracking-wider">

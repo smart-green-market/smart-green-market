@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import {
     TrendingUp,
     ShoppingBag,
@@ -17,6 +18,7 @@ import {
 } from "../../components/Dealer/Dashboard";
 
 export default function DealerDashboardPage() {
+    const navigate = useNavigate();
     const [loading, setLoading] = useState(true);
     const [dealerProfile, setDealerProfile] = useState(null);
     const [summary, setSummary] = useState(null);
@@ -86,7 +88,8 @@ export default function DealerDashboardPage() {
             icon: ShoppingBag,
             color: "bg-green-500",
             textColor: "text-green-700",
-            bgColor: "bg-green-50"
+            bgColor: "bg-green-50",
+            onClick: () => navigate("/dai-ly/ban-hang")
         },
         {
             label: "Tồn kho nông sản",
@@ -95,16 +98,18 @@ export default function DealerDashboardPage() {
             icon: Leaf,
             color: "bg-lime-500",
             textColor: "text-lime-700",
-            bgColor: "bg-lime-50"
+            bgColor: "bg-lime-50",
+            onClick: () => navigate("/dai-ly/kho-hang")
         },
         {
             label: "Cảnh báo",
-            value: `${summary?.alerts?.count || 0} sản phẩm`,
+            value: `${summary?.alerts?.count || 0} lô hàng`,
             change: "Cần chú ý nhập thêm/xử lý",
             icon: AlertTriangle,
             color: "bg-amber-500",
             textColor: "text-amber-700",
-            bgColor: "bg-amber-50"
+            bgColor: "bg-amber-50",
+            onClick: () => navigate("/dai-ly/kho-hang")
         }
     ];
 

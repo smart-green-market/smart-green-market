@@ -1,6 +1,6 @@
 from datetime import timedelta
 from django.utils import timezone
-from django.db.models import Sum, Count, F, Q
+from django.db.models import Sum, Count, F, Q, ExpressionWrapper, DurationField
 from django.db.models.functions import TruncDate, TruncMonth
 from rest_framework import viewsets, serializers
 from rest_framework.permissions import IsAuthenticated
@@ -131,10 +131,16 @@ class DealerDashboardViewSet(viewsets.ViewSet):
         # Số lượng sản phẩm mới có lô hàng hoạt động được tạo ngày hôm nay
         new_batches_today = active_batches.filter(created_at__gte=today_start).values('dealer_product').distinct().count()
 
-        # 4. Cảnh báo (Alerts - Tồn kho thấp < 10 hoặc hết hạn trong vòng 7 ngày)
-        seven_days_later = now.date() + timedelta(days=7)
-        expiring_or_low_stock = active_batches.filter(
-            Q(remaining_quantity__lt=10) | Q(expiry_date__lte=seven_days_later)
+        # 4. Cảnh báo (Alerts - Tồn kho thấp < 10 hoặc sắp hết hạn)
+        # Sắp hết hạn: số ngày còn lại đến hạn <= 20% tổng số ngày từ import_date đến expiry_date
+        expiring_or_low_stock = active_batches.annotate(
+            duration_20pct=ExpressionWrapper(
+                (F('expiry_date') - F('import_date')) / 5, 
+                output_field=DurationField()
+            )
+        ).filter(
+            Q(remaining_quantity__lt=10) | 
+            (Q(expiry_date__isnull=False) & Q(expiry_date__lte=now.date() + F('duration_20pct')))
         )
         alerts_count = expiring_or_low_stock.values('dealer_product').distinct().count()
 

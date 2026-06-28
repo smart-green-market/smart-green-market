@@ -83,6 +83,7 @@ import {
   DealerCustomerPage,
   DealerProductManagementPage,
   DealerProductDetailPage,
+  DealerDiscountPage,
 } from "./pages/Dealer";
 export default function App() {
   return (
@@ -216,6 +217,7 @@ export default function App() {
                 path="san-pham/:id"
                 element={<DealerProductDetailPage />}
               />
+              <Route path="giam-gia" element={<DealerDiscountPage />} />
             </Route>
           </Route>
           <Route path="dai-ly/dang-nhap" element={<DealerLoginPage />} />
