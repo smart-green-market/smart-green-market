@@ -246,7 +246,8 @@ class DealerProfileViewSet(viewsets.ModelViewSet):
         summary="Link gian hàng của đại lý hiện tại",
         description=(
             "Dealer dùng endpoint này để lấy URL public gửi/PR cho buyer. "
-            "URL được sinh từ `STOREFRONT_BASE_URL` + `/cua-hang/{slug}`."
+            "URL = `STOREFRONT_BASE_URL` + `/cua-hang/{slug}` — "
+            "`slug` là mã ngẫu nhiên (vd. `k7m-x9p-q2n`), không suy ra từ tên cửa hàng."
         ),
         responses={200: DealerStorefrontLinkSerializer},
     )

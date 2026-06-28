@@ -4,9 +4,12 @@ import { extractApiError } from "./extractApiError";
 
 export const STORE_DEALER_SLUG_KEY = "store_dealer_slug";
 
-export function isBuyerUser(user) {
-    if (!user) return false;
-    return user.role === "buyer" || user.auth_scope === "storefront";
+/** Mã cửa hàng: abc-def-ghi (chữ thường + số) */
+export const STORE_CODE_PATTERN = /^[a-z0-9]{3}-[a-z0-9]{3}-[a-z0-9]{3}$/;
+
+export function isValidStoreCode(value) {
+    if (!value || typeof value !== "string") return false;
+    return STORE_CODE_PATTERN.test(value.trim().toLowerCase());
 }
 
 export function getStoredDealerSlug() {
@@ -29,12 +32,12 @@ export function normalizeDealerSlugInput(input) {
 
     const pathMatch = value.match(/(?:^|\/)cua-hang\/([^/?#]+)/i);
     if (pathMatch?.[1]) {
-        return decodeURIComponent(pathMatch[1]).trim();
+        return decodeURIComponent(pathMatch[1]).trim().toLowerCase();
     }
 
     value = value.replace(/^\/+|\/+$/g, "");
     const firstSegment = value.split("/")[0] ?? "";
-    return decodeURIComponent(firstSegment).trim();
+    return decodeURIComponent(firstSegment).trim().toLowerCase();
 }
 
 export function saveBuyerSession(response, dealerSlug) {
@@ -56,6 +59,11 @@ export function saveBuyerSession(response, dealerSlug) {
 
     localStorage.setItem("user", JSON.stringify(user));
     return user;
+}
+
+export function isBuyerUser(user) {
+    if (!user) return false;
+    return user.role === "buyer" || user.auth_scope === "storefront";
 }
 
 export async function loginBuyer(dealerSlug, { email, password }) {

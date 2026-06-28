@@ -188,7 +188,7 @@ export default function DealerInfoPage() {
         const updated = await dealerService.update(profile.id, payload);
         let nextStorefrontUrl = profile.storefront_url;
         try {
-          // Lấy lại link cửa hàng (storefront_url) mới nhất nhỡ đâu tên cửa hàng vừa bị đổi
+          // Lấy lại link cửa hàng (storefront_url) sau khi cập nhật hồ sơ
           const linkData = await dealerService.getStorefrontLink();
           nextStorefrontUrl = linkData?.storefront_url || nextStorefrontUrl;
         } catch (err) {

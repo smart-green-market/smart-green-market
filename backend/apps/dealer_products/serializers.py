@@ -115,12 +115,25 @@ class DealerProductReadSerializer(serializers.ModelSerializer):
         read_only=True,
         help_text="Đơn vị sản phẩm gốc",
     )
-    total_quantity = serializers.IntegerField(
-        read_only=True,
+    def get_imported_quantity(self, obj):
+        value = getattr(obj, "imported_quantity", 0)
+        return int(value or 0)
+
+    def get_total_quantity(self, obj):
+        value = getattr(obj, "total_quantity", 0)
+        return int(value or 0)
+
+    def get_available_quantity(self, obj):
+        value = getattr(obj, "available_quantity", 0)
+        return int(value or 0)
+
+    imported_quantity = serializers.SerializerMethodField(
+        help_text="Tổng số lượng đã nhập (sum quantity các lô chưa xóa)",
+    )
+    total_quantity = serializers.SerializerMethodField(
         help_text="Tổng tồn hiện có (sum remaining_quantity các lô chưa xóa)",
     )
-    available_quantity = serializers.IntegerField(
-        read_only=True,
+    available_quantity = serializers.SerializerMethodField(
         help_text="Số lượng có thể bán (lô active, còn hạn, còn tồn)",
     )
     in_stock = serializers.SerializerMethodField(
@@ -144,6 +157,7 @@ class DealerProductReadSerializer(serializers.ModelSerializer):
             "retail_price",
             "thumbnail",
             "status",
+            "imported_quantity",
             "total_quantity",
             "available_quantity",
             "in_stock",
@@ -379,6 +393,7 @@ class DealerInventoryBatchSerializer(serializers.ModelSerializer):
             "import_price",
             "import_date",
             "expiry_date",
+            "manual_sale_price",
             "storage_duration_days",
             "min_storage_temp",
             "max_storage_temp",
@@ -387,6 +402,18 @@ class DealerInventoryBatchSerializer(serializers.ModelSerializer):
             "updated_at",
         ]
         read_only_fields = fields
+
+    def to_representation(self, instance):
+        from .age_discount import batch_price_to_dict, compute_batch_effective_price
+
+        cache = self.context.get("age_discount_policies_cache") or {}
+        dealer_id = instance.dealer_product.dealer_profile_id
+        policies = cache.get(dealer_id)
+        price = compute_batch_effective_price(instance, policies=policies)
+
+        data = super().to_representation(instance)
+        data.update(batch_price_to_dict(price))
+        return data
 
 
 class DealerInventoryTransactionSerializer(serializers.ModelSerializer):
@@ -445,3 +472,40 @@ class RecordWastageSerializer(serializers.Serializer):
     quantity = serializers.IntegerField(min_value=1, help_text="Số lượng hao hụt")
     reason = serializers.CharField(max_length=255, help_text="Lý do hao hụt")
     note = serializers.CharField(required=False, allow_blank=True, default="")
+
+
+class SetBatchExpiryDateSerializer(serializers.Serializer):
+    expiry_date = serializers.DateField(
+        help_text="Ngày hết hạn lô (YYYY-MM-DD), phải >= ngày nhập kho",
+    )
+
+
+class BackfillExpiryDatesSerializer(serializers.Serializer):
+    default_storage_days = serializers.IntegerField(
+        required=False,
+        min_value=1,
+        max_value=3650,
+        help_text=(
+            "Số ngày bảo quản mặc định khi SP NCC chưa có hoặc có giá trị placeholder "
+            "(vd. 2147483647). Rau xanh thường 3–7 ngày."
+        ),
+    )
+    fix_supplier_products = serializers.BooleanField(
+        required=False,
+        default=False,
+        help_text=(
+            "Nếu true: cập nhật storage_duration_days trên SP NCC sang default_storage_days "
+            "trước khi backfill (cần truyền default_storage_days)."
+        ),
+    )
+
+    def validate(self, attrs):
+        if attrs.get("fix_supplier_products") and attrs.get("default_storage_days") is None:
+            raise serializers.ValidationError(
+                {
+                    "default_storage_days": (
+                        "Bắt buộc khi fix_supplier_products=true."
+                    )
+                }
+            )
+        return attrs

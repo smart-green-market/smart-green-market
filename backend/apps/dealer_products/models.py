@@ -122,6 +122,13 @@ class DealerInventoryBatch(models.Model):
 
     import_date = models.DateField()
     expiry_date = models.DateField(null=True, blank=True)
+    manual_sale_price = models.DecimalField(
+        max_digits=12,
+        decimal_places=2,
+        null=True,
+        blank=True,
+        help_text="Giá bán thủ công — ưu tiên hơn chính sách giảm tự động",
+    )
 
     status = models.CharField(
         max_length=20,
@@ -207,3 +214,13 @@ class DealerInventoryTransaction(models.Model):
 
     def __str__(self):
         return f"{self.type} lô {self.batch.batch_number}: {self.quantity_change}"
+
+
+from .models_age_discount import (  # noqa: E402, F401
+    AgeDiscountDiscountType,
+    AgeDiscountPolicy,
+    AgeDiscountScope,
+    AgeDiscountThresholdType,
+    AgeDiscountTier,
+    AgeDiscountTierOperator,
+)

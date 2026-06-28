@@ -2,7 +2,8 @@
 
 from django.conf import settings
 from django.db import models
-from django.utils.text import slugify
+
+from .store_code import assign_unique_store_code
 
 
 class DealerProfileStatus(models.TextChoices):
@@ -23,7 +24,13 @@ class DealerProfile(models.Model):
         related_name="dealer_profile",
     )
     store_name = models.CharField(max_length=255)
-    slug = models.SlugField(max_length=255, unique=True, null=True, blank=True)
+    slug = models.SlugField(
+        max_length=255,
+        unique=True,
+        null=True,
+        blank=True,
+        help_text="Mã cửa hàng công khai (xxx-yyy-zzz), tự sinh — không đổi khi đổi tên",
+    )
     store_address = models.TextField()
     logo = models.FileField(upload_to="dealer_logos/", blank=True, null=True)
     description = models.TextField(blank=True)
@@ -57,12 +64,5 @@ class DealerProfile(models.Model):
 
     def save(self, *args, **kwargs):
         if not self.slug:
-            base_slug = slugify(self.store_name) or f"dealer-{self.account_id}"
-            base_slug = base_slug[:240]
-            slug = base_slug
-            suffix = 1
-            while DealerProfile.objects.filter(slug=slug).exclude(pk=self.pk).exists():
-                suffix += 1
-                slug = f"{base_slug}-{suffix}"[:255]
-            self.slug = slug
+            self.slug = assign_unique_store_code(DealerProfile, exclude_pk=self.pk)
         super().save(*args, **kwargs)

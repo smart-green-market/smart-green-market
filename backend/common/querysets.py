@@ -74,7 +74,7 @@ def filter_categories_for_user(
     pending_field=None,
     pending_values=PENDING_STATUS,
 ):
-    """Admin: tất cả. Supplier/Dealer: danh mục hệ thống active + danh mục riêng của mình."""
+    """Admin: tất cả. Supplier/Dealer: system active + custom của mình (mọi status, list mặc định active)."""
     if is_admin(user):
         filtered = qs
     elif is_supplier_or_dealer(user):

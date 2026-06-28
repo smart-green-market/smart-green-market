@@ -9,6 +9,7 @@ from rest_framework.decorators import action
 from drf_spectacular.utils import extend_schema, inline_serializer, OpenApiResponse
 
 from apps.orders.models import Order, OrderStatus, OrderItem
+from apps.dealer_products.inventory_expiry import mark_expired_inventory_batches
 from apps.dealer_products.models import DealerInventoryBatch, DealerInventoryBatchStatus
 from apps.purchase_orders.models import PurchaseOrder, PurchaseOrderStatus, PurchaseOrderItem
 from apps.supplier_products.models import SupplierProduct, SupplierProductStatus
@@ -76,6 +77,8 @@ class DealerDashboardViewSet(viewsets.ViewSet):
         dealer = self._get_dealer(request)
         if not dealer:
             return Response({"detail": "User is not a dealer."}, status=403)
+
+        mark_expired_inventory_batches(dealer_profile_id=dealer.id)
 
         now = timezone.now()
         today_start = now.replace(hour=0, minute=0, second=0, microsecond=0)

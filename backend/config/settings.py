@@ -73,6 +73,12 @@ STOREFRONT_BASE_URL = os.environ.get(
     os.environ.get("FRONTEND_SITE_URL", "http://localhost:5173"),
 ).rstrip("/")
 
+# URL public của backend (Swagger / tích hợp bên ngoài). Render: set env này.
+API_PUBLIC_BASE_URL = os.environ.get(
+    "API_PUBLIC_BASE_URL",
+    "http://127.0.0.1:8000",
+).rstrip("/")
+
 
 # Application definition
 
@@ -160,6 +166,9 @@ SPECTACULAR_SETTINGS = {
     "VERSION": "1.0.0",
     "SERVE_INCLUDE_SCHEMA": False,
     "COMPONENT_SPLIT_REQUEST": True,
+    "POSTPROCESSING_HOOKS": [
+        "config.spectacular_hooks.postprocess_schema_servers",
+    ],
     "SWAGGER_UI_SETTINGS": {
         "persistAuthorization": True,
         "docExpansion": "none",
@@ -200,6 +209,7 @@ SPECTACULAR_SETTINGS = {
                     "Dealer Products",
                     "Dealer Product Images",
                     "Dealer Inventory",
+                    "Age Discount Policies",
                     "Purchase Orders",
                 ],
             },
@@ -350,7 +360,18 @@ SPECTACULAR_SETTINGS = {
             "name": "Dealer Inventory",
             "description": (
                 "Tồn kho lô hàng nhập từ phiếu nhập hoàn tất. "
-                "Ghi hao hụt: `POST /api/dealer-inventory-batches/{id}/record-wastage/`."
+                "Ghi hao hụt: `POST /api/dealer-inventory-batches/{id}/record-wastage/`. "
+                "Giá theo tuổi hàng: `POST .../set-sale-price/`, `POST .../clear-sale-price/`. "
+                "Ngày hết hạn: `POST .../set-expiry-date/`, `POST .../recompute-expiry-date/`, "
+                "`POST .../backfill-expiry-dates/`."
+            ),
+        },
+        {
+            "name": "Age Discount Policies",
+            "description": (
+                "Chính sách giảm giá tự động theo tuổi lô (remaining_days, "
+                "used_shelf_life_percent, age_days). Dealer cấu hình bậc giảm; "
+                "giá hiệu lực tính trên từng `DealerInventoryBatch`."
             ),
         },
         {
