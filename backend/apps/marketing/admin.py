@@ -1,6 +1,11 @@
 from django.contrib import admin
 
-from .models import CustomerInteraction, CustomerSegment, CustomerSegmentMember
+from .models import (
+    CustomerInteraction,
+    CustomerSegment,
+    CustomerSegmentMember,
+    DealerSupplierProductInteraction,
+)
 
 
 class CustomerSegmentMemberInline(admin.TabularInline):
@@ -27,3 +32,16 @@ class CustomerInteractionAdmin(admin.ModelAdmin):
         "updated_at",
     )
     list_filter = ("dealer",)
+
+
+@admin.register(DealerSupplierProductInteraction)
+class DealerSupplierProductInteractionAdmin(admin.ModelAdmin):
+    list_display = (
+        "dealer",
+        "supplier_product",
+        "view_count",
+        "add_cart_count",
+        "purchase_count",
+        "updated_at",
+    )
+    list_filter = ("supplier", "dealer")

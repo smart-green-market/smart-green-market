@@ -74,7 +74,9 @@ class DealerProfileSerializer(serializers.ModelSerializer):
         ]
         extra_kwargs = {
             "store_name": {"help_text": "Tên cửa hàng / đại lý"},
-            "slug": {"help_text": "Định danh URL công khai của gian hàng đại lý"},
+            "slug": {
+                "help_text": "Mã cửa hàng công khai (xxx-yyy-zzz) — tự sinh, read-only",
+            },
             "store_address": {"help_text": "Địa chỉ cửa hàng"},
             "logo": {"help_text": "Logo cửa hàng đại lý (JPG/PNG/WebP)", "required": False},
             "logo_url": {"help_text": "URL đầy đủ của logo", "read_only": True},
@@ -233,7 +235,7 @@ class DealerStorefrontLinkSerializer(serializers.Serializer):
 
     dealer_id = serializers.IntegerField(help_text="ID hồ sơ đại lý")
     store_name = serializers.CharField(help_text="Tên cửa hàng / đại lý")
-    slug = serializers.SlugField(help_text="Định danh URL gian hàng")
+    slug = serializers.SlugField(help_text="Mã cửa hàng công khai (xxx-yyy-zzz)")
     status = serializers.CharField(help_text="Trạng thái hồ sơ đại lý")
     storefront_path = serializers.CharField(help_text="Path frontend của gian hàng")
     storefront_url = serializers.URLField(help_text="URL đầy đủ để đại lý chia sẻ")

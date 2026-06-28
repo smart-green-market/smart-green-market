@@ -20,6 +20,8 @@ from common.querysets import ORDER_IMAGE, ORDER_NEWEST, ORDER_UPDATED, filter_ad
 from common.pagination import LoadMorePagination
 from common.status_counts import build_count_status, filter_by_status_param
 
+from common.soft_delete import default_exclude_deleted
+from .archive import soft_delete_dealer_product
 from .models import (
     DealerInventoryBatch,
     DealerInventoryBatchStatus,
@@ -104,7 +106,14 @@ def _filter_inventory_scope(qs, user):
     create=extend_schema(tags=["Dealer Products"], summary="Đăng sản phẩm bán lẻ"),
     update=extend_schema(tags=["Dealer Products"], summary="Cập nhật sản phẩm"),
     partial_update=extend_schema(tags=["Dealer Products"], summary="Cập nhật một phần"),
-    destroy=extend_schema(tags=["Dealer Products"], summary="Xóa sản phẩm"),
+    destroy=extend_schema(
+        tags=["Dealer Products"],
+        summary="Xóa mềm sản phẩm",
+        description=(
+            "Đặt `status=deleted`. Chặn khi còn đơn buyer chưa kết thúc hoặc tồn kho > 0. "
+            "Admin hoặc đại lý sở hữu."
+        ),
+    ),
 )
 class DealerProductViewSet(viewsets.ModelViewSet):
     permission_classes = [IsActive]
@@ -126,8 +135,10 @@ class DealerProductViewSet(viewsets.ModelViewSet):
     def get_permissions(self):
         if self.action == "verify":
             return [IsAdmin()]
-        if self.action in ("create", "update", "partial_update", "destroy"):
+        if self.action in ("create", "update", "partial_update"):
             return [IsActive(), IsDealer()]
+        if self.action == "destroy":
+            return [IsActive(), IsAdminOrDealer()]
         return [IsActive()]
 
     def get_queryset(self):
@@ -187,6 +198,12 @@ class DealerProductViewSet(viewsets.ModelViewSet):
             request,
             apply_status=False,
         )
+        base_qs = default_exclude_deleted(
+            base_qs,
+            request,
+            status_field="status",
+            deleted_value=DealerProductStatus.DELETED,
+        )
         count_status = build_count_status(
             base_qs, field="status", choices=DealerProductStatus
         )
@@ -195,6 +212,9 @@ class DealerProductViewSet(viewsets.ModelViewSet):
         page = paginator.paginate_queryset(qs, request, view=self)
         serializer = self.get_serializer(page, many=True)
         return paginator.get_paginated_response(serializer.data, count_status=count_status)
+
+    def perform_destroy(self, instance):
+        soft_delete_dealer_product(instance, self.request.user)
 
     def perform_create(self, serializer):
         product = serializer.save()

@@ -1,5 +1,7 @@
 """Serializer cho sản phẩm, ảnh sản phẩm và quy trình canh tác."""
 
+from decimal import Decimal
+
 from rest_framework import serializers
 
 from common.approval_nested import (
@@ -14,7 +16,9 @@ from apps.categories.utils import category_assignable_by_user
 from apps.product_catalog.models import ProductMaster
 from apps.product_catalog.serializers import ProductMasterListSerializer
 from apps.suppliers.models import SupplierVerificationStatus
+from apps.purchase_orders.models import PurchaseOrderStatus
 from .catalog_services import apply_supplier_product_catalog_rules
+from .order_demand import purchase_order_items_for_product
 from .models import SupplierProduct, SupplierProductImage, SupplierProductStatus
 
 _IMAGE_FIELD_HELP = (
@@ -269,16 +273,120 @@ class SupplierProductReadSerializer(serializers.ModelSerializer):
         }
 
 
+class SupplierProductPurchaseOrderSerializer(serializers.Serializer):
+    """Phiếu nhập đại lý có chứa sản phẩm NCC — dùng ở chi tiết sản phẩm."""
+
+    id = serializers.IntegerField(source="purchase_order.id", help_text="ID phiếu nhập")
+    order_code = serializers.CharField(
+        source="purchase_order.order_code",
+        help_text="Mã phiếu nhập",
+    )
+    status = schema_choice_field(
+        choices=PurchaseOrderStatus.choices,
+        source="purchase_order.status",
+    )
+    dealer_id = serializers.IntegerField(
+        source="purchase_order.dealer_id",
+        help_text="ID hồ sơ đại lý",
+    )
+    dealer_store_name = serializers.CharField(
+        source="purchase_order.dealer.store_name",
+        help_text="Tên cửa hàng đại lý",
+    )
+    quantity = serializers.DecimalField(
+        max_digits=12,
+        decimal_places=2,
+        help_text="Số lượng đại lý đặt mặt hàng này",
+    )
+    unit = serializers.CharField(
+        source="supplier_product.unit",
+        help_text="Đơn vị tính",
+    )
+    unit_price = serializers.DecimalField(
+        max_digits=12,
+        decimal_places=2,
+        help_text="Đơn giá sỉ snapshot",
+    )
+    subtotal = serializers.DecimalField(
+        max_digits=14,
+        decimal_places=2,
+        help_text="Thành tiền dòng",
+    )
+    requested_delivery_time = serializers.DateTimeField(
+        source="purchase_order.requested_delivery_time",
+        help_text="Thời gian giao mong muốn",
+    )
+    item_note = serializers.CharField(source="note", help_text="Ghi chú dòng sản phẩm")
+    order_note = serializers.CharField(
+        source="purchase_order.note",
+        help_text="Ghi chú phiếu nhập",
+    )
+    created_at = serializers.DateTimeField(
+        source="purchase_order.created_at",
+        help_text="Thời điểm đại lý tạo phiếu",
+    )
+
+
 class SupplierProductListSerializer(SupplierProductReadSerializer):
     """Sản phẩm kèm NCC và danh mục — dùng cho danh sách chờ duyệt."""
 
     supplier = ApprovalSupplierNestedSerializer(read_only=True)
     category = ApprovalCategoryNestedSerializer(read_only=True)
+    pending_order_quantity = serializers.DecimalField(
+        max_digits=14,
+        decimal_places=2,
+        read_only=True,
+        default=Decimal("0"),
+        help_text="Tổng SL đại lý đặt — phiếu chờ NCC xác nhận",
+    )
+    preparation_quantity = serializers.DecimalField(
+        max_digits=14,
+        decimal_places=2,
+        read_only=True,
+        default=Decimal("0"),
+        help_text="Tổng SL cần chuẩn bị — phiếu đã xác nhận, chưa giao hàng",
+    )
 
     class Meta(SupplierProductReadSerializer.Meta):
         """Mở rộng trường thêm nhà cung cấp và danh mục."""
 
-        fields = SupplierProductReadSerializer.Meta.fields + ["supplier", "category"]
+        fields = SupplierProductReadSerializer.Meta.fields + [
+            "supplier",
+            "category",
+            "pending_order_quantity",
+            "preparation_quantity",
+        ]
+
+
+class SupplierProductDetailSerializer(SupplierProductListSerializer):
+    """Chi tiết sản phẩm NCC — kèm danh sách phiếu nhập theo mặt hàng."""
+
+    purchase_orders = serializers.SerializerMethodField(
+        help_text="Phiếu nhập đại lý còn hiệu lực có chứa mặt hàng này",
+    )
+
+    class Meta(SupplierProductListSerializer.Meta):
+        fields = SupplierProductListSerializer.Meta.fields + ["purchase_orders"]
+
+    def get_purchase_orders(self, obj):
+        request = self.context.get("request")
+        user = getattr(request, "user", None)
+        if not user or not user.is_authenticated:
+            return []
+        if user.role not in ("admin", "supplier"):
+            return []
+        if user.role == "supplier":
+            profile = getattr(user, "supplier_profile", None)
+            if not profile or obj.supplier_id != profile.id:
+                return []
+        items = self.context.get("purchase_order_items")
+        if items is None:
+            items = purchase_order_items_for_product(obj)
+        return SupplierProductPurchaseOrderSerializer(
+            items,
+            many=True,
+            context=self.context,
+        ).data
 
 
 class SupplierProductSerializer(serializers.ModelSerializer):

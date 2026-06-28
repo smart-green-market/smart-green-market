@@ -114,3 +114,51 @@ class CustomerInteraction(models.Model):
 
     def __str__(self):
         return f"{self.customer} × {self.dealer_product.title}"
+
+
+class DealerSupplierProductInteraction(models.Model):
+    """Tổng hợp tương tác đại lý với sản phẩm NCC trên catalog B2B."""
+
+    dealer = models.ForeignKey(
+        "dealers.DealerProfile",
+        on_delete=models.CASCADE,
+        related_name="supplier_product_interactions",
+    )
+    supplier = models.ForeignKey(
+        "suppliers.Supplier",
+        on_delete=models.CASCADE,
+        related_name="dealer_product_interactions",
+    )
+    supplier_product = models.ForeignKey(
+        "supplier_products.SupplierProduct",
+        on_delete=models.CASCADE,
+        related_name="dealer_interactions",
+    )
+
+    view_count = models.PositiveIntegerField(default=0)
+    add_cart_count = models.PositiveIntegerField(default=0)
+    purchase_count = models.PositiveIntegerField(default=0)
+
+    last_viewed_at = models.DateTimeField(null=True, blank=True)
+    last_added_at = models.DateTimeField(null=True, blank=True)
+    last_purchased_at = models.DateTimeField(null=True, blank=True)
+
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = "dealer_supplier_product_interactions"
+        ordering = ["-updated_at", "-id"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["dealer", "supplier_product"],
+                name="unique_dealer_supplier_product_interaction",
+            ),
+        ]
+        indexes = [
+            models.Index(fields=["supplier", "-updated_at"]),
+            models.Index(fields=["dealer", "-updated_at"]),
+        ]
+
+    def __str__(self):
+        return f"{self.dealer.store_name} × {self.supplier_product.name}"

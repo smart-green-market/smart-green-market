@@ -17,7 +17,7 @@ from common.verify_openapi import (
     VERIFY_REJECT_HELP,
 )
 from apps.accounts.models import AccountRole
-from common.permission import IsAdmin, IsActive, IsDealer, IsSupplier
+from common.permission import IsAdmin, IsActive, IsAdminOrSupplierProfile, IsDealer, IsSupplier
 from common.querysets import (
     ORDER_CULTIVATION,
     ORDER_IMAGE,
@@ -25,9 +25,13 @@ from common.querysets import (
     filter_admin_or_supplier_account,
     filter_supplier_products_for_dealer,
 )
+from common.soft_delete import default_exclude_deleted
+from .archive import soft_delete_supplier_product
+from .order_demand import annotate_supplier_product_order_demand, purchase_order_items_for_product
 from .models import SupplierProduct, SupplierProductImage, CultivationProcess, SupplierProductStatus
 from .openapi import SupplierProductImageBulkUploadForm, SupplierProductImageReplaceForm
 from .serializer import (
+    SupplierProductDetailSerializer,
     SupplierProductListSerializer,
     SupplierProductSerializer,
     SupplierProductImageSerializer,
@@ -43,6 +47,8 @@ from .serializer import (
         summary="Danh sách sản phẩm",
         description=(
             "Admin: tất cả. Supplier: sản phẩm của mình.\n"
+            "Supplier/Admin: mỗi sản phẩm kèm `pending_order_quantity` (SL chờ NCC duyệt) "
+            "và `preparation_quantity` (SL cần chuẩn bị).\n"
             "Dealer chọn SP để đặt hàng: ưu tiên "
             "`GET /api/suppliers/{supplier_id}/products/` (theo từng NCC).\n"
             "Endpoint này: catalog tổng hoặc lọc `?supplier_id=` (tùy chọn)."
@@ -67,7 +73,11 @@ from .serializer import (
     retrieve=extend_schema(
         tags=["Supplier Products"],
         summary="Chi tiết sản phẩm",
-        responses={200: SupplierProductListSerializer},
+        description=(
+            "Supplier/Admin: kèm `pending_order_quantity`, `preparation_quantity` "
+            "và `purchase_orders[]` — phiếu nhập đại lý theo mặt hàng."
+        ),
+        responses={200: SupplierProductDetailSerializer},
     ),
     create=extend_schema(
         tags=["Supplier Products"],
@@ -114,7 +124,15 @@ from .serializer import (
     ),
     update=extend_schema(tags=["Supplier Products"], summary="Cập nhật sản phẩm"),
     partial_update=extend_schema(tags=["Supplier Products"], summary="Cập nhật một phần"),
-    destroy=extend_schema(tags=["Supplier Products"], summary="Xóa sản phẩm"),
+    destroy=extend_schema(
+        tags=["Supplier Products"],
+        summary="Xóa mềm sản phẩm",
+        description=(
+            "Đặt `status=deleted` (không xóa cứng DB). "
+            "Chặn khi còn phiếu nhập đang xử lý hoặc đại lý đang bán. "
+            "Admin hoặc NCC sở hữu sản phẩm."
+        ),
+    ),
 )
 class SupplierProductViewSet(viewsets.ModelViewSet):
     """ViewSet CRUD và duyệt sản phẩm nhà cung cấp."""
@@ -130,9 +148,35 @@ class SupplierProductViewSet(viewsets.ModelViewSet):
 
     def get_serializer_class(self):
         """Trả về serializer phù hợp theo action hiện tại."""
-        if self.action in ("list", "retrieve", "verify"):
+        if self.action == "retrieve":
+            return SupplierProductDetailSerializer
+        if self.action in ("list", "verify"):
             return SupplierProductListSerializer
         return SupplierProductSerializer
+
+    def _should_annotate_order_demand(self):
+        user = self.request.user
+        return (
+            user.is_authenticated
+            and user.role in (AccountRole.ADMIN, AccountRole.SUPPLIER)
+            and self.action in ("list", "retrieve")
+        )
+
+    def get_serializer_context(self):
+        context = super().get_serializer_context()
+        if self.action == "retrieve" and self._should_annotate_order_demand():
+            product = getattr(self, "_retrieve_product", None)
+            if product is not None:
+                context["purchase_order_items"] = list(
+                    purchase_order_items_for_product(product)
+                )
+        return context
+
+    def retrieve(self, request, *args, **kwargs):
+        instance = self.get_object()
+        self._retrieve_product = instance
+        serializer = self.get_serializer(instance)
+        return Response(serializer.data)
 
     def get_permissions(self):
         """Chỉ Admin được duyệt sản phẩm; dealer chỉ đọc catalog."""
@@ -145,8 +189,10 @@ class SupplierProductViewSet(viewsets.ModelViewSet):
             if self.action in ("list", "retrieve"):
                 return [IsDealer(), IsActive()]
             return [IsAdmin()]
-        if self.action in ("create", "update", "partial_update", "destroy"):
+        if self.action in ("create", "update", "partial_update"):
             return [IsSupplier(), IsActive()]
+        if self.action == "destroy":
+            return [IsActive(), IsAdminOrSupplierProfile()]
         return [IsActive()]
 
     def get_queryset(self):
@@ -168,12 +214,25 @@ class SupplierProductViewSet(viewsets.ModelViewSet):
                     ordering=ORDER_UPDATED,
                 )
             return SupplierProduct.objects.none()
-        return filter_admin_or_supplier_account(
+        qs = filter_admin_or_supplier_account(
             self.queryset,
             user,
             ordering=ORDER_UPDATED,
             pending_field="status",
         )
+        if self.action == "list":
+            qs = default_exclude_deleted(
+                qs,
+                self.request,
+                status_field="status",
+                deleted_value=SupplierProductStatus.DELETED,
+            )
+        if self._should_annotate_order_demand():
+            qs = annotate_supplier_product_order_demand(qs)
+        return qs
+
+    def perform_destroy(self, instance):
+        soft_delete_supplier_product(instance, self.request.user)
 
     def perform_create(self, serializer):
         """Lưu sản phẩm mới và gửi thông báo cho Admin."""

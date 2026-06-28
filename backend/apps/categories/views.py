@@ -1,6 +1,5 @@
 """API ViewSet quản lý danh mục sản phẩm nông sản."""
 
-from django.db.models.deletion import ProtectedError
 from django.db.models import Count, F, Q
 from django.utils import timezone
 from drf_spectacular.utils import extend_schema, extend_schema_view, OpenApiParameter
@@ -25,6 +24,8 @@ from common.permission import IsActive, IsAdmin
 from common.querysets import filter_categories_for_user, ORDER_CATEGORY
 from common.pagination import LoadMorePagination
 from common.status_counts import build_count_status, filter_by_status_param
+from common.soft_delete import default_exclude_deleted
+from .archive import soft_delete_category
 from .models import Category, CategoryScope, CategoryStatus
 from .utils import user_can_manage_category
 from .serializers import (
@@ -85,8 +86,11 @@ def _annotate_category_product_count(qs, user):
         tags=["Categories"],
         summary="Danh sách danh mục",
         description=(
-            "Admin xem tất cả. Supplier/Dealer thấy **danh mục hệ thống** (`scope=system`, "
-            "`active`) và **danh mục riêng** do mình tạo. Buyer chỉ thấy danh mục hệ thống. "
+            "Admin xem tất cả (mặc định không lọc status). "
+            "Supplier/Dealer: danh mục hệ thống `active` + danh mục riêng do mình tạo; "
+            "**mặc định chỉ trả `active`** — dùng `?status=pending|rejected|inactive` "
+            "để xem danh mục chờ duyệt / từ chối / khóa. "
+            "Buyer chỉ thấy danh mục hệ thống `active`. "
             "Mỗi danh mục kèm `product_count`."
             + PAGINATION_QUERY_HELP
         ),
@@ -122,7 +126,14 @@ def _annotate_category_product_count(qs, user):
         description="Sửa danh mục đã duyệt → quay lại `pending`, chờ Admin duyệt lại.",
     ),
     partial_update=extend_schema(tags=["Categories"], summary="Cập nhật một phần danh mục"),
-    destroy=extend_schema(tags=["Categories"], summary="Xóa danh mục"),
+    destroy=extend_schema(
+        tags=["Categories"],
+        summary="Xóa mềm danh mục",
+        description=(
+            "Đặt `status=deleted`. Chặn khi còn sản phẩm NCC/đại lý hoặc product master gắn. "
+            "Admin hoặc người tạo danh mục riêng."
+        ),
+    ),
 )
 class CategoryViewSet(viewsets.ModelViewSet):
     """ViewSet CRUD và duyệt danh mục sản phẩm."""
@@ -180,8 +191,20 @@ class CategoryViewSet(viewsets.ModelViewSet):
             request,
             apply_status=False,
         )
+        base_qs = default_exclude_deleted(
+            base_qs,
+            request,
+            status_field="status",
+            deleted_value=CategoryStatus.DELETED,
+        )
         count_status = build_count_status(base_qs, field="status", choices=CategoryStatus)
-        qs = filter_by_status_param(base_qs, request.query_params.get("status"), field="status")
+        status_param = (request.query_params.get("status") or "").strip()
+        if status_param:
+            qs = filter_by_status_param(base_qs, status_param, field="status")
+        elif request.user.role in (AccountRole.DEALER, AccountRole.SUPPLIER):
+            qs = base_qs.filter(status=CategoryStatus.ACTIVE)
+        else:
+            qs = base_qs
         paginator = LoadMorePagination()
         page = paginator.paginate_queryset(qs, request, view=self)
         serializer = self.get_serializer(page, many=True)
@@ -246,19 +269,9 @@ class CategoryViewSet(viewsets.ModelViewSet):
                 )
 
     def perform_destroy(self, instance):
-        """Xóa danh mục có kiểm quyền và trả lỗi rõ khi đang được sản phẩm dùng."""
+        """Soft-delete danh mục sau khi kiểm quyền và ràng buộc sản phẩm."""
         self._ensure_can_edit(instance)
-        try:
-            instance.delete()
-        except ProtectedError as exc:
-            related_count = len(exc.protected_objects)
-            raise ValidationError({
-                "detail": (
-                    "Không thể xóa danh mục vì đang có sản phẩm sử dụng. "
-                    "Vui lòng chuyển sản phẩm sang danh mục khác hoặc xóa sản phẩm trước."
-                ),
-                "related_count": related_count,
-            }) from exc
+        soft_delete_category(instance, self.request.user)
 
     @extend_schema(
         tags=["Categories"],
