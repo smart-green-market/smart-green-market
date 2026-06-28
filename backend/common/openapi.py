@@ -254,7 +254,10 @@ SystemConfigResponseSerializer = inline_serializer(
             help_text="Tỷ lệ cọc tối đa (%)",
         ),
         "min_delivery_lead_days": serializers.IntegerField(
-            help_text="Số ngày tối thiểu trước thời gian giao mong muốn",
+            help_text="Số ngày tối thiểu trước thời gian giao mong muốn / cam kết",
+        ),
+        "max_delivery_delay_days": serializers.IntegerField(
+            help_text="NCC cam kết giao muộn nhất = requested + N ngày",
         ),
         "default_deposit_percent": serializers.IntegerField(
             help_text="Tỷ lệ cọc mặc định (%) khi NCC xác nhận phiếu nhập",
@@ -302,6 +305,7 @@ SystemConfigUpdateSerializer = inline_serializer(
         "max_deposit_percent": serializers.IntegerField(required=False),
         "default_deposit_percent": serializers.IntegerField(required=False),
         "min_delivery_lead_days": serializers.IntegerField(required=False),
+        "max_delivery_delay_days": serializers.IntegerField(required=False),
         "shipping_fee": serializers.IntegerField(required=False),
         "min_lead_hours": serializers.IntegerField(required=False),
         "morning_cutoff_hour": serializers.IntegerField(required=False),

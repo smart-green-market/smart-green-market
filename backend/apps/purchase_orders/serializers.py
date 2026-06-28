@@ -288,6 +288,7 @@ class PurchaseOrderListSerializer(serializers.ModelSerializer):
             "paid_amount",
             "debt_amount",
             "requested_delivery_time",
+            "confirmed_delivery_time",
             "created_at",
             "updated_at",
         ]
@@ -300,7 +301,12 @@ class PurchaseOrderListSerializer(serializers.ModelSerializer):
             "deposit_amount": {"help_text": "Số tiền cọc cần thanh toán (VND)"},
             "paid_amount": {"help_text": "Tổng tiền đã xác nhận thanh toán (VND)"},
             "debt_amount": {"help_text": "Số tiền còn phải thanh toán (VND)"},
-            "requested_delivery_time": {"help_text": "Thời gian giao hàng mong muốn"},
+            "requested_delivery_time": {
+                "help_text": "Thời gian giao mong muốn của đại lý (tham khảo cho NCC)",
+            },
+            "confirmed_delivery_time": {
+                "help_text": "Thời gian giao NCC cam kết (null trước khi confirm)",
+            },
             "created_at": {"help_text": "Thời điểm tạo đơn"},
             "updated_at": {"help_text": "Thời điểm cập nhật gần nhất"},
         }
@@ -364,6 +370,7 @@ class PurchaseOrderDetailSerializer(serializers.ModelSerializer):
             "status",
             "delivery_address",
             "requested_delivery_time",
+            "confirmed_delivery_time",
             "receiver_name",
             "receiver_phone",
             "note",
@@ -388,7 +395,12 @@ class PurchaseOrderDetailSerializer(serializers.ModelSerializer):
             "supplier": {"help_text": "ID hồ sơ NCC"},
             "dealer": {"help_text": "ID hồ sơ đại lý"},
             "delivery_address": {"help_text": "Địa chỉ nhận hàng"},
-            "requested_delivery_time": {"help_text": "Thời gian giao hàng mong muốn"},
+            "requested_delivery_time": {
+                "help_text": "Thời gian giao mong muốn của đại lý (tham khảo cho NCC)",
+            },
+            "confirmed_delivery_time": {
+                "help_text": "Thời gian giao NCC cam kết khi xác nhận phiếu",
+            },
             "receiver_name": {"help_text": "Tên người nhận hàng"},
             "receiver_phone": {"help_text": "SĐT người nhận"},
             "note": {"help_text": "Ghi chú chung của đơn"},
@@ -417,7 +429,8 @@ class PurchaseOrderCreateSerializer(serializers.Serializer):
     )
     requested_delivery_time = serializers.DateTimeField(
         help_text=(
-            "Thời gian giao hàng mong muốn (ISO 8601). "
+            "Thời gian giao mong muốn của đại lý (ISO 8601) — NCC tham khảo, "
+            "có thể điều chỉnh khi confirm. "
             "Phải sau ít nhất `min_delivery_lead_days` ngày — xem GET /api/purchase-order-config/"
         ),
     )
@@ -509,6 +522,13 @@ class PurchaseOrderBatchCreateResponseSerializer(serializers.Serializer):
 
 
 class SupplierConfirmSerializer(serializers.Serializer):
+    confirmed_delivery_time = serializers.DateTimeField(
+        help_text=(
+            "Ngày giờ giao NCC cam kết (ISO 8601). "
+            "Có thể sớm hơn `requested_delivery_time`; "
+            "muộn nhất = requested + `max_delivery_delay_days` — xem GET /api/purchase-order-config/"
+        ),
+    )
     deposit_percent = serializers.DecimalField(
         max_digits=5,
         decimal_places=2,

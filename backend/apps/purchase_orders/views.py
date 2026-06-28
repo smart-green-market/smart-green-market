@@ -264,6 +264,7 @@ class PurchaseOrderViewSet(viewsets.GenericViewSet):
             request.user,
             deposit_percent=serializer.validated_data.get("deposit_percent"),
             note=serializer.validated_data.get("note", ""),
+            confirmed_delivery_time=serializer.validated_data["confirmed_delivery_time"],
         )
         return Response(_detail_response(order, request))
 
