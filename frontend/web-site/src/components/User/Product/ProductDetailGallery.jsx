@@ -6,6 +6,7 @@ import {
     resolveMediaUrl,
 } from "../../../utils/userProductUtils";
 import ProductImage from "./ProductImage";
+import ProductDiscountRibbon from "./ProductDiscountRibbon";
 
 const AUTO_PLAY_MS = 3000;
 
@@ -46,6 +47,7 @@ export default function ProductDetailGallery({
     name = "",
     status,
     inStock,
+    discountPercent = 0,
 }) {
     const sorted = useMemo(
         () => normalizeGalleryImages(images, thumbnail),
@@ -90,15 +92,13 @@ export default function ProductDetailGallery({
             onMouseLeave={() => setIsPaused(false)}
         >
             <div className="relative overflow-hidden rounded-xl bg-zinc-100 shadow-sm">
+                <ProductDiscountRibbon percent={discountPercent} />
                 <ProductImage
                     src={activeImage}
                     alt={name}
                     eager
                     className="aspect-[4/5] w-full lg:max-h-[560px]"
                 />
-                <div className="absolute left-4 top-3 rounded-full bg-teal-800 px-3 py-1 text-xs font-medium uppercase tracking-wide text-white shadow-sm">
-                    {getStockLabel(status, inStock)}
-                </div>
 
                 {sorted.length > 1 ? (
                     <div className="absolute bottom-4 left-1/2 flex -translate-x-1/2 gap-2">

@@ -70,6 +70,10 @@ export default function CategoryViewModal({
     const isPending = category.status === "pending";
     const isActive = category.status === "active";
     const isInactive = category.status === "inactive";
+    const isRejected = category.status === "rejected";
+
+    // Nút xóa chỉ hiển thị khi danh mục ở trạng thái inactive hoặc rejected
+    const canDelete = isInactive || isRejected;
 
     const openReject = ({ title, message, action }) => {
         setRejectConfig({ title, message, action });
@@ -280,23 +284,6 @@ export default function CategoryViewModal({
                                         Cập nhật
                                     </button>
 
-                                    <button
-                                        type="button"
-                                        disabled={loading}
-                                        onClick={() =>
-                                            openConfirm({
-                                                title: "Xóa danh mục hệ thống",
-                                                message: `Bạn có chắc chắn muốn xóa "${category.name}"? Hành động này không thể hoàn tác.`,
-                                                confirmText: "Xóa",
-                                                variant: "danger",
-                                                action: () => onDelete(category),
-                                            })
-                                        }
-                                        className="cursor-pointer rounded-xl bg-red-600 px-6 py-2.5 font-semibold text-white hover:bg-red-700 disabled:opacity-50"
-                                    >
-                                        Xóa
-                                    </button>
-
                                     {isActive ? (
                                         <button
                                             type="button"
@@ -335,6 +322,26 @@ export default function CategoryViewModal({
                                         </button>
                                     ) : null}
                                 </>
+                            ) : null}
+
+                            {/* Nút Xóa — hiển thị cho mọi scope khi inactive hoặc rejected */}
+                            {!isEditing && canDelete ? (
+                                <button
+                                    type="button"
+                                    disabled={loading}
+                                    onClick={() =>
+                                        openConfirm({
+                                            title: "Xóa danh mục",
+                                            message: `Bạn có chắc chắn muốn xóa "${category.name}"? Hành động này không thể hoàn tác.`,
+                                            confirmText: "Xóa",
+                                            variant: "danger",
+                                            action: () => onDelete(category),
+                                        })
+                                    }
+                                    className="cursor-pointer rounded-xl bg-red-600 px-6 py-2.5 font-semibold text-white hover:bg-red-700 disabled:opacity-50"
+                                >
+                                    Xóa
+                                </button>
                             ) : null}
 
                             {!isEditing && isCustomScope && isPending ? (

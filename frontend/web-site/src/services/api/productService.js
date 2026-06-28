@@ -84,7 +84,10 @@ export const productService = {
   },
 
   updateImageProduct: async (id, formData) => {
-    const res = await axiosClient.patch(`/supplier-product-images/${id}/`, formData);
+    const res = await axiosClient.patch(
+      `/supplier-product-images/${id}/`,
+      formData,
+    );
     return res.data;
   },
 
@@ -106,7 +109,9 @@ export const productService = {
 
   /** Supplier tạm ngừng / mở lại bán hàng */
   updateSellingStatus: async (id, status) => {
-    const res = await axiosClient.patch(`/supplier-products/${id}/`, { status });
+    const res = await axiosClient.patch(`/supplier-products/${id}/`, {
+      status,
+    });
     return res.data;
   },
 
@@ -121,11 +126,6 @@ export const productService = {
     const res = await axiosClient.patch(`/supplier-products/${id}/`, {
       status: "active",
     });
-    return res.data;
-  },
-
-  deleteProduct: async (id) => {
-    const res = await axiosClient.delete(`/supplier-products/${id}`);
     return res.data;
   },
 
@@ -146,11 +146,13 @@ export const productService = {
     //     "rejection_reason": "string"
     //   }
   },
-  remove: (id) => {
+
+  delete: (id) => {
     return axiosClient
       .delete(`/supplier-products/${id}/`)
       .then((res) => res.data);
   },
+  //Chặn khi còn phiếu nhập đang xử lý hoặc đại lý đang bán. Admin hoặc NCC sở hữu sản phẩm.
 };
 
 // Xử lý bug
