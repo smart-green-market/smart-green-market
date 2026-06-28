@@ -46,15 +46,15 @@ export default function ProductDetailInfo({ product, onUpdate }) {
       const res = await dealerProductService.update(product.id, updatedData);
       toast.success("Cập nhật thông tin thành công!");
       setIsEditing(false);
-      
+
       const selectedCat = categories.find(c => String(c.id) === String(categoryId));
-      onUpdate({ 
-        ...product, 
+      onUpdate({
+        ...product,
         title,
         description,
         retail_price: retailPrice,
         category_id: categoryId,
-        category: selectedCat ? { id: selectedCat.id, name: selectedCat.name } : product.category 
+        category: selectedCat ? { id: selectedCat.id, name: selectedCat.name } : product.category
       });
     } catch (error) {
       toast.error("Lỗi cập nhật thông tin sản phẩm.");
@@ -104,10 +104,14 @@ export default function ProductDetailInfo({ product, onUpdate }) {
       </div>
 
       {/* Thông tin gốc (ReadOnly) */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-6 p-4 bg-sky-50/50 rounded-xl border border-sky-100 text-xs">
+      <div className="grid grid-cols-2 sm:grid-cols-5 gap-4 mb-6 p-4 bg-sky-50/50 rounded-xl border border-sky-100 text-xs">
         <div>
-          <span className="block text-neutral-500 mb-1">Gốc từ NCC</span>
+          <span className="block text-neutral-500 mb-1">Tên sản phẩm từ NCC</span>
           <span className="font-bold text-sky-900">{product.supplier_product_name}</span>
+        </div>
+        <div>
+          <span className="block text-neutral-500 mb-1">Số lượng tồn</span>
+          <span className="font-bold text-sky-900">{product.available_quantity || "0"} {product.supplier_product_unit}</span>
         </div>
         <div>
           <span className="block text-neutral-500 mb-1">Đơn vị</span>

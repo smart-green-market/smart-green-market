@@ -1,3 +1,4 @@
+import { useMemo } from "react";
 import { Eye } from "lucide-react";
 import Pagination from "../../common/Pagination";
 import SortableHeader from "../../common/SortableHeader";
@@ -12,14 +13,23 @@ const STATUS_MAP = {
 };
 
 const COLUMN_CONFIG = {
-  title:        { key: "title",        type: "string" },
+  title: { key: "title", type: "string" },
   retail_price: { key: "retail_price", type: "number" },
-  sold:         { key: "sold",         type: "number" },
-  status:       { key: "status",       type: "string" },
+  total_quantity: { key: "total_quantity", type: "number" },
+  available_quantity: { key: "available_quantity", type: "number" },
+  sold: { key: "sold", type: "number" },
+  status: { key: "status", type: "string" },
 };
 
 export default function ProductTable({ data, onRowClick, currentPage, totalPages, onPageChange }) {
-  const { sortedData, sortColumn, sortDirection, handleSort } = useTableSort(data, COLUMN_CONFIG);
+  const processedData = useMemo(() => {
+    return (data || []).map((row) => ({
+      ...row,
+      sold: (row.total_quantity || 0) - (row.available_quantity || 0),
+    }));
+  }, [data]);
+
+  const { sortedData, sortColumn, sortDirection, handleSort } = useTableSort(processedData, COLUMN_CONFIG);
 
   if (!data || data.length === 0) {
     return (
@@ -40,7 +50,7 @@ export default function ProductTable({ data, onRowClick, currentPage, totalPages
               <tr className="bg-neutral-50 border-b border-neutral-200/60">
                 <SortableHeader label="Sản phẩm" column="title" sortColumn={sortColumn} sortDirection={sortDirection} onSort={handleSort} />
                 <SortableHeader label="Giá bán lẻ" column="retail_price" sortColumn={sortColumn} sortDirection={sortDirection} onSort={handleSort} />
-                <SortableHeader label="Đã bán" column="sold" sortColumn={sortColumn} sortDirection={sortDirection} onSort={handleSort} />
+                <SortableHeader label="Số lượng tồn" column="available_quantity" sortColumn={sortColumn} sortDirection={sortDirection} onSort={handleSort} align="center" />
                 <SortableHeader label="Trạng thái" column="status" sortColumn={sortColumn} sortDirection={sortDirection} onSort={handleSort} align="center" />
                 <th className="px-6 py-4 text-[11px] font-bold text-neutral-500 uppercase tracking-wider text-right">Thao tác</th>
               </tr>
@@ -77,8 +87,10 @@ export default function ProductTable({ data, onRowClick, currentPage, totalPages
                         {new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND" }).format(row.retail_price)}
                       </span>
                     </td>
-                    <td className="px-6 py-4">
-                      <span className="text-neutral-600 font-medium text-xs">{row.sold || 0} {row.supplier_product_unit}</span>
+                    <td className="px-6 py-4 text-center">
+                      <span className="text-neutral-600 font-medium text-xs">
+                        {row.available_quantity || 0} {row.supplier_product_unit}
+                      </span>
                     </td>
                     <td className="px-6 py-4 text-center">
                       <span className={`px-2.5 py-1 rounded-full text-[11px] font-bold ${info.cls}`}>

@@ -1,9 +1,9 @@
 """API quản lý hồ sơ đại lý và luồng duyệt."""
 
 from django.conf import settings
-from django.db.models import Prefetch
+from django.db.models import Prefetch, Q
 from django.utils import timezone
-from drf_spectacular.utils import OpenApiExample, extend_schema, extend_schema_view
+from drf_spectacular.utils import OpenApiExample, OpenApiParameter, extend_schema, extend_schema_view
 from rest_framework import viewsets
 from rest_framework.decorators import action
 from rest_framework.exceptions import ValidationError
@@ -89,6 +89,20 @@ def _validate_dealer_ready_for_approval(dealer):
         tags=["Dealers"],
         summary="Danh sách đại lý",
         description="Admin xem tất cả. Dealer chỉ thấy hồ sơ của mình." + PAGINATION_QUERY_HELP,
+        parameters=[
+            OpenApiParameter(
+                name="search",
+                description="Tìm theo tên cửa hàng, email, SĐT",
+                required=False,
+                type=str,
+            ),
+            OpenApiParameter(
+                name="status",
+                description="Lọc theo trạng thái",
+                required=False,
+                type=str,
+            ),
+        ],
         responses={200: paginated_response_schema(DealerProfileListSerializer, "PaginatedDealer")},
     ),
     retrieve=extend_schema(
@@ -175,7 +189,7 @@ class DealerProfileViewSet(viewsets.ModelViewSet):
                     .order_by("-updated_at", "-created_at", "-id"),
                 ),
             )
-        return filter_admin_or_dealer_account(
+        qs = filter_admin_or_dealer_account(
             qs,
             self.request.user,
             account_lookup="account",
@@ -183,6 +197,22 @@ class DealerProfileViewSet(viewsets.ModelViewSet):
             pending_field="status",
             pending_values=DealerProfileStatus.PENDING,
         )
+
+        if self.action == "list":
+            search = self.request.query_params.get("search")
+            status = self.request.query_params.get("status")
+
+            if search:
+                qs = qs.filter(
+                    Q(store_name__icontains=search)
+                    | Q(account__email__icontains=search)
+                    | Q(account__phone__icontains=search)
+                )
+
+            if status:
+                qs = qs.filter(status=status)
+
+        return qs
 
     def perform_create(self, serializer):
         dealer = serializer.save()

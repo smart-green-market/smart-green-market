@@ -1,7 +1,9 @@
-import React from "react";
-import { CreditCard, FileText, CheckCircle2, Clock, AlertTriangle } from "lucide-react";
+import React, { useState } from "react";
+import { CreditCard, FileText, CheckCircle2, Clock, AlertTriangle, X } from "lucide-react";
 
 export default function PaymentHistory({ payments }) {
+  const [activeReceipt, setActiveReceipt] = useState(null);
+
   if (!payments || payments.length === 0) {
     return null;
   }
@@ -109,14 +111,13 @@ export default function PaymentHistory({ payments }) {
                 {/* Biên lai */}
                 <td className="py-4 px-4 text-center">
                   {payment.receipt_file ? (
-                    <a
-                      href={payment.receipt_file}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-bold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 rounded-lg border border-emerald-100 transition-colors"
+                    <button
+                      type="button"
+                      onClick={() => setActiveReceipt(payment.receipt_file)}
+                      className="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-bold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 rounded-lg border border-emerald-100 transition-colors cursor-pointer"
                     >
                       <FileText className="w-3.5 h-3.5" /> Xem ảnh
-                    </a>
+                    </button>
                   ) : (
                     <span className="text-neutral-400 text-xs">Không có file</span>
                   )}
@@ -154,6 +155,21 @@ export default function PaymentHistory({ payments }) {
           </tbody>
         </table>
       </div>
+
+      {/* Modal xem ảnh biên lai */}
+      {activeReceipt && (
+        <div 
+          className="fixed inset-0 z-50 flex items-center justify-center bg-neutral-950/80 backdrop-blur-sm cursor-pointer"
+          onClick={() => setActiveReceipt(null)}
+        >
+          <img
+            src={activeReceipt}
+            alt="Biên lai thanh toán"
+            className="max-w-[90vw] max-h-[90vh] object-contain"
+            onClick={(e) => e.stopPropagation()}
+          />
+        </div>
+      )}
     </div>
   );
 }

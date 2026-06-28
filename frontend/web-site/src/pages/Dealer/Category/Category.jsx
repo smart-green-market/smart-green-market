@@ -20,6 +20,7 @@ export default function DealerCategoryPage() {
     const [categoryToUpdate, setCategoryToUpdate] = useState(null);
     const [currentPage, setCurrentPage] = useState(1);
     const [totalPages, setTotalPages] = useState(1);
+    const [hasProductsFilter, setHasProductsFilter] = useState(false);
 
     useEffect(() => {
         const timer = setTimeout(() => {
@@ -45,7 +46,13 @@ export default function DealerCategoryPage() {
     const fetchCategories = async () => {
         setIsLoading(true);
         try {
-            const data = await categoryService.getAll({ page: currentPage, page_size: 9, search: debouncedSearchQuery, status: statusFilter });
+            const data = await categoryService.getAll({ 
+                page: currentPage, 
+                page_size: 9, 
+                search: debouncedSearchQuery, 
+                status: statusFilter,
+                has_products: hasProductsFilter ? true : undefined
+            });
             const results = data?.results || data || [];
             const mappedData = results.map(cat => ({
                 ...cat,
@@ -64,7 +71,7 @@ export default function DealerCategoryPage() {
 
     useEffect(() => {
         fetchCategories();
-    }, [currentPage, debouncedSearchQuery, statusFilter]);
+    }, [currentPage, debouncedSearchQuery, statusFilter, hasProductsFilter]);
 
     const filteredCategories = categoryList; // Đã filter trên API
 
@@ -161,6 +168,9 @@ export default function DealerCategoryPage() {
                 onStatusChange={(val) => { setStatusFilter(val); setCurrentPage(1); }}
                 filterOptions={filterOptions}
                 placeholder="Tìm kiếm danh mục..."
+                showHasProductsToggle={true}
+                hasProductsFilter={hasProductsFilter}
+                onHasProductsChange={(val) => { setHasProductsFilter(val); setCurrentPage(1); }}
             />
 
             {error && (

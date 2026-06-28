@@ -93,6 +93,7 @@ def _annotate_category_product_count(qs, user):
         parameters=[
             OpenApiParameter("search", str, description="Tìm kiếm theo tên hoặc mô tả", required=False),
             OpenApiParameter("status", str, description="Lọc theo trạng thái", required=False),
+            OpenApiParameter("has_products", str, description="Lọc các danh mục có ít nhất 1 sản phẩm (true/1/yes)", required=False),
         ],
         responses={
             200: paginated_response_schema(CategoryListSerializer, "PaginatedCategory")
@@ -172,6 +173,11 @@ class CategoryViewSet(viewsets.ModelViewSet):
             qs = filter_by_status_param(
                 qs, request.query_params.get("status"), field="status"
             )
+            
+        has_products = request.query_params.get("has_products")
+        if has_products is not None and str(has_products).lower() in ("true", "1", "yes"):
+            qs = qs.filter(product_count__gt=0)
+            
         return qs
 
     def list(self, request, *args, **kwargs):

@@ -16,7 +16,7 @@ export default function CategoryProductList({ products = [] }) {
     const matchesSearch =
       pName.toLowerCase().includes(searchQuery.toLowerCase()) ||
       pCode.toLowerCase().includes(searchQuery.toLowerCase());
-    
+
     const matchesStatus = statusFilter === "" || pStatus === statusFilter;
 
     return matchesSearch && matchesStatus;
@@ -124,17 +124,16 @@ export default function CategoryProductList({ products = [] }) {
                       {pCode}
                     </td>
                     <td className="px-4 py-3.5">
-                      {prod.thumbnail ? (
-                        <img
-                          src={prod.thumbnail}
-                          alt={pName}
-                          className="w-10 h-10 rounded-lg border border-neutral-150 object-cover shadow-sm group-hover:scale-105 transition-transform"
-                        />
-                      ) : (
-                        <div className="w-10 h-10 rounded-lg bg-neutral-100 border border-neutral-200 flex items-center justify-center">
-                          <span className="text-[10px] text-neutral-400 font-bold">N/A</span>
-                        </div>
-                      )}
+                      {(() => {
+                        const thumbnail = prod.images.find(img => img.is_thumbnail) ?? prod.images[0];
+                        return (
+                          <img
+                            src={thumbnail?.image_url}
+                            alt={pName}
+                            className="w-10 h-10 rounded-lg border border-neutral-150 object-cover shadow-sm group-hover:scale-105 transition-transform"
+                          />
+                        );
+                      })()}
                     </td>
                     <td className="px-4 py-3.5 text-xs font-bold text-neutral-800 group-hover:text-emerald-950 transition-colors">
                       {pName}
@@ -172,16 +171,15 @@ export default function CategoryProductList({ products = [] }) {
           >
             <ChevronLeft className="w-4 h-4" />
           </button>
-          
+
           {[...Array(totalPages)].map((_, i) => (
             <button
               key={i}
               onClick={() => handlePageChange(i + 1)}
-              className={`w-8 h-8 rounded-lg text-xs font-bold transition-all cursor-pointer ${
-                currentPage === i + 1
-                  ? "bg-emerald-700 text-white shadow-sm"
-                  : "border border-neutral-200 text-neutral-600 hover:bg-neutral-50"
-              }`}
+              className={`w-8 h-8 rounded-lg text-xs font-bold transition-all cursor-pointer ${currentPage === i + 1
+                ? "bg-emerald-700 text-white shadow-sm"
+                : "border border-neutral-200 text-neutral-600 hover:bg-neutral-50"
+                }`}
             >
               {i + 1}
             </button>

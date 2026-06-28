@@ -83,31 +83,29 @@ export default function DealerProductManagementPage() {
         {/* Nút thêm mới thủ công (nếu có nghiệp vụ) hoặc sync */}
       </div>
 
+      {/* <ProductStatsCards products={products} /> */}
+
+      <SupplierFilter
+        searchQuery={searchQuery}
+        onSearchChange={(val) => setSearchQuery(val)}
+        statusFilter={statusFilter}
+        onStatusChange={(val) => { setStatusFilter(val); setCurrentPage(1); }}
+        filterOptions={filterOptions}
+        placeholder="Tìm theo tên sản phẩm, danh mục, nhà cung cấp..."
+      />
+
       {loading ? (
         <div className="flex justify-center items-center py-20">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-emerald-600"></div>
         </div>
       ) : (
-        <>
-          {/* <ProductStatsCards products={products} /> */}
-
-          <SupplierFilter
-            searchQuery={searchQuery}
-            onSearchChange={(val) => setSearchQuery(val)}
-            statusFilter={statusFilter}
-            onStatusChange={(val) => { setStatusFilter(val); setCurrentPage(1); }}
-            filterOptions={filterOptions}
-            placeholder="Tìm theo tên sản phẩm, danh mục, nhà cung cấp..."
-          />
-
-          <ProductTable
-            data={filteredProducts}
-            onRowClick={handleRowClick}
-            currentPage={currentPage}
-            totalPages={totalPages}
-            onPageChange={setCurrentPage}
-          />
-        </>
+        <ProductTable
+          data={filteredProducts}
+          onRowClick={handleRowClick}
+          currentPage={currentPage}
+          totalPages={totalPages}
+          onPageChange={setCurrentPage}
+        />
       )}
 
       {/* Modals */}

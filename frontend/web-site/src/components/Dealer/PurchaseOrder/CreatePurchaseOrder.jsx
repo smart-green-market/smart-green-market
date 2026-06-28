@@ -90,7 +90,7 @@ export default function CreatePurchaseOrder({ onClose, onSuccess }) {
         setSuppliers(supplierData || []);
 
         // Gọi API lấy danh sách danh mục, nếu lỗi trả về mảng rỗng
-        const categoryData = await categoryService.getAll().catch(() => []);
+        const categoryData = await categoryService.getAll({ status: "active" }).catch(() => []);
         setCategories(categoryData || []);
 
         // Gọi API lấy danh sách tất cả sản phẩm
