@@ -6,6 +6,7 @@ import {
     fetchRelatedBuyerProducts,
 } from "../../hooks/useBuyerCatalog";
 import { useStorefrontPaths } from "../../hooks/useStorefrontPaths";
+import { getDiscountPercent } from "../../utils/userProductUtils";
 import { addRecentlyViewed } from "../../utils/recentlyViewedUtils";
 import { recordProductView } from "../../utils/buyerInteractionUtils";
 import { useAuth } from "../../contexts/authProvider";
@@ -180,6 +181,7 @@ export default function ProductDetailPage() {
                         name={product.name}
                         status={product.status}
                         inStock={product.in_stock}
+                        discountPercent={getDiscountPercent(product)}
                     />
                     <ProductDetailPurchase
                         product={product}

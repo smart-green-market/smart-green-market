@@ -8,6 +8,7 @@ import DetailProductModal from "../../components/Supplier/Product/DetailProductM
 import { productService } from "../../services/api/productService";
 import SupplierPageHeader, { SUPPLIER_PAGE_CLASS } from "../../components/Supplier/UI/SupplierPageHeader";
 import { extractApiError } from "../../utils/extractApiError";
+import ListOrderModal from "../../components/Supplier/Product/ListOrderModal";
 
 const METRIC_TONE = {
   b: "bg-blue-50 text-blue-600",
@@ -45,6 +46,7 @@ export default function ProductSupplierPage() {
   const [toggleTarget, setToggleTarget] = useState(null);
   const [togglingId, setTogglingId] = useState(null);
   const [deleting, setDeleting] = useState(false);
+  const [ordersRow, setOrdersRow] = useState(null);
 
   /* ── Fetch ── */
   const fetchProducts = async () => {
@@ -216,6 +218,7 @@ export default function ProductSupplierPage() {
         onLockSelling={(row) => setToggleTarget({ row, action: "lock" })}
         onUnlockSelling={(row) => setToggleTarget({ row, action: "unlock" })}
         togglingId={togglingId}
+        onListOrders={(row) => setOrdersRow(row)}
       />
 
       {/* ── Modals ── */}
@@ -259,6 +262,12 @@ export default function ProductSupplierPage() {
         onLockSelling={(row) => setToggleTarget({ row, action: "lock" })}
         onUnlockSelling={(row) => setToggleTarget({ row, action: "unlock" })}
         togglingSelling={Boolean(togglingId && detailRow?.id === togglingId)}
+      />
+
+      <ListOrderModal
+        isOpen={ordersRow !== null}
+        onClose={() => setOrdersRow(null)}
+        product={ordersRow}
       />
 
       {showAddCategory && (

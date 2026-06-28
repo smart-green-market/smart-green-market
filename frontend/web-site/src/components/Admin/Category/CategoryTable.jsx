@@ -46,7 +46,7 @@ const buildColumns = (onView) => [
         selector: (row) => row.scope,
         sortable: true,
         center: true,
-        grow: 1,
+        width: "150px",
         cell: (row) => {
             const style = SCOPE_STYLE[row.scope] ?? SCOPE_STYLE.system;
             return (
@@ -63,7 +63,7 @@ const buildColumns = (onView) => [
         selector: (row) => row.created_at,
         sortable: true,
         center: true,
-        width: '150px',
+        width: '250px',
         cell: (row) => (
             <span className="font-bold text-sm font-semibold font-['Geist',sans-serif]">
                 {formatDateTime(row.created_at)}

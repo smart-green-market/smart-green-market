@@ -23,8 +23,11 @@ import {
     formatProductPrice,
     formatStorageDuration,
     formatUnitLabel,
-    getProductPrice,
+    getDiscountPercent,
+    getEffectiveProductPrice,
+    getRetailProductPrice,
     getStockLabel,
+    hasProductDiscount,
     isProductInStock,
 } from "../../../utils/userProductUtils";
 import StarRating from "./StarRating";
@@ -55,6 +58,10 @@ export default function ProductDetailPurchase({
     const { user } = useAuth();
     const { addToCart } = useCart();
     const inStock = isProductInStock(product);
+    const hasDiscount = hasProductDiscount(product);
+    const discountPercent = getDiscountPercent(product);
+    const effectivePrice = getEffectiveProductPrice(product);
+    const retailPrice = getRetailProductPrice(product);
     const storageLabel = formatStorageDuration(product.storage_duration_days);
     const unitLabel = formatUnitLabel(product.unit);
     const stockLabel = getStockLabel(product.status, product.in_stock);
@@ -148,12 +155,6 @@ export default function ProductDetailPurchase({
                             {product.category_name}
                         </span>
                     ) : null}
-                    {product.verified_at ? (
-                        <span className="inline-flex items-center gap-1 rounded-full bg-teal-50 px-3 py-1 text-xs font-semibold text-teal-700">
-                            <BadgeCheck className="h-3 w-3" />
-                            Đã kiểm duyệt
-                        </span>
-                    ) : null}
                     <span
                         className={`rounded-full px-3 py-1 text-xs font-semibold ${
                             inStock
@@ -175,16 +176,35 @@ export default function ProductDetailPurchase({
                 <div className="flex flex-wrap items-end justify-between gap-4">
                     <div>
                         <p className="text-xs font-medium uppercase tracking-wide text-emerald-700">
-                            Giá bán
+                            {hasDiscount ? "Giá ưu đãi" : "Giá bán"}
                         </p>
-                        <div className="mt-1 flex items-baseline gap-2">
-                            <span className="text-3xl font-bold text-emerald-900">
-                                {formatProductPrice(getProductPrice(product))}
+                        <div className="mt-1 flex flex-wrap items-baseline gap-x-2 gap-y-1">
+                            {hasDiscount && retailPrice != null ? (
+                                <span className="text-lg font-medium text-neutral-400 line-through">
+                                    {formatProductPrice(retailPrice)}
+                                </span>
+                            ) : null}
+                            <span
+                                className={`text-3xl font-bold ${
+                                    hasDiscount ? "text-red-600" : "text-emerald-900"
+                                }`}
+                            >
+                                {formatProductPrice(effectivePrice)}
                             </span>
                             {unitLabel ? (
                                 <span className="text-base text-neutral-500">{unitLabel}</span>
                             ) : null}
+                            {hasDiscount && discountPercent > 0 ? (
+                                <span className="rounded-full bg-red-100 px-2.5 py-0.5 text-xs font-bold text-red-700">
+                                    -{discountPercent}%
+                                </span>
+                            ) : null}
                         </div>
+                        {hasDiscount && product.age_discount_reason ? (
+                            <p className="mt-2 text-sm text-amber-800">
+                                {product.age_discount_reason}
+                            </p>
+                        ) : null}
                     </div>
                     <div className="flex flex-col items-start gap-1 sm:items-end">
                         {ratingLoading ? (
@@ -212,12 +232,6 @@ export default function ProductDetailPurchase({
                 <MetaRow icon={Clock3} label="Hạn bảo quản" value={storageLabel} />
                 <MetaRow icon={Package} label="Tồn kho" value={stockValue} />
             </div>
-
-            {product.description ? (
-                <p className="line-clamp-3 text-sm leading-6 text-neutral-600">
-                    {product.description}
-                </p>
-            ) : null}
 
             {/* Purchase */}
             <div className="rounded-2xl border border-stone-200 bg-white p-5 shadow-sm">

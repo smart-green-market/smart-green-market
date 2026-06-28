@@ -2,6 +2,8 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 
 import Toolbar from "../../components/Admin/UI/Toolbar";
 import { AdminInitialLoadGate } from "../../components/Admin/UI/AdminFetchState";
+import AdminFilterStatsCards from "../../components/Admin/UI/AdminFilterStatsCards";
+import { DEALER_STAT_CARDS } from "../../components/Admin/UI/adminFilterStatsPresets";
 import DealerFilter, {
     getDealerDisplayStatus,
 } from "../../components/Admin/Dealer/DealerFilter";
@@ -10,6 +12,7 @@ import DealerViewModal from "../../components/Admin/Dealer/DealerViewModal";
 import { getDealerApprovalDocumentError } from "../../components/Admin/Dealer/dealerDocumentHelpers";
 import { appToast } from "../../components/common/toast";
 import { dealerService, handleApiError } from "../../services/api/dealerService";
+import { buildCountsFromCards } from "../../utils/adminFilterStatsUtils";
 
 function formatDealerListItem(dealer) {
     return {
@@ -53,7 +56,7 @@ export default function DealerPage() {
     const [actionLoading, setActionLoading] = useState(false);
     const [error, setError] = useState("");
     const [search, setSearch] = useState("");
-    const [statusFilter, setStatusFilter] = useState("pending");
+    const [statusFilter, setStatusFilter] = useState("");
     const [viewRow, setViewRow] = useState(null);
 
     const fetchDealers = useCallback(async ({ initial = false } = {}) => {
@@ -120,6 +123,11 @@ export default function DealerPage() {
             return matchKeyword && matchStatus;
         });
     }, [data, search, statusFilter]);
+
+    const dealerStats = useMemo(
+        () => buildCountsFromCards(data, DEALER_STAT_CARDS),
+        [data],
+    );
 
     const handleApprove = async (dealer) => {
         try {
@@ -211,6 +219,14 @@ export default function DealerPage() {
             loadingMessage="Đang tải danh sách đại lý..."
         >
             <div className="flex flex-col gap-6 px-8 pb-10 pt-6">
+                <AdminFilterStatsCards
+                    counts={dealerStats}
+                    cards={DEALER_STAT_CARDS}
+                    activeFilter={statusFilter}
+                    onFilterChange={setStatusFilter}
+                    loading={isFetching}
+                />
+
                 <Toolbar
                     search={search}
                     onSearch={setSearch}

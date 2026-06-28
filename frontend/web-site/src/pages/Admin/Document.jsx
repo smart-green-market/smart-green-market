@@ -1,7 +1,9 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 
 import Toolbar from "../../components/Admin/UI/Toolbar";
 import { AdminInitialLoadGate } from "../../components/Admin/UI/AdminFetchState";
+import AdminFilterStatsCards from "../../components/Admin/UI/AdminFilterStatsCards";
+import { DOCUMENT_STAT_CARDS } from "../../components/Admin/UI/adminFilterStatsPresets";
 import Filter from "../../components/Admin/Document/DocumentFilter";
 import DocumentTable from "../../components/Admin/Document/DocumentTable";
 import DocumentViewModal from "../../components/Admin/Document/DocumentViewModal";
@@ -10,6 +12,7 @@ import {
     accountDocumentService,
     handleApiError,
 } from "../../services/api/accountDocumentService";
+import { buildCountsFromCards } from "../../utils/adminFilterStatsUtils";
 
 export default function DocumentPage() {
     // ── STATES ─────────────────────────────────────────────
@@ -36,7 +39,7 @@ export default function DocumentPage() {
     const [
         statusFilter,
         setStatusFilter,
-    ] = useState("pending");
+    ] = useState("");
 
     const [viewRow, setViewRow] =
         useState(null);
@@ -179,6 +182,11 @@ export default function DocumentPage() {
         fetchDocuments({ initial: true });
     }, [fetchDocuments]);
 
+    const documentStats = useMemo(
+        () => buildCountsFromCards(data, DOCUMENT_STAT_CARDS, { field: "status" }),
+        [data],
+    );
+
     // ── APPROVE ────────────────────────────────────────
     const handleApprove = async (
         document
@@ -239,6 +247,14 @@ export default function DocumentPage() {
             loadingMessage="Đang tải danh sách giấy tờ..."
         >
         <div className="flex flex-col gap-6 px-8 pt-6 pb-10">
+
+            <AdminFilterStatsCards
+                counts={documentStats}
+                cards={DOCUMENT_STAT_CARDS}
+                activeFilter={statusFilter}
+                onFilterChange={setStatusFilter}
+                loading={isFetching}
+            />
 
             {/* TOOLBAR */}
             <Toolbar

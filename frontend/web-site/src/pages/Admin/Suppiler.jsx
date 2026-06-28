@@ -7,6 +7,8 @@ import {
 
 import Toolbar from "../../components/Admin/UI/Toolbar";
 import { AdminInitialLoadGate } from "../../components/Admin/UI/AdminFetchState";
+import AdminFilterStatsCards from "../../components/Admin/UI/AdminFilterStatsCards";
+import { SUPPLIER_STAT_CARDS } from "../../components/Admin/UI/adminFilterStatsPresets";
 
 import Filter from "../../components/Admin/Suppiler/SuppilerFilter";
 
@@ -18,6 +20,7 @@ import {
     handleApiError,
     supplierService,
 } from "../../services/api/suppilerService";
+import { buildCountsFromCards } from "../../utils/adminFilterStatsUtils";
 
 export default function SupplierPage() {
     // ─────────────────────────────────────────
@@ -40,7 +43,7 @@ export default function SupplierPage() {
     const [search, setSearch] = useState("");
 
     const [statusFilter, setStatusFilter] =
-        useState("pending");
+        useState("");
 
     const [viewRow, setViewRow] =
         useState(null);
@@ -277,6 +280,13 @@ export default function SupplierPage() {
         });
     }, [data, search, statusFilter]);
 
+    const supplierStats = useMemo(
+        () => buildCountsFromCards(data, SUPPLIER_STAT_CARDS, {
+            field: "verification_status",
+        }),
+        [data],
+    );
+
     return (
         <AdminInitialLoadGate
             isFetching={isFetching}
@@ -285,6 +295,14 @@ export default function SupplierPage() {
             loadingMessage="Đang tải danh sách nhà cung cấp..."
         >
             <div className="flex flex-col gap-6 px-8 pt-6 pb-10">
+                <AdminFilterStatsCards
+                    counts={supplierStats}
+                    cards={SUPPLIER_STAT_CARDS}
+                    activeFilter={statusFilter}
+                    onFilterChange={setStatusFilter}
+                    loading={isFetching}
+                />
+
                 <Toolbar
                     search={search}
                     onSearch={setSearch}
