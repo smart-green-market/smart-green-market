@@ -42,10 +42,12 @@ from common.status_counts import (
     normalize_supplier_verification_status,
 )
 from common.permission import (
+    IsActive,
     IsAdmin,
     IsAdminOrDealer,
     IsAdminOrSupplier,
     IsAdminOrSupplierProfile,
+    IsDealer,
     IsSupplier,
 )
 from common.querysets import (
@@ -69,6 +71,11 @@ DEALER_CATALOG_CERTIFICATIONS_PREFETCH = Prefetch(
 )
 
 from .models import Supplier, SupplierVerificationStatus
+from apps.marketing.dealer_catalog_services import track_dealer_catalog_interaction
+from apps.marketing.serializers import (
+    DealerCatalogInteractionTrackSerializer,
+    InteractionTrackResponseSerializer,
+)
 from .openapi import (
     SUPPLIER_CATALOG_DETAIL_EXAMPLE,
     SUPPLIER_CATALOG_LIST_EXAMPLE,
@@ -242,6 +249,8 @@ class SupplierViewSet(viewsets.ModelViewSet):
             return [IsAdminOrDealer()]
         if self.action == "categories":
             return [IsAdminOrDealer()]
+        if self.action == "track_catalog_interaction":
+            return [IsActive(), IsDealer()]
         if self.action in ("list", "retrieve"):
             return [IsAdminOrSupplier()]
         return [IsAdminOrSupplier()]
@@ -250,7 +259,13 @@ class SupplierViewSet(viewsets.ModelViewSet):
         user = self.request.user
         qs = self.queryset
         if user.role == AccountRole.DEALER:
-            if self.action in ("list", "retrieve", "products", "categories"):
+            if self.action in (
+                "list",
+                "retrieve",
+                "products",
+                "categories",
+                "track_catalog_interaction",
+            ):
                 qs = filter_suppliers_for_dealer(qs)
                 if self.action == "retrieve":
                     qs = qs.select_related("account").prefetch_related(
@@ -507,6 +522,61 @@ class SupplierViewSet(viewsets.ModelViewSet):
             ).data
 
         return paginate_queryset(self, request, products_qs, serialize)
+
+    @extend_schema(
+        tags=["Suppliers"],
+        operation_id="supplier_catalog_interactions_track",
+        summary="Ghi nhận tương tác catalog NCC",
+        description=(
+            "Đại lý ghi nhận **view** (+2, debounce 5 phút/SP) hoặc **add_cart** "
+            "(+3, tối đa 1 lần/SP) khi duyệt catalog NCC.\n"
+            "**purchase** (+5) tự ghi khi `POST /api/purchase-orders/` thành công."
+        ),
+        request=DealerCatalogInteractionTrackSerializer,
+        responses={200: InteractionTrackResponseSerializer},
+        examples=[
+            OpenApiExample(
+                "Xem sản phẩm NCC",
+                value={"supplier_product_id": 5, "action": "view"},
+                request_only=True,
+            ),
+            OpenApiExample(
+                "Thêm giỏ phiếu nhập",
+                value={"supplier_product_id": 5, "action": "add_cart"},
+                request_only=True,
+            ),
+        ],
+    )
+    @action(detail=True, methods=["post"], url_path="interactions")
+    def track_catalog_interaction(self, request, pk=None):
+        supplier = self.get_object()
+        dealer_profile = getattr(request.user, "dealer_profile", None)
+        if dealer_profile is None:
+            raise ValidationError({"detail": "Bạn cần có hồ sơ đại lý."})
+
+        serializer = DealerCatalogInteractionTrackSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        result = track_dealer_catalog_interaction(
+            dealer=dealer_profile,
+            supplier=supplier,
+            supplier_product_id=serializer.validated_data["supplier_product_id"],
+            action=serializer.validated_data["action"],
+        )
+        return Response(
+            InteractionTrackResponseSerializer(
+                {
+                    "recorded": result.recorded,
+                    "action": result.action,
+                    "reason": result.reason,
+                    "retry_after_seconds": result.retry_after_seconds,
+                    "view_count": result.view_count,
+                    "add_cart_count": result.add_cart_count,
+                    "purchase_count": result.purchase_count,
+                    "engagement_score": result.engagement_score,
+                }
+            ).data
+        )
 
     @extend_schema(
         tags=["Suppliers"],

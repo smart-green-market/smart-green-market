@@ -43,6 +43,7 @@ from apps.dealer_products.models import (
 from apps.accounts.models import AccountStatus
 from apps.categories.models import CategoryScope, CategoryStatus
 from apps.dealers.models import DealerProfileStatus
+from apps.marketing.dealer_catalog_services import track_purchase_interactions_for_purchase_orders
 from apps.supplier_products.models import SupplierProduct, SupplierProductStatus
 from apps.suppliers.models import Supplier, SupplierVerificationStatus
 from common.business_rules import (
@@ -306,6 +307,11 @@ def create_purchase_orders(
             user=user,
         )
         orders.append(order)
+
+    track_purchase_interactions_for_purchase_orders(
+        dealer=dealer_profile,
+        items_data=normalized_items,
+    )
     return orders
 
 

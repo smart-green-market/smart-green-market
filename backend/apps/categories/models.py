@@ -11,6 +11,7 @@ class CategoryStatus(models.TextChoices):
     ACTIVE = "active", "Hoạt động"
     INACTIVE = "inactive", "Đã khóa"
     REJECTED = "rejected", "Từ chối"
+    DELETED = "deleted", "Đã xóa"
 
 
 class CategoryScope(models.TextChoices):

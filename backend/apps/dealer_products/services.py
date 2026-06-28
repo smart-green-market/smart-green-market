@@ -34,8 +34,15 @@ def _on_hand_batch_filter():
 
 
 def annotate_dealer_product_stock(qs):
-    """Gắn total_quantity (tồn hiện có) và available_quantity (bán được) lên queryset SP đại lý."""
+    """Gắn imported/total/available quantity lên queryset sản phẩm đại lý."""
     return qs.annotate(
+        imported_quantity=Coalesce(
+            Sum(
+                "inventory_batches__quantity",
+                filter=_on_hand_batch_filter(),
+            ),
+            0,
+        ),
         total_quantity=Coalesce(
             Sum(
                 "inventory_batches__remaining_quantity",

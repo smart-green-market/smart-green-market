@@ -143,13 +143,17 @@ class TrackInteractionAddCartTests(SimpleTestCase):
 
 class TrackInteractionValidationTests(SimpleTestCase):
     def test_rejects_purchase_action(self):
-        with self.assertRaises(ValidationError):
-            track_interaction(
-                customer=Mock(),
-                dealer=Mock(id=1),
-                dealer_product_id=5,
-                action="purchase",
-            )
+        with patch("apps.marketing.services.resolve_storefront_dealer_product") as mock_product:
+            mock_product.return_value = SimpleNamespace(id=5)
+            with patch("apps.marketing.services._get_or_create_interaction") as mock_get:
+                mock_get.return_value = _interaction()
+                with self.assertRaises(ValidationError):
+                    track_interaction(
+                        customer=Mock(),
+                        dealer=Mock(id=1),
+                        dealer_product_id=5,
+                        action="purchase",
+                    )
 
 
 class TrackPurchaseForOrderTests(SimpleTestCase):

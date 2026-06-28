@@ -38,3 +38,13 @@ class InteractionTrackResponseSerializer(serializers.Serializer):
     engagement_score = serializers.IntegerField(
         help_text="view×2 + add_cart×3 + purchase×5",
     )
+
+
+class DealerCatalogInteractionTrackSerializer(serializers.Serializer):
+    supplier_product_id = serializers.IntegerField(
+        help_text="ID sản phẩm NCC (`SupplierProduct.id` từ catalog)",
+    )
+    action = schema_choice_field(
+        choices=[(value, value) for value in sorted({"view", "add_cart"})],
+        help_text="`view` — xem/click SP (+2). `add_cart` — thêm giỏ lần đầu (+3).",
+    )

@@ -115,12 +115,25 @@ class DealerProductReadSerializer(serializers.ModelSerializer):
         read_only=True,
         help_text="Đơn vị sản phẩm gốc",
     )
-    total_quantity = serializers.IntegerField(
-        read_only=True,
+    def get_imported_quantity(self, obj):
+        value = getattr(obj, "imported_quantity", 0)
+        return int(value or 0)
+
+    def get_total_quantity(self, obj):
+        value = getattr(obj, "total_quantity", 0)
+        return int(value or 0)
+
+    def get_available_quantity(self, obj):
+        value = getattr(obj, "available_quantity", 0)
+        return int(value or 0)
+
+    imported_quantity = serializers.SerializerMethodField(
+        help_text="Tổng số lượng đã nhập (sum quantity các lô chưa xóa)",
+    )
+    total_quantity = serializers.SerializerMethodField(
         help_text="Tổng tồn hiện có (sum remaining_quantity các lô chưa xóa)",
     )
-    available_quantity = serializers.IntegerField(
-        read_only=True,
+    available_quantity = serializers.SerializerMethodField(
         help_text="Số lượng có thể bán (lô active, còn hạn, còn tồn)",
     )
     in_stock = serializers.SerializerMethodField(
@@ -144,6 +157,7 @@ class DealerProductReadSerializer(serializers.ModelSerializer):
             "retail_price",
             "thumbnail",
             "status",
+            "imported_quantity",
             "total_quantity",
             "available_quantity",
             "in_stock",

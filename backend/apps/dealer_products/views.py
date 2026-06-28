@@ -20,6 +20,8 @@ from common.querysets import ORDER_IMAGE, ORDER_NEWEST, ORDER_UPDATED, filter_ad
 from common.pagination import LoadMorePagination
 from common.status_counts import build_count_status, filter_by_status_param
 
+from common.soft_delete import default_exclude_deleted
+from .archive import soft_delete_dealer_product
 from .models import (
     DealerInventoryBatch,
     DealerInventoryBatchStatus,
@@ -45,6 +47,18 @@ from .serializers import (
     VerifyDealerProductSerializer,
 )
 from .services import annotate_dealer_product_stock, record_wastage
+
+
+def _annotated_dealer_product(pk):
+    """Lấy sản phẩm kèm imported/total/available quantity."""
+    return annotate_dealer_product_stock(
+        DealerProduct.objects.select_related(
+            "dealer_profile",
+            "dealer_profile__account",
+            "supplier_product",
+            "category",
+        ).prefetch_related("images").filter(pk=pk)
+    ).first()
 
 
 def _filter_dealer_product_scope(qs, user):
@@ -92,7 +106,14 @@ def _filter_inventory_scope(qs, user):
     create=extend_schema(tags=["Dealer Products"], summary="Đăng sản phẩm bán lẻ"),
     update=extend_schema(tags=["Dealer Products"], summary="Cập nhật sản phẩm"),
     partial_update=extend_schema(tags=["Dealer Products"], summary="Cập nhật một phần"),
-    destroy=extend_schema(tags=["Dealer Products"], summary="Xóa sản phẩm"),
+    destroy=extend_schema(
+        tags=["Dealer Products"],
+        summary="Xóa mềm sản phẩm",
+        description=(
+            "Đặt `status=deleted`. Chặn khi còn đơn buyer chưa kết thúc hoặc tồn kho > 0. "
+            "Admin hoặc đại lý sở hữu."
+        ),
+    ),
 )
 class DealerProductViewSet(viewsets.ModelViewSet):
     permission_classes = [IsActive]
@@ -114,15 +135,47 @@ class DealerProductViewSet(viewsets.ModelViewSet):
     def get_permissions(self):
         if self.action == "verify":
             return [IsAdmin()]
-        if self.action in ("create", "update", "partial_update", "destroy"):
+        if self.action in ("create", "update", "partial_update"):
             return [IsActive(), IsDealer()]
+        if self.action == "destroy":
+            return [IsActive(), IsAdminOrDealer()]
         return [IsActive()]
 
     def get_queryset(self):
         qs = _filter_dealer_product_scope(self.queryset, self.request.user)
-        if self.action in ("list", "retrieve", "verify"):
+        if self.action != "create":
             qs = annotate_dealer_product_stock(qs)
         return qs
+
+    def _detail_response(self, product):
+        annotated = _annotated_dealer_product(product.pk) or product
+        serializer_class = (
+            DealerProductDetailSerializer
+            if self.action in ("retrieve", "update", "partial_update", "create")
+            else DealerProductListSerializer
+        )
+        return serializer_class(annotated, context={"request": self.request}).data
+
+    def create(self, request, *args, **kwargs):
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        self.perform_create(serializer)
+        return Response(self._detail_response(serializer.instance), status=201)
+
+    def update(self, request, *args, **kwargs):
+        partial = kwargs.pop("partial", False)
+        instance = self.get_object()
+        serializer = self.get_serializer(instance, data=request.data, partial=partial)
+        serializer.is_valid(raise_exception=True)
+        self.perform_update(serializer)
+        return Response(self._detail_response(serializer.instance))
+
+    def partial_update(self, request, *args, **kwargs):
+        kwargs["partial"] = True
+        return self.update(request, *args, **kwargs)
+
+    def retrieve(self, request, *args, **kwargs):
+        return Response(self._detail_response(self.get_object()))
 
     def _apply_dealer_product_list_filters(self, qs, request, *, apply_status=True):
         search = request.query_params.get("search")
@@ -145,6 +198,12 @@ class DealerProductViewSet(viewsets.ModelViewSet):
             request,
             apply_status=False,
         )
+        base_qs = default_exclude_deleted(
+            base_qs,
+            request,
+            status_field="status",
+            deleted_value=DealerProductStatus.DELETED,
+        )
         count_status = build_count_status(
             base_qs, field="status", choices=DealerProductStatus
         )
@@ -153,6 +212,9 @@ class DealerProductViewSet(viewsets.ModelViewSet):
         page = paginator.paginate_queryset(qs, request, view=self)
         serializer = self.get_serializer(page, many=True)
         return paginator.get_paginated_response(serializer.data, count_status=count_status)
+
+    def perform_destroy(self, instance):
+        soft_delete_dealer_product(instance, self.request.user)
 
     def perform_create(self, serializer):
         product = serializer.save()
@@ -207,7 +269,12 @@ class DealerProductViewSet(viewsets.ModelViewSet):
             created_by=request.user,
             notif_type="success" if product.status == DealerProductStatus.ACTIVE else "warning",
         )
-        return Response(DealerProductListSerializer(product, context={"request": request}).data)
+        return Response(
+            DealerProductListSerializer(
+                _annotated_dealer_product(product.pk) or product,
+                context={"request": request},
+            ).data
+        )
 
 
 @extend_schema_view(

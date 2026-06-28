@@ -4,6 +4,7 @@ import { ArrowRight, Loader2, Store } from "lucide-react";
 import UserRegisterLeftPanel from "../../components/User/Auth/UserRegisterLeftPanel";
 import {
     getStoredDealerSlug,
+    isValidStoreCode,
     normalizeDealerSlugInput,
     STORE_DEALER_SLUG_KEY,
 } from "../../utils/buyerAuthUtils";
@@ -18,7 +19,11 @@ export default function DealerSlugEntryPage() {
     const goToStorefront = (slug) => {
         const normalized = normalizeDealerSlugInput(slug);
         if (!normalized) {
-            setError("Vui lòng nhập địa chỉ cửa hàng đại lý hợp lệ.");
+            setError("Vui lòng nhập mã hoặc link cửa hàng.");
+            return false;
+        }
+        if (!isValidStoreCode(normalized)) {
+            setError("Mã cửa hàng không hợp lệ. Ví dụ: k7m-x9p-q2n");
             return false;
         }
 
@@ -62,11 +67,11 @@ export default function DealerSlugEntryPage() {
                             Vào cửa hàng đại lý
                         </h2>
                         <p className="mt-2 text-sm leading-relaxed text-neutral-600">
-                            Nhập địa chỉ cửa hàng đại lý để mua sắm. Ví dụ:{" "}
-                            <span className="font-medium text-emerald-900">green-market</span>{" "}
-                            hoặc dán link{" "}
-                            <span className="font-medium text-emerald-900">
-                                /cua-hang/green-market
+                            Nhập mã cửa hàng do đại lý cung cấp hoặc dán link chia sẻ. Ví dụ mã:{" "}
+                            <span className="font-medium font-mono text-emerald-900">k7m-x9p-q2n</span>
+                            {" "}hoặc link{" "}
+                            <span className="font-medium font-mono text-emerald-900">
+                                /cua-hang/k7m-x9p-q2n
                             </span>
                             .
                         </p>
@@ -78,7 +83,7 @@ export default function DealerSlugEntryPage() {
                                 htmlFor="dealer-slug"
                                 className="mb-2 block text-sm font-semibold text-neutral-700"
                             >
-                                Địa chỉ cửa hàng đại lý
+                                Mã cửa hàng
                             </label>
                             <input
                                 id="dealer-slug"
@@ -88,7 +93,7 @@ export default function DealerSlugEntryPage() {
                                     setSlugInput(event.target.value);
                                     if (error) setError("");
                                 }}
-                                placeholder="Nhập slug hoặc dán link cửa hàng"
+                                placeholder="k7m-x9p-q2n hoặc dán link cửa hàng"
                                 className="w-full rounded-xl border border-stone-300 bg-white px-4 py-3.5 text-base text-zinc-900 outline-none transition focus:border-emerald-700 focus:ring-2 focus:ring-emerald-200"
                                 autoComplete="off"
                             />

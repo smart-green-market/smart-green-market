@@ -14,7 +14,7 @@ from apps.dealers.models import DealerProfile, DealerProfileStatus
 from .catalog_services import (
     apply_storefront_product_filters,
     build_storefront_dealer_about_context,
-    get_storefront_bestseller_products_qs,
+    get_storefront_bestseller_products,
     get_storefront_categories_qs,
     get_storefront_product_detail,
     get_storefront_products_qs,
@@ -238,11 +238,17 @@ class StorefrontBestsellerProductListView(APIView):
     def get(self, request, dealer_slug):
         dealer = _get_dealer_or_404(dealer_slug)
         limit = parse_bestseller_limit(request.query_params.get("limit"))
-        products_qs = get_storefront_bestseller_products_qs(dealer)
         in_stock = request.query_params.get("in_stock")
-        if in_stock is not None and str(in_stock).lower() in ("true", "1", "yes"):
-            products_qs = products_qs.filter(available_quantity__gt=0)
-        products = list(products_qs[:limit])
+        in_stock_only = in_stock is not None and str(in_stock).lower() in (
+            "true",
+            "1",
+            "yes",
+        )
+        products = get_storefront_bestseller_products(
+            dealer,
+            limit=limit,
+            in_stock_only=in_stock_only,
+        )
         return Response(
             StorefrontBestsellerProductSerializer(
                 products,
