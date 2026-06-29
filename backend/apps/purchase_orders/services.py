@@ -32,7 +32,10 @@ from django.db.models import Sum
 from django.utils import timezone
 from rest_framework.exceptions import ValidationError
 
-from apps.dealer_products.inventory_expiry import compute_batch_expiry_date
+from apps.dealer_products.inventory_expiry import (
+    compute_batch_expiry_date,
+    compute_batch_production_date,
+)
 from apps.dealer_products.models import (
     DealerInventoryBatch,
     DealerInventoryBatchStatus,
@@ -590,6 +593,11 @@ def _import_dealer_inventory(order, user):
             continue
         batch_number = f"{order.order_code}-{item.id}"
         expiry_date = compute_batch_expiry_date(import_date, item.supplier_product)
+        production_date = compute_batch_production_date(
+            import_date,
+            item.supplier_product,
+            expiry_date=expiry_date,
+        )
         batch = DealerInventoryBatch.objects.create(
             dealer_product=dealer_product,
             purchase_order_item=item,
@@ -598,6 +606,7 @@ def _import_dealer_inventory(order, user):
             remaining_quantity=qty,
             import_price=item.unit_price,
             import_date=import_date,
+            production_date=production_date,
             expiry_date=expiry_date,
             status=DealerInventoryBatchStatus.ACTIVE,
         )
