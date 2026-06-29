@@ -15,7 +15,7 @@ import {
   canVerifyPayment,
 } from "../../../../services/api/orderService";
 import { supplierService } from "../../../../services/api/suppilerService";
-import  AppToaster  from "../../../common/AppToaster";
+import { toast } from "sonner";
 
 import { ORDER_STEPS, STEP_INDEX, SUB_STATUS_LABEL, PAYMENT_STATUS } from "./constants";
 import { fmtPrice, fmtDate, fmtDateShort, getApiErrorMessage, buildPrintHtml } from "./utils";
@@ -182,15 +182,34 @@ export default function DetailOrderModal({ isOpen, onClose, order: initialOrder,
   const confirmOrder = async () => {
     setLoading(true);
     try {
-      const payload = { deposit_percent: String(depositNum) };
-      if (deliveryDate) payload.requested_delivery_time = deliveryDate;
+      const resolvedDate = deliveryDate
+        ? new Date(deliveryDate).toISOString()
+        : order.requested_delivery_time;
+
+      if (!resolvedDate) {
+        toast.error("Vui lòng chọn ngày giao hàng trước khi xác nhận.");
+        setLoading(false);
+        return;
+      }
+
+      const payload = {
+        deposit_percent: String(depositNum),
+        confirmed_delivery_time: resolvedDate,
+      };
+
       const updated = await orderService.confirmOrder(order.id, payload);
-      setOrder(updated ?? { ...order, status: "confirmed", deposit_percent: String(depositNum), ...(deliveryDate && { requested_delivery_time: deliveryDate }) });
+      setOrder(updated ?? {
+        ...order,
+        status: "confirmed",
+        deposit_percent: String(depositNum),
+        confirmed_delivery_time: resolvedDate,
+      });
       setConfirmModal(false);
-      AppToaster.success("Đã xác nhận đơn hàng thành công");
+      toast.success("Đã xác nhận đơn hàng thành công");
       onUpdate?.();
     } catch (err) {
-      AppToaster.danger(getApiErrorMessage(err, "Không thể xác nhận đơn hàng. Vui lòng thử lại."));
+      console.log("confirm 400 detail:", err?.response?.data);
+      toast.error(getApiErrorMessage(err, "Không thể xác nhận đơn hàng. Vui lòng thử lại."));
     } finally {
       setLoading(false);
     }
@@ -202,10 +221,10 @@ export default function DetailOrderModal({ isOpen, onClose, order: initialOrder,
       const updated = await orderService.rejectOrder(order.id, { rejection_reason: rejectionReason.trim() });
       setOrder(updated ?? { ...order, status: "rejected", rejection_reason: rejectionReason.trim() });
       setRejectModal(false);
-      AppToaster.success("Đã từ chối đơn hàng");
+      toast.success("Đã từ chối đơn hàng");
       onUpdate?.();
     } catch (err) {
-      AppToaster.danger(getApiErrorMessage(err, "Không thể từ chối đơn hàng. Vui lòng thử lại."));
+      toast.error(getApiErrorMessage(err, "Không thể từ chối đơn hàng. Vui lòng thử lại."));
     } finally {
       setRejectLoading(false);
     }
@@ -217,10 +236,10 @@ export default function DetailOrderModal({ isOpen, onClose, order: initialOrder,
       const updated = await orderService.confirmShipping(order.id, {});
       setOrder((prev) => mergeOrderDetail(prev, updated) ?? { ...prev, status: "shipping" });
       setShippingModal(false);
-      AppToaster.success("Đã chuyển đơn hàng sang trạng thái đang giao");
+      toast.success("Đã chuyển đơn hàng sang trạng thái đang giao");
       onUpdate?.();
     } catch (err) {
-      AppToaster.danger(getApiErrorMessage(err, "Không thể chuyển trạng thái giao hàng. Vui lòng thử lại."));
+      toast.error(getApiErrorMessage(err, "Không thể chuyển trạng thái giao hàng. Vui lòng thử lại."));
     } finally {
       setShippingLoading(false);
     }
@@ -240,10 +259,10 @@ export default function DetailOrderModal({ isOpen, onClose, order: initialOrder,
       setRejectDepositModal(false);
       setRejectFinalModal(false);
       const label = isDeposit ? "tiền cọc" : "thanh toán cuối";
-      AppToaster.success(action === "approve" ? `Đã duyệt ${label} thành công` : `Đã từ chối ${label}`);
+      toast.success(action === "approve" ? `Đã duyệt ${label} thành công` : `Đã từ chối ${label}`);
       onUpdate?.();
     } catch (err) {
-      AppToaster.danger(getApiErrorMessage(err, "Không thể xác nhận thanh toán. Vui lòng thử lại."));
+      toast.error(getApiErrorMessage(err, "Không thể xác nhận thanh toán. Vui lòng thử lại."));
     } finally {
       setVLoad(false);
     }
@@ -455,7 +474,7 @@ export default function DetailOrderModal({ isOpen, onClose, order: initialOrder,
                         return { ...it, quantity: change.quantity, subtotal: change.quantity * Number(it.unit_price) };
                       }),
                     });
-                    AppToaster.success("Đã cập nhật số lượng");
+                    toast.success("Đã cập nhật số lượng");
                   }}
                 />
               )}
