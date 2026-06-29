@@ -45,6 +45,32 @@ def compute_batch_expiry_date(import_date, supplier_product, *, fallback_days=No
         return None
 
 
+def compute_batch_production_date(
+    import_date,
+    supplier_product,
+    *,
+    expiry_date=None,
+    fallback_days=None,
+):
+    """
+    Ngày sản xuất lô — cố định tại nhập kho theo quy cách SP NCC.
+
+    Công thức: expiry_date − storage_duration_days.
+    Nếu chưa tính được expiry thì dùng import_date (mốc nhập kho đại lý).
+    """
+    days = resolve_storage_duration_days(supplier_product, fallback_days=fallback_days)
+    expiry = expiry_date
+    if expiry is None and days is not None:
+        expiry = compute_batch_expiry_date(
+            import_date,
+            supplier_product,
+            fallback_days=fallback_days,
+        )
+    if expiry is not None and days is not None:
+        return expiry - timedelta(days=days)
+    return import_date
+
+
 def fix_invalid_supplier_storage_duration_days(
     *,
     default_days,
@@ -107,7 +133,7 @@ def set_batch_expiry_date(batch, expiry_date):
 
 
 def recompute_batch_expiry_date(batch, *, fallback_days=None):
-    """Tính lại expiry_date từ import_date + storage_duration_days (SP NCC)."""
+    """Tính lại expiry_date và production_date từ import_date + storage_duration_days (SP NCC)."""
     supplier_product = getattr(batch.dealer_product, "supplier_product", None)
     if supplier_product is None:
         raise ValidationError({"detail": "Sản phẩm đại lý không liên kết sản phẩm NCC."})
@@ -125,7 +151,15 @@ def recompute_batch_expiry_date(batch, *, fallback_days=None):
                 )
             }
         )
-    return set_batch_expiry_date(batch, expiry_date)
+    batch.expiry_date = expiry_date
+    batch.production_date = compute_batch_production_date(
+        batch.import_date,
+        supplier_product,
+        expiry_date=expiry_date,
+        fallback_days=fallback_days,
+    )
+    batch.save(update_fields=["expiry_date", "production_date", "updated_at"])
+    return _sync_batch_status_after_expiry_change(batch)
 
 
 def backfill_batch_expiry_dates(
@@ -189,7 +223,15 @@ def backfill_batch_expiry_dates(
         if dry_run:
             updated += 1
             continue
-        set_batch_expiry_date(batch, expiry_date)
+        batch.expiry_date = expiry_date
+        batch.production_date = compute_batch_production_date(
+            batch.import_date,
+            supplier_product,
+            expiry_date=expiry_date,
+            fallback_days=fallback_storage_days,
+        )
+        batch.save(update_fields=["expiry_date", "production_date", "updated_at"])
+        _sync_batch_status_after_expiry_change(batch)
         updated += 1
     return {
         "updated": updated,

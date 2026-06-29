@@ -392,6 +392,7 @@ class DealerInventoryBatchSerializer(serializers.ModelSerializer):
             "remaining_quantity",
             "import_price",
             "import_date",
+            "production_date",
             "expiry_date",
             "manual_sale_price",
             "storage_duration_days",
