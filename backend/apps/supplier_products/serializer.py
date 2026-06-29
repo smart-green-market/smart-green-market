@@ -17,6 +17,7 @@ from apps.product_catalog.models import ProductMaster
 from apps.product_catalog.serializers import ProductMasterListSerializer
 from apps.suppliers.models import SupplierVerificationStatus
 from apps.purchase_orders.models import PurchaseOrderStatus
+from apps.dealer_products.inventory_expiry import MAX_STORAGE_DURATION_DAYS
 from .catalog_services import apply_supplier_product_catalog_rules
 from .order_demand import purchase_order_items_for_product
 from .models import SupplierProduct, SupplierProductImage, SupplierProductStatus
@@ -480,6 +481,15 @@ class SupplierProductSerializer(serializers.ModelSerializer):
                 "Danh mục không hợp lệ hoặc chưa được duyệt."
             )
         return category
+
+    def validate_storage_duration_days(self, value):
+        if value is None:
+            return value
+        if value <= 0 or value > MAX_STORAGE_DURATION_DAYS:
+            raise serializers.ValidationError(
+                f"Số ngày bảo quản phải từ 1 đến {MAX_STORAGE_DURATION_DAYS}."
+            )
+        return value
 
     def validate(self, attrs):
         """Áp dụng rule catalog + kiểm tra NCC đã duyệt."""

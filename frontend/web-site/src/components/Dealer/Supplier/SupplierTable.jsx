@@ -1,6 +1,7 @@
-import { useState } from "react";
 import { Phone, MapPin, ChevronRight } from "lucide-react";
 import Pagination from "../../common/Pagination";
+import SortableHeader from "../../common/SortableHeader";
+import useTableSort from "../../../hooks/useTableSort";
 
 const AVATAR_COLORS = [
   "from-emerald-500 to-teal-600",
@@ -10,7 +11,15 @@ const AVATAR_COLORS = [
   "from-emerald-600 to-green-700",
 ];
 
+const COLUMN_CONFIG = {
+  company_name: { key: "company_name", type: "string" },
+  phone:        { key: "phone",        type: "string" },
+  address:      { key: "address",      type: "string" },
+};
+
 export default function SupplierTable({ filteredInventory, onRowClick, currentPage = 1, totalPages = 1, onPageChange }) {
+  const { sortedData, sortColumn, sortDirection, handleSort } = useTableSort(filteredInventory, COLUMN_CONFIG);
+
   if (!filteredInventory || filteredInventory.length === 0) {
     return (
       <div className="w-full rounded-2xl border border-neutral-100 overflow-hidden bg-white shadow-xs font-['Geist',sans-serif] py-16 text-center">
@@ -34,20 +43,14 @@ export default function SupplierTable({ filteredInventory, onRowClick, currentPa
           <table className="w-full border-collapse text-left">
             <thead>
               <tr className="bg-neutral-50 border-b border-neutral-200/60">
-                <th className="px-6 py-4 text-[11px] font-bold text-neutral-500 uppercase tracking-wider">
-                  Nhà cung cấp
-                </th>
-                <th className="px-6 py-4 text-[11px] font-bold text-neutral-500 uppercase tracking-wider">
-                  Liên hệ
-                </th>
-                <th className="px-6 py-4 text-[11px] font-bold text-neutral-500 uppercase tracking-wider">
-                  Địa chỉ
-                </th>
+                <SortableHeader label="Nhà cung cấp" column="company_name" sortColumn={sortColumn} sortDirection={sortDirection} onSort={handleSort} />
+                <SortableHeader label="Liên hệ" column="phone" sortColumn={sortColumn} sortDirection={sortDirection} onSort={handleSort} />
+                <SortableHeader label="Địa chỉ" column="address" sortColumn={sortColumn} sortDirection={sortDirection} onSort={handleSort} />
                 <th className="w-12 px-6 py-4"></th>
               </tr>
             </thead>
             <tbody className="divide-y divide-neutral-100">
-              {filteredInventory.map((row) => {
+              {sortedData.map((row) => {
                 const initials = (row.company_name || "")
                   .split(" ")
                   .slice(-2)

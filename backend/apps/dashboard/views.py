@@ -1,16 +1,19 @@
 from datetime import timedelta
 from django.utils import timezone
-from django.db.models import Sum, Count, F, Q
+from django.db.models import Sum, Count, F, Q, ExpressionWrapper, DurationField
 from django.db.models.functions import TruncDate, TruncMonth
-from rest_framework import viewsets
+from rest_framework import viewsets, serializers
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.decorators import action
+from drf_spectacular.utils import extend_schema, inline_serializer, OpenApiResponse
 
 from apps.orders.models import Order, OrderStatus, OrderItem
+from apps.dealer_products.inventory_expiry import mark_expired_inventory_batches
 from apps.dealer_products.models import DealerInventoryBatch, DealerInventoryBatchStatus
 from apps.purchase_orders.models import PurchaseOrder, PurchaseOrderStatus, PurchaseOrderItem
 from apps.supplier_products.models import SupplierProduct, SupplierProductStatus
+from apps.accounts.models import Account, AccountRole, AccountStatus
 
 class DealerDashboardViewSet(viewsets.ViewSet):
     """
@@ -25,6 +28,45 @@ class DealerDashboardViewSet(viewsets.ViewSet):
         """
         return getattr(request.user, 'dealer_profile', None)
 
+    @extend_schema(
+        summary="Tổng quan Dashboard Đại lý",
+        description="Lấy thông tin tổng quan của đại lý bao gồm: Doanh thu hôm nay (và % tăng trưởng so với hôm qua), số đơn hàng mới/đang chờ, tổng tồn kho và số lượng cảnh báo (hết hạn/sắp hết hàng).",
+        responses={
+            200: inline_serializer(
+                name='DealerDashboardSummaryResponse',
+                fields={
+                    'revenue': inline_serializer(
+                        name='DealerRevenueSummary',
+                        fields={
+                            'today': serializers.DecimalField(max_digits=14, decimal_places=2, help_text="Doanh thu ngày hôm nay"),
+                            'change_percent': serializers.DecimalField(max_digits=5, decimal_places=2, help_text="% thay đổi so với hôm qua")
+                        }
+                    ),
+                    'orders': inline_serializer(
+                        name='DealerOrdersSummary',
+                        fields={
+                            'new_today': serializers.IntegerField(help_text="Đơn hàng mới tạo hôm nay"),
+                            'pending': serializers.IntegerField(help_text="Đơn hàng đang chờ xử lý")
+                        }
+                    ),
+                    'inventory': inline_serializer(
+                        name='DealerInventorySummary',
+                        fields={
+                            'total_quantity': serializers.IntegerField(help_text="Tổng số lượng sản phẩm tồn kho"),
+                            'new_types_today': serializers.IntegerField(help_text="Số loại sản phẩm nhập mới hôm nay")
+                        }
+                    ),
+                    'alerts': inline_serializer(
+                        name='DealerAlertsSummary',
+                        fields={
+                            'count': serializers.IntegerField(help_text="Số cảnh báo tồn kho thấp hoặc sắp hết hạn")
+                        }
+                    )
+                }
+            ),
+            403: OpenApiResponse(description="User is not a dealer.")
+        }
+    )
     @action(detail=False, methods=['get'])
     def summary(self, request):
         """
@@ -35,6 +77,8 @@ class DealerDashboardViewSet(viewsets.ViewSet):
         dealer = self._get_dealer(request)
         if not dealer:
             return Response({"detail": "User is not a dealer."}, status=403)
+
+        mark_expired_inventory_batches(dealer_profile_id=dealer.id)
 
         now = timezone.now()
         today_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
@@ -87,10 +131,16 @@ class DealerDashboardViewSet(viewsets.ViewSet):
         # Số lượng sản phẩm mới có lô hàng hoạt động được tạo ngày hôm nay
         new_batches_today = active_batches.filter(created_at__gte=today_start).values('dealer_product').distinct().count()
 
-        # 4. Cảnh báo (Alerts - Tồn kho thấp < 10 hoặc hết hạn trong vòng 7 ngày)
-        seven_days_later = now.date() + timedelta(days=7)
-        expiring_or_low_stock = active_batches.filter(
-            Q(remaining_quantity__lt=10) | Q(expiry_date__lte=seven_days_later)
+        # 4. Cảnh báo (Alerts - Tồn kho thấp < 10 hoặc sắp hết hạn)
+        # Sắp hết hạn: số ngày còn lại đến hạn <= 20% tổng số ngày từ import_date đến expiry_date
+        expiring_or_low_stock = active_batches.annotate(
+            duration_20pct=ExpressionWrapper(
+                (F('expiry_date') - F('import_date')) / 5, 
+                output_field=DurationField()
+            )
+        ).filter(
+            Q(remaining_quantity__lt=10) | 
+            (Q(expiry_date__isnull=False) & Q(expiry_date__lte=now.date() + F('duration_20pct')))
         )
         alerts_count = expiring_or_low_stock.values('dealer_product').distinct().count()
 
@@ -112,6 +162,21 @@ class DealerDashboardViewSet(viewsets.ViewSet):
             }
         })
 
+    @extend_schema(
+        summary="Biểu đồ doanh thu Đại lý (7 ngày)",
+        description="Lấy thống kê doanh thu theo từng ngày trong vòng 7 ngày qua để vẽ biểu đồ.",
+        responses={
+            200: inline_serializer(
+                name='DealerRevenueChartItem',
+                fields={
+                    'date': serializers.CharField(help_text="Ngày (YYYY-MM-DD)"),
+                    'revenue': serializers.DecimalField(max_digits=14, decimal_places=2, help_text="Tổng doanh thu trong ngày")
+                },
+                many=True
+            ),
+            403: OpenApiResponse(description="User is not a dealer.")
+        }
+    )
     @action(detail=False, methods=['get'], url_path='revenue-chart')
     def revenue_chart(self, request):
         """
@@ -148,6 +213,25 @@ class DealerDashboardViewSet(viewsets.ViewSet):
         
         return Response(result)
 
+    @extend_schema(
+        summary="Sản phẩm bán chạy nhất (Đại lý)",
+        description="Lấy danh sách 10 sản phẩm bán chạy nhất của Đại lý dựa trên tổng doanh thu từ trước đến nay.\n\nsales: Tổng số lượng sản phẩm đã bán",
+        responses={
+            200: inline_serializer(
+                name='DealerTopProductItem',
+                fields={
+                    'id': serializers.IntegerField(help_text="ID sản phẩm đại lý"),
+                    'name': serializers.CharField(help_text="Tên sản phẩm"),
+                    'category': serializers.CharField(help_text="Tên danh mục"),
+                    'sales': serializers.IntegerField(help_text="Tổng số lượng đã bán"),
+                    'revenue': serializers.DecimalField(max_digits=14, decimal_places=2, help_text="Tổng doanh thu"),
+                    'current_stock': serializers.IntegerField(help_text="Tồn kho hiện tại")
+                },
+                many=True
+            ),
+            403: OpenApiResponse(description="User is not a dealer.")
+        }
+    )
     @action(detail=False, methods=['get'], url_path='top-products')
     def top_products(self, request):
         """
@@ -200,6 +284,37 @@ class SupplierDashboardViewSet(viewsets.ViewSet):
     def _get_supplier(self, request):
         return getattr(request.user, 'supplier_profile', None)
 
+    @extend_schema(
+        summary="Tổng quan Dashboard Nhà cung cấp",
+        description="Lấy dữ liệu thống kê tổng quan của Nhà cung cấp:  \n\n this_month: doanh thu tháng này \n\n  orders.new_this_month: số đơn hàng mới \n\n orders.pending: số đơn đang chờ xử lý \n\n products.active_count: số sản phẩm đang bán.",
+        responses={
+            200: inline_serializer(
+                name='SupplierDashboardSummaryResponse',
+                fields={
+                    'revenue': inline_serializer(
+                        name='SupplierRevenueSummary',
+                        fields={
+                            'this_month': serializers.DecimalField(max_digits=14, decimal_places=2, help_text="Doanh thu tháng này")
+                        }
+                    ),
+                    'orders': inline_serializer(
+                        name='SupplierOrdersSummary',
+                        fields={
+                            'new_this_month': serializers.IntegerField(help_text="Đơn hàng mới tạo tháng này"),
+                            'pending': serializers.IntegerField(help_text="Đơn hàng đang chờ xử lý")
+                        }
+                    ),
+                    'products': inline_serializer(
+                        name='SupplierProductsSummary',
+                        fields={
+                            'active_count': serializers.IntegerField(help_text="Số lượng sản phẩm đang bán (ACTIVE)")
+                        }
+                    )
+                }
+            ),
+            403: OpenApiResponse(description="User is not a supplier.")
+        }
+    )
     @action(detail=False, methods=['get'])
     def summary(self, request):
         supplier = self._get_supplier(request)
@@ -253,6 +368,21 @@ class SupplierDashboardViewSet(viewsets.ViewSet):
             }
         })
 
+    @extend_schema(
+        summary="Biểu đồ doanh thu Nhà cung cấp (6 tháng)",
+        description="Lấy thống kê doanh thu theo tháng trong vòng 6 tháng gần nhất để vẽ biểu đồ.",
+        responses={
+            200: inline_serializer(
+                name='SupplierRevenueChartItem',
+                fields={
+                    'month': serializers.CharField(help_text="Tháng (YYYY-MM)"),
+                    'revenue': serializers.DecimalField(max_digits=14, decimal_places=2, help_text="Doanh thu trong tháng")
+                },
+                many=True
+            ),
+            403: OpenApiResponse(description="User is not a supplier.")
+        }
+    )
     @action(detail=False, methods=['get'], url_path='revenue-chart')
     def revenue_chart(self, request):
         supplier = self._get_supplier(request)
@@ -295,6 +425,24 @@ class SupplierDashboardViewSet(viewsets.ViewSet):
         result = [{"month": k, "revenue": v} for k, v in revenue_dict.items()]
         return Response(result)
 
+    @extend_schema(
+        summary="Sản phẩm bán chạy nhất (Nhà cung cấp)",
+        description="Lấy danh sách 10 sản phẩm bán chạy nhất của Nhà cung cấp.\n\nsales: Tổng số lượng sản phẩm đã bán",
+        responses={
+            200: inline_serializer(
+                name='SupplierTopProductItem',
+                fields={
+                    'id': serializers.IntegerField(help_text="ID sản phẩm NCC"),
+                    'name': serializers.CharField(help_text="Tên sản phẩm"),
+                    'category': serializers.CharField(help_text="Tên danh mục"),
+                    'sales': serializers.IntegerField(help_text="Tổng số lượng đã bán"),
+                    'revenue': serializers.DecimalField(max_digits=14, decimal_places=2, help_text="Tổng doanh thu")
+                },
+                many=True
+            ),
+            403: OpenApiResponse(description="User is not a supplier.")
+        }
+    )
     @action(detail=False, methods=['get'], url_path='top-products')
     def top_products(self, request):
         supplier = self._get_supplier(request)
@@ -324,3 +472,293 @@ class SupplierDashboardViewSet(viewsets.ViewSet):
             })
 
         return Response(results)
+
+
+class AdminDashboardViewSet(viewsets.ViewSet):
+    """
+    ViewSet cung cấp các API cho Dashboard của Admin.
+    """
+    permission_classes = [IsAuthenticated]
+
+    def _is_admin(self, request):
+        return request.user.role == AccountRole.ADMIN
+
+    @extend_schema(
+        summary="Tổng quan Dashboard Admin",
+        description="Lấy dữ liệu thống kê tổng quan của toàn nền tảng cho Admin: doanh thu tháng hiện tại, số đại lý và nhà cung cấp đang hoạt động, và số lượng khách hàng đăng ký mới trong tháng.",
+        responses={
+            200: inline_serializer(
+                name='AdminDashboardSummaryResponse',
+                fields={
+                    'revenue': inline_serializer(
+                        name='AdminRevenueSummary',
+                        fields={
+                            'this_month': serializers.DecimalField(max_digits=14, decimal_places=2, help_text="Tổng doanh thu tháng hiện tại")
+                        }
+                    ),
+                    'active_dealers': serializers.IntegerField(help_text="Số lượng dealer đang hoạt động"),
+                    'active_suppliers': serializers.IntegerField(help_text="Số lượng supplier đang hoạt động"),
+                    'new_customers_this_month': serializers.IntegerField(help_text="Số khách hàng mới trong tháng"),
+                }
+            ),
+            403: OpenApiResponse(description="User is not an admin (Lỗi phân quyền).")
+        }
+    )
+    @action(detail=False, methods=['get'])
+    def summary(self, request):
+        if not self._is_admin(request):
+            return Response({"detail": "User is not an admin."}, status=403)
+
+        now = timezone.now()
+        this_month_start = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+
+        # 1. Tổng doanh thu nền tảng/tháng
+        completed_orders = Order.objects.filter(
+            status__in=[OrderStatus.COMPLETED, OrderStatus.DELIVERED],
+            updated_at__gte=this_month_start
+        )
+        total_revenue = completed_orders.aggregate(total=Sum('total_amount'))['total'] or 0
+
+        # 2. Số dealer đang hoạt động
+        active_dealers = Account.objects.filter(
+            role=AccountRole.DEALER,
+            status=AccountStatus.ACTIVE
+        ).count()
+
+        # 3. Số supplier đang hoạt động
+        active_suppliers = Account.objects.filter(
+            role=AccountRole.SUPPLIER,
+            status=AccountStatus.ACTIVE
+        ).count()
+
+        # 4. Số khách hàng mới (trong tháng)
+        new_customers = Account.objects.filter(
+            role=AccountRole.BUYER,
+            created_at__gte=this_month_start
+        ).count()
+
+        return Response({
+            "revenue": {
+                "this_month": total_revenue
+            },
+            "active_dealers": active_dealers,
+            "active_suppliers": active_suppliers,
+            "new_customers_this_month": new_customers
+        })
+
+    @extend_schema(
+        summary="Biểu đồ doanh thu toàn hệ thống (6 tháng)",
+        description="Lấy thống kê doanh thu toàn nền tảng theo tháng trong vòng 6 tháng gần nhất để vẽ biểu đồ.",
+        responses={
+            200: inline_serializer(
+                name='AdminRevenueChartItem',
+                fields={
+                    'month': serializers.CharField(help_text="Tháng (YYYY-MM)"),
+                    'revenue': serializers.DecimalField(max_digits=14, decimal_places=2, help_text="Tổng doanh thu trong tháng")
+                },
+                many=True
+            ),
+            403: OpenApiResponse(description="User is not an admin (Lỗi phân quyền).")
+        }
+    )
+    @action(detail=False, methods=['get'], url_path='revenue-chart')
+    def revenue_chart(self, request):
+        if not self._is_admin(request):
+            return Response({"detail": "User is not an admin."}, status=403)
+
+        now = timezone.now()
+        # Lấy ngày mùng 1 của 5 tháng trước (tổng 6 tháng bao gồm tháng hiện tại)
+        start_date = now
+        for _ in range(5):
+            start_date = (start_date.replace(day=1) - timedelta(days=1)).replace(day=1)
+        start_date = start_date.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+
+        monthly_revenue = Order.objects.filter(
+            status__in=[OrderStatus.COMPLETED, OrderStatus.DELIVERED],
+            updated_at__gte=start_date
+        ).annotate(
+            month=TruncMonth('updated_at')
+        ).values('month').annotate(
+            total=Sum('total_amount')
+        ).order_by('month')
+
+        # Generate 6 months default 0
+        revenue_dict = {}
+        curr_date = start_date
+        for _ in range(6):
+            month_key = curr_date.strftime('%Y-%m')
+            revenue_dict[month_key] = 0
+            # Move to next month
+            next_month = curr_date.replace(day=28) + timedelta(days=4)
+            curr_date = next_month.replace(day=1)
+            
+        # Điền doanh thu thực tế từ CSDL
+        for item in monthly_revenue:
+            if item['month']:
+                month_key = item['month'].strftime('%Y-%m')
+                if month_key in revenue_dict:
+                    revenue_dict[month_key] = float(item['total'] or 0)
+        
+        result = [{"month": k, "revenue": v} for k, v in revenue_dict.items()]
+        return Response(result)
+
+    @extend_schema(
+        summary="Top Đại lý có doanh thu cao nhất",
+        description="Danh sách 10 Đại lý có tổng doanh thu (các đơn hàng đã hoàn tất) cao nhất toàn hệ thống.",
+        responses={
+            200: inline_serializer(
+                name='AdminTopDealerItem',
+                fields={
+                    'id': serializers.IntegerField(help_text="ID của DealerProfile"),
+                    'store_name': serializers.CharField(help_text="Tên cửa hàng đại lý"),
+                    'total_revenue': serializers.DecimalField(max_digits=14, decimal_places=2, help_text="Tổng doanh thu"),
+                    'total_orders': serializers.IntegerField(help_text="Tổng số đơn hàng hoàn tất"),
+                },
+                many=True
+            ),
+            403: OpenApiResponse(description="User is not an admin (Lỗi phân quyền).")
+        }
+    )
+    @action(detail=False, methods=['get'], url_path='top-dealers')
+    def top_dealers(self, request):
+        if not self._is_admin(request):
+            return Response({"detail": "User is not an admin."}, status=403)
+        
+        top_items = Order.objects.filter(
+            status__in=[OrderStatus.COMPLETED, OrderStatus.DELIVERED]
+        ).values(
+            'dealer__id',
+            'dealer__store_name',
+        ).annotate(
+            total_revenue=Sum('total_amount'),
+            total_orders=Count('id')
+        ).order_by('-total_revenue')[:10]
+        
+        results = [
+            {
+                "id": item['dealer__id'],
+                "store_name": item['dealer__store_name'],
+                "total_revenue": item['total_revenue'] or 0,
+                "total_orders": item['total_orders']
+            } for item in top_items
+        ]
+        return Response(results)
+
+    @extend_schema(
+        summary="Top Nhà cung cấp có doanh thu cao nhất",
+        description="Danh sách 10 Nhà cung cấp có tổng doanh thu (từ các phiếu nhập hàng đã giao/hoàn tất) cao nhất.",
+        responses={
+            200: inline_serializer(
+                name='AdminTopSupplierItem',
+                fields={
+                    'id': serializers.IntegerField(help_text="ID của Supplier"),
+                    'company_name': serializers.CharField(help_text="Tên công ty NCC"),
+                    'total_revenue': serializers.DecimalField(max_digits=14, decimal_places=2, help_text="Tổng doanh thu"),
+                    'total_orders': serializers.IntegerField(help_text="Tổng số phiếu nhập hoàn tất"),
+                },
+                many=True
+            ),
+            403: OpenApiResponse(description="User is not an admin (Lỗi phân quyền).")
+        }
+    )
+    @action(detail=False, methods=['get'], url_path='top-suppliers')
+    def top_suppliers(self, request):
+        if not self._is_admin(request):
+            return Response({"detail": "User is not an admin."}, status=403)
+        
+        top_items = PurchaseOrder.objects.filter(
+            status__in=[PurchaseOrderStatus.COMPLETED, PurchaseOrderStatus.DELIVERED]
+        ).values(
+            'supplier__id',
+            'supplier__company_name',
+        ).annotate(
+            total_revenue=Sum('total_amount'),
+            total_orders=Count('id')
+        ).order_by('-total_revenue')[:10]
+        
+        results = [
+            {
+                "id": item['supplier__id'],
+                "company_name": item['supplier__company_name'],
+                "total_revenue": item['total_revenue'] or 0,
+                "total_orders": item['total_orders']
+            } for item in top_items
+        ]
+        return Response(results)
+
+    @extend_schema(
+        summary="Sản phẩm bán chạy nhất toàn nền tảng",
+        description="Lấy danh sách 10 sản phẩm có tổng doanh thu cao nhất, so sánh cả sản phẩm của Đại lý (B2C) và Nhà cung cấp (B2B).\n\nsales: Tổng số lượng sản phẩm đã bán",
+        responses={
+            200: inline_serializer(
+                name='AdminTopProductItem',
+                fields={
+                    'id': serializers.IntegerField(help_text="ID của sản phẩm"),
+                    'name': serializers.CharField(help_text="Tên sản phẩm"),
+                    'category': serializers.CharField(help_text="Danh mục"),
+                    'type': serializers.CharField(help_text="'dealer_product' hoặc 'supplier_product'"),
+                    'sales': serializers.IntegerField(help_text="Tổng số lượng đã bán"),
+                    'revenue': serializers.DecimalField(max_digits=14, decimal_places=2, help_text="Tổng doanh thu")
+                },
+                many=True
+            ),
+            403: OpenApiResponse(description="User is not an admin (Lỗi phân quyền).")
+        }
+    )
+    @action(detail=False, methods=['get'], url_path='top-products')
+    def top_products(self, request):
+        if not self._is_admin(request):
+            return Response({"detail": "User is not an admin."}, status=403)
+
+        # 1. Top 10 Sản phẩm của Đại lý (B2C)
+        dealer_items = OrderItem.objects.filter(
+            order__status__in=[OrderStatus.COMPLETED, OrderStatus.DELIVERED]
+        ).values(
+            'dealer_product__id',
+            'dealer_product__title',
+            'dealer_product__category__name'
+        ).annotate(
+            total_quantity=Sum('quantity'),
+            total_revenue=Sum('subtotal')
+        ).order_by('-total_revenue')[:10]
+
+        # 2. Top 10 Sản phẩm của Nhà cung cấp (B2B)
+        supplier_items = PurchaseOrderItem.objects.filter(
+            purchase_order__status__in=[PurchaseOrderStatus.COMPLETED, PurchaseOrderStatus.DELIVERED]
+        ).values(
+            'supplier_product__id',
+            'supplier_product__name',
+            'supplier_product__category__name'
+        ).annotate(
+            total_quantity=Sum('quantity'),
+            total_revenue=Sum('subtotal')
+        ).order_by('-total_revenue')[:10]
+
+        combined = []
+        for item in dealer_items:
+            combined.append({
+                "id": item['dealer_product__id'],
+                "name": item['dealer_product__title'],
+                "category": item['dealer_product__category__name'] or "Chưa phân loại",
+                "type": "dealer_product",
+                "sales": item['total_quantity'],
+                "revenue": float(item['total_revenue'] or 0)
+            })
+            
+        for item in supplier_items:
+            combined.append({
+                "id": item['supplier_product__id'],
+                "name": item['supplier_product__name'],
+                "category": item['supplier_product__category__name'] or "Chưa phân loại",
+                "type": "supplier_product",
+                "sales": item['total_quantity'],
+                "revenue": float(item['total_revenue'] or 0)
+            })
+            
+        # Sắp xếp lại danh sách kết hợp dựa trên doanh thu giảm dần và lấy Top 10
+        combined.sort(key=lambda x: x['revenue'], reverse=True)
+        return Response(combined[:10])
+
+
+
+

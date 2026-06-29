@@ -73,6 +73,14 @@ export default function CreatePurchaseOrder({ onClose, onSuccess }) {
     return {};
   });
 
+  // --- STATE PHÂN TRANG ---
+  const [currentPage, setCurrentPage] = useState(1);
+
+  // Reset trang về 1 khi thay đổi bộ lọc
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [selectedSupplier, selectedCategory, searchQuery]);
+
   useEffect(() => {
     const fetchData = async () => {
       setLoading(true);
@@ -82,7 +90,7 @@ export default function CreatePurchaseOrder({ onClose, onSuccess }) {
         setSuppliers(supplierData || []);
 
         // Gọi API lấy danh sách danh mục, nếu lỗi trả về mảng rỗng
-        const categoryData = await categoryService.getAll().catch(() => []);
+        const categoryData = await categoryService.getAll({ status: "active" }).catch(() => []);
         setCategories(categoryData || []);
 
         // Gọi API lấy danh sách tất cả sản phẩm
@@ -275,6 +283,12 @@ export default function CreatePurchaseOrder({ onClose, onSuccess }) {
     return matchesSupplier && matchesCategory && matchesSearch;
   });
 
+  // --- PHÂN TRANG CHO LƯỚI SẢN PHẨM ---
+  const ITEMS_PER_PAGE = 9;
+  const totalPages = Math.ceil(filteredProducts.length / ITEMS_PER_PAGE);
+  const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
+  const paginatedProducts = filteredProducts.slice(startIndex, startIndex + ITEMS_PER_PAGE);
+
   // --- TÍNH TOÁN CHI TIẾT ĐƠN HÀNG NHÁP ---
   const cartItems = Object.entries(cart) //Object.entries(cart) chuyển cart sang dạng key-value
     .map(([id, qty]) => {
@@ -346,13 +360,14 @@ export default function CreatePurchaseOrder({ onClose, onSuccess }) {
           if (typeof productId === "string" && productId.startsWith("def-")) {
             productId = productId === "def-1" ? 1 : productId === "def-2" ? 2 : 3;
           }
-          return {
+           return {
             supplier_product_id: Number(productId),
             name: item.product.name,
             unit: item.product.unit || "Kg",
             quantity: Number(item.quantity),
             price: Number(item.product.price),
             subtotal: Number(item.subtotal),
+            product_thumbnail_url: item.product.image_url,
             note: "",
           };
         }),
@@ -427,18 +442,55 @@ export default function CreatePurchaseOrder({ onClose, onSuccess }) {
               Không tìm thấy sản phẩm nào khớp với bộ lọc.
             </div>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {filteredProducts.map((p) => (
-                <ProductCard
-                  key={p.id}
-                  product={p}
-                  inputQty={cardQuantities[p.id] || 0}
-                  onQtyChange={(val) => handleCardQtyChange(p.id, val)}
-                  onQtyAdjust={(delta) => adjustCardQty(p.id, delta)}
-                  onAddToCart={() => handleAddToCart(p)}
-                />
-              ))}
-            </div>
+            <>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {paginatedProducts.map((p) => (
+                  <ProductCard
+                    key={p.id}
+                    product={p}
+                    inputQty={cardQuantities[p.id] || 0}
+                    onQtyChange={(val) => handleCardQtyChange(p.id, val)}
+                    onQtyAdjust={(delta) => adjustCardQty(p.id, delta)}
+                    onAddToCart={() => handleAddToCart(p)}
+                  />
+                ))}
+              </div>
+
+              {/* Phân trang */}
+              {totalPages > 1 && (
+                <div className="mt-8 flex justify-center items-center gap-2">
+                  <button
+                    onClick={() => setCurrentPage((prev) => Math.max(prev - 1, 1))}
+                    disabled={currentPage === 1}
+                    className="px-3 py-1.5 rounded-lg border border-neutral-200 text-xs font-semibold text-neutral-600 hover:bg-neutral-50 disabled:opacity-50 disabled:hover:bg-transparent transition-colors cursor-pointer"
+                  >
+                    Trước
+                  </button>
+
+                  {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
+                    <button
+                      key={page}
+                      onClick={() => setCurrentPage(page)}
+                      className={`w-8 h-8 rounded-lg text-xs font-bold transition-colors cursor-pointer ${
+                        currentPage === page
+                          ? "bg-emerald-800 text-white"
+                          : "border border-neutral-200 text-neutral-600 hover:bg-neutral-50"
+                      }`}
+                    >
+                      {page}
+                    </button>
+                  ))}
+
+                  <button
+                    onClick={() => setCurrentPage((prev) => Math.min(prev + 1, totalPages))}
+                    disabled={currentPage === totalPages}
+                    className="px-3 py-1.5 rounded-lg border border-neutral-200 text-xs font-semibold text-neutral-600 hover:bg-neutral-50 disabled:opacity-50 disabled:hover:bg-transparent transition-colors cursor-pointer"
+                  >
+                    Sau
+                  </button>
+                </div>
+              )}
+            </>
           )}
         </div>
 

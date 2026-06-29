@@ -87,7 +87,14 @@ class PurchaseOrder(models.Model):
     )
 
     delivery_address = models.TextField()
-    requested_delivery_time = models.DateTimeField()
+    requested_delivery_time = models.DateTimeField(
+        help_text="Thời gian giao mong muốn của đại lý (tham khảo cho NCC).",
+    )
+    confirmed_delivery_time = models.DateTimeField(
+        null=True,
+        blank=True,
+        help_text="Thời gian giao NCC cam kết — chốt khi confirm.",
+    )
     receiver_name = models.CharField(max_length=255)
     receiver_phone = models.CharField(max_length=20)
     note = models.TextField(blank=True)

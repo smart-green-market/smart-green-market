@@ -6,15 +6,19 @@ import { isBuyerUser } from "../../../utils/buyerAuthUtils";
 import { buildCartItemFromProduct } from "../../../utils/cartUtils";
 import { showAddToCartFeedback } from "../../../utils/cartAddFeedback";
 import ProductImage from "./ProductImage";
+import ProductDiscountRibbon from "./ProductDiscountRibbon";
 import { formatAvailableQuantityLabel } from "../../../utils/userProductUtils";
 
 export default function StorefrontProductCard({
     id,
     name = "Sản phẩm",
     price = "0đ",
+    originalPrice = null,
     unit = "",
     unitKey = "kg",
     priceValue = 0,
+    discountPercent = 0,
+    hasDiscount = false,
     image,
     availableQuantity = 0,
     inStock = true,
@@ -87,6 +91,8 @@ export default function StorefrontProductCard({
                 className="h-full w-full transition-transform duration-500 group-hover/card:scale-[1.04]"
             />
 
+            <ProductDiscountRibbon percent={discountPercent} />
+
             {badge ? (
                 <span
                     className={`absolute rounded-full bg-amber-500/95 font-semibold uppercase tracking-wider text-white shadow-sm ${
@@ -101,10 +107,10 @@ export default function StorefrontProductCard({
 
             {!inStock ? (
                 <span
-                    className={`absolute rounded-full bg-red-50 font-semibold text-red-600 shadow-sm ${
+                    className={`absolute rounded-full bg-white/95 font-semibold text-red-700 shadow-sm ${
                         isCarousel
-                            ? "left-2 top-2 px-2 py-0.5 text-[10px]"
-                            : "left-3 top-3 px-2.5 py-1 text-[11px]"
+                            ? "bottom-2 left-2 px-2 py-0.5 text-[10px]"
+                            : "bottom-3 left-3 px-2.5 py-1 text-[11px]"
                     }`}
                 >
                     Hết hàng
@@ -157,10 +163,23 @@ export default function StorefrontProductCard({
                 }`}
             >
                 <div className={`flex items-center justify-between ${isCarousel ? "gap-1.5" : "gap-2"}`}>
+                <div className={`flex min-w-0 flex-col ${isCarousel ? "gap-0" : "gap-0.5"}`}>
+                    {hasDiscount && originalPrice ? (
+                        <span
+                            className={`font-medium text-stone-400 line-through ${
+                                isCarousel ? "text-[11px]" : "text-xs"
+                            }`}
+                        >
+                            {originalPrice}
+                            {unitSuffix ? (
+                                <span className="text-stone-300">{unitSuffix}</span>
+                            ) : null}
+                        </span>
+                    ) : null}
                     <p
-                        className={`min-w-0 font-bold tracking-tight text-emerald-700 ${
-                            isCarousel ? "text-sm" : "text-lg"
-                        }`}
+                        className={`min-w-0 font-bold tracking-tight ${
+                            hasDiscount ? "text-red-600" : "text-emerald-700"
+                        } ${isCarousel ? "text-sm" : "text-lg"}`}
                     >
                         {price}
                         {unitSuffix ? (
@@ -173,6 +192,7 @@ export default function StorefrontProductCard({
                             </span>
                         ) : null}
                     </p>
+                </div>
 
                     {showAddToCart ? (
                         <AddToCartButton

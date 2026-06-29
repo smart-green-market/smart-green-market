@@ -1,5 +1,5 @@
 import  { useState, useEffect } from "react";
-import { CreditCard, Upload, RefreshCw, AlertCircle, FileText, Check } from "lucide-react";
+import { CreditCard, Upload, RefreshCw, AlertCircle, FileText, Check, Eye } from "lucide-react";
 import { purchaseOrderService } from "../../../services/api/purchaseOrderService";
 import { toast } from "sonner";
 
@@ -14,6 +14,8 @@ export default function PaymentQrSection({ orderId, paymentType, onSuccess }) {
   const [note, setNote] = useState("");
   const [receiptFile, setReceiptFile] = useState(null);
   const [submitting, setSubmitting] = useState(false);
+  const [previewUrl, setPreviewUrl] = useState(null);
+  const [showPreview, setShowPreview] = useState(false);
 
   useEffect(() => {
     const fetchQr = async () => {
@@ -36,7 +38,14 @@ export default function PaymentQrSection({ orderId, paymentType, onSuccess }) {
 
   const handleFileChange = (e) => {
     if (e.target.files && e.target.files[0]) {
-      setReceiptFile(e.target.files[0]);
+      const file = e.target.files[0];
+      setReceiptFile(file);
+      // Tạo preview URL cho ảnh
+      if (file.type.startsWith("image/")) {
+        setPreviewUrl(URL.createObjectURL(file));
+      } else {
+        setPreviewUrl(null);
+      }
     }
   };
 
@@ -96,6 +105,7 @@ export default function PaymentQrSection({ orderId, paymentType, onSuccess }) {
   }
 
   return (
+    <>
     <div className="bg-white rounded-2xl border border-neutral-100 p-6 lg:p-8 shadow-xs mb-6 flex flex-col lg:flex-row gap-8 items-start">
       {/* CỘT TRÁI: HIỂN THỊ MÃ QR */}
       {qrData && (
@@ -177,7 +187,7 @@ export default function PaymentQrSection({ orderId, paymentType, onSuccess }) {
                 {receiptFile ? (
                   <div className="flex items-center gap-3 text-emerald-700 text-sm font-bold bg-emerald-100/50 px-4 py-2 rounded-xl border border-emerald-200">
                     <FileText className="w-5 h-5 text-emerald-600" />
-                    <span className="truncate max-w-[250px]">{receiptFile.name}</span>
+                    <span className="truncate max-w-[200px]">{receiptFile.name}</span>
                     <Check className="w-5 h-5 text-emerald-600 ml-1" />
                   </div>
                 ) : (
@@ -191,6 +201,17 @@ export default function PaymentQrSection({ orderId, paymentType, onSuccess }) {
                 )}
               </div>
             </div>
+
+            {/* Nút xem bill */}
+            {previewUrl && (
+              <button
+                type="button"
+                onClick={() => setShowPreview(true)}
+                className="flex items-center gap-2 px-4 py-2.5 text-xs font-bold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 rounded-xl border border-emerald-100 transition-colors cursor-pointer self-start"
+              >
+                <Eye className="w-4 h-4" /> Xem bill trước khi gửi
+              </button>
+            )}
 
             {/* Ghi chú */}
             <div className="flex flex-col gap-1.5">
@@ -228,5 +249,21 @@ export default function PaymentQrSection({ orderId, paymentType, onSuccess }) {
         </div>
       </div>
     </div>
+
+    {/* Overlay xem trước ảnh bill */}
+    {showPreview && previewUrl && (
+      <div
+        className="fixed inset-0 z-50 flex items-center justify-center bg-neutral-950/80 backdrop-blur-sm cursor-pointer"
+        onClick={() => setShowPreview(false)}
+      >
+        <img
+          src={previewUrl}
+          alt="Xem trước biên lai"
+          className="max-w-[90vw] max-h-[90vh] object-contain"
+          onClick={(e) => e.stopPropagation()}
+        />
+      </div>
+    )}
+    </>
   );
 }

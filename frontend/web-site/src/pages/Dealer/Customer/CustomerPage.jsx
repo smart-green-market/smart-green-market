@@ -3,12 +3,16 @@ import SupplierFilter from "../../../components/Dealer/Supplier/SupplierFilter";
 import CustomerHeader from "../../../components/Dealer/Customer/CustomerHeader";
 import CustomerTable from "../../../components/Dealer/Customer/CustomerTable";
 import { customerService } from "../../../services/api/customerService";
+import { dealerOrderService } from "../../../services/api/dealerOrderService";
 
 export default function DealerCustomerPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [debouncedSearchQuery, setDebouncedSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
   const [customers, setCustomers] = useState([]);
+  const [countStatus, setCountStatus] = useState(null);
+  const [totalCount, setTotalCount] = useState(0);
+  const [totalOrders, setTotalOrders] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [pagination, setPagination] = useState({
@@ -35,7 +39,10 @@ export default function DealerCustomerPage() {
     try {
       setLoading(true);
       setError(null);
-      const data = await customerService.getAll({ page, page_size: 10, search: debouncedSearchQuery, status: statusFilter });
+      const [data, ordersData] = await Promise.all([
+        customerService.getAll({ page, page_size: 10, search: debouncedSearchQuery, status: statusFilter }),
+        dealerOrderService.getAll({ page: 1, page_size: 1 }).catch(() => null)
+      ]);
       setCustomers(data.results || []);
       setPagination({
         count: data.count || 0,
@@ -43,6 +50,22 @@ export default function DealerCustomerPage() {
         pageSize: data.page_size || 10,
         hasMore: data.has_more || false,
       });
+      if (ordersData) {
+        setTotalOrders(ordersData.count || 0);
+      }
+
+      if (data.count_status) {
+        setCountStatus(data.count_status);
+      } else {
+        setCountStatus(null);
+      }
+
+      const count = data.count || 0;
+      if (statusFilter === "") {
+        setTotalCount(count);
+      } else if (data.count_status) {
+        setTotalCount(Object.values(data.count_status).reduce((sum, val) => sum + (val || 0), 0));
+      }
     } catch (err) {
       console.error("Lỗi khi tải danh sách khách hàng:", err);
       setError("Không thể tải danh sách khách hàng. Vui lòng thử lại.");
@@ -79,6 +102,11 @@ export default function DealerCustomerPage() {
         customers={customers}
         onExport={handleExport}
         onAdd={handleAddCustomer}
+        activeFilter={statusFilter}
+        onFilterChange={setStatusFilter}
+        countStatus={countStatus}
+        totalCount={totalCount}
+        totalOrders={totalOrders}
       />
 
       <SupplierFilter

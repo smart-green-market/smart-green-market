@@ -14,9 +14,11 @@ PO_CONFIG_DESCRIPTION = (
     "**Bước 0 — Cấu hình (gọi trước màn tạo phiếu).** Không cần đăng nhập.\n\n"
     "UI dealer dùng:\n"
     "- `min_order_amount` / `max_order_amount` — validate tổng tiền **mỗi phiếu** (mỗi NCC)\n"
-    "- `min_delivery_lead_days` — chặn chọn ngày giao quá sớm\n\n"
-    "UI NCC dùng `min_deposit_percent`, `max_deposit_percent`, `default_deposit_percent` "
-    "khi gọi `confirm/`."
+    "- `min_delivery_lead_days` — chặn chọn ngày giao mong muốn quá sớm\n\n"
+    "UI NCC dùng khi gọi `confirm/`:\n"
+    "- `min_deposit_percent`, `max_deposit_percent`, `default_deposit_percent`\n"
+    "- `min_delivery_lead_days` — ngày giao cam kết sớm nhất (từ lúc confirm)\n"
+    "- `max_delivery_delay_days` — muộn nhất so với ngày dealer mong muốn"
 )
 
 PO_LIST_DESCRIPTION = (

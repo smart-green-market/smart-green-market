@@ -71,11 +71,11 @@ export default function OrderDetailInfoCards({ orderData }) {
                 {orderData.delivery?.phone}
               </span>
             </div>
-            <div className="flex items-center text-sm gap-1">
-              <span className="text-neutral-600 font-bold flex items-center gap-1.5 shrink-0 whitespace-nowrap">
+            <div className="text-sm">
+              <span className="text-neutral-600 font-bold inline-flex items-center gap-1.5 mr-1">
                 <MapPin className="w-3.5 h-3.5 text-red-500" /> Địa chỉ:
               </span>
-              <span className="font-bold text-neutral-800 break-words leading-tight">
+              <span className="font-bold text-neutral-800 break-words">
                 {orderData.delivery?.address}
               </span>
             </div>

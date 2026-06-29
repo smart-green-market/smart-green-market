@@ -110,9 +110,68 @@ export function parseDealerProductList(response) {
 }
 
 export function getProductPrice(product) {
+  if (hasProductDiscount(product) && product?.effective_price != null) {
+    return product.effective_price;
+  }
+
   return (
     product?.retail_price ?? product?.wholesale_price ?? product?.price ?? null
   );
+}
+
+export function parseDiscountPercent(value) {
+  const parsed = Number(value);
+  if (Number.isNaN(parsed) || parsed <= 0) return 0;
+  return Math.round(parsed);
+}
+
+export function getRetailProductPrice(product) {
+  const raw =
+    product?.retail_price ?? product?.wholesale_price ?? product?.price ?? null;
+  if (raw == null || raw === "") return null;
+  const parsed = Number(raw);
+  return Number.isNaN(parsed) ? null : parsed;
+}
+
+export function getEffectiveProductPrice(product) {
+  const effective = product?.effective_price;
+  if (effective != null && effective !== "") {
+    const parsed = Number(effective);
+    if (!Number.isNaN(parsed)) return parsed;
+  }
+
+  const fallback =
+    product?.retail_price ?? product?.wholesale_price ?? product?.price ?? null;
+  const parsed = Number(fallback);
+  return Number.isNaN(parsed) ? 0 : parsed;
+}
+
+export function getDiscountPercent(product) {
+  const fromApi = parseDiscountPercent(product?.discount_percent);
+  if (fromApi > 0) return fromApi;
+
+  const retail = getRetailProductPrice(product);
+  const effective = getEffectiveProductPrice(product);
+  if (retail != null && retail > 0 && effective < retail) {
+    return Math.round((1 - effective / retail) * 100);
+  }
+
+  return 0;
+}
+
+export function hasProductDiscount(product) {
+  if (
+    product?.has_age_discount === true ||
+    product?.has_age_discount === "true"
+  ) {
+    return true;
+  }
+
+  const retail = getRetailProductPrice(product);
+  const effective = getEffectiveProductPrice(product);
+  if (retail != null && retail > 0 && effective < retail) return true;
+
+  return getDiscountPercent(product) > 0;
 }
 
 function resolveCategoryId(raw) {
@@ -152,6 +211,7 @@ export function formatDealerProduct(raw) {
     null;
 
   const retailPrice = raw?.retail_price ?? null;
+  const effectivePrice = raw?.effective_price ?? retailPrice;
   const inStock = raw?.in_stock;
   const status =
     typeof inStock === "boolean"
@@ -167,8 +227,14 @@ export function formatDealerProduct(raw) {
     unit: raw.unit ?? raw.supplier_product_unit ?? "",
     description: raw.description ?? "",
     retail_price: retailPrice,
+    effective_price: effectivePrice,
+    discount_amount: raw?.discount_amount ?? null,
+    discount_percent: raw?.discount_percent ?? null,
+    has_age_discount: raw?.has_age_discount ?? false,
+    nearest_expiry_date: raw?.nearest_expiry_date ?? null,
+    age_discount_reason: raw?.age_discount_reason ?? "",
     wholesale_price: retailPrice,
-    price: retailPrice,
+    price: effectivePrice ?? retailPrice,
     available_quantity: raw.available_quantity ?? 0,
     in_stock:
       typeof inStock === "boolean"
@@ -390,11 +456,19 @@ export function toCardProduct(product) {
   const inStock = isProductInStock(product);
   const rawUnit = product.unit ?? "";
   const unitFilterKey = getUnitFilterKey(rawUnit);
+  const hasDiscount = hasProductDiscount(product);
+  const effectivePrice = getEffectiveProductPrice(product);
+  const retailPrice = getRetailProductPrice(product);
+  const discountPercent = getDiscountPercent(product);
 
   return {
     id: product.id,
     name: product.name,
-    price: formatProductPrice(getProductPrice(product)),
+    price: formatProductPrice(effectivePrice),
+    originalPrice:
+      hasDiscount && retailPrice != null
+        ? formatProductPrice(retailPrice)
+        : null,
     unit: formatUnitLabel(rawUnit),
     rawUnit,
     unitKey: unitFilterKey,
@@ -409,6 +483,9 @@ export function toCardProduct(product) {
     in_stock: inStock,
     available_quantity: product.available_quantity ?? 0,
     category_id: product.category_id,
-    priceValue: Number(getProductPrice(product)) || 0,
+    priceValue: effectivePrice,
+    retailPriceValue: retailPrice,
+    discountPercent,
+    hasDiscount,
   };
 }

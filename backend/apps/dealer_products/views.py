@@ -44,7 +44,17 @@ from .serializers import (
     DealerProductListSerializer,
     DealerProductSerializer,
     RecordWastageSerializer,
+    BackfillExpiryDatesSerializer,
+    SetBatchExpiryDateSerializer,
     VerifyDealerProductSerializer,
+)
+from .age_discount import build_policies_cache_for_batches
+from .age_discount_serializers import SetBatchSalePriceSerializer
+from .inventory_expiry import (
+    backfill_batch_expiry_dates,
+    mark_expired_inventory_batches,
+    recompute_batch_expiry_date,
+    set_batch_expiry_date,
 )
 from .services import annotate_dealer_product_stock, record_wastage
 
@@ -337,7 +347,14 @@ class DealerProductImageViewSet(viewsets.ModelViewSet):
     list=extend_schema(
         tags=["Dealer Inventory"],
         summary="Danh sách lô tồn kho",
-        description="Lô hàng nhập từ phiếu nhập hoàn tất. Hỗ trợ tìm kiếm và lọc. " + PAGINATION_QUERY_HELP,
+        description=(
+            "Lô hàng nhập từ phiếu nhập hoàn tất. "
+            "`expiry_date` = ngày nhập + `storage_duration_days` của SP NCC (nếu có). "
+            "Cập nhật: `POST .../set-expiry-date/`, `POST .../recompute-expiry-date/`, "
+            "`POST .../backfill-expiry-dates/`. "
+            "Lô quá hạn tự chuyển `expired` khi gọi API. "
+            + PAGINATION_QUERY_HELP
+        ),
         parameters=[
             OpenApiParameter("search", str, description="Tìm kiếm theo mã lô, tên nông sản, danh mục hoặc nhà cung cấp", required=False),
             OpenApiParameter("status", str, description="Lọc theo trạng thái lô hàng", required=False),
@@ -368,6 +385,11 @@ class DealerInventoryBatchViewSet(viewsets.ReadOnlyModelViewSet):
         return _filter_inventory_scope(self.queryset, self.request.user)
 
     def list(self, request, *args, **kwargs):
+        dealer_id = getattr(getattr(request.user, "dealer_profile", None), "id", None)
+        if request.user.role == "admin":
+            dealer_id = None
+        mark_expired_inventory_batches(dealer_profile_id=dealer_id)
+
         qs = self.get_queryset()
 
         search = request.query_params.get("search", "").strip()
@@ -392,8 +414,22 @@ class DealerInventoryBatchViewSet(viewsets.ReadOnlyModelViewSet):
 
         paginator = LoadMorePagination()
         page = paginator.paginate_queryset(qs, request, view=self)
-        data = self.get_serializer(page, many=True).data
+        policies_cache = build_policies_cache_for_batches(page) if page else {}
+        data = self.get_serializer(
+            page,
+            many=True,
+            context={**self.get_serializer_context(), "age_discount_policies_cache": policies_cache},
+        ).data
         return paginator.get_paginated_response(data, count_status=count_status)
+
+    def retrieve(self, request, *args, **kwargs):
+        instance = self.get_object()
+        policies_cache = build_policies_cache_for_batches([instance])
+        serializer = self.get_serializer(
+            instance,
+            context={**self.get_serializer_context(), "age_discount_policies_cache": policies_cache},
+        )
+        return Response(serializer.data)
 
     @extend_schema(
         tags=["Dealer Inventory"],
@@ -424,6 +460,127 @@ class DealerInventoryBatchViewSet(viewsets.ReadOnlyModelViewSet):
             DealerInventoryWastageSerializer(wastage, context={"request": request}).data,
             status=201,
         )
+
+    def _ensure_batch_owner(self, request, batch):
+        if (
+            request.user.role != "admin"
+            and batch.dealer_product.dealer_profile.account_id != request.user.id
+        ):
+            from rest_framework.exceptions import PermissionDenied
+
+            raise PermissionDenied("Không có quyền trên lô tồn này.")
+
+    def _batch_detail_response(self, request, batch):
+        policies_cache = build_policies_cache_for_batches([batch])
+        return Response(
+            self.get_serializer(
+                batch,
+                context={
+                    **self.get_serializer_context(),
+                    "age_discount_policies_cache": policies_cache,
+                },
+            ).data
+        )
+
+    @extend_schema(
+        tags=["Dealer Inventory"],
+        summary="Đặt ngày hết hạn cho lô",
+        request=SetBatchExpiryDateSerializer,
+        responses={200: DealerInventoryBatchSerializer},
+    )
+    @action(detail=True, methods=["post"], url_path="set-expiry-date")
+    def set_expiry_date(self, request, pk=None):
+        batch = self.get_object()
+        self._ensure_batch_owner(request, batch)
+        serializer = SetBatchExpiryDateSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        batch = set_batch_expiry_date(batch, serializer.validated_data["expiry_date"])
+        return self._batch_detail_response(request, batch)
+
+    @extend_schema(
+        tags=["Dealer Inventory"],
+        summary="Tính lại ngày hết hạn từ storage_duration_days (SP NCC)",
+        responses={200: DealerInventoryBatchSerializer},
+    )
+    @action(detail=True, methods=["post"], url_path="recompute-expiry-date")
+    def recompute_expiry_date(self, request, pk=None):
+        batch = self.get_object()
+        self._ensure_batch_owner(request, batch)
+        batch = recompute_batch_expiry_date(batch)
+        return self._batch_detail_response(request, batch)
+
+    @extend_schema(
+        tags=["Dealer Inventory"],
+        summary="Backfill expiry_date cho các lô chưa có (theo SP NCC)",
+        request=BackfillExpiryDatesSerializer,
+        responses={
+            200: {
+                "type": "object",
+                "properties": {
+                    "updated": {"type": "integer"},
+                    "skipped": {"type": "integer"},
+                    "fixed_supplier_products": {"type": "integer"},
+                    "skipped_batches": {"type": "array"},
+                },
+            }
+        },
+    )
+    @action(detail=False, methods=["post"], url_path="backfill-expiry-dates")
+    def backfill_expiry_dates(self, request):
+        dealer_id = None
+        if request.user.role != "admin":
+            dealer_profile = getattr(request.user, "dealer_profile", None)
+            if dealer_profile is None:
+                from rest_framework.exceptions import PermissionDenied
+
+                raise PermissionDenied("Chỉ đại lý hoặc admin mới backfill được.")
+            dealer_id = dealer_profile.id
+
+        serializer = BackfillExpiryDatesSerializer(data=request.data or {})
+        serializer.is_valid(raise_exception=True)
+        data = serializer.validated_data
+
+        result = backfill_batch_expiry_dates(
+            dealer_profile_id=dealer_id,
+            fallback_storage_days=data.get("default_storage_days"),
+            fix_supplier_products=data.get("fix_supplier_products", False),
+        )
+        return Response(result)
+
+    @extend_schema(
+        tags=["Dealer Inventory"],
+        summary="Đặt giá giảm thủ công cho lô",
+        request=SetBatchSalePriceSerializer,
+        responses={200: DealerInventoryBatchSerializer},
+    )
+    @action(detail=True, methods=["post"], url_path="set-sale-price")
+    def set_sale_price(self, request, pk=None):
+        from .inventory_queries import get_sellable_batches_qs
+
+        batch = self.get_object()
+        self._ensure_batch_owner(request, batch)
+        if not get_sellable_batches_qs(batch.dealer_product).filter(pk=batch.pk).exists():
+            from rest_framework.exceptions import ValidationError
+
+            raise ValidationError({"detail": "Chỉ đặt giá trên lô đang bán được."})
+        serializer = SetBatchSalePriceSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        batch.manual_sale_price = serializer.validated_data["manual_sale_price"]
+        batch.save(update_fields=["manual_sale_price", "updated_at"])
+        return self._batch_detail_response(request, batch)
+
+    @extend_schema(
+        tags=["Dealer Inventory"],
+        summary="Xóa giá giảm thủ công — quay về policy/giá gốc",
+        responses={200: DealerInventoryBatchSerializer},
+    )
+    @action(detail=True, methods=["post"], url_path="clear-sale-price")
+    def clear_sale_price(self, request, pk=None):
+        batch = self.get_object()
+        self._ensure_batch_owner(request, batch)
+        batch.manual_sale_price = None
+        batch.save(update_fields=["manual_sale_price", "updated_at"])
+        return self._batch_detail_response(request, batch)
 
 
 @extend_schema_view(

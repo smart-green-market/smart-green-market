@@ -11,6 +11,7 @@ import {
   LogOut,
   Settings,
   Users,
+  Percent,
 } from "lucide-react";
 
 // Cấu trúc danh mục chia nhóm rõ ràng
@@ -27,6 +28,7 @@ const MENU_GROUPS = [
       { label: "Kho hàng", icon: Package, to: "/dai-ly/kho-hang" },
       { label: "Nhập hàng", icon: ClipboardList, to: "/dai-ly/nhap-hang" },
       { label: "Bán hàng", icon: ShoppingCart, to: "/dai-ly/ban-hang" },
+      { label: "Giảm giá", icon: Percent, to: "/dai-ly/giam-gia" },
     ],
   },
   {

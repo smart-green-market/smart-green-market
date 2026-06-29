@@ -24,6 +24,10 @@ class SystemSettings(models.Model):
     max_deposit_percent = models.PositiveSmallIntegerField(default=50)
     default_deposit_percent = models.PositiveSmallIntegerField(default=30)
     min_delivery_lead_days = models.PositiveSmallIntegerField(default=2)
+    max_delivery_delay_days = models.PositiveSmallIntegerField(
+        default=7,
+        help_text="NCC cam kết giao muộn nhất = requested + N ngày (khi confirm PO).",
+    )
 
     shipping_fee = models.PositiveIntegerField(default=10_000)
     min_lead_hours = models.PositiveSmallIntegerField(default=6)

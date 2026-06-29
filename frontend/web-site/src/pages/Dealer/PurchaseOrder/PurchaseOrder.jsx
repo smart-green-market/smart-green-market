@@ -21,7 +21,7 @@ const mapStatusToFrontend = (status) => {
         completed: "Đã hoàn thành",
         cancelled: "Đã hủy",
     };
-    return statusMap[status] || status; 
+    return statusMap[status] || status;
 };
 
 
@@ -29,6 +29,8 @@ const mapStatusToFrontend = (status) => {
 
 export default function DealerPurchaseOrderPage() {
     const [purchaseOrders, setPurchaseOrders] = useState([]);
+    const [countStatus, setCountStatus] = useState(null);
+    const [totalCount, setTotalCount] = useState(0);
     const [loading, setLoading] = useState(false);
     const [searchQuery, setSearchQuery] = useState("");
     const [debouncedSearchQuery, setDebouncedSearchQuery] = useState("");
@@ -47,6 +49,7 @@ export default function DealerPurchaseOrderPage() {
         { label: "Đã từ chối", value: "rejected", colorClass: "text-rose-700" },
         { label: "Đã xác nhận", value: "confirmed", colorClass: "text-cyan-700" },
         { label: "Chờ duyệt cọc", value: "deposit_pending_verification", colorClass: "text-amber-700" },
+        { label: "Đã thanh toán cọc", value: "deposit_paid", colorClass: "text-teal-700" },
         { label: "Đang chuẩn bị hàng", value: "processing", colorClass: "text-indigo-700" },
         { label: "Đang giao hàng", value: "shipping", colorClass: "text-orange-700" },
         { label: "Đã giao hàng", value: "delivered", colorClass: "text-teal-700" },
@@ -96,6 +99,7 @@ export default function DealerPurchaseOrderPage() {
                     items: "Xem chi tiết đơn hàng",
                     amount: `${Number(item.total_amount).toLocaleString("vi-VN")} đ`,
                     status: mapStatusToFrontend(item.status),
+                    rawStatus: item.status,
                     deliveryDate: item.requested_delivery_time
                         ? new Date(item.requested_delivery_time).toLocaleDateString("vi-VN", { day: '2-digit', month: '2-digit', year: 'numeric' })
                         : "Chưa xác định",
@@ -109,10 +113,23 @@ export default function DealerPurchaseOrderPage() {
                     }
                 }
                 setPurchaseOrders(list);
+                // Cập nhật count_status từ API
+                if (response?.count_status) {
+                    setCountStatus(response.count_status);
+                } else {
+                    setCountStatus(null);
+                }
                 //Tính toán để phân trang
                 const count = response?.count || 0;
                 const pageSize = response?.page_size || page_size;
                 setTotalPages(Math.max(1, Math.ceil(count / pageSize)));
+
+                // Cập nhật tổng số đơn cho "Tất cả"
+                if (statusFilter === "") {
+                    setTotalCount(count);
+                } else if (response?.count_status) {
+                    setTotalCount(Object.values(response.count_status).reduce((sum, val) => sum + (val || 0), 0));
+                }
             } catch (error) {
                 console.error("Lỗi khi tải đơn nhập hàng:", error);
             } finally {
@@ -153,6 +170,8 @@ export default function DealerPurchaseOrderPage() {
                 orders={purchaseOrders}
                 activeFilter={statusFilter}
                 onFilterChange={(val) => { setStatusFilter(val); setCurrentPage(1); }}
+                countStatus={countStatus}
+                totalCount={totalCount}
             />
 
             {/* Filter */}

@@ -3,6 +3,7 @@ import { Tag, X, ClipboardList } from "lucide-react";
 import { toast } from "sonner";
 import { categoryService } from "../../../services/api/categoryService";
 import { dealerProductService } from "../../../services/api/dealerProductService";
+import { dealerInventoryService } from "../../../services/api/dealerInventoryService";
 
 export default function UpdateProductModal({ data, onClose, onSave }) {
 
@@ -12,6 +13,9 @@ export default function UpdateProductModal({ data, onClose, onSave }) {
   const [note, setNote] = useState("");
   const [discount, setDiscount] = useState(data.discount === undefined ? "" : data.discount);
   const [discountDate, setDiscountDate] = useState(data.discountDate || "");
+  const [expiryDate, setExpiryDate] = useState(
+    data.originalData?.expiry_date ? data.originalData.expiry_date.split("T")[0] : ""
+  );
   const [categories, setCategories] = useState([]);
   const [loadingCategories, setLoadingCategories] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState(data.category || "");
@@ -71,6 +75,21 @@ export default function UpdateProductModal({ data, onClose, onSave }) {
       }
     }
 
+    // Cập nhật ngày hết hạn nếu có thay đổi
+    const originalExpiry = data.originalData?.expiry_date ? data.originalData.expiry_date.split("T")[0] : "";
+    if (expiryDate && expiryDate !== originalExpiry && batchId) {
+      try {
+        await dealerInventoryService.setExpiryDate(batchId, {
+          expiry_date: expiryDate
+        });
+        toast.success("Cập nhật ngày hết hạn thành công!");
+      } catch (error) {
+        console.error("Lỗi khi cập nhật ngày hết hạn:", error);
+        toast.error("Không thể cập nhật ngày hết hạn.");
+        return; // Dừng nếu API lỗi
+      }
+    }
+
     const finalStock = Math.max(0, data.stock - parsedShrinkage);
 
     const finalStatus =
@@ -106,6 +125,9 @@ export default function UpdateProductModal({ data, onClose, onSave }) {
     onSave(updated);
     onClose();
   };
+
+  const today = new Date();
+  const todayString = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
 
   return (
     // Overlay
@@ -231,7 +253,24 @@ export default function UpdateProductModal({ data, onClose, onSave }) {
             )}
           </div>
 
-
+          {/* Section: Ngày hết hạn */}
+          <div className="mb-6">
+            <h3 className="text-xs font-extrabold text-neutral-400 uppercase tracking-wider mb-3 flex items-center gap-1.5">
+              <span>Hạn sử dụng</span>
+            </h3>
+            <div>
+              <label className="text-xs font-bold text-neutral-600 mb-1.5 block">
+                Ngày hết hạn
+              </label>
+              <input
+                type="date"
+                min={todayString}
+                value={expiryDate}
+                onChange={(e) => setExpiryDate(e.target.value)}
+                className="w-full border border-neutral-200 rounded-xl px-3 py-2.5 text-xs focus:outline-none focus:border-emerald-600 focus:ring-2 focus:ring-emerald-500/10 font-medium text-neutral-700"
+              />
+            </div>
+          </div>
 
           {/* Section: Áp dụng khuyến mãi */}
           <div className="mb-2">

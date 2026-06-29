@@ -15,3 +15,4 @@ export { default as DealerInfoPage } from "./Info/DealerInfoPage";
 export { default as DealerCustomerPage } from "./Customer/CustomerPage";
 export { default as DealerProductManagementPage } from "./Product/ProductManagement";
 export { default as DealerProductDetailPage } from "./Product/ProductDetail";
+export { default as DealerDiscountPage } from "./Discount/DealerDiscountPage";

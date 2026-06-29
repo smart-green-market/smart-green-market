@@ -158,6 +158,12 @@ class StorefrontProductListSerializer(serializers.ModelSerializer):
     unit = serializers.CharField(source="supplier_product.unit", read_only=True)
     available_quantity = serializers.IntegerField(read_only=True)
     in_stock = serializers.BooleanField(read_only=True)
+    effective_price = serializers.SerializerMethodField()
+    discount_amount = serializers.SerializerMethodField()
+    discount_percent = serializers.SerializerMethodField()
+    has_age_discount = serializers.SerializerMethodField()
+    nearest_expiry_date = serializers.SerializerMethodField()
+    age_discount_reason = serializers.SerializerMethodField()
 
     class Meta:
         model = DealerProduct
@@ -166,6 +172,12 @@ class StorefrontProductListSerializer(serializers.ModelSerializer):
             "title",
             "description",
             "retail_price",
+            "effective_price",
+            "discount_amount",
+            "discount_percent",
+            "has_age_discount",
+            "nearest_expiry_date",
+            "age_discount_reason",
             "thumbnail",
             "category",
             "unit",
@@ -175,6 +187,33 @@ class StorefrontProductListSerializer(serializers.ModelSerializer):
             "updated_at",
             "images",
         ]
+
+    def _pricing(self, instance):
+        cached = getattr(instance, "_storefront_pricing", None)
+        if cached is None:
+            from apps.dealer_products.age_discount import product_display_price_to_dict
+
+            cached = product_display_price_to_dict(instance)
+            instance._storefront_pricing = cached
+        return cached
+
+    def get_effective_price(self, instance):
+        return self._pricing(instance)["effective_price"]
+
+    def get_discount_amount(self, instance):
+        return self._pricing(instance)["discount_amount"]
+
+    def get_discount_percent(self, instance):
+        return self._pricing(instance)["discount_percent"]
+
+    def get_has_age_discount(self, instance):
+        return self._pricing(instance)["has_age_discount"]
+
+    def get_nearest_expiry_date(self, instance):
+        return self._pricing(instance)["nearest_expiry_date"]
+
+    def get_age_discount_reason(self, instance):
+        return self._pricing(instance)["age_discount_reason"]
 
     def to_representation(self, instance):
         data = super().to_representation(instance)

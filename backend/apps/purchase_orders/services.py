@@ -32,6 +32,7 @@ from django.db.models import Sum
 from django.utils import timezone
 from rest_framework.exceptions import ValidationError
 
+from apps.dealer_products.inventory_expiry import compute_batch_expiry_date
 from apps.dealer_products.models import (
     DealerInventoryBatch,
     DealerInventoryBatchStatus,
@@ -47,6 +48,7 @@ from apps.marketing.dealer_catalog_services import track_purchase_interactions_f
 from apps.supplier_products.models import SupplierProduct, SupplierProductStatus
 from apps.suppliers.models import Supplier, SupplierVerificationStatus
 from common.business_rules import (
+    validate_confirmed_delivery_time,
     validate_deposit_percent,
     validate_order_amount,
     validate_requested_delivery_time,
@@ -316,15 +318,19 @@ def create_purchase_orders(
 
 
 @transaction.atomic
-def supplier_confirm_order(order, user, deposit_percent=None, note=""):
-    """Bước 2 — NCC xác nhận đơn và chốt % cọc.
-
-    deposit_percent mặc định DEFAULT_DEPOSIT_PERCENT (30%), phải trong [10%, 50%].
-    Tính deposit_amount = total × % / 100 → status = confirmed.
-    """
+def supplier_confirm_order(
+    order,
+    user,
+    deposit_percent=None,
+    note="",
+    confirmed_delivery_time=None,
+):
+    """Bước 2 — NCC xác nhận đơn, chốt % cọc và ngày giao cam kết."""
     _ensure_not_terminal(order)
     if order.status != PurchaseOrderStatus.PENDING_SUPPLIER_CONFIRMATION:
         raise ValidationError({"detail": "Chỉ xác nhận phiếu đang chờ NCC."})
+
+    validate_confirmed_delivery_time(order, confirmed_delivery_time)
 
     raw_percent = (
         deposit_percent
@@ -337,16 +343,35 @@ def supplier_confirm_order(order, user, deposit_percent=None, note=""):
     order.deposit_amount = (order.total_amount * percent / Decimal("100")).quantize(
         Decimal("0.01")
     )
+    order.confirmed_delivery_time = confirmed_delivery_time
     order.confirmed_at = timezone.now()
     order.save(
         update_fields=[
             "deposit_percent",
             "deposit_amount",
+            "confirmed_delivery_time",
             "confirmed_at",
             "updated_at",
         ]
     )
-    record_status_change(order, PurchaseOrderStatus.CONFIRMED, user, note=note)
+
+    req_label = timezone.localtime(order.requested_delivery_time).strftime(
+        "%d/%m/%Y %H:%M"
+    )
+    conf_label = timezone.localtime(confirmed_delivery_time).strftime(
+        "%d/%m/%Y %H:%M"
+    )
+    history_note = (
+        f"Xác nhận. Giao cam kết: {conf_label} (dealer mong: {req_label})."
+    )
+    if note:
+        history_note = f"{history_note} {note}"
+
+    record_status_change(order, PurchaseOrderStatus.CONFIRMED, user, note=history_note)
+
+    from .notifications import notify_delivery_time_adjusted
+
+    notify_delivery_time_adjusted(order, actor=user)
     return order
 
 
@@ -548,6 +573,7 @@ def _import_dealer_inventory(order, user):
   Model: apps/dealer_products/models.py
     """
     import_date = timezone.now().date()
+
     for item in order.items.select_related("supplier_product", "supplier_product__category"):
         dealer_product, _ = DealerProduct.objects.get_or_create(
             dealer_profile=order.dealer,
@@ -563,6 +589,7 @@ def _import_dealer_inventory(order, user):
         if qty <= 0:
             continue
         batch_number = f"{order.order_code}-{item.id}"
+        expiry_date = compute_batch_expiry_date(import_date, item.supplier_product)
         batch = DealerInventoryBatch.objects.create(
             dealer_product=dealer_product,
             purchase_order_item=item,
@@ -571,6 +598,7 @@ def _import_dealer_inventory(order, user):
             remaining_quantity=qty,
             import_price=item.unit_price,
             import_date=import_date,
+            expiry_date=expiry_date,
             status=DealerInventoryBatchStatus.ACTIVE,
         )
         DealerInventoryTransaction.objects.create(

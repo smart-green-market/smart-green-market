@@ -43,7 +43,7 @@ export default function DealerProductDetailPage() {
         tx => batchCodes.includes(tx.batch_number)
       );
       setTransactions(filteredTx);
-      
+
     } catch (error) {
       console.error("Lỗi tải chi tiết sản phẩm:", error);
       toast.error("Không thể tải thông tin sản phẩm.");
@@ -98,9 +98,8 @@ export default function DealerProductDetailPage() {
           </h1>
           <div className="flex items-center gap-2 mt-1">
             <span className="text-sm font-bold text-neutral-800">{product.title}</span>
-            <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
-              product.status === "active" ? "bg-emerald-100 text-emerald-800" : "bg-neutral-200 text-neutral-600"
-            }`}>
+            <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${product.status === "active" ? "bg-emerald-100 text-emerald-800" : "bg-neutral-200 text-neutral-600"
+              }`}>
               {product.status === "active" ? "Đang hiển thị" : "Đang ẩn"}
             </span>
           </div>
@@ -119,11 +118,9 @@ export default function DealerProductDetailPage() {
           </div>
         </div>
 
-        {/* Hàng 2: Lô hàng & Lịch sử
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          <ProductInventoryBatches batches={batches} />
-          <ProductSalesHistory transactions={transactions} />
-        </div> */}
+        {/* Hàng 2: Lô hàng & Lịch sử */}
+        <ProductInventoryBatches batches={batches} product={product} onUpdate={fetchData} />
+        <ProductSalesHistory transactions={transactions} />
       </div>
     </div>
   );

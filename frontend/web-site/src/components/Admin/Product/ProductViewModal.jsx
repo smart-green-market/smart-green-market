@@ -30,6 +30,7 @@ export default function ProductViewModal({
     onApprove,
     onReject,
     onPause,
+    onDelete,
     loading = false,
     error = "",
     readOnly = false,
@@ -44,7 +45,10 @@ export default function ProductViewModal({
     const isPending = product.status === "pending";
     const isActive = product.status === "active";
     const isInactive = product.status === "inactive" || product.status === "paused";
-    //const isRejected = product.status === "rejected";
+    const isRejected = product.status === "rejected";
+
+    // Nút xóa chỉ hiển thị khi sản phẩm ở trạng thái inactive hoặc rejected
+    const canDelete = isInactive || isRejected;
 
     // ── Confirm ─────────────────────────────────────────────────────────────
     const openConfirm = (cfg) => setConfirmConfig(cfg);
@@ -208,81 +212,100 @@ export default function ProductViewModal({
 
                     {/* FOOTER */}
                     {!readOnly ? (
-                    <div className="px-6 py-4 border-t border-neutral-200 flex items-center justify-end gap-3 shrink-0 bg-stone-50">
-                        {/* Pending → Duyệt / Từ chối */}
-                        {isPending && (
-                            <>
-                                <button
-                                    disabled={loading}
-                                    onClick={() =>
-                                        openReject({
-                                            title: "Từ chối sản phẩm",
-                                            message: `Bạn có chắc chắn muốn từ chối "${product.name}"?`,
-                                            action: (reason) =>
-                                                onReject(product, reason),
-                                        })
-                                    }
-                                    className="cursor-pointer px-6 py-2.5 rounded-xl bg-red-500 hover:bg-red-400 text-white font-semibold"
-                                >
-                                    Từ chối
-                                </button>
+                        <div className="px-6 py-4 border-t border-neutral-200 flex items-center justify-end gap-3 shrink-0 bg-stone-50">
+                            {/* Pending → Duyệt / Từ chối */}
+                            {isPending && (
+                                <>
+                                    <button
+                                        disabled={loading}
+                                        onClick={() =>
+                                            openReject({
+                                                title: "Từ chối sản phẩm",
+                                                message: `Bạn có chắc chắn muốn từ chối "${product.name}"?`,
+                                                action: (reason) =>
+                                                    onReject(product, reason),
+                                            })
+                                        }
+                                        className="cursor-pointer px-6 py-2.5 rounded-xl bg-red-500 hover:bg-red-400 text-white font-semibold"
+                                    >
+                                        Từ chối
+                                    </button>
 
+                                    <button
+                                        disabled={loading}
+                                        onClick={() =>
+                                            openConfirm({
+                                                title: "Duyệt sản phẩm",
+                                                message: `Bạn có chắc chắn muốn duyệt "${product.name}"?`,
+                                                confirmText: "Duyệt",
+                                                variant: "success",
+                                                action: () => onApprove(product),
+                                            })
+                                        }
+                                        className="cursor-pointer px-6 py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-white font-semibold"
+                                    >
+                                        Duyệt
+                                    </button>
+                                </>
+                            )}
+
+                            {/* Active → Tạm ngưng */}
+                            {isActive && (
+                                <button
+                                disabled={loading}
+                                onClick={() =>
+                                    openConfirm({
+                                        title: "Xóa sản phẩm",
+                                        message: `Bạn có chắc chắn muốn xóa "${product.name}"? Hành động này không thể hoàn tác.`,
+                                        confirmText: "Xóa",
+                                        variant: "danger",
+                                        action: () => onDelete(product),
+                                    })
+                                }
+                                className="cursor-pointer px-6 py-2.5 rounded-xl bg-red-600 hover:bg-red-700 text-white font-semibold disabled:opacity-50"
+                            >
+                                Xóa
+                            </button>
+                            )}
+
+                            {/* Inactive → Kích hoạt lại */}
+                            {isInactive && (
                                 <button
                                     disabled={loading}
                                     onClick={() =>
                                         openConfirm({
-                                            title: "Duyệt sản phẩm",
-                                            message: `Bạn có chắc chắn muốn duyệt "${product.name}"?`,
-                                            confirmText: "Duyệt",
+                                            title: "Kích hoạt sản phẩm",
+                                            message: `Bạn có chắc chắn muốn kích hoạt "${product.name}"?`,
+                                            confirmText: "Kích hoạt",
                                             variant: "success",
                                             action: () => onApprove(product),
                                         })
                                     }
                                     className="cursor-pointer px-6 py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-white font-semibold"
                                 >
-                                    Duyệt
+                                    Kích hoạt
                                 </button>
-                            </>
-                        )}
+                            )}
 
-                        {/* Active → Tạm ngưng */}
-                        {isActive && (
-                            <button
-                                disabled={loading}
-                                onClick={() =>
-                                    openConfirm({
-                                        title: "Tạm ngưng sản phẩm",
-                                        message: `Bạn có chắc chắn muốn tạm ngưng "${product.name}"?`,
-                                        confirmText: "Tạm ngưng",
-                                        variant: "warning",
-                                        action: () => onPause(product),
-                                    })
-                                }
-                                className="cursor-pointer px-6 py-2.5 rounded-xl bg-gray-500 hover:bg-gray-400 text-white font-semibold"
-                            >
-                                Tạm ngưng
-                            </button>
-                        )}
-
-                        {/* Inactive → Kích hoạt lại */}
-                        {(isInactive) && (
-                            <button
-                                disabled={loading}
-                                onClick={() =>
-                                    openConfirm({
-                                        title: "Kích hoạt sản phẩm",
-                                        message: `Bạn có chắc chắn muốn kích hoạt "${product.name}"?`,
-                                        confirmText: "Kích hoạt",
-                                        variant: "success",
-                                        action: () => onApprove(product),
-                                    })
-                                }
-                                className="cursor-pointer px-6 py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-white font-semibold"
-                            >
-                                Kích hoạt
-                            </button>
-                        )}
-                    </div>
+                            {/* Xóa — chỉ hiển thị khi inactive hoặc rejected */}
+                            {canDelete && (
+                                <button
+                                    disabled={loading}
+                                    onClick={() =>
+                                        openConfirm({
+                                            title: "Xóa sản phẩm",
+                                            message: `Bạn có chắc chắn muốn xóa "${product.name}"? Hành động này không thể hoàn tác.`,
+                                            confirmText: "Xóa",
+                                            variant: "danger",
+                                            action: () => onDelete(product),
+                                        })
+                                    }
+                                    className="cursor-pointer px-6 py-2.5 rounded-xl bg-red-600 hover:bg-red-700 text-white font-semibold disabled:opacity-50"
+                                >
+                                    Xóa
+                                </button>
+                            )}
+                        </div>
                     ) : null}
                 </div>
             </div>

@@ -26,10 +26,11 @@ export const supplierService = {
   // }
 
   // --- ADMIN
-  getAll: (params) => axiosClient.get("/suppliers/", { params }).then((res) => {
-    if (params && params.page) return res.data;
-    return res.data.results || res.data;
-  }),
+  getAll: (params) =>
+    axiosClient.get("/suppliers/", { params }).then((res) => {
+      if (params && params.page) return res.data;
+      return res.data.results || res.data;
+    }),
 
   //[
   //   {
@@ -47,7 +48,8 @@ export const supplierService = {
   // ]
 
   getById: (id) => axiosClient.get(`/suppliers/${id}/`).then((res) => res.data),
-  getProductById: (id) => axiosClient.get(`/suppliers/${id}/products/`).then((res) => res.data),
+  getProductById: (id) =>
+    axiosClient.get(`/suppliers/${id}/products/`).then((res) => res.data),
 
   // {
   //   "id": 0,
@@ -151,9 +153,9 @@ export const supplierService = {
     axiosClient.post(`/suppliers/${id}/verify/`, data).then((res) => res.data),
 
   // id
-  getbyIdSupplier: (id) =>{
-  return axiosClient.get(`/suppliers/${id}/documents/`)
-  }
+  getbyIdSupplier: (id) => {
+    return axiosClient.get(`/suppliers/${id}/documents/`);
+  },
 };
 
 // Xử lý bug

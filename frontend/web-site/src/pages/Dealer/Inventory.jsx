@@ -10,6 +10,8 @@ import UpdateProductModal from "../../components/Dealer/Inventory/UpdateProductM
 
 export default function DealerInventoryPage() {
   const [inventoryList, setInventoryList] = useState([]); // Danh sách lô hàng đã được map dữ liệu đầy đủ
+  const [countStatus, setCountStatus] = useState(null);
+  const [totalCount, setTotalCount] = useState(0);
   const [transactionList, setTransactionList] = useState([]); // Lịch sử giao dịch kho (Nhập, xuất, hao hụt...)
   const [searchQuery, setSearchQuery] = useState(""); // Từ khóa tìm kiếm lô hàng
   const [debouncedSearchQuery, setDebouncedSearchQuery] = useState("");
@@ -98,6 +100,19 @@ export default function DealerInventoryPage() {
         };
       });
       setInventoryList(mappedInventory);
+
+      if (data?.count_status) {
+        setCountStatus(data.count_status);
+      } else {
+        setCountStatus(null);
+      }
+
+      const count = data?.count || 0;
+      if (statusFilter === "") {
+        setTotalCount(count);
+      } else if (data?.count_status) {
+        setTotalCount(Object.values(data.count_status).reduce((sum, val) => sum + (val || 0), 0));
+      }
     } catch (error) {
       console.error("Failed to fetch inventory:", error);
     } finally {
@@ -183,8 +198,13 @@ export default function DealerInventoryPage() {
   // --- Render Giao diện ---
   return (
     <div className="p-6 bg-emerald-50/15 min-h-screen font-['Geist',sans-serif]">
-      {/* 1. Phần thống kê số liệu kho (Thẻ KPI: Tổng lô hàng, tồn kho, giá trị...) */}
-      <InventoryStatsCards inventory={inventoryList} />
+      <InventoryStatsCards
+        inventory={inventoryList}
+        activeFilter={statusFilter}
+        onFilterChange={(val) => { setStatusFilter(val); setInventoryPage(1); }}
+        countStatus={countStatus}
+        totalCount={totalCount}
+      />
 
       {/* 2. Bộ lọc kết hợp tìm kiếm và chọn nhanh trạng thái hàng */}
       <SupplierFilter
