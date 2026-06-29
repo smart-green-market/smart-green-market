@@ -47,7 +47,7 @@ export default function ProductPage() {
   const [modalError, setModalError] = useState("");
 
   const [search, setSearch] = useState("");
-  const [statusFilter, setStatusFilter] = useState("pending");
+  const [statusFilter, setStatusFilter] = useState("");
 
   const [viewRow, setViewRow] = useState(null);
 
