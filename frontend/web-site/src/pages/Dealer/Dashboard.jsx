@@ -68,7 +68,11 @@ export default function DealerDashboardPage() {
     }, []);
 
     if (loading) {
-        return <div className="p-6 flex justify-center items-center min-h-screen text-emerald-600 font-medium">Đang tải dữ liệu...</div>;
+        return (
+            <div className="p-6 flex justify-center items-center min-h-screen">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-emerald-600"></div>
+            </div>
+        );
     }
 
     const stats = [
