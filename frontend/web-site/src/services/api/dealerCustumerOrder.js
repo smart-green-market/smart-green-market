@@ -105,15 +105,15 @@ export const dealerCustumerOrder = {
   //     "updated_at": "2026-06-20T04:45:13.573Z"
   //   }
 
-  Confirmed: (id) => axiosClient.post(`/customer-orders/${id}/confirm/`, data).then((res) => res.data),
+  Confirmed: (id, data = {}) => axiosClient.post(`/customer-orders/${id}/confirm/`, data).then((res) => res.data),
 
   //Chuyển pending → confirmed.
 
-  Processing: (id) => axiosClient.post(`/customer-orders/${id}/start-processing/`, data).then((res) => res.data),
+  Processing: (id, data = {}) => axiosClient.post(`/customer-orders/${id}/start-processing/`, data).then((res) => res.data),
 
   //Chuyển processing → shipping.
 
-  Shipping: (id) => axiosClient.post(`/customer-orders/${id}/ship/`, data).then((res) => res.data),
+  Shipping: (id, data = {}) => axiosClient.post(`/customer-orders/${id}/ship/`, data).then((res) => res.data),
 
   //Chuyển processing → shipping.
 

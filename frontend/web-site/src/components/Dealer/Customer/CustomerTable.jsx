@@ -1,4 +1,15 @@
 import { Loader2, AlertTriangle, Users, MoreHorizontal } from "lucide-react";
+import SortableHeader from "../../common/SortableHeader";
+import useTableSort from "../../../hooks/useTableSort";
+
+const COLUMN_CONFIG = {
+  full_name:   { key: "full_name",   type: "string" },
+  email:       { key: "email",       type: "string" },
+  phone:       { key: "phone",       type: "string" },
+  total_spent: { key: "total_spent", type: "number" },
+  status:      { key: "status",      type: "string" },
+  created_at:  { key: "created_at",  type: "date" },
+};
 
 export default function CustomerTable({
   loading,
@@ -10,6 +21,8 @@ export default function CustomerTable({
   searchQuery,
   statusFilter,
 }) {
+  const { sortedData, sortColumn, sortDirection, handleSort } = useTableSort(customers, COLUMN_CONFIG);
+
   /** Lấy chữ cái đầu của tên để hiển thị avatar */
   const getInitials = (fullName) => {
     if (!fullName) return "?";
@@ -102,17 +115,17 @@ export default function CustomerTable({
           <table className="w-full text-left border-collapse whitespace-nowrap">
             <thead>
               <tr className="border-b border-neutral-100 bg-white">
-                <th className="py-4 px-6 text-[11px] font-black text-neutral-500 uppercase tracking-wider">Tên khách hàng</th>
-                <th className="py-4 px-6 text-[11px] font-black text-neutral-500 uppercase tracking-wider">Email</th>
-                <th className="py-4 px-6 text-[11px] font-black text-neutral-500 uppercase tracking-wider">Số điện thoại</th>
-                <th className="py-4 px-6 text-[11px] font-black text-neutral-500 uppercase tracking-wider">Tổng chi tiêu</th>
-                <th className="py-4 px-6 text-[11px] font-black text-neutral-500 uppercase tracking-wider">Trạng thái</th>
-                <th className="py-4 px-6 text-[11px] font-black text-neutral-500 uppercase tracking-wider">Ngày đăng ký</th>
+                <SortableHeader label="Tên khách hàng" column="full_name" sortColumn={sortColumn} sortDirection={sortDirection} onSort={handleSort} className="!font-black" />
+                <SortableHeader label="Email" column="email" sortColumn={sortColumn} sortDirection={sortDirection} onSort={handleSort} className="!font-black" />
+                <SortableHeader label="Số điện thoại" column="phone" sortColumn={sortColumn} sortDirection={sortDirection} onSort={handleSort} className="!font-black" />
+                <SortableHeader label="Tổng chi tiêu" column="total_spent" sortColumn={sortColumn} sortDirection={sortDirection} onSort={handleSort} className="!font-black" />
+                <SortableHeader label="Trạng thái" column="status" sortColumn={sortColumn} sortDirection={sortDirection} onSort={handleSort} className="!font-black" />
+                <SortableHeader label="Ngày đăng ký" column="created_at" sortColumn={sortColumn} sortDirection={sortDirection} onSort={handleSort} className="!font-black" />
                 <th className="py-4 px-6 text-[11px] font-black text-neutral-500 uppercase tracking-wider text-right">Hành động</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-neutral-100">
-              {customers.map((customer) => {
+              {sortedData.map((customer) => {
                 const badge = getStatusBadge(customer.status);
                 return (
                   <tr key={customer.id} className="hover:bg-neutral-50/50 transition-colors">

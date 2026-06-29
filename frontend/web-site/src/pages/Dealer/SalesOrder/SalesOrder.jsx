@@ -12,6 +12,8 @@ export default function DealerSalesOrderPage() {
     const [searchQuery, setSearchQuery] = useState("");
     const [debouncedSearchQuery, setDebouncedSearchQuery] = useState("");
     const [statusFilter, setStatusFilter] = useState("");
+    const [countStatus, setCountStatus] = useState(null);
+    const [totalCount, setTotalCount] = useState(0);
     const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
     const [selectedOrder, setSelectedOrder] = useState(null);
     const [selectedRows, setSelectedRows] = useState([]);
@@ -70,6 +72,19 @@ export default function DealerSalesOrderPage() {
                 originalData: order
             }));
             setSalesOrders(formattedOrders);
+
+            if (data.count_status) {
+                setCountStatus(data.count_status);
+            } else {
+                setCountStatus(null);
+            }
+
+            const count = data.count || 0;
+            if (statusFilter === "") {
+                setTotalCount(count);
+            } else if (data.count_status) {
+                setTotalCount(Object.values(data.count_status).reduce((sum, val) => sum + (val || 0), 0));
+            }
         } catch (error) {
             console.error("Lỗi lấy danh sách đơn hàng", error);
         } finally {
@@ -233,7 +248,13 @@ export default function DealerSalesOrderPage() {
             </div>
 
             {/* Stats Cards */}
-            <SalesOrderStatsCards salesOrders={salesOrders} />
+            <SalesOrderStatsCards
+                salesOrders={salesOrders}
+                activeFilter={statusFilter}
+                onFilterChange={(val) => { setStatusFilter(val); setCurrentPage(1); }}
+                countStatus={countStatus}
+                totalCount={totalCount}
+            />
 
             {/* Filter */}
             <SupplierFilter

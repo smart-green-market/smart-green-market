@@ -39,8 +39,23 @@ export default function OrderDetailItemsTable({ items }) {
                 </td>
                 <td className="py-4 px-4 text-left font-semibold text-neutral-800">
                   <div className="flex items-center gap-3">
-                    <div className="w-8 h-8 rounded-lg bg-emerald-50 flex items-center justify-center text-emerald-600 shrink-0">
-                      <FileText className="w-4 h-4" />
+                    <div className="w-10 h-10 rounded-lg bg-neutral-50 overflow-hidden shrink-0 border border-neutral-100 flex items-center justify-center">
+                      {item.product_thumbnail_url ? (
+                        <img
+                          src={item.product_thumbnail_url}
+                          alt={item.name}
+                          className="w-full h-full object-cover"
+                          onError={(e) => {
+                            e.target.style.display = 'none';
+                            const placeholder = document.createElement('span');
+                            placeholder.className = 'text-neutral-400 font-extrabold text-[10px] uppercase';
+                            placeholder.innerText = item.name ? item.name.substring(0, 2) : 'SP';
+                            e.target.parentNode.appendChild(placeholder);
+                          }}
+                        />
+                      ) : (
+                        <FileText className="w-4 h-4 text-neutral-400" />
+                      )}
                     </div>
                     <span>{item.name}</span>
                   </div>

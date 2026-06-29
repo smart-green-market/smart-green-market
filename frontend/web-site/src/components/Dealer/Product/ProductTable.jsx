@@ -1,6 +1,8 @@
-import { useState } from "react";
+import { useMemo } from "react";
 import { Eye } from "lucide-react";
 import Pagination from "../../common/Pagination";
+import SortableHeader from "../../common/SortableHeader";
+import useTableSort from "../../../hooks/useTableSort";
 
 const STATUS_MAP = {
   active: { label: "Đang bán", cls: "bg-emerald-50 text-emerald-700" },
@@ -10,7 +12,25 @@ const STATUS_MAP = {
   deleted: { label: "Đã xóa", cls: "bg-red-100 text-red-900" },
 };
 
+const COLUMN_CONFIG = {
+  title: { key: "title", type: "string" },
+  retail_price: { key: "retail_price", type: "number" },
+  total_quantity: { key: "total_quantity", type: "number" },
+  available_quantity: { key: "available_quantity", type: "number" },
+  sold: { key: "sold", type: "number" },
+  status: { key: "status", type: "string" },
+};
+
 export default function ProductTable({ data, onRowClick, currentPage, totalPages, onPageChange }) {
+  const processedData = useMemo(() => {
+    return (data || []).map((row) => ({
+      ...row,
+      sold: (row.total_quantity || 0) - (row.available_quantity || 0),
+    }));
+  }, [data]);
+
+  const { sortedData, sortColumn, sortDirection, handleSort } = useTableSort(processedData, COLUMN_CONFIG);
+
   if (!data || data.length === 0) {
     return (
       <div className="w-full rounded-2xl border border-neutral-200 overflow-hidden bg-white shadow-xs font-['Geist',sans-serif] py-16 text-center">
@@ -28,15 +48,15 @@ export default function ProductTable({ data, onRowClick, currentPage, totalPages
           <table className="w-full border-collapse text-left whitespace-nowrap">
             <thead>
               <tr className="bg-neutral-50 border-b border-neutral-200/60">
-                <th className="px-6 py-4 text-[11px] font-bold text-neutral-500 uppercase tracking-wider">Sản phẩm</th>
-                <th className="px-6 py-4 text-[11px] font-bold text-neutral-500 uppercase tracking-wider">Giá bán lẻ</th>
-                <th className="px-6 py-4 text-[11px] font-bold text-neutral-500 uppercase tracking-wider">Đã bán</th>
-                <th className="px-6 py-4 text-[11px] font-bold text-neutral-500 uppercase tracking-wider text-center">Trạng thái</th>
+                <SortableHeader label="Sản phẩm" column="title" sortColumn={sortColumn} sortDirection={sortDirection} onSort={handleSort} />
+                <SortableHeader label="Giá bán lẻ" column="retail_price" sortColumn={sortColumn} sortDirection={sortDirection} onSort={handleSort} />
+                <SortableHeader label="Số lượng tồn" column="available_quantity" sortColumn={sortColumn} sortDirection={sortDirection} onSort={handleSort} align="center" />
+                <SortableHeader label="Trạng thái" column="status" sortColumn={sortColumn} sortDirection={sortDirection} onSort={handleSort} align="center" />
                 <th className="px-6 py-4 text-[11px] font-bold text-neutral-500 uppercase tracking-wider text-right">Thao tác</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-neutral-100">
-              {data.map((row, index) => {
+              {sortedData.map((row, index) => {
                 const images = row.images || [];
                 const thumbnail = row.thumbnail || images.find(img => img.is_thumbnail)?.image_url || images[0]?.image_url;
                 const info = STATUS_MAP[row.status] || { label: row.status, cls: "bg-neutral-100 text-neutral-500" };
@@ -67,8 +87,10 @@ export default function ProductTable({ data, onRowClick, currentPage, totalPages
                         {new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND" }).format(row.retail_price)}
                       </span>
                     </td>
-                    <td className="px-6 py-4">
-                      <span className="text-neutral-600 font-medium text-xs">{row.sold || 0} {row.supplier_product_unit}</span>
+                    <td className="px-6 py-4 text-center">
+                      <span className="text-neutral-600 font-medium text-xs">
+                        {row.available_quantity || 0} {row.supplier_product_unit}
+                      </span>
                     </td>
                     <td className="px-6 py-4 text-center">
                       <span className={`px-2.5 py-1 rounded-full text-[11px] font-bold ${info.cls}`}>

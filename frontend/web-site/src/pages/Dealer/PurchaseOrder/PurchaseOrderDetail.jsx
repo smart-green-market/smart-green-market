@@ -74,6 +74,7 @@ export default function DealerPurchaseOrderDetailPage() {
           quantity: Number(item.quantity || 0),
           price: Number(item.unit_price || 0),
           subtotal: Number(item.subtotal || 0),
+          product_thumbnail_url: item.product_thumbnail_url,
         })),
         notes: data.note ? [data.note] : [],
         rawSubtotal: Number(data.total_amount || 0),

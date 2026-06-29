@@ -1,6 +1,17 @@
 import { Calendar, Package, ChevronRight, AlertCircle, CheckCircle2, Clock, Truck } from "lucide-react";
+import SortableHeader from "../../common/SortableHeader";
+import useTableSort from "../../../hooks/useTableSort";
+
+const COLUMN_CONFIG = {
+  supplier: { key: "supplier", type: "string" },
+  date:     { key: "date",     type: "date" },
+  amount:   { key: "amount",   type: "currency" },
+  status:   { key: "status",   type: "string" },
+};
 
 export default function PurchaseOrderList({ purchaseOrders, onViewDetail }) {
+  const { sortedData, sortColumn, sortDirection, handleSort } = useTableSort(purchaseOrders, COLUMN_CONFIG);
+
   const getStatusConfig = (status) => {
     switch (status) {
       case "Đã hoàn thành":
@@ -45,23 +56,15 @@ export default function PurchaseOrderList({ purchaseOrders, onViewDetail }) {
         <table className="w-full border-collapse text-left">
           <thead>
             <tr className="bg-neutral-50 border-b border-neutral-200/60">
-              <th className="px-6 py-4 text-[11px] font-bold text-neutral-400 uppercase tracking-wider">
-                Nhà Cung Cấp
-              </th>
-              <th className="px-6 py-4 text-[11px] font-bold text-neutral-400 uppercase tracking-wider">
-                Thời Gian
-              </th>
-              <th className="px-6 py-4 text-[11px] font-bold text-neutral-400 uppercase tracking-wider text-right">
-                Tổng Tiền
-              </th>
-              <th className="px-6 py-4 text-[11px] font-bold text-neutral-400 uppercase tracking-wider text-center">
-                Trạng Thái
-              </th>
+              <SortableHeader label="Nhà Cung Cấp" column="supplier" sortColumn={sortColumn} sortDirection={sortDirection} onSort={handleSort} />
+              <SortableHeader label="Thời Gian" column="date" sortColumn={sortColumn} sortDirection={sortDirection} onSort={handleSort} />
+              <SortableHeader label="Tổng Tiền" column="amount" sortColumn={sortColumn} sortDirection={sortDirection} onSort={handleSort} align="right" />
+              <SortableHeader label="Trạng Thái" column="status" sortColumn={sortColumn} sortDirection={sortDirection} onSort={handleSort} align="center" />
               <th className="w-12 px-6 py-4"></th>
             </tr>
           </thead>
           <tbody className="divide-y divide-neutral-100">
-            {purchaseOrders.map((row) => {
+            {sortedData.map((row) => {
               const statusConfig = getStatusConfig(row.status);
               return (
                 <tr

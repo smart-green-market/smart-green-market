@@ -1,9 +1,20 @@
 import { useState, useEffect } from "react";
 import { Calendar, Package, ChevronRight } from "lucide-react";
 import Pagination from "../../common/Pagination";
+import SortableHeader from "../../common/SortableHeader";
+import useTableSort from "../../../hooks/useTableSort";
+
+const COLUMN_CONFIG = {
+  id:       { key: "id",       type: "string" },
+  customer: { key: "customer", type: "string" },
+  date:     { key: "date",     type: "date" },
+  amount:   { key: "amount",   type: "currency" },
+  status:   { key: "status",   type: "string" },
+};
 
 export default function SalesOrderList({ salesOrders, onViewDetail, onSelectedRowsChange, clearSelectedRows, currentPage = 1, totalPages = 1, onPageChange }) {
   const [selectedIds, setSelectedIds] = useState(new Set());
+  const { sortedData, sortColumn, sortDirection, handleSort } = useTableSort(salesOrders, COLUMN_CONFIG);
 
   useEffect(() => {
     setSelectedIds(new Set());
@@ -104,16 +115,16 @@ export default function SalesOrderList({ salesOrders, onViewDetail, onSelectedRo
                     className="w-4 h-4 rounded border-neutral-300 text-emerald-600 focus:ring-emerald-500 cursor-pointer"
                   />
                 </th>
-                <th className="px-6 py-4 text-[11px] font-bold text-neutral-500 uppercase tracking-wider">Mã Đơn</th>
-                <th className="px-6 py-4 text-[11px] font-bold text-neutral-500 uppercase tracking-wider">Khách Hàng</th>
-                <th className="px-6 py-4 text-[11px] font-bold text-neutral-500 uppercase tracking-wider">Thời Gian</th>
-                <th className="px-6 py-4 text-[11px] font-bold text-neutral-500 uppercase tracking-wider text-right">Tổng Tiền</th>
-                <th className="px-6 py-4 text-[11px] font-bold text-neutral-500 uppercase tracking-wider text-center">Trạng Thái</th>
+                <SortableHeader label="Mã Đơn" column="id" sortColumn={sortColumn} sortDirection={sortDirection} onSort={handleSort} />
+                <SortableHeader label="Khách Hàng" column="customer" sortColumn={sortColumn} sortDirection={sortDirection} onSort={handleSort} />
+                <SortableHeader label="Thời Gian" column="date" sortColumn={sortColumn} sortDirection={sortDirection} onSort={handleSort} />
+                <SortableHeader label="Tổng Tiền" column="amount" sortColumn={sortColumn} sortDirection={sortDirection} onSort={handleSort} align="right" />
+                <SortableHeader label="Trạng Thái" column="status" sortColumn={sortColumn} sortDirection={sortDirection} onSort={handleSort} align="center" />
                 <th className="px-6 py-4 w-12"></th>
               </tr>
             </thead>
             <tbody className="divide-y divide-neutral-100">
-              {salesOrders.map((row) => {
+              {sortedData.map((row) => {
                 const statusStr = row.status || row.delivery;
                 const config = getStatusConfig(statusStr);
                 const isSelected = selectedIds.has(row.uniqueId);
