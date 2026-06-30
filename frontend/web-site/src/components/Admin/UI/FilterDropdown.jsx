@@ -19,7 +19,7 @@ export default function FilterDropdown({
                 id={selectId}
                 value={value}
                 onChange={(event) => onChange(event.target.value)}
-                className="min-w-[180px] cursor-pointer appearance-none rounded-lg border border-neutral-200 bg-stone-50 py-2 pl-3 pr-9 text-sm text-zinc-800 outline-none transition-all focus:border-emerald-400 focus:ring-2 focus:ring-emerald-300 font-['Geist',sans-serif]"
+                className="min-w-[150px] shrink-0 cursor-pointer appearance-none rounded-lg border border-neutral-200 bg-stone-50 py-2 pl-3 pr-9 text-sm text-zinc-800 outline-none transition-all focus:border-emerald-400 focus:ring-2 focus:ring-emerald-300 font-['Geist',sans-serif]"
             >
                 {options.map((opt) => (
                     <option key={opt.value || "all"} value={opt.value}>

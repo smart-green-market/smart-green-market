@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Package, X } from "lucide-react";
 import CategorySearchSelect from "./CategorySearchSelect";
+import SeasonMultiSelect from "./SeasonMultiSelect";
 
 const EMPTY_FORM = {
     category_id: "",
@@ -8,6 +9,7 @@ const EMPTY_FORM = {
     default_unit: "",
     description: "",
     sort_order: "0",
+    season_ids: [],
 };
 
 export default function ProductMasterFormModal({
@@ -87,6 +89,26 @@ export default function ProductMasterFormModal({
                             </div>
                         ) : null}
 
+
+                        <div className="flex flex-col gap-2">
+                            <label className="text-sm font-semibold text-neutral-700">
+                                Tên sản phẩm{" "}
+                                <span className="text-red-500">*</span>
+                            </label>
+                            <input
+                                type="text"
+                                value={form.name}
+                                onChange={(e) =>
+                                    setForm((prev) => ({
+                                        ...prev,
+                                        name: e.target.value,
+                                    }))
+                                }
+                                placeholder="Ví dụ: Cà chua"
+                                className="rounded-xl border border-neutral-200 px-4 py-3 text-sm outline-none focus:border-emerald-600 focus:ring-2 focus:ring-emerald-500/10"
+                            />
+                        </div>
+
                         <div className="flex flex-col gap-2">
                             <label className="text-sm font-semibold text-neutral-700">
                                 Danh mục <span className="text-red-500">*</span>
@@ -105,20 +127,17 @@ export default function ProductMasterFormModal({
 
                         <div className="flex flex-col gap-2">
                             <label className="text-sm font-semibold text-neutral-700">
-                                Tên sản phẩm{" "}
-                                <span className="text-red-500">*</span>
+                                Mùa
                             </label>
-                            <input
-                                type="text"
-                                value={form.name}
-                                onChange={(e) =>
+                            <SeasonMultiSelect
+                                value={form.season_ids}
+                                onChange={(seasonIds) =>
                                     setForm((prev) => ({
                                         ...prev,
-                                        name: e.target.value,
+                                        season_ids: seasonIds,
                                     }))
                                 }
-                                placeholder="Ví dụ: Cà chua"
-                                className="rounded-xl border border-neutral-200 px-4 py-3 text-sm outline-none focus:border-emerald-600 focus:ring-2 focus:ring-emerald-500/10"
+                                disabled={loading}
                             />
                         </div>
 

@@ -1,7 +1,10 @@
 import { useCallback, useEffect, useState } from "react";
+import { Link } from "react-router-dom";
+import { CalendarRange } from "lucide-react";
 import { AdminInitialLoadGate } from "../../components/Admin/UI/AdminFetchState";
 import Toolbar from "../../components/Admin/UI/Toolbar";
 import Filter from "../../components/Admin/ProductMaster/ProductMasterFilter";
+import SeasonFilter from "../../components/Admin/ProductMaster/SeasonFilter";
 import ProductMasterTable from "../../components/Admin/ProductMaster/ProductMasterTable";
 import ProductMasterViewModal from "../../components/Admin/ProductMaster/ProductMasterViewModal";
 import ProductMasterFormModal from "../../components/Admin/ProductMaster/ProductMasterFormModal";
@@ -27,6 +30,7 @@ export default function ProductMasterPage() {
     const [error, setError] = useState("");
     const [search, setSearch] = useState("");
     const [statusFilter, setStatusFilter] = useState("");
+    const [seasonFilter, setSeasonFilter] = useState("");
     const [viewRow, setViewRow] = useState(null);
     const [isCreateOpen, setIsCreateOpen] = useState(false);
 
@@ -184,11 +188,26 @@ export default function ProductMasterPage() {
                     onAdd={() => setIsCreateOpen(true)}
                     addLabel="Thêm danh mục sản phẩm"
                     searchPlaceholder="Tìm kiếm danh mục sản phẩm..."
+                    secondaryAction={
+                        <Link
+                            to="/quan-tri/mua-he"
+                            className="inline-flex cursor-pointer items-center gap-2 rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-2.5 text-sm font-semibold text-emerald-800 no-underline transition-colors hover:bg-emerald-100 font-['Geist',sans-serif]"
+                        >
+                            <CalendarRange className="h-4 w-4" />
+                            Quản lý mùa
+                        </Link>
+                    }
                     filter={
-                        <Filter
-                            value={statusFilter}
-                            onChange={setStatusFilter}
-                        />
+                        <>
+                            <Filter
+                                value={statusFilter}
+                                onChange={setStatusFilter}
+                            />
+                            <SeasonFilter
+                                value={seasonFilter}
+                                onChange={setSeasonFilter}
+                            />
+                        </>
                     }
                 />
 
@@ -203,6 +222,7 @@ export default function ProductMasterPage() {
                     loading={loading}
                     search={search}
                     statusFilter={statusFilter}
+                    seasonFilter={seasonFilter}
                     onView={handleViewProduct}
                 />
 

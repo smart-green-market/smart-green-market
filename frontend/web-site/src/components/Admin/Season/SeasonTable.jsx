@@ -1,35 +1,15 @@
 import DataTable from "react-data-table-component";
 import { tableStyles, paginationVi } from "../../common/tableStyles";
-import { getSeasonTagClassName } from "./productMasterHelpers";
 
 const STATUS_CONFIG = {
     active: { label: "HOẠT ĐỘNG", bg: "bg-green-200", text: "text-green-800" },
     inactive: { label: "KHÓA", bg: "bg-gray-200", text: "text-gray-800" },
 };
 
-const SeasonCell = ({ seasons = [] }) => {
-    if (!seasons.length) {
-        return <span className="text-sm text-neutral-400">—</span>;
-    }
-
-    return (
-        <div className="mx-auto grid w-full max-w-[220px] grid-cols-2 gap-1.5 py-1.5">
-            {seasons.map((season) => (
-                <span
-                    key={season.id}
-                    className={`inline-flex min-h-[30px] items-center justify-center rounded-lg border px-2 py-1 text-center text-sm font-semibold leading-tight ${getSeasonTagClassName(season)}`}
-                >
-                    {season.name}
-                </span>
-            ))}
-        </div>
-    );
-};
-
 const buildColumns = (onView) => [
     {
         id: 1,
-        name: "Tên sản phẩm",
+        name: "Tên mùa",
         selector: (row) => row.name,
         sortable: true,
         grow: 1.2,
@@ -40,33 +20,13 @@ const buildColumns = (onView) => [
         ),
     },
     {
-        name: "Danh mục",
-        selector: (row) => row.category_name,
+        name: "Khoảng tháng",
+        selector: (row) => row.month_label,
         sortable: true,
         grow: 1,
         cell: (row) => (
             <span className="text-sm font-semibold font-['Geist',sans-serif]">
-                {row.category_name}
-            </span>
-        ),
-    },
-    {
-        name: "Mùa",
-        selector: (row) => row.season_label,
-        sortable: true,
-        center: true,
-        grow: 1,
-        cell: (row) => <SeasonCell seasons={row.seasons} />,
-    },
-    {
-        name: "Đơn vị",
-        selector: (row) => row.default_unit,
-        sortable: true,
-        center: true,
-        width: "120px",
-        cell: (row) => (
-            <span className="text-sm font-semibold font-['Geist',sans-serif] uppercase">
-                {row.default_unit}
+                {row.month_label}
             </span>
         ),
     },
@@ -75,7 +35,7 @@ const buildColumns = (onView) => [
         selector: (row) => row.status,
         sortable: true,
         center: true,
-        width: "140px",
+        grow: 1,
         cell: (row) => {
             const status = STATUS_CONFIG[row.status] ?? STATUS_CONFIG.active;
             return (
@@ -104,27 +64,18 @@ const buildColumns = (onView) => [
     },
 ];
 
-export default function ProductMasterTable({
-    data,
-    search,
-    statusFilter,
-    seasonFilter,
-    onView,
-}) {
+export default function SeasonTable({ data, search, statusFilter, onView }) {
     const filtered = data.filter((row) => {
         const keyword = search.toLowerCase();
         const matchSearch =
             row.name.toLowerCase().includes(keyword) ||
-            row.category_name.toLowerCase().includes(keyword) ||
-            row.default_unit.toLowerCase().includes(keyword) ||
-            row.season_label.toLowerCase().includes(keyword);
+            row.code.toLowerCase().includes(keyword) ||
+            row.description.toLowerCase().includes(keyword) ||
+            row.month_label.toLowerCase().includes(keyword);
 
         const matchStatus = !statusFilter || row.status === statusFilter;
-        const matchSeason =
-            !seasonFilter ||
-            (row.season_ids ?? []).includes(String(seasonFilter));
 
-        return matchSearch && matchStatus && matchSeason;
+        return matchSearch && matchStatus;
     });
 
     return (
@@ -138,7 +89,7 @@ export default function ProductMasterTable({
                 customStyles={tableStyles}
                 noDataComponent={
                     <div className="py-6 text-sm text-neutral-500">
-                        Không tìm thấy sản phẩm...
+                        Không tìm thấy mùa...
                     </div>
                 }
                 defaultSortFieldId={1}
