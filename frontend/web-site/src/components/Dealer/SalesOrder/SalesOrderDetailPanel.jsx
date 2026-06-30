@@ -1,6 +1,6 @@
-import { X, Package, CheckCircle2, Truck, CreditCard, User, Calendar, MapPin, Receipt, ArrowRight, Printer, Phone } from "lucide-react";
+import { X, Package, CheckCircle2, Truck, CreditCard, User, Calendar, MapPin, Receipt, ArrowRight, Printer, Phone, XCircle } from "lucide-react";
 
-export default function SalesOrderDetailPanel({ order, onClose, onPrint, onConfirm, onStartProcessing, onShipOrder }) {
+export default function SalesOrderDetailPanel({ order, onClose, onPrint, onConfirm, onStartProcessing, onShipOrder, onCancel }) {
   if (!order) return null;
 
   // Status visual mapping
@@ -235,6 +235,15 @@ export default function SalesOrderDetailPanel({ order, onClose, onPrint, onConfi
           </button>
         )}
         
+        {(order.status === "Chờ xác nhận" || order.status === "Đã xác nhận" || order.status === "Đang chuẩn bị hàng") && (
+          <button 
+            onClick={() => onCancel && onCancel(order)}
+            className="w-full py-3 rounded-xl border border-red-200 hover:bg-red-50 text-red-600 font-bold text-sm transition-all cursor-pointer flex items-center justify-center gap-2"
+          >
+            <XCircle className="w-4 h-4" /> Hủy đơn hàng
+          </button>
+        )}
+
         <button 
           onClick={() => onPrint && onPrint(order)}
           className="w-full py-3 rounded-xl bg-neutral-100 hover:bg-neutral-200 text-neutral-700 font-bold text-sm transition-all cursor-pointer flex items-center justify-center gap-2"

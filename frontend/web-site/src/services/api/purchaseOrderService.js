@@ -48,4 +48,12 @@ export const purchaseOrderService = {
         headers: { "Content-Type": "multipart/form-data" },
       })
       .then((res) => res.data),
+
+  // Yêu cầu trả hàng (FormData có reason và evidence_file)
+  requestReturn: (id, formData) =>
+    axiosClient
+      .post(`/purchase-orders/${id}/request-return/`, formData, {
+        headers: { "Content-Type": "multipart/form-data" },
+      })
+      .then((res) => res.data),
 };

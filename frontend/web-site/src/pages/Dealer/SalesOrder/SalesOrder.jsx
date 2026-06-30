@@ -1,11 +1,13 @@
 import { useState, useEffect } from "react";
-import { ShoppingCart, Plus, CheckCircle2, Truck, Printer, Package } from "lucide-react";
+import { ShoppingCart, Plus, CheckCircle2, Truck, Printer, Package, XCircle } from "lucide-react";
+import { toast } from "sonner";
 import SupplierFilter from "../../../components/Dealer/Supplier/SupplierFilter";
 import SalesOrderList from "../../../components/Dealer/SalesOrder/SalesOrderList";
 import SalesOrderStatsCards from "../../../components/Dealer/SalesOrder/SalesOrderStatsCards";
 import CreateSalesOrderModal from "../../../components/Dealer/SalesOrder/CreateSalesOrderModal";
 import SalesOrderDetailPanel from "../../../components/Dealer/SalesOrder/SalesOrderDetailPanel";
 import PrintInvoiceModal from "../../../components/Dealer/SalesOrder/PrintInvoiceModal";
+import RejectModal from "../../../components/common/RejectModal";
 import { dealerOrderService } from "../../../services/api/dealerOrderService";
 
 export default function DealerSalesOrderPage() {
@@ -18,6 +20,10 @@ export default function DealerSalesOrderPage() {
     const [selectedOrder, setSelectedOrder] = useState(null);
     const [selectedRows, setSelectedRows] = useState([]);
     const [clearSelectedToggle, setClearSelectedToggle] = useState(false);
+
+    // Cancel modal state
+    const [isCancelModalOpen, setIsCancelModalOpen] = useState(false);
+    const [orderToCancel, setOrderToCancel] = useState(null);
 
     // Print Modal State
     const [isPrintModalOpen, setIsPrintModalOpen] = useState(false);
@@ -162,6 +168,56 @@ export default function DealerSalesOrderPage() {
         }
     };
 
+    const handleCancelClick = (order) => {
+        setOrderToCancel(order);
+        setIsCancelModalOpen(true);
+    };
+
+    const handleBulkCancelClick = () => {
+        setOrderToCancel(null);
+        setIsCancelModalOpen(true);
+    };
+
+    const handleCancelOrderConfirm = async (reason) => {
+        try {
+            if (orderToCancel) {
+                // Hủy đơn lẻ
+                await dealerOrderService.cancelOrder(orderToCancel.originalData.id, { reason });
+                toast.success(`Đã hủy đơn hàng ${orderToCancel.id} thành công!`);
+                await fetchOrders();
+                await refreshDetailPanel(orderToCancel.originalData.id);
+            } else {
+                // Hủy hàng loạt
+                const cancelableRows = selectedRows.filter(row => {
+                    const status = row.status || row.delivery;
+                    return status === "Chờ xác nhận" || status === "Đã xác nhận" || status === "Đang chuẩn bị hàng";
+                });
+                
+                const cancelPromises = cancelableRows.map(row => 
+                    dealerOrderService.cancelOrder(row.originalData.id, { reason })
+                );
+                
+                await Promise.all(cancelPromises);
+                toast.success(`Đã hủy thành công ${cancelableRows.length} đơn hàng!`);
+                await fetchOrders();
+                setClearSelectedToggle(!clearSelectedToggle);
+                setSelectedRows([]);
+
+                if (selectedOrder) {
+                    const wasCancelled = cancelableRows.some(row => row.originalData.id === selectedOrder.originalData.id);
+                    if (wasCancelled) {
+                        await refreshDetailPanel(selectedOrder.originalData.id);
+                    }
+                }
+            }
+        } catch (error) {
+            console.error("Lỗi khi hủy đơn hàng:", error);
+            const errMsg = error.response?.data?.detail || "Không thể hủy đơn hàng.";
+            toast.error(errMsg);
+            throw error;
+        }
+    };
+
     const handleStartProcessing = async (order) => {
         try {
             await dealerOrderService.startProcessing(order.originalData.id);
@@ -278,6 +334,10 @@ export default function DealerSalesOrderPage() {
                             const hasPendingConfirmation = selectedRows.some(r => (r.status || r.delivery) === "Chờ xác nhận");
                             const hasConfirmed = selectedRows.some(r => (r.status || r.delivery) === "Đã xác nhận");
                             const hasPreparing = selectedRows.some(r => (r.status || r.delivery) === "Đang chuẩn bị hàng");
+                            const hasCancelable = selectedRows.some(r => {
+                                const st = r.status || r.delivery;
+                                return st === "Chờ xác nhận" || st === "Đã xác nhận" || st === "Đang chuẩn bị hàng";
+                            });
 
                             return (
                                 <div className="mb-4 p-4 bg-emerald-50 border border-emerald-200 rounded-2xl flex items-center justify-between animate-in fade-in slide-in-from-top-4">
@@ -309,9 +369,17 @@ export default function DealerSalesOrderPage() {
                                                 <Truck className="w-4 h-4" /> Giao hàng
                                             </button>
                                         )}
+                                        {hasCancelable && (
+                                            <button
+                                                onClick={handleBulkCancelClick}
+                                                className="px-4 py-2 border border-red-200 hover:bg-red-50 text-red-600 rounded-xl text-xs font-bold transition-all shadow-sm flex items-center gap-2 cursor-pointer"
+                                            >
+                                                <XCircle className="w-4 h-4" /> Hủy đơn hàng
+                                            </button>
+                                        )}
                                         <button
                                             onClick={handleBulkPrint}
-                                            className="px-4 py-2 bg-white border border-neutral-200 hover:bg-neutral-50 text-neutral-700 rounded-xl text-xs font-bold transition-all shadow-sm flex items-center gap-2"
+                                            className="px-4 py-2 bg-white border border-neutral-200 hover:bg-neutral-50 text-neutral-700 rounded-xl text-xs font-bold transition-all shadow-sm flex items-center gap-2 cursor-pointer"
                                         >
                                             <Printer className="w-4 h-4" /> In hoá đơn ({selectedRows.length})
                                         </button>
@@ -341,13 +409,14 @@ export default function DealerSalesOrderPage() {
                     ></div>
                     <div className="relative w-full max-w-md h-[90vh] max-h-[800px]">
                         <SalesOrderDetailPanel
-                            order={selectedOrder}
-                            onClose={() => setSelectedOrder(null)}
-                            onPrint={handleSinglePrint}
-                            onConfirm={handleSingleConfirm}
-                            onStartProcessing={handleStartProcessing}
-                            onShipOrder={handleShipOrder}
-                        />
+                                                            order={selectedOrder}
+                                                            onClose={() => setSelectedOrder(null)}
+                                                            onPrint={handleSinglePrint}
+                                                            onConfirm={handleSingleConfirm}
+                                                            onStartProcessing={handleStartProcessing}
+                                                            onShipOrder={handleShipOrder}
+                                                            onCancel={handleCancelClick}
+                                                        />
                     </div>
                 </div>
             )}
@@ -361,6 +430,26 @@ export default function DealerSalesOrderPage() {
                 isOpen={isPrintModalOpen}
                 orders={ordersToPrint}
                 onClose={() => setIsPrintModalOpen(false)}
+            />
+
+            <RejectModal
+                isOpen={isCancelModalOpen}
+                onClose={() => setIsCancelModalOpen(false)}
+                onConfirm={handleCancelOrderConfirm}
+                title={orderToCancel ? "Hủy đơn hàng" : "Hủy hàng loạt đơn hàng"}
+                message={orderToCancel 
+                    ? `Bạn có chắc chắn muốn hủy đơn hàng ${orderToCancel.id} không?`
+                    : `Bạn có chắc chắn muốn hủy ${selectedRows.filter(row => {
+                        const st = row.status || row.delivery;
+                        return st === "Chờ xác nhận" || st === "Đã xác nhận" || st === "Đang chuẩn bị hàng";
+                      }).length} đơn hàng đang chọn không?`
+                }
+                confirmText="Hủy đơn"
+                cancelText="Đóng"
+                reasonLabel="Lý do hủy"
+                reasonPlaceholder="Nhập lý do hủy đơn..."
+                reasonRequiredMessage="Vui lòng nhập lý do hủy đơn."
+                showToast={false}
             />
         </div>
     );
