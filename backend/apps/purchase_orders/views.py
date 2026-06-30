@@ -527,6 +527,7 @@ class PurchaseOrderViewSet(viewsets.GenericViewSet):
             order,
             request.user,
             reason=serializer.validated_data["reason"],
+            items=serializer.validated_data["items"],
             evidence_file=serializer.validated_data.get("evidence_file"),
         )
         return Response(

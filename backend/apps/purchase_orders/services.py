@@ -90,6 +90,44 @@ RETURN_REQUESTABLE = {
 }
 
 
+def _get_returned_quantities_by_item_id(order) -> dict[int, Decimal]:
+    """Tổng số lượng đã trả (approved) theo từng dòng phiếu nhập."""
+    rows = (
+        PurchaseOrderReturnItem.objects.filter(
+            purchase_order_return__purchase_order=order,
+            purchase_order_return__status=PurchaseOrderReturnStatus.APPROVED,
+        )
+        .values("purchase_order_item_id")
+        .annotate(returned=Sum("quantity"))
+    )
+    return {row["purchase_order_item_id"]: row["returned"] for row in rows}
+
+
+def _returnable_quantity(*, order_item, returned_qty: Decimal) -> Decimal:
+    return order_item.quantity - returned_qty
+
+
+def _compute_return_line_refund(order_item, return_qty: Decimal) -> Decimal:
+    """Hoàn tiền theo đơn giá × số lượng trả."""
+    return (order_item.unit_price * return_qty).quantize(Decimal("0.01"))
+
+
+def _all_items_fully_returned(order) -> bool:
+    returned_map = _get_returned_quantities_by_item_id(order)
+    for item in order.items.all():
+        returned = returned_map.get(item.id, Decimal("0"))
+        if returned < item.quantity:
+            return False
+    return True
+
+
+def _remaining_import_quantity(order, order_item) -> int:
+    """Số lượng còn nhập kho sau khi trừ các lần trả hàng đã duyệt."""
+    returned_map = _get_returned_quantities_by_item_id(order)
+    returned = returned_map.get(order_item.id, Decimal("0"))
+    return max(int(order_item.quantity - returned), 0)
+
+
 def generate_order_code(dealer_id: int) -> str:
     """Sinh mã phiếu duy nhất: PN-YYYYMMDD-{dealer_id}-{seq}.
 
@@ -572,22 +610,31 @@ def cancel_order(order, user, note="", *, is_admin=False):
 
 
 @transaction.atomic
-def dealer_request_return(order, user, *, reason, evidence_file=None):
-    """Đại lý yêu cầu trả toàn bộ phiếu sau khi nhận hàng (một lần)."""
+def dealer_request_return(order, user, *, reason, items, evidence_file=None):
+    """Đại lý yêu cầu trả một phần hoặc toàn bộ dòng hàng sau khi nhận hàng."""
     _ensure_not_terminal(order)
     reason = (reason or "").strip()
     if not reason:
         raise ValidationError({"reason": "Vui lòng nhập lý do trả hàng."})
+    if not items:
+        raise ValidationError({"items": "Phải chọn ít nhất một dòng hàng để trả."})
     if order.status not in RETURN_REQUESTABLE:
         raise ValidationError({"detail": "Chỉ yêu cầu trả hàng sau khi đã nhận hàng."})
-    if order.returns.filter(status=PurchaseOrderReturnStatus.APPROVED).exists():
-        raise ValidationError({"detail": "Phiếu đã được trả hàng, không thể yêu cầu thêm."})
     if order.returns.filter(status=PurchaseOrderReturnStatus.REQUESTED).exists():
         raise ValidationError({"detail": "Đã có yêu cầu trả hàng đang chờ xử lý."})
+    if _all_items_fully_returned(order):
+        raise ValidationError({"detail": "Tất cả sản phẩm trong phiếu đã được trả hết."})
 
-    order_items = list(order.items.select_related("supplier_product").all())
-    if not order_items:
+    order_items_map = {
+        item.id: item
+        for item in order.items.select_related("supplier_product").all()
+    }
+    if not order_items_map:
         raise ValidationError({"detail": "Phiếu không có sản phẩm để trả."})
+
+    returned_map = _get_returned_quantities_by_item_id(order)
+    seen_item_ids: set[int] = set()
+    refund_amount = Decimal("0")
 
     po_return = PurchaseOrderReturn.objects.create(
         purchase_order=order,
@@ -595,15 +642,47 @@ def dealer_request_return(order, user, *, reason, evidence_file=None):
         evidence_file=evidence_file,
         requested_by=user,
     )
-    refund_amount = Decimal("0")
-    for item in order_items:
+
+    for row in items:
+        item_id = row["purchase_order_item_id"]
+        return_qty = row["quantity"]
+        line_reason = (row.get("reason") or "").strip()
+
+        if item_id in seen_item_ids:
+            raise ValidationError(
+                {"items": f"Trùng purchase_order_item_id={item_id} trong một yêu cầu."}
+            )
+        seen_item_ids.add(item_id)
+
+        order_item = order_items_map.get(item_id)
+        if order_item is None:
+            raise ValidationError(
+                {"items": f"Dòng hàng {item_id} không thuộc phiếu này."}
+            )
+
+        already_returned = returned_map.get(item_id, Decimal("0"))
+        returnable = _returnable_quantity(
+            order_item=order_item,
+            returned_qty=already_returned,
+        )
+        if return_qty > returnable:
+            raise ValidationError(
+                {
+                    "items": (
+                        f"Số lượng trả ({return_qty}) vượt quá còn lại "
+                        f"({returnable}) cho dòng {item_id}."
+                    )
+                }
+            )
+
+        line_refund = _compute_return_line_refund(order_item, return_qty)
         PurchaseOrderReturnItem.objects.create(
             purchase_order_return=po_return,
-            purchase_order_item=item,
-            quantity=item.quantity,
-            reason="",
+            purchase_order_item=order_item,
+            quantity=return_qty,
+            reason=line_reason,
         )
-        refund_amount += item.subtotal
+        refund_amount += line_refund
 
     po_return.refund_amount = refund_amount.quantize(Decimal("0.01"))
     po_return.save(update_fields=["refund_amount"])
@@ -650,14 +729,16 @@ def supplier_review_return(po_return, user, *, approved, review_note=""):
     returned_value = po_return.refund_amount
     order.total_amount = max(order.total_amount - returned_value, Decimal("0"))
     order.debt_amount = max(order.total_amount - order.paid_amount, Decimal("0"))
-
     order.save(update_fields=["total_amount", "debt_amount", "updated_at"])
-    record_status_change(
-        order,
-        PurchaseOrderStatus.RETURNED,
-        user,
-        note=note or "Đã duyệt trả toàn bộ phiếu nhập",
-    )
+
+    if _all_items_fully_returned(order):
+        next_status = PurchaseOrderStatus.RETURNED
+        default_note = "Đã duyệt trả toàn bộ phiếu nhập"
+    else:
+        next_status = PurchaseOrderStatus.DELIVERED
+        default_note = "Đã duyệt trả một phần — phiếu tiếp tục xử lý phần còn lại"
+
+    record_status_change(order, next_status, user, note=note or default_note)
     return po_return
 
 
@@ -708,7 +789,7 @@ def _import_dealer_inventory(order, user):
                 "status": DealerProductStatus.ACTIVE,
             },
         )
-        qty = int(item.quantity)
+        qty = _remaining_import_quantity(order, item)
         if qty <= 0:
             continue
         batch_number = f"{order.order_code}-{item.id}"

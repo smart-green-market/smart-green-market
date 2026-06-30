@@ -745,7 +745,11 @@ class PurchaseOrderReturnItemWriteSerializer(serializers.Serializer):
 
 class RequestPurchaseOrderReturnSerializer(serializers.Serializer):
     reason = serializers.CharField(
-        help_text="Lý do trả hàng — trả toàn bộ phiếu, không chọn số lượng",
+        help_text="Lý do trả hàng chung",
+    )
+    items = PurchaseOrderReturnItemWriteSerializer(
+        many=True,
+        help_text="Danh sách dòng hàng và số lượng trả (có thể trả một phần)",
     )
     evidence_file = serializers.FileField(
         required=False,
@@ -757,6 +761,19 @@ class RequestPurchaseOrderReturnSerializer(serializers.Serializer):
         value = value.strip()
         if not value:
             raise serializers.ValidationError("Vui lòng nhập lý do trả hàng.")
+        return value
+
+    def validate_items(self, value):
+        if not value:
+            raise serializers.ValidationError("Phải chọn ít nhất một dòng hàng để trả.")
+        seen: set[int] = set()
+        for row in value:
+            item_id = row["purchase_order_item_id"]
+            if item_id in seen:
+                raise serializers.ValidationError(
+                    f"Trùng purchase_order_item_id={item_id} trong một yêu cầu."
+                )
+            seen.add(item_id)
         return value
 
 
