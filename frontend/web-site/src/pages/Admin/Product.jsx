@@ -47,7 +47,7 @@ export default function ProductPage() {
   const [modalError, setModalError] = useState("");
 
   const [search, setSearch] = useState("");
-  const [statusFilter, setStatusFilter] = useState("pending");
+  const [statusFilter, setStatusFilter] = useState("");
 
   const [viewRow, setViewRow] = useState(null);
 
@@ -179,7 +179,9 @@ export default function ProductPage() {
       }
 
       setModalError(message);
-      throw new Error(message);
+      const handledError = new Error(message);
+      handledError.toastHandled = true;
+      throw handledError;
     } finally {
       setActionLoading(false);
     }

@@ -218,13 +218,19 @@ export default function DealerInventoryPage() {
 
       {/* 3. Bảng dữ liệu chi tiết danh sách lô hàng trong kho */}
       <div className="mb-8">
-        <InventoryTable
-          data={filteredInventory}
-          onRowClick={(row) => setSelectedRow(row)}
-          currentPage={inventoryPage}
-          totalPages={inventoryTotalPages}
-          onPageChange={setInventoryPage}
-        />
+        {loading ? (
+          <div className="flex justify-center items-center py-20">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-emerald-600"></div>
+          </div>
+        ) : (
+          <InventoryTable
+            data={filteredInventory}
+            onRowClick={(row) => setSelectedRow(row)}
+            currentPage={inventoryPage}
+            totalPages={inventoryTotalPages}
+            onPageChange={setInventoryPage}
+          />
+        )}
 
         {/* Modal Cập nhật Lô hàng (chỉ mở khi có lô hàng được chọn) */}
         {selectedRow && (
@@ -237,12 +243,20 @@ export default function DealerInventoryPage() {
       </div>
 
       {/* 4. Bảng danh sách ghi nhận lịch sử nhập xuất hao hụt kho */}
-      <InventoryHistoryTable
-        data={transactionList}
-        currentPage={transactionPage}
-        totalPages={transactionTotalPages}
-        onPageChange={setTransactionPage}
-      />
+      {loading ? (
+        <div className="flex justify-center items-center py-20">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-emerald-600"></div>
+        </div>
+      ) : (
+        <InventoryHistoryTable
+          data={transactionList}
+          currentPage={transactionPage}
+          totalPages={transactionTotalPages}
+          onPageChange={setTransactionPage}
+        />
+      )}
+
+
 
     </div>
   );

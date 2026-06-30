@@ -9,6 +9,7 @@ import {
 
 const axiosClient = axios.create({
   baseURL: "https://smart-green-market-api.onrender.com/api",
+  //baseURL: "http://127.0.0.1:8000/api",
   headers: {
     "Content-Type": "application/json",
   },

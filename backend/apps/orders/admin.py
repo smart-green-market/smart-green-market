@@ -1,6 +1,13 @@
 from django.contrib import admin
 
-from .models import CustomerPayment, Order, OrderItem, OrderStatusHistory
+from .models import (
+    CustomerPayment,
+    Order,
+    OrderItem,
+    OrderReturn,
+    OrderReturnItem,
+    OrderStatusHistory,
+)
 
 
 class OrderItemInline(admin.TabularInline):
@@ -10,6 +17,11 @@ class OrderItemInline(admin.TabularInline):
 
 class CustomerPaymentInline(admin.TabularInline):
     model = CustomerPayment
+    extra = 0
+
+
+class OrderReturnItemInline(admin.TabularInline):
+    model = OrderReturnItem
     extra = 0
 
 
@@ -32,3 +44,18 @@ class OrderAdmin(admin.ModelAdmin):
 @admin.register(OrderStatusHistory)
 class OrderStatusHistoryAdmin(admin.ModelAdmin):
     list_display = ("order", "old_status", "new_status", "changed_by", "created_at")
+
+
+@admin.register(OrderReturn)
+class OrderReturnAdmin(admin.ModelAdmin):
+    list_display = (
+        "order",
+        "status",
+        "refund_amount",
+        "requested_by",
+        "reviewed_by",
+        "created_at",
+    )
+    list_filter = ("status",)
+    search_fields = ("order__order_code", "reason", "review_note")
+    inlines = [OrderReturnItemInline]

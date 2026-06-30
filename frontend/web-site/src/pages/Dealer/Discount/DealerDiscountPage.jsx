@@ -42,7 +42,7 @@ export default function DealerDiscountPage() {
       if (scope !== 'all') params.scope = scope;
 
       const data = await discountService.getAll(params);
-      
+
       setPolicies(data?.results || (Array.isArray(data) ? data : []));
       setTotalCount(data?.count || (Array.isArray(data) ? data.length : 0));
     } catch (error) {
@@ -73,7 +73,7 @@ export default function DealerDiscountPage() {
 
   const handleDelete = async (id) => {
     if (!window.confirm("Bạn có chắc chắn muốn xóa chính sách giảm giá này không?")) return;
-    
+
     try {
       await discountService.delete(id);
       toast.success("Xóa chính sách thành công");
@@ -88,17 +88,17 @@ export default function DealerDiscountPage() {
     <div className="p-6">
       <div className="flex justify-between items-center mb-6">
         <div>
-          <h1 className="text-2xl font-bold text-gray-800">Quản lý giảm giá</h1>
+          <h1 className="text-2xl font-bold text-gray-800">Quản lý chính sách giảm giá</h1>
           <p className="text-sm text-gray-500 mt-1">
             Tạo và quản lý các chính sách giảm giá cho sản phẩm
           </p>
         </div>
-        <button 
+        <button
           onClick={() => setIsModalOpen(true)}
           className="flex items-center gap-2 bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg font-medium transition-colors shadow-sm active:scale-95"
         >
           <Plus size={18} />
-          Tạo mã giảm giá
+          Tạo chính sách giảm giá
         </button>
       </div>
 
@@ -113,8 +113,8 @@ export default function DealerDiscountPage() {
       />
 
       {isLoading ? (
-        <div className="flex justify-center items-center h-64">
-          <Loader2 className="w-8 h-8 animate-spin text-green-600" />
+        <div className="flex justify-center items-center py-20">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-emerald-600"></div>
         </div>
       ) : policies.length === 0 ? (
         <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-8 text-center">
@@ -141,23 +141,23 @@ export default function DealerDiscountPage() {
         />
       )}
 
-      <CreateDiscountModal 
-        isOpen={isModalOpen} 
-        onClose={() => setIsModalOpen(false)} 
-        onSuccess={fetchPolicies} 
-      />
-      
-      <DiscountDetailModal 
-        isOpen={isDetailModalOpen} 
-        onClose={() => setIsDetailModalOpen(false)} 
-        policyId={selectedPolicyId} 
-      />
-      
-      <EditDiscountModal 
-        isOpen={isEditModalOpen} 
-        onClose={() => setIsEditModalOpen(false)} 
+      <CreateDiscountModal
+        isOpen={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
         onSuccess={fetchPolicies}
-        policyId={selectedPolicyId} 
+      />
+
+      <DiscountDetailModal
+        isOpen={isDetailModalOpen}
+        onClose={() => setIsDetailModalOpen(false)}
+        policyId={selectedPolicyId}
+      />
+
+      <EditDiscountModal
+        isOpen={isEditModalOpen}
+        onClose={() => setIsEditModalOpen(false)}
+        onSuccess={fetchPolicies}
+        policyId={selectedPolicyId}
       />
     </div>
   );

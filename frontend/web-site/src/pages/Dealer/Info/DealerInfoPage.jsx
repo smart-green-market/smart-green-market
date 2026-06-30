@@ -29,7 +29,7 @@ export default function DealerInfoPage() {
     }
     return null;
   });
-  const [loading, setLoading] = useState(!user?.dealer_profile);
+  const [loading, setLoading] = useState(true);
 
   const [editingPersonal, setEditingPersonal] = useState(false);
   const [editingStore, setEditingStore] = useState(false);
@@ -38,7 +38,7 @@ export default function DealerInfoPage() {
   useEffect(() => {
     const fetchProfile = async () => {
       try {
-        if (!profile) setLoading(true);
+        setLoading(true);
         const [dealers, linkData, docsData] = await Promise.all([
           dealerService.getAll(),
           dealerService.getStorefrontLink().catch((err) => {

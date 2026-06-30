@@ -434,8 +434,8 @@ export default function CreatePurchaseOrder({ onClose, onSuccess }) {
 
           {/* Lưới sản phẩm */}
           {loading ? (
-            <div className="text-center py-20 text-neutral-500 font-medium">
-              Đang tải danh sách sản phẩm...
+            <div className="flex justify-center items-center py-20">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-emerald-600"></div>
             </div>
           ) : filteredProducts.length === 0 ? (
             <div className="text-center py-20 bg-white rounded-2xl border border-neutral-100 text-neutral-400 font-medium">

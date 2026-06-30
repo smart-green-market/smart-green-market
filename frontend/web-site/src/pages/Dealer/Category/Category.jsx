@@ -180,15 +180,21 @@ export default function DealerCategoryPage() {
             )}
 
             {/* Grid layout for categories */}
-            <CategoryGrid
-                categories={filteredCategories}
-                onViewDetail={handleViewDetail}
-                onUpdate={(cat) => setCategoryToUpdate(cat)}
-                onDelete={handleDeleteCategory}
-                currentPage={currentPage}
-                totalPages={totalPages}
-                onPageChange={setCurrentPage}
-            />
+            {isLoading ? (
+                <div className="flex justify-center items-center py-20">
+                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-emerald-600"></div>
+                </div>
+            ) : (
+                <CategoryGrid
+                    categories={filteredCategories}
+                    onViewDetail={handleViewDetail}
+                    onUpdate={(cat) => setCategoryToUpdate(cat)}
+                    onDelete={handleDeleteCategory}
+                    currentPage={currentPage}
+                    totalPages={totalPages}
+                    onPageChange={setCurrentPage}
+                />
+            )}
 
             {/* Create Category Modal */}
             {isCreateModalOpen && (

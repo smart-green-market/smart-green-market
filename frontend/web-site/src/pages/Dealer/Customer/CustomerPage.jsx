@@ -119,16 +119,22 @@ export default function DealerCustomerPage() {
       />
 
       {/* Table Section */}
-      <CustomerTable
-        loading={loading}
-        error={error}
-        customers={filteredCustomers}
-        pagination={pagination}
-        onPageChange={fetchCustomers}
-        onRetry={() => fetchCustomers(pagination.page)}
-        searchQuery={searchQuery}
-        statusFilter={statusFilter}
-      />
+      {loading ? (
+          <div className="flex justify-center items-center py-20">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-emerald-600"></div>
+          </div>
+      ) : (
+          <CustomerTable
+            loading={loading}
+            error={error}
+            customers={filteredCustomers}
+            pagination={pagination}
+            onPageChange={fetchCustomers}
+            onRetry={() => fetchCustomers(pagination.page)}
+            searchQuery={searchQuery}
+            statusFilter={statusFilter}
+          />
+      )}
 
     </div>
   );

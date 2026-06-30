@@ -168,10 +168,6 @@ export default function ProductDetailSpecs({ product }) {
                         value={priceLabel}
                         highlight
                     />
-                    <SpecRow
-                        label="Hạn sử dụng gần nhất"
-                        value={formatDateVi(product.nearest_expiry_date)}
-                    />
                     <SpecRow label="Nhà cung cấp gốc" value={product.supplier_name} />
                     <SpecRow
                         label="Tồn kho"
@@ -185,19 +181,14 @@ export default function ProductDetailSpecs({ product }) {
                         label="Nguồn hàng gốc"
                         value={product.supplier_product_name}
                     />
-                    <SpecRow
-                        label="Hạn sử dụng / bảo quản"
-                        value={storageLabel}
-                        highlight
-                    />
                     <SpecRow label="Nhiệt độ bảo quản" value={tempLabel} />
                     <SpecRow
-                        label="Cập nhật lần cuối"
-                        value={formatDateVi(product.updated_at)}
+                        label="Ngày hết hạn"
+                        value={formatDateVi(product.expiry_date)}
                     />
                     <SpecRow
                         label="Ngày đăng bán"
-                        value={formatDateVi(product.created_at)}
+                        value={formatDateVi(product.production_date)}
                     />
                 </SpecSection>
 

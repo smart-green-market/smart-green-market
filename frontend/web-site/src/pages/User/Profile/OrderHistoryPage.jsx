@@ -3,10 +3,13 @@ import { History, Loader2 } from "lucide-react";
 import { Link } from "react-router-dom";
 
 import OrderStatusFilterTabs from "../../../components/User/OrderTracking/OrderStatusFilterTabs";
+import OrderReturnSubFilterTabs from "../../../components/User/OrderHistory/OrderReturnSubFilterTabs";
 import OrderTrackingCard from "../../../components/User/OrderTracking/OrderTrackingCard";
 import OrderListError from "../../../components/User/OrderTracking/OrderListError";
 import OrderListEmpty from "../../../components/User/OrderTracking/OrderListEmpty";
 import OrderDetailModal from "../../../components/User/OrderTracking/OrderDetailModal";
+import CancelOrderModal from "../../../components/User/OrderTracking/CancelOrderModal";
+import ReturnOrderModal from "../../../components/User/OrderTracking/ReturnOrderModal";
 import Pagination from "../../../components/User/OrderHistory/Pagination";
 
 import {
@@ -17,7 +20,9 @@ import {
 import { useDealerSlug, useStorefrontPaths } from "../../../hooks/useStorefrontPaths";
 import {
   isHistoryOrder,
+  isReturnOrder,
   matchesHistoryStatusFilter,
+  RETURN_ORDER_STATUSES,
   sortOrdersByCreatedDesc,
 } from "../../../utils/orderUtils";
 
@@ -27,13 +32,14 @@ const FILTER_TABS = [
   { key: "all", label: "Tất cả" },
   { key: "completed", label: "Hoàn thành" },
   { key: "cancelled", label: "Đã hủy" },
+  { key: "return", label: "Trả hàng" },
 ];
 
 const EMPTY_STATE = {
   all: {
     title: "Chưa có đơn hàng trong lịch sử",
     description:
-      "Các đơn đã hoàn thành hoặc đã hủy sẽ được lưu tại đây.",
+      "Các đơn đã hoàn thành, đã hủy hoặc trong luồng trả hàng sẽ được lưu tại đây.",
     actionLabel: "Theo dõi đơn đang xử lý",
   },
   completed: {
@@ -46,6 +52,11 @@ const EMPTY_STATE = {
     description: "Các đơn bị hủy sẽ được lưu lại để bạn tra cứu.",
     actionLabel: "",
   },
+  return: {
+    title: "Chưa có đơn hàng trả hàng",
+    description: "Các đơn đã gửi yêu cầu trả hàng sẽ hiển thị tại đây.",
+    actionLabel: "",
+  },
 };
 
 export default function OrderHistoryPage() {
@@ -54,10 +65,13 @@ export default function OrderHistoryPage() {
 
   const [orders, setOrders] = useState([]);
   const [activeFilter, setActiveFilter] = useState("all");
+  const [returnSubFilter, setReturnSubFilter] = useState("all");
   const [currentPage, setCurrentPage] = useState(1);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
   const [selectedOrderId, setSelectedOrderId] = useState(null);
+  const [cancelTarget, setCancelTarget] = useState(null);
+  const [returnTarget, setReturnTarget] = useState(null);
 
   const fetchOrders = useCallback(async () => {
     if (!dealerSlug) {
@@ -93,11 +107,24 @@ export default function OrderHistoryPage() {
     () =>
       sortOrdersByCreatedDesc(
         historyOrders.filter((order) =>
-          matchesHistoryStatusFilter(order.status, activeFilter),
+          matchesHistoryStatusFilter(order.status, activeFilter, returnSubFilter),
         ),
       ),
-    [historyOrders, activeFilter],
+    [historyOrders, activeFilter, returnSubFilter],
   );
+
+  const returnOrders = useMemo(
+    () => historyOrders.filter((order) => isReturnOrder(order.status)),
+    [historyOrders],
+  );
+
+  const returnSubFilterCounts = useMemo(() => {
+    const counts = { all: returnOrders.length };
+    RETURN_ORDER_STATUSES.forEach((status) => {
+      counts[status] = returnOrders.filter((order) => order.status === status).length;
+    });
+    return counts;
+  }, [returnOrders]);
 
   const totalPages = Math.max(1, Math.ceil(filteredOrders.length / PAGE_SIZE));
 
@@ -113,11 +140,13 @@ export default function OrderHistoryPage() {
         count:
           tab.key === "all"
             ? historyOrders.length
-            : historyOrders.filter((order) =>
-                matchesHistoryStatusFilter(order.status, tab.key),
-              ).length,
+            : tab.key === "return"
+              ? returnOrders.length
+              : historyOrders.filter((order) =>
+                  matchesHistoryStatusFilter(order.status, tab.key),
+                ).length,
       })),
-    [historyOrders],
+    [historyOrders, returnOrders],
   );
 
   const stats = useMemo(() => {
@@ -128,7 +157,7 @@ export default function OrderHistoryPage() {
 
   useEffect(() => {
     setCurrentPage(1);
-  }, [activeFilter]);
+  }, [activeFilter, returnSubFilter]);
 
   useEffect(() => {
     if (currentPage > totalPages) {
@@ -138,6 +167,14 @@ export default function OrderHistoryPage() {
 
   const handleFilterChange = useCallback((filterKey) => {
     setActiveFilter(filterKey);
+    if (filterKey !== "return") {
+      setReturnSubFilter("all");
+    }
+    setCurrentPage(1);
+  }, []);
+
+  const handleReturnSubFilterChange = useCallback((subKey) => {
+    setReturnSubFilter(subKey);
     setCurrentPage(1);
   }, []);
 
@@ -153,6 +190,19 @@ export default function OrderHistoryPage() {
   const handleCloseDetail = useCallback(() => {
     setSelectedOrderId(null);
   }, []);
+
+  const handleCancelRequest = useCallback((order) => {
+    setCancelTarget(order);
+  }, []);
+
+  const handleReturnRequest = useCallback((order) => {
+    setReturnTarget(order);
+  }, []);
+
+  const handleActionSuccess = useCallback(() => {
+    fetchOrders();
+    setSelectedOrderId(null);
+  }, [fetchOrders]);
 
   const emptyState = EMPTY_STATE[activeFilter] ?? EMPTY_STATE.all;
 
@@ -184,6 +234,14 @@ export default function OrderHistoryPage() {
           activeKey={activeFilter}
           onChange={handleFilterChange}
         />
+
+        {activeFilter === "return" ? (
+          <OrderReturnSubFilterTabs
+            activeKey={returnSubFilter}
+            counts={returnSubFilterCounts}
+            onChange={handleReturnSubFilterChange}
+          />
+        ) : null}
       </section>
 
       {isLoading ? (
@@ -207,6 +265,8 @@ export default function OrderHistoryPage() {
                 key={order.id}
                 order={order}
                 onViewDetail={handleViewDetail}
+                onCancelOrder={handleCancelRequest}
+                onReturnOrder={handleReturnRequest}
               />
             ))}
           </div>
@@ -225,6 +285,24 @@ export default function OrderHistoryPage() {
         isOpen={selectedOrderId != null}
         onClose={handleCloseDetail}
         onOrderUpdated={fetchOrders}
+        onCancelOrder={handleCancelRequest}
+        onReturnOrder={handleReturnRequest}
+      />
+
+      <CancelOrderModal
+        isOpen={cancelTarget != null}
+        onClose={() => setCancelTarget(null)}
+        dealerSlug={dealerSlug}
+        order={cancelTarget}
+        onSuccess={handleActionSuccess}
+      />
+
+      <ReturnOrderModal
+        isOpen={returnTarget != null}
+        onClose={() => setReturnTarget(null)}
+        dealerSlug={dealerSlug}
+        order={returnTarget}
+        onSuccess={handleActionSuccess}
       />
     </div>
   );

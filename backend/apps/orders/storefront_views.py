@@ -5,6 +5,7 @@ from django.db.models import Count
 from drf_spectacular.utils import OpenApiExample, extend_schema
 from rest_framework import status
 from rest_framework.exceptions import NotFound, ValidationError
+from rest_framework.parsers import FormParser, JSONParser, MultiPartParser
 from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -19,10 +20,13 @@ from .models import Order
 from .delivery_slots import get_available_delivery_slots
 from .serializers import (
     DeliverySlotsResponseSerializer,
+    CancelOrderSerializer,
     NoteSerializer,
     OrderCreateSerializer,
     OrderDetailSerializer,
     OrderListSerializer,
+    OrderReturnReadSerializer,
+    RequestOrderReturnSerializer,
 )
 from .views import _detail_queryset, _detail_response
 
@@ -190,3 +194,69 @@ class StorefrontOrderConfirmReceivedView(APIView):
             note=serializer.validated_data.get("note", ""),
         )
         return Response(_detail_response(order, request))
+
+
+class StorefrontOrderCancelView(APIView):
+    """Buyer hủy đơn khi đơn còn chờ xác nhận."""
+
+    permission_classes = [IsStorefrontCustomer]
+
+    @extend_schema(
+        tags=["Storefront Orders"],
+        operation_id="storefront_orders_cancel",
+        summary="Hủy đơn hàng",
+        description="Buyer hủy đơn khi đơn còn `pending`; hệ thống hoàn tồn kho.",
+        request=CancelOrderSerializer,
+        responses={200: OrderDetailSerializer},
+    )
+    def post(self, request, dealer_slug, pk):
+        dealer = _get_dealer_or_404(dealer_slug)
+        try:
+            order = _buyer_orders_qs(request, dealer).get(pk=pk)
+        except Order.DoesNotExist as exc:
+            raise NotFound("Đơn hàng không tồn tại.") from exc
+
+        serializer = CancelOrderSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        order = services.cancel_customer_order(
+            order,
+            request.user,
+            reason=serializer.validated_data["reason"],
+            actor="buyer",
+        )
+        return Response(_detail_response(order, request))
+
+
+class StorefrontOrderRequestReturnView(APIView):
+    """Buyer yêu cầu trả hàng sau khi đơn hoàn tất."""
+
+    permission_classes = [IsStorefrontCustomer]
+    parser_classes = [MultiPartParser, FormParser, JSONParser]
+
+    @extend_schema(
+        tags=["Storefront Orders"],
+        operation_id="storefront_orders_request_return",
+        summary="Yêu cầu trả hàng",
+        description="Buyer yêu cầu trả **toàn bộ** đơn sau khi `completed`. Body: `reason`, `evidence_file` (tùy chọn).",
+        request=RequestOrderReturnSerializer,
+        responses={201: OrderReturnReadSerializer},
+    )
+    def post(self, request, dealer_slug, pk):
+        dealer = _get_dealer_or_404(dealer_slug)
+        try:
+            order = _buyer_orders_qs(request, dealer).get(pk=pk)
+        except Order.DoesNotExist as exc:
+            raise NotFound("Đơn hàng không tồn tại.") from exc
+
+        serializer = RequestOrderReturnSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        order_return = services.buyer_request_return(
+            order,
+            request.user,
+            reason=serializer.validated_data["reason"],
+            evidence_file=serializer.validated_data.get("evidence_file"),
+        )
+        return Response(
+            OrderReturnReadSerializer(order_return, context={"request": request}).data,
+            status=status.HTTP_201_CREATED,
+        )
