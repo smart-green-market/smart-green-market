@@ -24,7 +24,7 @@ from django.db.models import Prefetch, Q
 from drf_spectacular.utils import OpenApiParameter, extend_schema, extend_schema_view
 from rest_framework import status, viewsets
 from rest_framework.decorators import action
-from rest_framework.parsers import FormParser, MultiPartParser
+from rest_framework.parsers import FormParser, JSONParser, MultiPartParser
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
@@ -68,6 +68,7 @@ from .models import (
     PurchaseOrderPayment,
     PurchaseOrderPaymentStatus,
     PurchaseOrderPaymentType,
+    PurchaseOrderReturn,
     PurchaseOrderStatus,
 )
 from .serializers import (
@@ -78,7 +79,10 @@ from .serializers import (
     PurchaseOrderDetailSerializer,
     PurchaseOrderListSerializer,
     PurchaseOrderPaymentReadSerializer,
+    PurchaseOrderReturnReadSerializer,
     PaymentQrSerializer,
+    RequestPurchaseOrderReturnSerializer,
+    ReviewReturnSerializer,
     SubmitPaymentSerializer,
     SupplierConfirmSerializer,
     SupplierRejectSerializer,
@@ -98,6 +102,9 @@ def _detail_queryset():
             queryset=SupplierProductImage.objects.order_by("sort_order", "id"),
         ),
         "payments__verified_by",
+        "returns__items__purchase_order_item__supplier_product",
+        "returns__requested_by",
+        "returns__reviewed_by",
         "status_histories__changed_by",
     )
 
@@ -149,11 +156,14 @@ class PurchaseOrderViewSet(viewsets.GenericViewSet):
         "dealer",
         "supplier__account",
         "dealer__account",
+        "cancelled_by",
     )
     permission_classes = [IsAuthenticated]
 
     def get_queryset(self):
         qs = self.queryset
+        if self.action == "list":
+            qs = qs.prefetch_related("returns")
         if self.action == "retrieve":
             qs = qs.prefetch_related(
                 Prefetch(
@@ -162,6 +172,9 @@ class PurchaseOrderViewSet(viewsets.GenericViewSet):
                 ),
                 "items__supplier_product",
                 "payments__verified_by",
+                "returns__items__purchase_order_item__supplier_product",
+                "returns__requested_by",
+                "returns__reviewed_by",
                 "status_histories__changed_by",
             )
         return filter_purchase_orders(qs, self.request.user, ordering=ORDER_NEWEST)
@@ -175,6 +188,7 @@ class PurchaseOrderViewSet(viewsets.GenericViewSet):
             "reject",
             "verify_payment",
             "ship",
+            "review_return",
         ):
             return [IsSupplier()]
         if self.action == "payment_qr":
@@ -183,6 +197,7 @@ class PurchaseOrderViewSet(viewsets.GenericViewSet):
             "submit_deposit",
             "submit_final_payment",
             "confirm_delivery",
+            "request_return",
             "cancel",
         ):
             if self.action == "cancel":
@@ -485,7 +500,70 @@ class PurchaseOrderViewSet(viewsets.GenericViewSet):
         order = services.cancel_order(
             order,
             request.user,
-            note=serializer.validated_data.get("note", ""),
+            note=serializer.validated_data["reason"],
             is_admin=is_admin,
         )
         return Response(_detail_response(order, request))
+
+    @extend_schema(
+        tags=["Purchase Orders"],
+        summary="[Trả hàng] Dealer yêu cầu trả hàng",
+        request=RequestPurchaseOrderReturnSerializer,
+        responses={201: PurchaseOrderReturnReadSerializer},
+    )
+    @action(
+        detail=True,
+        methods=["post"],
+        url_path="request-return",
+        parser_classes=[MultiPartParser, FormParser, JSONParser],
+    )
+    def request_return(self, request, pk=None):
+        order = self.get_object()
+        if order.dealer.account_id != request.user.id:
+            return Response({"detail": "Không có quyền."}, status=status.HTTP_403_FORBIDDEN)
+        serializer = RequestPurchaseOrderReturnSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        po_return = services.dealer_request_return(
+            order,
+            request.user,
+            reason=serializer.validated_data["reason"],
+            evidence_file=serializer.validated_data.get("evidence_file"),
+        )
+        return Response(
+            PurchaseOrderReturnReadSerializer(po_return, context={"request": request}).data,
+            status=status.HTTP_201_CREATED,
+        )
+
+    @extend_schema(
+        tags=["Purchase Orders"],
+        summary="[Trả hàng] NCC duyệt/từ chối yêu cầu trả hàng",
+        request=ReviewReturnSerializer,
+        responses={200: PurchaseOrderReturnReadSerializer},
+    )
+    @action(
+        detail=True,
+        methods=["post"],
+        url_path=r"returns/(?P<return_id>[^/.]+)/review",
+    )
+    def review_return(self, request, pk=None, return_id=None):
+        order = self.get_object()
+        if order.supplier.account_id != request.user.id:
+            return Response({"detail": "Không có quyền."}, status=status.HTTP_403_FORBIDDEN)
+        serializer = ReviewReturnSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        try:
+            po_return = PurchaseOrderReturn.objects.get(pk=return_id, purchase_order=order)
+        except PurchaseOrderReturn.DoesNotExist:
+            return Response(
+                {"detail": "Yêu cầu trả hàng không thuộc phiếu này."},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+        po_return = services.supplier_review_return(
+            po_return,
+            request.user,
+            approved=serializer.validated_data["approved"],
+            review_note=serializer.validated_data.get("review_note", ""),
+        )
+        return Response(
+            PurchaseOrderReturnReadSerializer(po_return, context={"request": request}).data
+        )

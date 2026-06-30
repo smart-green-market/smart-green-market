@@ -21,9 +21,11 @@ from apps.reviews.storefront_views import (
 )
 from apps.orders.storefront_views import (
     StorefrontDeliverySlotsView,
+    StorefrontOrderCancelView,
     StorefrontOrderConfirmReceivedView,
     StorefrontOrderDetailView,
     StorefrontOrderListCreateView,
+    StorefrontOrderRequestReturnView,
 )
 from .views import (
     DealerCustomerViewSet,
@@ -160,6 +162,16 @@ urlpatterns = [
         "storefronts/<slug:dealer_slug>/orders/<int:pk>/confirm-received/",
         StorefrontOrderConfirmReceivedView.as_view(),
         name="storefront-order-confirm-received",
+    ),
+    path(
+        "storefronts/<slug:dealer_slug>/orders/<int:pk>/cancel/",
+        StorefrontOrderCancelView.as_view(),
+        name="storefront-order-cancel",
+    ),
+    path(
+        "storefronts/<slug:dealer_slug>/orders/<int:pk>/request-return/",
+        StorefrontOrderRequestReturnView.as_view(),
+        name="storefront-order-request-return",
     ),
     *router.urls,
 ]

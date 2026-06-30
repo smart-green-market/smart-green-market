@@ -17,8 +17,15 @@ from common.querysets import ORDER_NEWEST, filter_customer_orders
 from common.status_counts import build_count_status, filter_by_status_param
 
 from . import services
-from .models import Order, OrderStatus
-from .serializers import NoteSerializer, OrderDetailSerializer, OrderListSerializer
+from .models import Order, OrderReturn, OrderStatus
+from .serializers import (
+    CancelOrderSerializer,
+    NoteSerializer,
+    OrderDetailSerializer,
+    OrderListSerializer,
+    OrderReturnReadSerializer,
+    ReviewReturnSerializer,
+)
 
 
 def _detail_queryset():
@@ -28,6 +35,7 @@ def _detail_queryset():
         "customer",
         "customer__user",
         "customer_address",
+        "cancelled_by",
     ).prefetch_related(
         Prefetch(
             "items__dealer_product__images",
@@ -36,6 +44,9 @@ def _detail_queryset():
         "items__dealer_product",
         "items__batch",
         "payments",
+        "returns__items__order_item",
+        "returns__requested_by",
+        "returns__reviewed_by",
         "status_histories__changed_by",
     )
 
@@ -70,11 +81,18 @@ def _detail_response(order, request):
 class CustomerOrderViewSet(viewsets.GenericViewSet):
     """Đại lý xử lý đơn buyer: xác nhận → chuẩn bị → giao hàng."""
 
-    queryset = Order.objects.select_related("dealer", "customer", "customer__user")
+    queryset = Order.objects.select_related(
+        "dealer",
+        "customer",
+        "customer__user",
+        "cancelled_by",
+    )
     permission_classes = [IsAuthenticated]
 
     def get_queryset(self):
         qs = self.queryset.annotate(item_count=Count("items"))
+        if self.action == "list":
+            qs = qs.prefetch_related("returns")
         if self.action == "retrieve":
             qs = _detail_queryset().annotate(item_count=Count("items"))
         return filter_customer_orders(qs, self.request.user, ordering=ORDER_NEWEST)
@@ -100,7 +118,7 @@ class CustomerOrderViewSet(viewsets.GenericViewSet):
     def get_permissions(self):
         if self.action in ("confirm", "start_processing", "ship"):
             return [IsDealer()]
-        if self.action in ("list", "retrieve"):
+        if self.action in ("list", "retrieve", "cancel", "review_return"):
             return [IsAdminOrDealer()]
         return [IsAuthenticated()]
 
@@ -184,3 +202,61 @@ class CustomerOrderViewSet(viewsets.GenericViewSet):
             note=serializer.validated_data.get("note", ""),
         )
         return Response(_detail_response(order, request))
+
+    @extend_schema(
+        tags=["Customer Orders"],
+        summary="Hủy đơn hàng buyer",
+        description="Dealer/admin hủy đơn trước khi giao và hoàn tồn kho theo batch.",
+        request=CancelOrderSerializer,
+        responses={200: OrderDetailSerializer},
+    )
+    @action(detail=True, methods=["post"])
+    def cancel(self, request, pk=None):
+        order = self.get_object()
+        is_admin = request.user.role == AccountRole.ADMIN
+        if not is_admin and order.dealer.account_id != request.user.id:
+            return Response({"detail": "Không có quyền."}, status=status.HTTP_403_FORBIDDEN)
+        serializer = CancelOrderSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        order = services.cancel_customer_order(
+            order,
+            request.user,
+            reason=serializer.validated_data["reason"],
+            actor="admin" if is_admin else "dealer",
+        )
+        return Response(_detail_response(order, request))
+
+    @extend_schema(
+        tags=["Customer Orders"],
+        summary="Duyệt/từ chối yêu cầu trả hàng buyer",
+        request=ReviewReturnSerializer,
+        responses={200: OrderReturnReadSerializer},
+    )
+    @action(
+        detail=True,
+        methods=["post"],
+        url_path=r"returns/(?P<return_id>[^/.]+)/review",
+    )
+    def review_return(self, request, pk=None, return_id=None):
+        order = self.get_object()
+        is_admin = request.user.role == AccountRole.ADMIN
+        if not is_admin and order.dealer.account_id != request.user.id:
+            return Response({"detail": "Không có quyền."}, status=status.HTTP_403_FORBIDDEN)
+        serializer = ReviewReturnSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        try:
+            order_return = OrderReturn.objects.get(pk=return_id, order=order)
+        except OrderReturn.DoesNotExist:
+            return Response(
+                {"detail": "Yêu cầu trả hàng không thuộc đơn này."},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+        order_return = services.dealer_review_return(
+            order_return,
+            request.user,
+            approved=serializer.validated_data["approved"],
+            review_note=serializer.validated_data.get("review_note", ""),
+        )
+        return Response(
+            OrderReturnReadSerializer(order_return, context={"request": request}).data
+        )

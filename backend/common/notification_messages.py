@@ -21,6 +21,10 @@ STATUS_VI = {
     "shipping": "Đang giao",
     "delivered": "Đã giao",
     "final_payment_pending_verification": "Chờ xác nhận thanh toán cuối",
+    "return_requested": "Yêu cầu trả hàng",
+    "return_approved": "Đã duyệt trả hàng",
+    "return_rejected": "Từ chối trả hàng",
+    "returned": "Đã trả hàng",
     "completed": "Hoàn tất",
     "cancelled": "Đã hủy",
 }
@@ -32,6 +36,12 @@ CUSTOMER_ORDER_STATUS_VI = {
     "shipping": "Đang giao",
     "delivered": "Đã giao",
     "completed": "Hoàn tất",
+    "cancel_requested": "Yêu cầu hủy",
+    "delivery_failed": "Giao thất bại",
+    "return_requested": "Yêu cầu trả hàng",
+    "return_approved": "Đã duyệt trả hàng",
+    "return_rejected": "Từ chối trả hàng",
+    "returned": "Đã trả hàng",
     "cancelled": "Đã hủy",
 }
 
@@ -254,12 +264,13 @@ def purchase_order_status_updated(order, old_status=""):
 
     if order.status == "completed":
         notif_type = "success"
-    elif order.status in ("rejected", "cancelled"):
+    elif order.status in ("rejected", "cancelled", "returned", "return_rejected"):
         notif_type = "error"
     elif order.status in (
         "deposit_pending_verification",
         "final_payment_pending_verification",
         "pending_supplier_confirmation",
+        "return_requested",
     ):
         notif_type = "warning"
     else:
@@ -287,9 +298,9 @@ def customer_order_status_updated(order, old_status=""):
 
     if order.status == "completed":
         notif_type = "success"
-    elif order.status == "cancelled":
+    elif order.status in ("cancelled", "returned", "return_rejected"):
         notif_type = "error"
-    elif order.status == "pending":
+    elif order.status in ("pending", "return_requested", "cancel_requested"):
         notif_type = "warning"
     else:
         notif_type = "info"

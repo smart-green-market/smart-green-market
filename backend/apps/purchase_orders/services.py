@@ -66,6 +66,9 @@ from .models import (
     PurchaseOrderPayment,
     PurchaseOrderPaymentStatus,
     PurchaseOrderPaymentType,
+    PurchaseOrderReturn,
+    PurchaseOrderReturnItem,
+    PurchaseOrderReturnStatus,
     PurchaseOrderStatus,
     PurchaseOrderStatusHistory,
 )
@@ -74,11 +77,16 @@ TERMINAL_STATUSES = {
     PurchaseOrderStatus.REJECTED,
     PurchaseOrderStatus.COMPLETED,
     PurchaseOrderStatus.CANCELLED,
+    PurchaseOrderStatus.RETURNED,
 }
 
 DEALER_CANCELLABLE = {
     PurchaseOrderStatus.PENDING_SUPPLIER_CONFIRMATION,
     PurchaseOrderStatus.CONFIRMED,
+}
+
+RETURN_REQUESTABLE = {
+    PurchaseOrderStatus.DELIVERED,
 }
 
 
@@ -529,16 +537,128 @@ def dealer_confirm_delivery(order, user, note=""):
 
 @transaction.atomic
 def cancel_order(order, user, note="", *, is_admin=False):
-    """Hủy đơn — dealer chỉ hủy được khi pending hoặc confirmed; admin hủy mọi trạng thái chưa terminal."""
+    """Hủy đơn — bắt buộc lý do; dealer chỉ hủy được khi pending hoặc confirmed."""
     _ensure_not_terminal(order)
+    reason = (note or "").strip()
+    if not reason:
+        raise ValidationError({"reason": "Vui lòng nhập lý do hủy."})
     if is_admin:
         allowed = order.status not in TERMINAL_STATUSES
     else:
         allowed = order.status in DEALER_CANCELLABLE
     if not allowed:
         raise ValidationError({"detail": "Không thể hủy phiếu ở trạng thái hiện tại."})
-    record_status_change(order, PurchaseOrderStatus.CANCELLED, user, note=note or "Đã hủy phiếu")
+
+    now = timezone.now()
+    order.cancelled_at = now
+    order.cancelled_by = user
+    order.cancel_reason = reason
+    order.payments.filter(status=PurchaseOrderPaymentStatus.PENDING).update(
+        status=PurchaseOrderPaymentStatus.CANCELLED,
+        verified_by=user,
+        verified_at=now,
+        rejection_reason=reason,
+    )
+    order.save(
+        update_fields=[
+            "cancelled_at",
+            "cancelled_by",
+            "cancel_reason",
+            "updated_at",
+        ]
+    )
+    record_status_change(order, PurchaseOrderStatus.CANCELLED, user, note=reason)
     return order
+
+
+@transaction.atomic
+def dealer_request_return(order, user, *, reason, evidence_file=None):
+    """Đại lý yêu cầu trả toàn bộ phiếu sau khi nhận hàng (một lần)."""
+    _ensure_not_terminal(order)
+    reason = (reason or "").strip()
+    if not reason:
+        raise ValidationError({"reason": "Vui lòng nhập lý do trả hàng."})
+    if order.status not in RETURN_REQUESTABLE:
+        raise ValidationError({"detail": "Chỉ yêu cầu trả hàng sau khi đã nhận hàng."})
+    if order.returns.filter(status=PurchaseOrderReturnStatus.APPROVED).exists():
+        raise ValidationError({"detail": "Phiếu đã được trả hàng, không thể yêu cầu thêm."})
+    if order.returns.filter(status=PurchaseOrderReturnStatus.REQUESTED).exists():
+        raise ValidationError({"detail": "Đã có yêu cầu trả hàng đang chờ xử lý."})
+
+    order_items = list(order.items.select_related("supplier_product").all())
+    if not order_items:
+        raise ValidationError({"detail": "Phiếu không có sản phẩm để trả."})
+
+    po_return = PurchaseOrderReturn.objects.create(
+        purchase_order=order,
+        reason=reason,
+        evidence_file=evidence_file,
+        requested_by=user,
+    )
+    refund_amount = Decimal("0")
+    for item in order_items:
+        PurchaseOrderReturnItem.objects.create(
+            purchase_order_return=po_return,
+            purchase_order_item=item,
+            quantity=item.quantity,
+            reason="",
+        )
+        refund_amount += item.subtotal
+
+    po_return.refund_amount = refund_amount.quantize(Decimal("0.01"))
+    po_return.save(update_fields=["refund_amount"])
+    record_status_change(order, PurchaseOrderStatus.RETURN_REQUESTED, user, note=reason)
+    return po_return
+
+
+@transaction.atomic
+def supplier_review_return(po_return, user, *, approved, review_note=""):
+    """NCC duyệt/từ chối yêu cầu trả hàng PO."""
+    order = po_return.purchase_order
+    _ensure_not_terminal(order)
+    if order.status != PurchaseOrderStatus.RETURN_REQUESTED:
+        raise ValidationError({"detail": "Phiếu không ở trạng thái chờ xử lý trả hàng."})
+    if po_return.status != PurchaseOrderReturnStatus.REQUESTED:
+        raise ValidationError({"detail": "Yêu cầu trả hàng này đã được xử lý."})
+
+    note = (review_note or "").strip()
+    if not approved and not note:
+        raise ValidationError({"review_note": "Vui lòng nhập lý do từ chối trả hàng."})
+
+    po_return.reviewed_by = user
+    po_return.review_note = note
+    po_return.resolved_at = timezone.now()
+
+    if not approved:
+        po_return.status = PurchaseOrderReturnStatus.REJECTED
+        po_return.save(
+            update_fields=["status", "reviewed_by", "review_note", "resolved_at"]
+        )
+        record_status_change(
+            order,
+            PurchaseOrderStatus.DELIVERED,
+            user,
+            note=note or "Từ chối yêu cầu trả hàng",
+        )
+        return po_return
+
+    po_return.status = PurchaseOrderReturnStatus.APPROVED
+    po_return.save(
+        update_fields=["status", "reviewed_by", "review_note", "resolved_at"]
+    )
+
+    returned_value = po_return.refund_amount
+    order.total_amount = max(order.total_amount - returned_value, Decimal("0"))
+    order.debt_amount = max(order.total_amount - order.paid_amount, Decimal("0"))
+
+    order.save(update_fields=["total_amount", "debt_amount", "updated_at"])
+    record_status_change(
+        order,
+        PurchaseOrderStatus.RETURNED,
+        user,
+        note=note or "Đã duyệt trả toàn bộ phiếu nhập",
+    )
+    return po_return
 
 
 def _complete_order(order, user):
