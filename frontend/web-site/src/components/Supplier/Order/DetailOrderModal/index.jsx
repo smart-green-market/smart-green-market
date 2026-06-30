@@ -3,17 +3,19 @@ import {
   X, CheckCheck, Truck, PackageCheck,
   MapPin, Phone, User, Store, CreditCard,
   Calendar, CalendarClock, CheckCircle2, XCircle,
-  Printer, Loader2, Pencil,
+  Printer, Loader2, Pencil, RotateCcw,
 } from "lucide-react";
 
 import {
   orderService,
   parseOrderDetail,
   findPendingPayment,
+  findPendingReturnRequest,
   mergeOrderDetail,
   sortPaymentsForDisplay,
   canVerifyPayment,
 } from "../../../../services/api/orderService";
+import { purchaseOrderService } from "../../../../services/api/purchaseOrderService";
 import { supplierService } from "../../../../services/api/suppilerService";
 import { toast } from "sonner";
 
@@ -45,6 +47,7 @@ export default function DetailOrderModal({ isOpen, onClose, order: initialOrder,
   const [shippingModal, setShippingModal]           = useState(false);
   const [rejectDepositModal, setRejectDepositModal] = useState(false);
   const [rejectFinalModal, setRejectFinalModal]     = useState(false);
+  const [rejectReturnModal, setRejectReturnModal]   = useState(false);
   const [printModal, setPrintModal]                 = useState(false);
   const [lightboxImg, setLightboxImg]               = useState(null);
 
@@ -54,6 +57,7 @@ export default function DetailOrderModal({ isOpen, onClose, order: initialOrder,
   const [shippingLoading, setShippingLoading]       = useState(false);
   const [verifyDepositLoading, setVerifyDepositLoading] = useState(false);
   const [verifyFinalLoading, setVerifyFinalLoading]     = useState(false);
+  const [reviewReturnLoading, setReviewReturnLoading]   = useState(false);
 
   // Deposit input
   const [depositPct, setDepositPct]                 = useState("");
@@ -83,6 +87,7 @@ export default function DetailOrderModal({ isOpen, onClose, order: initialOrder,
     setShippingModal(false);
     setRejectDepositModal(false);
     setRejectFinalModal(false);
+    setRejectReturnModal(false);
     setPrintModal(false);
     setLightboxImg(null);
 
@@ -92,6 +97,7 @@ export default function DetailOrderModal({ isOpen, onClose, order: initialOrder,
     setShippingLoading(false);
     setVerifyDepositLoading(false);
     setVerifyFinalLoading(false);
+    setReviewReturnLoading(false);
     setDepositPct("");
     setDepositErr("");
     setDeliveryDate("");
@@ -153,7 +159,9 @@ export default function DetailOrderModal({ isOpen, onClose, order: initialOrder,
 
   const isDepositPendingVerify = order.status === "deposit_pending_verification";
   const isFinalPendingVerify   = order.status === "final_payment_pending_verification";
+  const isReturnPendingReview  = order.status === "return_pending_review";
   const needsPaymentVerify     = isDepositPendingVerify || isFinalPendingVerify;
+  const pendingReturnRequest   = findPendingReturnRequest(order);
   const sortedPayments         = sortPaymentsForDisplay(order.payments);
   const pendingDepositPayment  = findPendingPayment(order.payments, "deposit");
   const pendingFinalPayment    = findPendingPayment(order.payments, "final_payment");
@@ -265,6 +273,30 @@ export default function DetailOrderModal({ isOpen, onClose, order: initialOrder,
       toast.error(getApiErrorMessage(err, "Không thể xác nhận thanh toán. Vui lòng thử lại."));
     } finally {
       setVLoad(false);
+    }
+  };
+
+  const reviewReturnAction = async (approved, reviewNote = "") => {
+    const returnId = pendingReturnRequest?.id ?? order.return_id ?? order.latest_return_id;
+    if (!returnId) {
+      toast.error("Không tìm thấy yêu cầu trả hàng để xử lý.");
+      return;
+    }
+
+    setReviewReturnLoading(true);
+    try {
+      await purchaseOrderService.reviewReturn(order.id, returnId, {
+        approved,
+        review_note: reviewNote.trim(),
+      });
+      await refreshOrderDetail();
+      setRejectReturnModal(false);
+      toast.success(approved ? "Đã duyệt yêu cầu trả hàng" : "Đã từ chối yêu cầu trả hàng");
+      onUpdate?.();
+    } catch (err) {
+      toast.error(getApiErrorMessage(err, "Không thể xử lý yêu cầu trả hàng. Vui lòng thử lại."));
+    } finally {
+      setReviewReturnLoading(false);
     }
   };
 
@@ -680,6 +712,51 @@ export default function DetailOrderModal({ isOpen, onClose, order: initialOrder,
               </div>
             )}
 
+            {/* Duyệt / từ chối yêu cầu trả hàng */}
+            {isReturnPendingReview && (
+              <div className="bg-white rounded-2xl border border-neutral-200 px-6 py-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-amber-50 flex items-center justify-center shrink-0">
+                    <RotateCcw size={18} className="text-amber-600" />
+                  </div>
+                  <div>
+                    <h2 className="font-bold text-gray-900 text-sm">Yêu cầu trả hàng</h2>
+                    <p className="text-xs text-neutral-400 mt-0.5">
+                      Đại lý đã gửi yêu cầu trả hàng. Vui lòng xem xét và phản hồi.
+                    </p>
+                    {pendingReturnRequest?.reason && (
+                      <p className="text-xs text-neutral-600 mt-1">
+                        Lý do: <span className="font-medium">{pendingReturnRequest.reason}</span>
+                      </p>
+                    )}
+                  </div>
+                </div>
+                <div className="flex flex-wrap items-center gap-2 shrink-0">
+                  <button
+                    type="button"
+                    onClick={() => setRejectReturnModal(true)}
+                    disabled={reviewReturnLoading}
+                    className="flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl text-sm font-bold whitespace-nowrap border border-red-200 text-red-600 bg-white hover:bg-red-50 transition-all disabled:opacity-60"
+                  >
+                    <XCircle size={15} /> Từ chối trả hàng
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => reviewReturnAction(true, "")}
+                    disabled={reviewReturnLoading}
+                    className="flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl text-sm font-bold whitespace-nowrap bg-emerald-800 text-white hover:bg-emerald-700 transition-all disabled:opacity-60 shadow-sm shadow-emerald-200"
+                  >
+                    {reviewReturnLoading ? (
+                      <Loader2 size={15} className="animate-spin" />
+                    ) : (
+                      <CheckCheck size={15} />
+                    )}
+                    Duyệt trả hàng
+                  </button>
+                </div>
+              </div>
+            )}
+
           </div>
         </div>
       </div>
@@ -733,6 +810,14 @@ export default function DetailOrderModal({ isOpen, onClose, order: initialOrder,
           loading={verifyFinalLoading}
           onClose={() => setRejectFinalModal(false)}
           onReject={(reason) => verifyPaymentAction(pendingFinalPayment, "reject", reason)}
+        />
+      )}
+      {rejectReturnModal && (
+        <RejectPaymentModal
+          title="Từ chối yêu cầu trả hàng"
+          loading={reviewReturnLoading}
+          onClose={() => setRejectReturnModal(false)}
+          onReject={(reason) => reviewReturnAction(false, reason)}
         />
       )}
 
