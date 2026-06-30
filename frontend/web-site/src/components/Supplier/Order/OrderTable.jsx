@@ -1,20 +1,25 @@
-import { formatDateTime } from "../../common/formatDateTime";
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect, useRef } from "react";
 import { Eye, ChevronDown, ArrowUp, ArrowDown, ArrowUpDown } from "lucide-react";
-import { extractOrderItems, normalizeOrderItem } from "../../../services/api/orderService";
+import { extractOrderItems, normalizeOrderItem, orderService } from "../../../services/api/orderService";
 
+const ITEMS_SUMMARY_LIMIT = 3;
+
+// Chỉ hiện tên sản phẩm (không kèm số lượng), tối đa ITEMS_SUMMARY_LIMIT sản phẩm, dư thì "..."
 const getOrderItemsSummary = (row) => {
   const rawItems = extractOrderItems(row);
   const items = Array.isArray(rawItems) ? rawItems.map(normalizeOrderItem) : [];
   if (!items.length) return "—";
-  return items.map(item => `${item.product_name} x${item.quantity}`).join(", ");
+  const names = items.map((item) => item.product_name);
+  if (names.length <= ITEMS_SUMMARY_LIMIT) return names.join(", ");
+  return `${names.slice(0, ITEMS_SUMMARY_LIMIT).join(", ")}, ...`;
 };
 
 const getOrderItemsQty = (row) => {
   const rawItems = extractOrderItems(row);
   const items = Array.isArray(rawItems) ? rawItems.map(normalizeOrderItem) : [];
-  if (!items.length) return 0;
-  return items.reduce((sum, item) => sum + (Number(item.quantity) || 0), 0);
+  if (!items.length) return "0 kg";
+  const total = items.reduce((sum, item) => sum + (Number(item.quantity) || 0), 0);
+  return `${total.toLocaleString("vi-VN")} kg`;
 };
 
 // Status -> pill tone + label, matching the .pill.{g|a|b|gr|r} classes in the mockup
@@ -30,16 +35,26 @@ const ORDER_STATUS_CONFIG = {
   final_payment_pending_verification: { label: "Chờ thanh toán cuối", tone: "a" },
   completed: { label: "Hoàn tất", tone: "g" },
   cancelled: { label: "Đã hủy", tone: "gr" },
+  return_pending_review: { label: "Chờ duyệt trả hàng", tone: "a" },
+  return_approved: { label: "Đã duyệt trả hàng", tone: "g" },
+  return_rejected: { label: "Từ chối trả hàng", tone: "r" },
 };
 
 // Tinh gọn danh sách bộ lọc theo yêu cầu
 const STATUS_FILTERS = [
   { key: "all", label: "Tất cả trạng thái" },
   { key: "pending_supplier_confirmation", label: "Chờ duyệt" },
+  { key: "confirmed", label: "Đã xác nhận", tone: "b" },
   { key: "deposit_pending_verification", label: "Chờ xác nhận cọc" },
   { key: "final_payment_pending_verification", label: "Chờ thanh toán cuối" },
   { key: "completed", label: "Hoàn tất" },
   { key: "cancelled", label: "Hủy / Từ chối", statuses: ["cancelled", "rejected"] },
+  { key: "return_pending_review", label: "Chờ duyệt trả hàng" },
+  {
+    key: "return_reviewed",
+    label: "Duyệt / từ chối trả hàng",
+    statuses: ["return_approved", "return_rejected"],
+  },
 ];
 
 // Pill tones copied 1:1 from the mockup's :root variables.
@@ -78,6 +93,14 @@ function formatCurrency(value) {
   return `${amount.toLocaleString("vi-VN")} đ`;
 }
 
+// Chỉ hiển thị ngày/tháng/năm, không hiện giờ
+function formatDateOnly(value) {
+  if (!value) return "—";
+  const date = new Date(value);
+  if (isNaN(date.getTime())) return "—";
+  return date.toLocaleDateString("vi-VN"); // dd/MM/yyyy
+}
+
 function StatusPill({ status }) {
   const cfg = ORDER_STATUS_CONFIG[status] ?? { label: status || "Không xác định", tone: "gr" };
   const { bg, text } = PILL_TONES[cfg.tone];
@@ -92,11 +115,16 @@ function StatusPill({ status }) {
 }
 
 const PAGE_SIZE = 10;
+const TABLE_MIN_WIDTH = 900;
 
 export default function OrderTable({ data, search, loading, onView }) {
   const [statusFilter, setStatusFilter] = useState("all");
   const [page, setPage] = useState(1);
   const [sort, setSort] = useState(null);
+
+  // Cache items theo order id, tránh gọi lại getById khi đổi trang qua lại
+  const [itemsCache, setItemsCache] = useState({}); // { [orderId]: items[] }
+  const fetchingIds = useRef(new Set()); // tránh fetch trùng khi effect chạy nhiều lần
 
   const toggleSort = (key) => {
     setSort((prev) => {
@@ -143,6 +171,50 @@ export default function OrderTable({ data, search, loading, onView }) {
   const safePage = Math.min(page, totalPages);
   const pageRows = sorted.slice((safePage - 1) * PAGE_SIZE, safePage * PAGE_SIZE);
 
+  // Chỉ fetch items cho các dòng đang hiển thị ở trang hiện tại và chưa có trong cache
+  useEffect(() => {
+    const idsToFetch = pageRows
+      .filter((row) => {
+        if (extractOrderItems(row).length > 0) return false; // list đã có items sẵn
+        if (itemsCache[row.id]) return false; // đã cache rồi
+        if (fetchingIds.current.has(row.id)) return false; // đang fetch
+        return true;
+      })
+      .map((row) => row.id);
+
+    if (idsToFetch.length === 0) return;
+
+    idsToFetch.forEach((id) => fetchingIds.current.add(id));
+
+    Promise.all(
+      idsToFetch.map(async (id) => {
+        try {
+          const detail = await orderService.getById(id);
+          return [id, detail?.items ?? []];
+        } catch (error) {
+          console.error(`Lỗi khi tải items đơn ${id}:`, error);
+          return [id, []];
+        } finally {
+          fetchingIds.current.delete(id);
+        }
+      }),
+    ).then((results) => {
+      setItemsCache((prev) => {
+        const next = { ...prev };
+        for (const [id, items] of results) next[id] = items;
+        return next;
+      });
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [safePage, data]);
+
+  // Lấy row đã merge items từ cache (nếu có) để hiển thị
+  const getDisplayRow = (row) => {
+    if (extractOrderItems(row).length > 0) return row;
+    const cached = itemsCache[row.id];
+    return cached ? { ...row, items: cached } : row;
+  };
+
   return (
     <div className="w-full flex flex-col gap-3" style={{ fontFamily: FONT }}>
       {/* Giao diện bộ lọc Dropdown thay thế cho hàng Chip cũ */}
@@ -162,9 +234,9 @@ export default function OrderTable({ data, search, loading, onView }) {
             }
           >
             {STATUS_FILTERS.map(({ key, label }) => (
-              <option 
-                key={key} 
-                value={key} 
+              <option
+                key={key}
+                value={key}
                 style={{ background: "#ffffff", color: "#111827" }}
               >
                 {label}
@@ -202,8 +274,8 @@ export default function OrderTable({ data, search, loading, onView }) {
         {/* Row list — mirrors .pl-wrap / .plh / .plr */}
         <div className="overflow-x-auto">
           <div
-            className="flex items-center gap-2.5 px-4 py-2.5 text-[10px] uppercase tracking-wide"
-            style={{ minWidth: 760, color: "#80899a", borderBottom: "0.5px solid #e5e7eb" }}
+            className="flex items-center gap-2 px-3 py-2 text-[10px] uppercase tracking-wide"
+            style={{ minWidth: TABLE_MIN_WIDTH, color: "#80899a", borderBottom: "0.5px solid #e5e7eb" }}
           >
             <div style={{ flex: 1, minWidth: 140 }}>
               <span
@@ -214,7 +286,7 @@ export default function OrderTable({ data, search, loading, onView }) {
                 <SortIcon active={sort?.key === "order_code"} direction={sort?.dir} />
               </span>
             </div>
-            <div style={{ width: 160, flexShrink: 0 }}>
+            <div style={{ width: 130, flexShrink: 0 }}>
               <span
                 className="inline-flex items-center gap-1 cursor-pointer select-none hover:text-[#111827] transition-colors"
                 onClick={() => toggleSort("dealer_name")}
@@ -223,7 +295,9 @@ export default function OrderTable({ data, search, loading, onView }) {
                 <SortIcon active={sort?.key === "dealer_name"} direction={sort?.dir} />
               </span>
             </div>
-            <div style={{ width: 110, flexShrink: 0, textAlign: "right" }}>
+            <div style={{ width: 180, flexShrink: 0 }}>Sản phẩm</div>
+            <div style={{ width: 60, flexShrink: 0, textAlign: "center" }}>Tổng SL</div>
+            <div style={{ width: 95, flexShrink: 0, textAlign: "right" }}>
               <span
                 className="inline-flex items-center justify-end gap-1 cursor-pointer select-none hover:text-[#111827] transition-colors w-full"
                 onClick={() => toggleSort("total_amount")}
@@ -232,7 +306,7 @@ export default function OrderTable({ data, search, loading, onView }) {
                 <SortIcon active={sort?.key === "total_amount"} direction={sort?.dir} />
               </span>
             </div>
-            <div style={{ width: 150, flexShrink: 0 }}>
+            <div style={{ width: 95, flexShrink: 0 }}>
               <span
                 className="inline-flex items-center gap-1 cursor-pointer select-none hover:text-[#111827] transition-colors"
                 onClick={() => toggleSort("requested_delivery_time")}
@@ -241,7 +315,7 @@ export default function OrderTable({ data, search, loading, onView }) {
                 <SortIcon active={sort?.key === "requested_delivery_time"} direction={sort?.dir} />
               </span>
             </div>
-            <div style={{ width: 130, flexShrink: 0 }}>
+            <div style={{ width: 85, flexShrink: 0 }}>
               <span
                 className="inline-flex items-center gap-1 cursor-pointer select-none hover:text-[#111827] transition-colors"
                 onClick={() => toggleSort("created_at")}
@@ -250,82 +324,104 @@ export default function OrderTable({ data, search, loading, onView }) {
                 <SortIcon active={sort?.key === "created_at"} direction={sort?.dir} />
               </span>
             </div>
-            <div style={{ width: 130, flexShrink: 0, textAlign: "center" }}>Trạng thái</div>
-            <div style={{ width: 56, flexShrink: 0 }} />
+            <div style={{ width: 100, flexShrink: 0, textAlign: "center" }}>Trạng thái</div>
+            <div style={{ width: 40, flexShrink: 0 }} />
           </div>
 
           {loading ? (
             <div
               className="py-16 text-center text-sm"
-              style={{ minWidth: 760, color: "#80899a" }}
+              style={{ minWidth: TABLE_MIN_WIDTH, color: "#80899a" }}
             >
               Đang tải đơn hàng...
             </div>
           ) : filtered.length === 0 ? (
             <div
               className="py-16 text-center text-sm"
-              style={{ minWidth: 760, color: "#80899a" }}
+              style={{ minWidth: TABLE_MIN_WIDTH, color: "#80899a" }}
             >
               Chưa có đơn hàng nào.
             </div>
           ) : (
-            pageRows.map((row, idx) => (
-              <div
-                key={row.id ?? row.order_code ?? idx}
-                className="flex items-center gap-2.5 px-4 py-2.5 transition-colors hover:bg-[#f9fafb]"
-                style={{
-                  minWidth: 760,
-                  borderBottom: idx === pageRows.length - 1 ? "none" : "0.5px solid #e5e7eb",
-                }}
-              >
-                <div style={{ flex: 1, minWidth: 140 }}>
-                  <div className="text-xs font-medium" style={{ color: "#111827" }}>
-                    {row.order_code}
-                  </div>
-                  <div className="text-[10px] mt-0.5" style={{ color: "#80899a" }}>
-                    {formatDateTime(row.created_at)}
-                  </div>
-                </div>
+            pageRows.map((rawRow, idx) => {
+              const row = getDisplayRow(rawRow);
+              const itemsLoaded = extractOrderItems(row).length > 0;
+
+              return (
                 <div
-                  className="text-xs whitespace-nowrap overflow-hidden text-ellipsis"
-                  style={{ width: 160, flexShrink: 0, color: "#565f6b" }}
+                  key={row.id ?? row.order_code ?? idx}
+                  className="flex items-center gap-2 px-3 py-2 transition-colors hover:bg-[#f9fafb]"
+                  style={{
+                    minWidth: TABLE_MIN_WIDTH,
+                    borderBottom: idx === pageRows.length - 1 ? "none" : "0.5px solid #e5e7eb",
+                  }}
                 >
-                  {row.dealer_name || "—"}
-                </div>
-                <div
-                  className="text-xs font-medium text-right"
-                  style={{ width: 110, flexShrink: 0, color: "#111827" }}
-                >
-                  {formatCurrency(row.total_amount)}
-                </div>
-                <div className="text-xs" style={{ width: 150, flexShrink: 0, color: "#565f6b" }}>
-                  {formatDateTime(row.requested_delivery_time)}
-                </div>
-                <div className="text-xs" style={{ width: 130, flexShrink: 0, color: "#565f6b" }}>
-                  {formatDateTime(row.created_at)}
-                </div>
-                <div style={{ width: 130, flexShrink: 0, textAlign: "center" }}>
-                  <StatusPill status={row.status} />
-                </div>
-                <div style={{ width: 56, flexShrink: 0, textAlign: "right" }}>
-                  <button
-                    onClick={() => onView?.(row)}
-                    title="Xem chi tiết"
-                    className="w-[26px] h-[26px] rounded-md inline-flex items-center justify-center transition-colors hover:bg-[#e5e7eb]"
-                    style={{ color: "#565f6b" }}
+                  <div style={{ flex: 1, minWidth: 140 }}>
+                    <div className="text-xs font-medium" style={{ color: "#111827" }}>
+                      {row.order_code}
+                    </div>
+                    <div className="text-[10px] mt-0.5" style={{ color: "#80899a" }}>
+                      {formatDateOnly(row.created_at)}
+                    </div>
+                  </div>
+                  <div
+                    className="text-xs whitespace-nowrap overflow-hidden text-ellipsis"
+                    style={{ width: 130, flexShrink: 0, color: "#565f6b" }}
                   >
-                    <Eye className="w-3.5 h-3.5" strokeWidth={2} />
-                  </button>
+                    {row.dealer_name || "—"}
+                  </div>
+                  <div
+                    className="text-xs whitespace-nowrap overflow-hidden text-ellipsis"
+                    style={{ width: 180, flexShrink: 0, color: "#565f6b" }}
+                    title={itemsLoaded ? getOrderItemsSummary(row) : ""}
+                  >
+                    {itemsLoaded ? (
+                      getOrderItemsSummary(row)
+                    ) : (
+                      <span style={{ color: "#80899a" }}>Đang tải...</span>
+                    )}
+                  </div>
+                  <div
+                    className="text-xs text-center"
+                    style={{ width: 60, flexShrink: 0, color: "#111827" }}
+                  >
+                    {itemsLoaded ? getOrderItemsQty(row) : "—"}
+                  </div>
+                  <div
+                    className="text-xs font-medium text-right"
+                    style={{ width: 95, flexShrink: 0, color: "#111827" }}
+                  >
+                    {formatCurrency(row.total_amount)}
+                  </div>
+                  <div className="text-xs" style={{ width: 95, flexShrink: 0, color: "#565f6b" }}>
+                    {formatDateOnly(row.requested_delivery_time)}
+                  </div>
+                  <div className="text-xs" style={{ width: 85, flexShrink: 0, color: "#565f6b" }}>
+                    {formatDateOnly(row.created_at)}
+                  </div>
+                  <div style={{ width: 100, flexShrink: 0, textAlign: "center" }}>
+                    <StatusPill status={row.status} />
+                  </div>
+                  <div style={{ width: 40, flexShrink: 0, textAlign: "right" }}>
+                    <button
+                      onClick={() => onView?.(row)}
+                      title="Xem chi tiết"
+                      className="w-[26px] h-[26px] rounded-md inline-flex items-center justify-center transition-colors hover:bg-[#e5e7eb]"
+                      style={{ color: "#565f6b" }}
+                    >
+                      <Eye className="w-3.5 h-3.5" strokeWidth={2} />
+                    </button>
+                  </div>
                 </div>
-              </div>
-            ))
+              );
+            })
           )}
         </div>
 
         {/* Pagination footer */}
         {!loading && filtered.length > PAGE_SIZE && (
           <div
-            className="flex items-center justify-between px-4 py-2.5"
+            className="flex items-center justify-between px-3 py-2"
             style={{ borderTop: "0.5px solid #e5e7eb" }}
           >
             <span className="text-[11px]" style={{ color: "#80899a" }}>
