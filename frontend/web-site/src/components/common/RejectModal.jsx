@@ -13,6 +13,7 @@ export default function RejectModal({
     cancelText = "Hủy",
     reasonLabel = "Lý do từ chối",
     reasonPlaceholder = "Nhập lý do từ chối...",
+    reasonRequiredMessage = "Vui lòng nhập lý do từ chối.",
     successMessage,
     errorMessage,
     showToast = true,
@@ -38,7 +39,7 @@ export default function RejectModal({
         const trimmedReason = reason.trim();
 
         if (!trimmedReason) {
-            setReasonError("Vui lòng nhập lý do từ chối.");
+            setReasonError(reasonRequiredMessage);
             return;
         }
 
