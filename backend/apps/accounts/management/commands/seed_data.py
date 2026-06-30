@@ -15,11 +15,34 @@ from apps.customers.models import CustomerProfile, CustomerAddress
 from apps.supplier_products.models import SupplierProduct, SupplierProductStatus, SupplierProductImage, CultivationProcess
 from apps.dealer_products.models import DealerProduct, DealerProductStatus, DealerInventoryBatch
 from apps.purchase_orders.models import PurchaseOrder, PurchaseOrderItem, PurchaseOrderStatus
-from apps.orders.models import Order, OrderItem, OrderStatus
+from apps.orders.models import Order
 from apps.product_catalog.models import ProductMaster
 
-# Chạy lệnh clear dữ liệu cũ và tạo dữ liệu mới
-# python manage.py seed_data --clear
+from .seed_customer_journeys import seed_customer_journeys
+from .seed_product_helpers import (
+    assign_product_master_seasons,
+    build_dealer_description,
+    build_supplier_description,
+    create_cultivation_processes,
+    create_dealer_inventory_batches,
+    ensure_seasons,
+    get_storage_profile,
+    link_product_certifications,
+    pick_storage_days,
+    seed_dealer_age_discount_policy,
+    seed_supplier_certifications,
+)
+
+# Chạy: python manage.py seed_data --clear
+# Gọn:  python manage.py seed_data --clear --buyers 80
+
+SEED_PASSWORD = "12345678"
+DEMO_ACCOUNTS = {
+    "admin": {"username": "admin", "email": "admin@example.com", "full_name": "Admin Demo"},
+    "dealer": {"username": "dealer01", "email": "dealer01@example.com", "full_name": "Dealer Demo"},
+    "supplier": {"username": "supplier01", "email": "supplier01@example.com", "full_name": "Supplier Demo"},
+    "buyer": {"email": "buyer01@gmail.com", "full_name": "Buyer Demo"},
+}
 
 class Command(BaseCommand):
     help = 'Seeds the database with realistic mock data.'
@@ -28,7 +51,8 @@ class Command(BaseCommand):
         parser.add_argument('--clear', action='store_true', help='Clear existing data before seeding')
         parser.add_argument('--suppliers', type=int, default=5, help='Number of suppliers')
         parser.add_argument('--dealers', type=int, default=1, help='Number of dealers')
-        parser.add_argument('--buyers', type=int, default=500, help='Number of buyers')
+        parser.add_argument('--buyers', type=int, default=120, help='Number of buyers')
+        parser.add_argument('--history-days', type=int, default=120, help='Order/interaction history window (days)')
 
     def handle(self, *args, **options):
         self.fake = Faker('vi_VN')
@@ -36,17 +60,54 @@ class Command(BaseCommand):
         num_suppliers = options['suppliers']
         num_dealers = options['dealers']
         num_buyers = options['buyers']
+        history_days = options['history_days']
 
         if clear:
             self.stdout.write('Clearing existing data...')
+            from apps.marketing.models import CustomerInteraction, DealerSupplierProductInteraction
+            from apps.orders.models import (
+                CustomerPayment,
+                OrderReturn,
+                OrderReturnItem,
+                OrderStatusHistory,
+            )
+
+            OrderReturnItem.objects.all().delete()
+            OrderReturn.objects.all().delete()
+            CustomerPayment.objects.all().delete()
+            OrderStatusHistory.objects.all().delete()
+            CustomerInteraction.objects.all().delete()
+            DealerSupplierProductInteraction.objects.all().delete()
             Order.objects.all().delete()
+            from apps.purchase_orders.models import (
+                PurchaseOrderPayment,
+                PurchaseOrderReturn,
+                PurchaseOrderReturnItem,
+                PurchaseOrderStatusHistory,
+            )
+
+            PurchaseOrderReturnItem.objects.all().delete()
+            PurchaseOrderReturn.objects.all().delete()
+            PurchaseOrderPayment.objects.all().delete()
+            PurchaseOrderStatusHistory.objects.all().delete()
             PurchaseOrder.objects.all().delete()
             DealerInventoryBatch.objects.all().delete()
+            from apps.dealer_products.models_age_discount import AgeDiscountPolicy
+
+            AgeDiscountPolicy.objects.all().delete()
+            from apps.certifications.models import Certification
+
+            Certification.objects.all().delete()
             DealerProduct.objects.all().delete()
             CultivationProcess.objects.all().delete()
             SupplierProductImage.objects.all().delete()
             SupplierProduct.objects.all().delete()
             ProductMaster.objects.all().delete()
+            from apps.promotions.models import PromotionTarget, PromotionUsage, Promotion
+
+            PromotionUsage.objects.all().delete()
+            PromotionTarget.objects.all().delete()
+            Promotion.objects.all().delete()
             CustomerAddress.objects.all().delete()
             CustomerProfile.objects.all().delete()
             DealerProfile.objects.all().delete()
@@ -56,11 +117,14 @@ class Command(BaseCommand):
             Account.objects.exclude(is_superuser=True).delete()
             self.stdout.write(self.style.SUCCESS('Cleared database.'))
  
-        self.password = make_password('12345678')
+        self.password = make_password(SEED_PASSWORD)
         self.admin_account = self._get_or_create_admin()
  
         self.stdout.write('Creating Categories...')
         self.categories = self._create_categories()
+
+        self.stdout.write('Ensuring seasons...')
+        self.season_map = ensure_seasons()
  
         self.stdout.write('Creating Product Masters...')
         self.product_masters = self._create_product_masters(self.categories)
@@ -91,29 +155,56 @@ class Command(BaseCommand):
         self.stdout.write('Creating Purchase Orders...')
         self._create_purchase_orders(self.dealers, self.supplier_products)
 
-        self.stdout.write('Creating Orders...')
-        self._create_orders(self.buyers, self.dealers)
+        self.stdout.write('Creating customer orders & product interactions...')
+        journey_stats = seed_customer_journeys(buyers=self.buyers, history_days=history_days)
+        self.stdout.write(
+            self.style.SUCCESS(
+                f"Orders: {journey_stats['orders']} "
+                f"(completed: {journey_stats['completed_orders']}), "
+                f"interactions: {journey_stats['interactions']}"
+            )
+        )
 
         self.stdout.write(self.style.SUCCESS('Database successfully seeded!'))
+        self._print_demo_accounts()
 
     def _get_or_create_admin(self):
-        admin = Account.objects.filter(is_superuser=True).first()
-        if admin:
-            return admin
-            
-        admin, created = Account.objects.get_or_create(
-            username='admin',
+        demo = DEMO_ACCOUNTS["admin"]
+        admin, _ = Account.objects.get_or_create(
+            username=demo["username"],
             defaults={
-                'email': 'admin_seed@example.com',
-                'password': self.password,
-                'role': AccountRole.ADMIN,
-                'status': AccountStatus.ACTIVE,
-                'is_staff': True,
-                'is_superuser': True,
-                'full_name': 'Admin User'
-            }
+                "email": demo["email"],
+                "password": self.password,
+                "role": AccountRole.ADMIN,
+                "status": AccountStatus.ACTIVE,
+                "is_staff": True,
+                "is_superuser": True,
+                "full_name": demo["full_name"],
+            },
         )
+        admin.email = demo["email"]
+        admin.password = self.password
+        admin.role = AccountRole.ADMIN
+        admin.status = AccountStatus.ACTIVE
+        admin.is_staff = True
+        admin.is_superuser = True
+        admin.full_name = demo["full_name"]
+        admin.save()
         return admin
+
+    def _print_demo_accounts(self):
+        dealer = self.dealers[0]
+        demo = DEMO_ACCOUNTS
+        self.stdout.write(
+            self.style.SUCCESS(
+                f"\n=== Tai khoan demo (mk: {SEED_PASSWORD}) ===\n"
+                f"Admin:    {demo['admin']['username']}\n"
+                f"Dealer:   {demo['dealer']['username']}\n"
+                f"Supplier: {demo['supplier']['username']}\n"
+                f"Buyer:    {demo['buyer']['email']}\n"
+                f"Store:    /cua-hang/{dealer.slug}/dang-nhap\n"
+            )
+        )
 
     def _create_categories(self):
         names = [
@@ -156,20 +247,30 @@ class Command(BaseCommand):
 
     def _create_suppliers(self, count):
         suppliers = []
+        demo = DEMO_ACCOUNTS["supplier"]
         for i in range(count):
-            username = f'supplier_{i}'
+            if i == 0:
+                username = demo["username"]
+                email = demo["email"]
+                full_name = demo["full_name"]
+                company_name = "Cong ty NCC Demo"
+            else:
+                username = f"supplier{i + 1:02d}"
+                email = f"{username}@example.com"
+                full_name = self.fake.name()
+                company_name = self.fake.company()
             acc = Account.objects.create(
                 username=username,
-                email=f'{username}@example.com',
+                email=email,
                 password=self.password,
                 role=AccountRole.SUPPLIER,
                 status=AccountStatus.ACTIVE,
-                full_name=self.fake.name(),
+                full_name=full_name,
                 phone=self.fake.phone_number()[:20]
             )
             profile = Supplier.objects.create(
                 account=acc,
-                company_name=self.fake.company(),
+                company_name=company_name,
                 tax_code=f'TAX{self.fake.random_int(10000000, 99999999)}',
                 phone=acc.phone,
                 address=self.fake.address(),
@@ -177,25 +278,42 @@ class Command(BaseCommand):
                 verified_by=self.admin_account,
                 verified_at=timezone.now()
             )
+            if not hasattr(self, "supplier_certifications"):
+                self.supplier_certifications = {}
+            self.supplier_certifications[profile.id] = seed_supplier_certifications(
+                supplier=profile,
+                admin_account=self.admin_account,
+                fake=self.fake,
+            )
             suppliers.append(profile)
         return suppliers
 
     def _create_dealers(self, count):
         dealers = []
+        demo = DEMO_ACCOUNTS["dealer"]
         for i in range(count):
-            username = f'dealer_{i}'
+            if i == 0:
+                username = demo["username"]
+                email = demo["email"]
+                full_name = demo["full_name"]
+                store_name = "Cua hang Demo"
+            else:
+                username = f"dealer{i + 1:02d}"
+                email = f"{username}@example.com"
+                full_name = self.fake.name()
+                store_name = f"Cua hang {self.fake.company()}"
             acc = Account.objects.create(
                 username=username,
-                email=f'{username}@example.com',
+                email=email,
                 password=self.password,
                 role=AccountRole.DEALER,
                 status=AccountStatus.ACTIVE,
-                full_name=self.fake.name(),
+                full_name=full_name,
                 phone=self.fake.phone_number()[:20]
             )
             profile = DealerProfile.objects.create(
                 account=acc,
-                store_name=f'Cửa hàng {self.fake.company()}',
+                store_name=store_name,
                 store_address=self.fake.address(),
                 status=DealerProfileStatus.ACTIVE,
                 verified_by=self.admin_account,
@@ -208,28 +326,36 @@ class Command(BaseCommand):
         from apps.customers.services import build_storefront_username
 
         buyers = []
+        demo_buyer = DEMO_ACCOUNTS["buyer"]
+        primary_dealer = dealers[0]
         for i in range(count):
-            dealer = random.choice(dealers)
-            email = f"buyer_{i}_{self.fake.random_int(100, 999)}@example.com"
+            if i == 0:
+                dealer = primary_dealer
+                email = demo_buyer["email"]
+                full_name = demo_buyer["full_name"]
+            else:
+                dealer = random.choice(dealers)
+                email = f"buyer_{i}_{self.fake.random_int(100, 999)}@example.com"
+                full_name = self.fake.name()
             username = build_storefront_username(dealer.id, email)
-            
+
             acc = Account.objects.create(
                 username=username,
                 email=email,
                 password=self.password,
                 role=AccountRole.BUYER,
                 status=AccountStatus.ACTIVE,
-                full_name=self.fake.name(),
+                full_name=full_name,
                 phone=self.fake.phone_number()[:20],
                 store_dealer=dealer
             )
             profile = CustomerProfile.objects.create(
                 user=acc,
-                total_orders=self.fake.random_int(0, 50),
-                total_spent=Decimal(self.fake.random_int(0, 10000000)),
-                loyalty_points=self.fake.random_int(0, 1000),
-                last_order_at=timezone.now() - timedelta(days=random.randint(1, 30)),
-                note=f"Khách hàng quen thuộc của cửa hàng. {self.fake.sentence()}"
+                total_orders=0,
+                total_spent=Decimal("0"),
+                loyalty_points=0,
+                last_order_at=None,
+                note="",
             )
             CustomerAddress.objects.create(
                 customer=profile,
@@ -344,12 +470,13 @@ class Command(BaseCommand):
         'Hoa hồng Đà Lạt', 'Hoa cúc', 'Cây giống rau', 'Hạt giống hoa', 'Hoa lan hồ điệp',
         'Hoa ly', 'Cây giống cà chua', 'Cây giống ớt', 'Hạt giống rau cải', 'Cây giống dưa leo',
         'Hoa hướng dương', 'Cây giống bầu bí', 'Hạt giống rau muống', 'Cây giống xoài', 'Hạt giống dưa hấu'
-    ]
+    ],
 }
         
         product_masters = []
         for cat in categories:
             names = master_data.get(cat.name, [])
+            profile = get_storage_profile(cat.name)
             for name in names:
                 slug = self.fake.slug(name)
                 pm, created = ProductMaster.objects.get_or_create(
@@ -357,12 +484,16 @@ class Command(BaseCommand):
                     slug=slug,
                     defaults={
                         'name': name,
-                        'default_unit': 'kg' if cat.name not in ['Thủy hải sản', 'Gạo & Ngũ cốc', 'Gia vị'] else 'gói',
-                        'description': f'Sản phẩm chuẩn hệ thống cho {name}',
+                        'default_unit': 'kg',
+                        'description': (
+                            f'{name} thuộc nhóm {cat.name}. '
+                            f'Nông sản tươi sạch, phù hợp tiêu thụ hàng ngày.'
+                        ),
                         'status': ProductMasterStatus.ACTIVE,
                         'sort_order': random.randint(1, 100)
                     }
                 )
+                assign_product_master_seasons(pm, self.season_map, profile)
                 product_masters.append(pm)
         return product_masters
 
@@ -383,7 +514,9 @@ class Command(BaseCommand):
                 name = f'{pm.name} (NCC {supplier.company_name})'
                 unit = pm.default_unit
                 slug = f'{self.fake.slug()}-{uuid.uuid4().hex[:6]}'
-                
+                storage_profile = get_storage_profile(pm.category.name)
+                storage_days = pick_storage_days(storage_profile)
+
                 prod = SupplierProduct.objects.create(
                     supplier=supplier,
                     category=pm.category,
@@ -393,18 +526,17 @@ class Command(BaseCommand):
                     unit=unit,
                     wholesale_price=Decimal(self.fake.random_int(10000, 500000)),
                     daily_production_capacity=Decimal(self.fake.random_int(10, 1000)),
+                    description=build_supplier_description(pm, supplier.company_name, storage_days),
+                    storage_duration_days=storage_days,
+                    min_storage_temp=Decimal(str(storage_profile["min_temp"])),
+                    max_storage_temp=Decimal(str(storage_profile["max_temp"])),
                     status=SupplierProductStatus.ACTIVE,
                     verified_by=self.admin_account,
                     verified_at=timezone.now()
                 )
-                # create steps
-                for step_order in range(1, 4):
-                    CultivationProcess.objects.create(
-                        supplier_product=prod,
-                        step_order=step_order,
-                        process_name=f'Quy trình {step_order}',
-                        description=self.fake.text()
-                    )
+                create_cultivation_processes(prod)
+                certs = getattr(self, "supplier_certifications", {}).get(supplier.id, [])
+                link_product_certifications(prod, certs)
                 products.append(prod)
         return products
 
@@ -422,12 +554,14 @@ class Command(BaseCommand):
 
         # Map: tên category hệ thống -> tên category custom muốn tạo cho dealer
         custom_category_map = {
-            'Rau củ': 'Rau sạch hữu cơ',
-            'Trái cây': 'Trái cây đặc sản',
+            'Rau ăn lá': 'Rau sạch hữu cơ',
+            'Trái cây nhiệt đới': 'Trái cây đặc sản',
             'Gia vị': 'Gia vị cao cấp',
         }
 
         for dealer in dealers:
+            seed_dealer_age_discount_policy(dealer)
+
             # Tạo custom category cho dealer, map theo từng category hệ thống cụ thể
             # key: id của category hệ thống gốc -> value: Category custom tương ứng
             system_to_custom = {}
@@ -451,32 +585,28 @@ class Command(BaseCommand):
             num_prods = random.randint(30, 60)
             selected_supp_prods = random.sample(supplier_products, min(num_prods, len(supplier_products)))
 
-            for sp in selected_supp_prods:
+            for idx, sp in enumerate(selected_supp_prods):
                 retail_price = sp.wholesale_price * Decimal(random.uniform(1.1, 1.5))
+                retail_price = retail_price.quantize(Decimal('1.00'))
 
-                # Category của DealerProduct: ưu tiên custom category nếu có map
-                # đúng với category gốc của supplier product (sp.category),
-                # nếu không có map thì dùng lại category gốc (sp.category).
                 dp_category = system_to_custom.get(sp.category_id, sp.category)
 
                 dp = DealerProduct.objects.create(
                     dealer_profile=dealer,
                     supplier_product=sp,
                     category=dp_category,
-                    retail_price=retail_price.quantize(Decimal('1.00')),
-                    title=f'{sp.name} (Bán lẻ)',
+                    retail_price=retail_price,
+                    title=f'{sp.product_master.name if sp.product_master else sp.name} — bán lẻ',
+                    description=build_dealer_description(sp, retail_price),
                     status=DealerProductStatus.ACTIVE
                 )
-                DealerInventoryBatch.objects.create(
+                create_dealer_inventory_batches(
                     dealer_product=dp,
-                    batch_number=f'BATCH-{uuid.uuid4().hex[:6].upper()}',
-                    quantity=100,
-                    remaining_quantity=random.randint(10, 100),
-                    import_price=sp.wholesale_price,
-                    import_date=timezone.now().date() - timedelta(days=random.randint(1, 30))
+                    supplier_product=sp,
+                    retail_price=retail_price,
+                    force_near_expiry=(dealer == dealers[0] and idx < 5),
                 )
 
-                # Create B2B interaction between dealer and supplier product
                 DealerSupplierProductInteraction.objects.get_or_create(
                     dealer=dealer,
                     supplier=sp.supplier,
@@ -527,141 +657,3 @@ class Command(BaseCommand):
                 po.total_amount = total_amount
                 po.debt_amount = total_amount
                 po.save()
-
-    def _generate_realistic_order_time(self):
-        # Choose a random day in the last 30 days
-        day_offset = random.randint(1, 30)
-        base_date = timezone.now() - timedelta(days=day_offset)
-        
-        # Weekend boost (approx. 20-30% higher volume)
-        # Shift weekday to weekend with a 25% probability
-        weekday = base_date.weekday()
-        if weekday < 5 and random.random() < 0.25:
-            # Shift to Saturday (5) or Sunday (6)
-            days_to_shift = (5 if random.random() < 0.5 else 6) - weekday
-            base_date += timedelta(days=days_to_shift)
-            
-        # Peak hour distribution:
-        # Peak: 7-9h and 17-20h
-        if random.random() < 0.65:
-            if random.random() < 0.5:
-                hour = random.randint(7, 9)
-            else:
-                hour = random.randint(17, 20)
-        else:
-            off_peak = [h for h in range(24) if h not in [7, 8, 9, 17, 18, 19, 20]]
-            hour = random.choice(off_peak)
-            
-        minute = random.randint(0, 59)
-        second = random.randint(0, 59)
-        return base_date.replace(hour=hour, minute=minute, second=second)
-
-    def _create_orders(self, buyers, dealers):
-        from apps.marketing.models import CustomerInteraction
-
-        for buyer in buyers:
-            num_orders = random.randint(1, 3)  # Optimized to speed up seeding
-            dealer = buyer.user.store_dealer
-            if not dealer:
-                continue
-                
-            dealer_prods = list(DealerProduct.objects.filter(dealer_profile=dealer, status=DealerProductStatus.ACTIVE))
-            if not dealer_prods:
-                continue
-                
-            for _ in range(num_orders):
-                address = CustomerAddress.objects.filter(customer=buyer).first()
-                if not address:
-                    continue
-                
-                # Determine number of items using random.choices with weights
-                ranges = [(1, 2), (3, 4), (5, 7), (8, 15)]
-                weights = [0.50, 0.30, 0.15, 0.05]
-                chosen_range = random.choices(ranges, weights=weights)[0]
-                num_items = random.randint(chosen_range[0], chosen_range[1])
-                
-                # Determine if this order is a standard small order (92% probability) or large order (8% probability)
-                is_large_order = random.random() < 0.08
-
-                # Generate realistic time
-                created_at = self._generate_realistic_order_time()
-                delivered_at = created_at + timedelta(hours=random.randint(2, 6))
-                completed_at = delivered_at + timedelta(hours=random.randint(1, 12))
-
-                total_amount = Decimal(0)
-                order = Order.objects.create(
-                    order_code=f'ORD-{uuid.uuid4().hex[:8].upper()}',
-                    customer=buyer,
-                    dealer=dealer,
-                    customer_address=address,
-                    status=OrderStatus.COMPLETED,
-                    receiver_name=address.receiver_name,
-                    receiver_phone=address.receiver_phone,
-                    delivery_address=address.address,
-                    delivery_time=delivered_at,
-                    completed_at=completed_at,
-                    delivered_at=delivered_at,
-                )
-                
-                # Sample unique products up to num_items
-                sampled_prods = random.sample(dealer_prods, min(num_items, len(dealer_prods)))
-                for dp in sampled_prods:
-                    batch = DealerInventoryBatch.objects.filter(dealer_product=dp).first()
-                    if not batch:
-                        continue
-                        
-                    # Quantity logic based on standard vs large order
-                    if is_large_order:
-                        qty = random.randint(5, 15)
-                    else:
-                        # Standard order: if expensive product (> 100k VNĐ), buy 1. Otherwise, buy 1-3.
-                        if dp.retail_price > 100000:
-                            qty = 1
-                        else:
-                            qty = random.randint(1, 3)
-
-                    price = dp.retail_price
-                    subtotal = qty * price
-                    total_amount += subtotal
-                    
-                    OrderItem.objects.create(
-                        order=order,
-                        dealer_product=dp,
-                        batch=batch,
-                        product_title=dp.title,
-                        unit=dp.supplier_product.unit,
-                        quantity=qty,
-                        unit_price=price,
-                        import_price=batch.import_price,
-                        subtotal=subtotal
-                    )
-
-                    # Create or update Customer Interaction (with realistic timestamps matching created_at)
-                    interaction, created = CustomerInteraction.objects.get_or_create(
-                        customer=buyer,
-                        dealer=dealer,
-                        dealer_product=dp,
-                        defaults={
-                            'view_count': random.randint(5, 20),
-                            'add_cart_count': random.randint(2, 8),
-                            'purchase_count': qty,
-                            'last_viewed_at': created_at - timedelta(minutes=random.randint(5, 30)),
-                            'last_added_at': created_at - timedelta(minutes=random.randint(2, 10)),
-                            'last_purchased_at': created_at
-                        }
-                    )
-                    if not created:
-                        interaction.view_count += random.randint(1, 5)
-                        interaction.add_cart_count += random.randint(1, 2)
-                        interaction.purchase_count += qty
-                        interaction.last_purchased_at = created_at
-                        interaction.save(update_fields=['view_count', 'add_cart_count', 'purchase_count', 'last_purchased_at', 'updated_at'])
-                
-                order.subtotal_amount = total_amount
-                order.total_amount = total_amount
-                order.paid_amount = total_amount
-                order.debt_amount = Decimal('0.00')
-                order.save()
-
-                # Override created_at which was auto_now_added
-                Order.objects.filter(pk=order.pk).update(created_at=created_at)
