@@ -39,7 +39,7 @@ export default function ConfirmModal({
         } catch (error) {
             console.error(error);
 
-            if (showToast) {
+            if (showToast && !error?.toastHandled) {
                 appToast.danger(errorMessage || style.defaultErrorMessage);
             }
         } finally {
