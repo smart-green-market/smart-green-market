@@ -37,6 +37,10 @@ class PurchaseOrderStatus(models.TextChoices):
         "final_payment_pending_verification",
         "Chờ xác nhận thanh toán cuối",
     )
+    RETURN_REQUESTED = "return_requested", "Yêu cầu trả hàng"
+    RETURN_APPROVED = "return_approved", "Đã duyệt trả hàng"
+    RETURN_REJECTED = "return_rejected", "Từ chối trả hàng"
+    RETURNED = "returned", "Đã trả hàng"
     COMPLETED = "completed", "Hoàn tất"
     CANCELLED = "cancelled", "Đã hủy"
 
@@ -61,6 +65,15 @@ class PurchaseOrderPaymentStatus(models.TextChoices):
 
     PENDING = "pending", "Chờ xác nhận"
     VERIFIED = "verified", "Đã xác nhận"
+    REJECTED = "rejected", "Từ chối"
+    CANCELLED = "cancelled", "Đã hủy"
+
+
+class PurchaseOrderReturnStatus(models.TextChoices):
+    """Trạng thái yêu cầu trả hàng phiếu nhập."""
+
+    REQUESTED = "requested", "Chờ xử lý"
+    APPROVED = "approved", "Đã duyệt"
     REJECTED = "rejected", "Từ chối"
 
 
@@ -124,6 +137,15 @@ class PurchaseOrder(models.Model):
     confirmed_at = models.DateTimeField(null=True, blank=True)
     delivered_at = models.DateTimeField(null=True, blank=True)
     completed_at = models.DateTimeField(null=True, blank=True)
+    cancelled_at = models.DateTimeField(null=True, blank=True)
+    cancelled_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="cancelled_purchase_orders",
+    )
+    cancel_reason = models.TextField(blank=True)
 
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -238,3 +260,68 @@ class PurchaseOrderStatusHistory(models.Model):
 
     def __str__(self):
         return f"{self.purchase_order.order_code}: {self.old_status} → {self.new_status}"
+
+
+class PurchaseOrderReturn(models.Model):
+    """Yêu cầu trả hàng sau khi đại lý nhận phiếu nhập."""
+
+    purchase_order = models.ForeignKey(
+        PurchaseOrder,
+        on_delete=models.CASCADE,
+        related_name="returns",
+    )
+    status = models.CharField(
+        max_length=20,
+        choices=PurchaseOrderReturnStatus.choices,
+        default=PurchaseOrderReturnStatus.REQUESTED,
+    )
+    reason = models.TextField()
+    evidence_file = models.FileField(upload_to="purchase_order_returns/", blank=True)
+    refund_amount = models.DecimalField(max_digits=14, decimal_places=2, default=0)
+    requested_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        related_name="requested_purchase_order_returns",
+    )
+    reviewed_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="reviewed_purchase_order_returns",
+    )
+    review_note = models.TextField(blank=True)
+    resolved_at = models.DateTimeField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = "purchase_order_returns"
+        ordering = ["-created_at", "-id"]
+
+    def __str__(self):
+        return f"{self.purchase_order.order_code} - {self.status}"
+
+
+class PurchaseOrderReturnItem(models.Model):
+    """Dòng sản phẩm trong yêu cầu trả phiếu nhập."""
+
+    purchase_order_return = models.ForeignKey(
+        PurchaseOrderReturn,
+        on_delete=models.CASCADE,
+        related_name="items",
+    )
+    purchase_order_item = models.ForeignKey(
+        PurchaseOrderItem,
+        on_delete=models.PROTECT,
+        related_name="return_items",
+    )
+    quantity = models.DecimalField(max_digits=12, decimal_places=2)
+    reason = models.TextField(blank=True)
+
+    class Meta:
+        db_table = "purchase_order_return_items"
+        ordering = ["id"]
+
+    def __str__(self):
+        return f"{self.purchase_order_return} - {self.purchase_order_item_id}"

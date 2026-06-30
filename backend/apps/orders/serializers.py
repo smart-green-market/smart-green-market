@@ -6,6 +6,7 @@ from apps.customers.models import CustomerAddress
 from apps.dealer_products.models import DealerProduct, DealerProductStatus
 from common.files import build_media_url
 from common.openapi_enums import schema_choice_field
+from common.return_summary import account_display_name, build_return_summary
 
 from . import services
 from .delivery_slots import parse_delivery_slot, resolve_delivery_time
@@ -16,6 +17,9 @@ from .models import (
     CustomerPaymentType,
     Order,
     OrderItem,
+    OrderReturn,
+    OrderReturnItem,
+    OrderReturnStatus,
     OrderStatus,
     OrderStatusHistory,
 )
@@ -118,6 +122,79 @@ class OrderStatusHistorySerializer(serializers.ModelSerializer):
         return dict(OrderStatus.choices).get(obj.new_status, obj.new_status)
 
 
+class OrderReturnItemReadSerializer(serializers.ModelSerializer):
+    order_item_id = serializers.IntegerField(read_only=True)
+    product_name = serializers.CharField(source="order_item.product_title", read_only=True)
+
+    class Meta:
+        model = OrderReturnItem
+        fields = ["id", "order_item_id", "product_name", "quantity", "reason"]
+
+
+class OrderReturnReadSerializer(serializers.ModelSerializer):
+    status = schema_choice_field(choices=OrderReturnStatus.choices, read_only=True)
+    status_label = serializers.SerializerMethodField()
+    items = OrderReturnItemReadSerializer(many=True, read_only=True)
+    evidence_file_url = serializers.SerializerMethodField()
+    requested_by_username = serializers.CharField(
+        source="requested_by.username",
+        read_only=True,
+        allow_null=True,
+    )
+    reviewed_by_username = serializers.CharField(
+        source="reviewed_by.username",
+        read_only=True,
+        allow_null=True,
+    )
+
+    class Meta:
+        model = OrderReturn
+        fields = [
+            "id",
+            "status",
+            "status_label",
+            "reason",
+            "evidence_file",
+            "evidence_file_url",
+            "refund_amount",
+            "requested_by",
+            "requested_by_username",
+            "reviewed_by",
+            "reviewed_by_username",
+            "review_note",
+            "resolved_at",
+            "created_at",
+            "items",
+        ]
+
+    def get_status_label(self, obj):
+        return dict(OrderReturnStatus.choices).get(obj.status, obj.status)
+
+    def get_evidence_file_url(self, obj):
+        return build_media_url(obj.evidence_file, self.context.get("request"))
+
+
+class OrderCancelReturnDisplayMixin(serializers.Serializer):
+    """Field hiển thị hủy / trả hàng trên list & detail."""
+
+    cancelled_by_name = serializers.SerializerMethodField()
+    return_summary = serializers.SerializerMethodField()
+
+    def get_cancelled_by_name(self, obj):
+        return account_display_name(obj.cancelled_by)
+
+    def get_return_summary(self, obj):
+        returns = list(obj.returns.all())
+        return build_return_summary(
+            returns,
+            order_status=obj.status,
+            return_requested_order_status=OrderStatus.RETURN_REQUESTED,
+            pending_return_status=OrderReturnStatus.REQUESTED,
+            approved_return_status=OrderReturnStatus.APPROVED,
+            return_status_choices=OrderReturnStatus.choices,
+        )
+
+
 class OrderDeliveryInfoMixin:
     """Helper methods — delivery_date/slot fields khai báo trên từng ModelSerializer."""
 
@@ -142,7 +219,11 @@ class OrderDeliveryInfoMixin:
         return info["delivery_slot_name"] if info else None
 
 
-class OrderListSerializer(OrderDeliveryInfoMixin, serializers.ModelSerializer):
+class OrderListSerializer(
+    OrderDeliveryInfoMixin,
+    OrderCancelReturnDisplayMixin,
+    serializers.ModelSerializer,
+):
     status = schema_choice_field(choices=OrderStatus.choices, read_only=True)
     dealer_name = serializers.CharField(source="dealer.store_name", read_only=True)
     customer_name = serializers.CharField(source="customer.user.full_name", read_only=True)
@@ -165,11 +246,17 @@ class OrderListSerializer(OrderDeliveryInfoMixin, serializers.ModelSerializer):
             "discount_amount",
             "shipping_fee",
             "total_amount",
+            "paid_amount",
+            "debt_amount",
             "item_count",
             "delivery_time",
             "delivery_date",
             "delivery_slot",
             "delivery_slot_name",
+            "cancelled_at",
+            "cancel_reason",
+            "cancelled_by_name",
+            "return_summary",
             "created_at",
         ]
 
@@ -185,7 +272,11 @@ class OrderListSerializer(OrderDeliveryInfoMixin, serializers.ModelSerializer):
         )
 
 
-class OrderDetailSerializer(OrderDeliveryInfoMixin, serializers.ModelSerializer):
+class OrderDetailSerializer(
+    OrderDeliveryInfoMixin,
+    OrderCancelReturnDisplayMixin,
+    serializers.ModelSerializer,
+):
     status = schema_choice_field(choices=OrderStatus.choices, read_only=True)
     dealer_name = serializers.CharField(source="dealer.store_name", read_only=True)
     customer_name = serializers.CharField(source="customer.user.full_name", read_only=True)
@@ -198,6 +289,7 @@ class OrderDetailSerializer(OrderDeliveryInfoMixin, serializers.ModelSerializer)
     items = OrderItemReadSerializer(many=True, read_only=True)
     payments = CustomerPaymentReadSerializer(many=True, read_only=True)
     status_histories = OrderStatusHistorySerializer(many=True, read_only=True)
+    returns = OrderReturnReadSerializer(many=True, read_only=True)
 
     class Meta:
         model = Order
@@ -227,8 +319,14 @@ class OrderDetailSerializer(OrderDeliveryInfoMixin, serializers.ModelSerializer)
             "items",
             "payments",
             "status_histories",
+            "returns",
             "delivered_at",
             "completed_at",
+            "cancelled_at",
+            "cancelled_by",
+            "cancelled_by_name",
+            "cancel_reason",
+            "return_summary",
             "created_at",
             "updated_at",
         ]
@@ -356,3 +454,58 @@ class OrderCreateSerializer(serializers.Serializer):
 
 class NoteSerializer(serializers.Serializer):
     note = serializers.CharField(required=False, allow_blank=True, default="")
+
+
+class CancelOrderSerializer(serializers.Serializer):
+    reason = serializers.CharField(help_text="Lý do hủy đơn")
+
+    def validate_reason(self, value):
+        value = value.strip()
+        if not value:
+            raise serializers.ValidationError("Vui lòng nhập lý do hủy.")
+        return value
+
+
+class OrderReturnItemWriteSerializer(serializers.Serializer):
+    order_item_id = serializers.IntegerField(help_text="ID dòng hàng muốn trả")
+    quantity = serializers.IntegerField(min_value=1, help_text="Số lượng trả")
+    reason = serializers.CharField(
+        required=False,
+        allow_blank=True,
+        default="",
+        help_text="Lý do riêng cho dòng hàng",
+    )
+
+
+class RequestOrderReturnSerializer(serializers.Serializer):
+    reason = serializers.CharField(
+        help_text="Lý do trả hàng — trả toàn bộ đơn, không chọn số lượng",
+    )
+    evidence_file = serializers.FileField(
+        required=False,
+        allow_empty_file=False,
+        help_text="Ảnh/PDF bằng chứng nếu có",
+    )
+
+    def validate_reason(self, value):
+        value = value.strip()
+        if not value:
+            raise serializers.ValidationError("Vui lòng nhập lý do trả hàng.")
+        return value
+
+
+class ReviewReturnSerializer(serializers.Serializer):
+    approved = serializers.BooleanField(help_text="true = duyệt trả, false = từ chối")
+    review_note = serializers.CharField(
+        required=False,
+        allow_blank=True,
+        default="",
+        help_text="Ghi chú xử lý trả hàng",
+    )
+
+    def validate(self, attrs):
+        if attrs.get("approved") is False and not attrs.get("review_note", "").strip():
+            raise serializers.ValidationError(
+                {"review_note": "Vui lòng nhập lý do từ chối trả hàng."}
+            )
+        return attrs

@@ -15,6 +15,8 @@ from apps.supplier_products.models import SupplierProduct
 from apps.suppliers.models import Supplier, SupplierVerificationStatus
 from common.files import build_media_url
 from common.openapi_enums import schema_choice_field
+from common.return_summary import account_display_name, build_return_summary
+
 from common.validators import require_rejection_reason
 
 from .models import (
@@ -24,6 +26,9 @@ from .models import (
     PurchaseOrderPaymentMethod,
     PurchaseOrderPaymentStatus,
     PurchaseOrderPaymentType,
+    PurchaseOrderReturn,
+    PurchaseOrderReturnItem,
+    PurchaseOrderReturnStatus,
     PurchaseOrderStatus,
     PurchaseOrderStatusHistory,
 )
@@ -260,7 +265,90 @@ class PurchaseOrderStatusHistorySerializer(serializers.ModelSerializer):
         }
 
 
-class PurchaseOrderListSerializer(serializers.ModelSerializer):
+class PurchaseOrderReturnItemReadSerializer(serializers.ModelSerializer):
+    purchase_order_item_id = serializers.IntegerField(read_only=True)
+    product_name = serializers.CharField(
+        source="purchase_order_item.supplier_product.name",
+        read_only=True,
+    )
+
+    class Meta:
+        model = PurchaseOrderReturnItem
+        fields = [
+            "id",
+            "purchase_order_item_id",
+            "product_name",
+            "quantity",
+            "reason",
+        ]
+
+
+class PurchaseOrderReturnReadSerializer(serializers.ModelSerializer):
+    status = schema_choice_field(choices=PurchaseOrderReturnStatus.choices, read_only=True)
+    status_label = serializers.SerializerMethodField()
+    items = PurchaseOrderReturnItemReadSerializer(many=True, read_only=True)
+    evidence_file_url = serializers.SerializerMethodField()
+    requested_by_username = serializers.CharField(
+        source="requested_by.username",
+        read_only=True,
+        allow_null=True,
+    )
+    reviewed_by_username = serializers.CharField(
+        source="reviewed_by.username",
+        read_only=True,
+        allow_null=True,
+    )
+
+    class Meta:
+        model = PurchaseOrderReturn
+        fields = [
+            "id",
+            "status",
+            "status_label",
+            "reason",
+            "evidence_file",
+            "evidence_file_url",
+            "refund_amount",
+            "requested_by",
+            "requested_by_username",
+            "reviewed_by",
+            "reviewed_by_username",
+            "review_note",
+            "resolved_at",
+            "created_at",
+            "items",
+        ]
+
+    def get_status_label(self, obj):
+        return dict(PurchaseOrderReturnStatus.choices).get(obj.status, obj.status)
+
+    def get_evidence_file_url(self, obj):
+        return build_media_url(obj.evidence_file, self.context.get("request"))
+
+
+class PurchaseOrderCancelReturnDisplayMixin(serializers.Serializer):
+    cancelled_by_name = serializers.SerializerMethodField()
+    return_summary = serializers.SerializerMethodField()
+
+    def get_cancelled_by_name(self, obj):
+        return account_display_name(obj.cancelled_by)
+
+    def get_return_summary(self, obj):
+        returns = list(obj.returns.all())
+        return build_return_summary(
+            returns,
+            order_status=obj.status,
+            return_requested_order_status=PurchaseOrderStatus.RETURN_REQUESTED,
+            pending_return_status=PurchaseOrderReturnStatus.REQUESTED,
+            approved_return_status=PurchaseOrderReturnStatus.APPROVED,
+            return_status_choices=PurchaseOrderReturnStatus.choices,
+        )
+
+
+class PurchaseOrderListSerializer(
+    PurchaseOrderCancelReturnDisplayMixin,
+    serializers.ModelSerializer,
+):
     status = schema_choice_field(choices=PurchaseOrderStatus.choices, read_only=True)
     supplier_name = serializers.CharField(
         source="supplier.company_name",
@@ -289,6 +377,10 @@ class PurchaseOrderListSerializer(serializers.ModelSerializer):
             "debt_amount",
             "requested_delivery_time",
             "confirmed_delivery_time",
+            "cancelled_at",
+            "cancel_reason",
+            "cancelled_by_name",
+            "return_summary",
             "created_at",
             "updated_at",
         ]
@@ -312,11 +404,15 @@ class PurchaseOrderListSerializer(serializers.ModelSerializer):
         }
 
 
-class PurchaseOrderDetailSerializer(serializers.ModelSerializer):
+class PurchaseOrderDetailSerializer(
+    PurchaseOrderCancelReturnDisplayMixin,
+    serializers.ModelSerializer,
+):
     status = schema_choice_field(choices=PurchaseOrderStatus.choices, read_only=True)
     items = PurchaseOrderItemReadSerializer(many=True, read_only=True)
     payments = PurchaseOrderPaymentReadSerializer(many=True, read_only=True)
     status_histories = PurchaseOrderStatusHistorySerializer(many=True, read_only=True)
+    returns = PurchaseOrderReturnReadSerializer(many=True, read_only=True)
     supplier_name = serializers.CharField(
         source="supplier.company_name",
         read_only=True,
@@ -383,11 +479,17 @@ class PurchaseOrderDetailSerializer(serializers.ModelSerializer):
             "confirmed_at",
             "delivered_at",
             "completed_at",
+            "cancelled_at",
+            "cancelled_by",
+            "cancelled_by_name",
+            "cancel_reason",
+            "return_summary",
             "created_at",
             "updated_at",
             "items",
             "payments",
             "status_histories",
+            "returns",
         ]
         extra_kwargs = {
             "id": {"help_text": "ID phiếu nhập"},
@@ -413,6 +515,9 @@ class PurchaseOrderDetailSerializer(serializers.ModelSerializer):
             "confirmed_at": {"help_text": "Thời điểm NCC xác nhận đơn"},
             "delivered_at": {"help_text": "Thời điểm đại lý xác nhận đã nhận hàng"},
             "completed_at": {"help_text": "Thời điểm hoàn tất (sau xác minh thanh toán cuối)"},
+            "cancelled_at": {"help_text": "Thời điểm hủy phiếu"},
+            "cancelled_by": {"help_text": "ID tài khoản hủy phiếu"},
+            "cancel_reason": {"help_text": "Lý do hủy phiếu"},
             "created_at": {"help_text": "Thời điểm tạo đơn"},
             "updated_at": {"help_text": "Thời điểm cập nhật gần nhất"},
         }
@@ -611,12 +716,65 @@ class VerifyPaymentSerializer(serializers.Serializer):
 
 
 class CancelOrderSerializer(serializers.Serializer):
-    note = serializers.CharField(
+    reason = serializers.CharField(
+        help_text="Lý do hủy đơn",
+    )
+
+    def validate_reason(self, value):
+        value = value.strip()
+        if not value:
+            raise serializers.ValidationError("Vui lòng nhập lý do hủy.")
+        return value
+
+
+class PurchaseOrderReturnItemWriteSerializer(serializers.Serializer):
+    purchase_order_item_id = serializers.IntegerField(help_text="ID dòng hàng muốn trả")
+    quantity = serializers.DecimalField(
+        max_digits=12,
+        decimal_places=2,
+        min_value=Decimal("0.01"),
+        help_text="Số lượng trả",
+    )
+    reason = serializers.CharField(
         required=False,
         allow_blank=True,
         default="",
-        help_text="Lý do hủy đơn",
+        help_text="Lý do riêng cho dòng hàng",
     )
+
+
+class RequestPurchaseOrderReturnSerializer(serializers.Serializer):
+    reason = serializers.CharField(
+        help_text="Lý do trả hàng — trả toàn bộ phiếu, không chọn số lượng",
+    )
+    evidence_file = serializers.FileField(
+        required=False,
+        allow_empty_file=False,
+        help_text="Ảnh/PDF bằng chứng nếu có",
+    )
+
+    def validate_reason(self, value):
+        value = value.strip()
+        if not value:
+            raise serializers.ValidationError("Vui lòng nhập lý do trả hàng.")
+        return value
+
+
+class ReviewReturnSerializer(serializers.Serializer):
+    approved = serializers.BooleanField(help_text="true = duyệt trả, false = từ chối")
+    review_note = serializers.CharField(
+        required=False,
+        allow_blank=True,
+        default="",
+        help_text="Ghi chú xử lý trả hàng",
+    )
+
+    def validate(self, attrs):
+        if attrs.get("approved") is False and not attrs.get("review_note", "").strip():
+            raise serializers.ValidationError(
+                {"review_note": "Vui lòng nhập lý do từ chối trả hàng."}
+            )
+        return attrs
 
 
 class NoteSerializer(serializers.Serializer):
