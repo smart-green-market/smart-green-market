@@ -184,11 +184,21 @@ export default function DealerPurchaseOrderDetailPage() {
   };
 
   // Xác nhận gửi yêu cầu trả hàng từ modal
-  const handleRequestReturnConfirm = async (reason, evidenceFile) => {
+  const handleRequestReturnConfirm = async (reason, evidenceFile, selectedItems) => {
     const formData = new FormData();
     formData.append("reason", reason);
     if (evidenceFile) {
       formData.append("evidence_file", evidenceFile);
+    }
+
+    if (selectedItems && selectedItems.length > 0) {
+      selectedItems.forEach((item, index) => {
+        formData.append(`items[${index}]purchase_order_item_id`, item.purchase_order_item_id);
+        formData.append(`items[${index}]quantity`, item.quantity);
+        if (item.reason) {
+          formData.append(`items[${index}]reason`, item.reason);
+        }
+      });
     }
 
     try {
@@ -323,6 +333,7 @@ export default function DealerPurchaseOrderDetailPage() {
         isOpen={isReturnModalOpen}
         onClose={() => setIsReturnModalOpen(false)}
         onConfirm={handleRequestReturnConfirm}
+        orderItems={orderData?.items || []}
       />
     </div>
   );
