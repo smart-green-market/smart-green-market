@@ -22,7 +22,40 @@ class PromotionTargetSerializer(serializers.ModelSerializer):
             "segment",
             "dealer_product",
             "category",
+            "customer",
         ]
+
+    def to_internal_value(self, data):
+        data = data.copy() if hasattr(data, 'copy') else dict(data)
+        for field in ["segment", "dealer_product", "category", "customer"]:
+            if field in data:
+                val = data[field]
+                if val == "" or val == 0 or val == "0" or val is None:
+                    data[field] = None
+        return super().to_internal_value(data)
+
+    def validate(self, attrs):
+        target_type = attrs.get("target_type")
+        segment = attrs.get("segment")
+        dealer_product = attrs.get("dealer_product")
+        category = attrs.get("category")
+        customer = attrs.get("customer")
+
+        if target_type == "segment" and segment is None:
+            raise serializers.ValidationError({"segment": "Trường segment không được để trống khi target_type là 'segment'."})
+        elif target_type == "customer" and customer is None:
+            raise serializers.ValidationError({"customer": "Trường customer không được để trống khi target_type là 'customer'."})
+        elif target_type == "category" and category is None:
+            raise serializers.ValidationError({"category": "Trường category không được để trống khi target_type là 'category'."})
+        elif target_type == "product" and dealer_product is None:
+            raise serializers.ValidationError({"dealer_product": "Trường dealer_product không được để trống khi target_type là 'product'."})
+        elif target_type == "all":
+            attrs["segment"] = None
+            attrs["dealer_product"] = None
+            attrs["category"] = None
+            attrs["customer"] = None
+
+        return attrs
 
 
 class PromotionSerializer(serializers.ModelSerializer):
@@ -46,11 +79,25 @@ class PromotionSerializer(serializers.ModelSerializer):
             "start_date",
             "end_date",
             "status",
+            "reject_reason",
             "targets",
             "created_at",
             "updated_at",
         ]
-        read_only_fields = ["id", "dealer", "created_by", "created_at", "updated_at"]
+        read_only_fields = ["id", "dealer", "created_by", "status", "reject_reason", "created_at", "updated_at"]
+
+    def validate_code(self, value):
+        if value:
+            # Loại bỏ khoảng trắng ở hai đầu
+            value = value.strip()
+            # Tự động viết hoa để tránh trùng lặp do phân biệt chữ hoa chữ thường
+            value = value.upper()
+            import re
+            if not re.match(r'^[A-Z0-9_-]+$', value):
+                raise serializers.ValidationError(
+                    "Mã voucher chỉ được chứa chữ cái không dấu (A-Z), chữ số, dấu gạch ngang (-) và gạch dưới (_), không chứa khoảng trắng."
+                )
+        return value
 
     def validate(self, attrs):
         start_date = attrs.get("start_date")
@@ -88,3 +135,55 @@ class PromotionSerializer(serializers.ModelSerializer):
             for target_data in targets_data:
                 PromotionTarget.objects.create(promotion=instance, **target_data)
         return instance
+
+
+class VerifyPromotionSerializer(serializers.Serializer):
+    status = serializers.ChoiceField(
+        choices=["active", "rejected"],
+        help_text="Trạng thái phê duyệt: active (Duyệt) hoặc rejected (Từ chối)"
+    )
+    reject_reason = serializers.CharField(
+        required=False,
+        allow_blank=True,
+        help_text="Lý do từ chối duyệt (bắt buộc khi status = rejected)"
+    )
+
+    def validate(self, attrs):
+        status = attrs.get("status")
+        reject_reason = attrs.get("reject_reason")
+        if status == "rejected" and not reject_reason:
+            raise serializers.ValidationError({"reject_reason": "Bắt buộc phải nhập lý do từ chối."})
+        return attrs
+
+
+class ApplyVoucherSerializer(serializers.Serializer):
+    """Serializer cho request body của /api/vouchers/apply/"""
+    promotion_id = serializers.IntegerField(required=True, help_text="ID của voucher cần áp dụng")
+    order_id = serializers.IntegerField(required=False, allow_null=True, help_text="ID đơn hàng (nếu đã tạo)")
+    order_total = serializers.DecimalField(
+        required=True, max_digits=14, decimal_places=2,
+        help_text="Tổng giá trị đơn hàng (VND)"
+    )
+
+
+class CartItemSerializer(serializers.Serializer):
+    dealer_product_id = serializers.IntegerField(required=True)
+    quantity = serializers.IntegerField(required=True, min_value=1)
+
+
+class CartApplyVoucherSerializer(serializers.Serializer):
+    voucher_code = serializers.CharField(required=True)
+    items = CartItemSerializer(many=True, required=True)
+
+    def validate_voucher_code(self, value):
+        if value:
+            # Loại bỏ khoảng trắng ở hai đầu
+            value = value.strip()
+            # Tự động viết hoa để so khớp chính xác với DB
+            value = value.upper()
+            import re
+            if not re.match(r'^[A-Z0-9_-]+$', value):
+                raise serializers.ValidationError(
+                    "Mã voucher chỉ được chứa chữ cái không dấu (A-Z), chữ số, dấu gạch ngang (-) và gạch dưới (_), không chứa khoảng trắng."
+                )
+        return value
