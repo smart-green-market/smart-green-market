@@ -49,11 +49,12 @@ export const purchaseOrderService = {
       })
       .then((res) => res.data),
 
-  // [Trả hàng] Đại lý yêu cầu trả hàng
-  requestReturn: (id, data = {}) =>
+  // Yêu cầu trả hàng (FormData có reason và evidence_file)
+  requestReturn: (id, formData) =>
     axiosClient
-      .post(`/purchase-orders/${id}/request-return/`, data)
-      .then((res) => res.data),
+      .post(`/purchase-orders/${id}/request-return/`, formData, {
+        headers: { "Content-Type": "multipart/form-data" },
+      }),
 
   // [Trả hàng] NCC duyệt/từ chối yêu cầu trả hàng
   reviewReturn: (id, returnId, data) =>
