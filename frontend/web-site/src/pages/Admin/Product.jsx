@@ -179,7 +179,9 @@ export default function ProductPage() {
       }
 
       setModalError(message);
-      throw new Error(message);
+      const handledError = new Error(message);
+      handledError.toastHandled = true;
+      throw handledError;
     } finally {
       setActionLoading(false);
     }

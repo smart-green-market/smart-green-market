@@ -25,19 +25,19 @@ export const formatDateTime = (value, withTime = true) => {
 
   const options = withTime
     ? {
-      timeZone: "Asia/Ho_Chi_Minh",
-      day: "2-digit",
-      month: "2-digit",
-      year: "numeric",
-      hour: "2-digit",
-      minute: "2-digit",
-    }
+        timeZone: "Asia/Ho_Chi_Minh",
+        day: "2-digit",
+        month: "2-digit",
+        year: "numeric",
+        hour: "2-digit",
+        minute: "2-digit",
+      }
     : {
-      timeZone: "Asia/Ho_Chi_Minh",
-      day: "2-digit",
-      month: "2-digit",
-      year: "numeric",
-    };
+        timeZone: "Asia/Ho_Chi_Minh",
+        day: "2-digit",
+        month: "2-digit",
+        year: "numeric",
+      };
 
   const formatted = new Intl.DateTimeFormat("vi-VN", options).format(d);
   if (!withTime) return formatted;
@@ -49,29 +49,99 @@ export const formatDateTime = (value, withTime = true) => {
 export const ORDER_STATUS_CFG = {
   pending: { label: "Chờ xác nhận", bg: "bg-blue-100", text: "text-blue-700" },
   confirmed: { label: "Đã xác nhận", bg: "bg-blue-100", text: "text-blue-700" },
-  processing: { label: "Đang chuẩn bị", bg: "bg-blue-100", text: "text-blue-700" },
-  preparing: { label: "Đang chuẩn bị", bg: "bg-blue-100", text: "text-blue-700" },
-  shipping: { label: "Đang giao hàng", bg: "bg-amber-100", text: "text-amber-700" },
+  processing: {
+    label: "Đang chuẩn bị",
+    bg: "bg-blue-100",
+    text: "text-blue-700",
+  },
+  preparing: {
+    label: "Đang chuẩn bị",
+    bg: "bg-blue-100",
+    text: "text-blue-700",
+  },
+  shipping: {
+    label: "Đang giao hàng",
+    bg: "bg-amber-100",
+    text: "text-amber-700",
+  },
   delivered: { label: "Đã giao", bg: "bg-teal-100", text: "text-teal-700" },
-  completed: { label: "Hoàn tất", bg: "bg-emerald-100", text: "text-emerald-700" },
+  completed: {
+    label: "Hoàn tất",
+    bg: "bg-emerald-100",
+    text: "text-emerald-700",
+  },
   cancelled: { label: "Đã hủy", bg: "bg-red-50", text: "text-red-500" },
+  return_requested: {
+    label: "Yêu cầu trả hàng",
+    bg: "bg-amber-100",
+    text: "text-amber-700",
+  },
+  return_approved: {
+    label: "Đã duyệt trả hàng",
+    bg: "bg-teal-100",
+    text: "text-teal-700",
+  },
+  return_rejected: {
+    label: "Từ chối trả hàng",
+    bg: "bg-red-100",
+    text: "text-red-600",
+  },
+  returned: {
+    label: "Đã trả hàng",
+    bg: "bg-violet-100",
+    text: "text-violet-700",
+  },
 };
+
+/** Các trạng thái thuộc luồng trả hàng */
+export const RETURN_ORDER_STATUSES = [
+  "return_requested",
+  "return_approved",
+  "return_rejected",
+  "returned",
+];
+
+export const RETURN_SUB_FILTERS = [
+  { key: "all", label: "Tất cả" },
+  { key: "return_requested", label: "Gửi yêu cầu" },
+  { key: "return_approved", label: "Duyệt" },
+  { key: "return_rejected", label: "Từ chối" },
+  { key: "returned", label: "Đã trả" },
+];
 
 /** Các trạng thái không hiển thị trên trang theo dõi đơn hàng */
 export const TERMINAL_ORDER_STATUSES = ["completed", "cancelled"];
 
 export function isActiveTrackingOrder(status) {
-  return !TERMINAL_ORDER_STATUSES.includes(status);
+  return (
+    !TERMINAL_ORDER_STATUSES.includes(status) &&
+    !RETURN_ORDER_STATUSES.includes(status)
+  );
 }
 
 export function isHistoryOrder(status) {
-  return TERMINAL_ORDER_STATUSES.includes(status);
+  return (
+    TERMINAL_ORDER_STATUSES.includes(status) ||
+    RETURN_ORDER_STATUSES.includes(status)
+  );
 }
 
-export function matchesHistoryStatusFilter(orderStatus, filterKey) {
+export function isReturnOrder(status) {
+  return RETURN_ORDER_STATUSES.includes(status);
+}
+
+export function matchesHistoryStatusFilter(
+  orderStatus,
+  filterKey,
+  returnSubFilter = "all",
+) {
   if (filterKey === "all") return isHistoryOrder(orderStatus);
   if (filterKey === "completed") return orderStatus === "completed";
   if (filterKey === "cancelled") return orderStatus === "cancelled";
+  if (filterKey === "return") {
+    if (returnSubFilter === "all") return isReturnOrder(orderStatus);
+    return orderStatus === returnSubFilter;
+  }
   return false;
 }
 
@@ -89,8 +159,12 @@ const DELIVERY_SLOT_WINDOWS = {
 };
 
 function resolveDeliverySlotKey(deliverySlot, deliverySlotName) {
-  const slot = String(deliverySlot ?? "").trim().toLowerCase();
-  const name = String(deliverySlotName ?? "").trim().toLowerCase();
+  const slot = String(deliverySlot ?? "")
+    .trim()
+    .toLowerCase();
+  const name = String(deliverySlotName ?? "")
+    .trim()
+    .toLowerCase();
 
   if (
     slot.includes("morning") ||
@@ -142,7 +216,12 @@ export function formatEstimatedDeliveryTime(order = {}) {
 }
 
 /** Các trạng thái thuộc nhóm "Đang xử lý" trên trang theo dõi đơn hàng */
-export const PROCESSING_STATUSES = ["pending", "confirmed", "processing", "preparing"];
+export const PROCESSING_STATUSES = [
+  "pending",
+  "confirmed",
+  "processing",
+  "preparing",
+];
 
 export const STATUS_FILTER_MAP = {
   processing: PROCESSING_STATUSES,
@@ -157,8 +236,20 @@ export function matchesStatusFilter(orderStatus, filterKey) {
   return allowed ? allowed.includes(orderStatus) : orderStatus === filterKey;
 }
 
+export function canCancelBuyerOrder(status) {
+  return status === "pending";
+}
+
+export function canReturnBuyerOrder(status) {
+  return status === "completed";
+}
+
 export const getStatusCfg = (status) =>
-  ORDER_STATUS_CFG[status] ?? { label: status || "—", bg: "bg-gray-100", text: "text-gray-500" };
+  ORDER_STATUS_CFG[status] ?? {
+    label: status || "—",
+    bg: "bg-gray-100",
+    text: "text-gray-500",
+  };
 
 // payment_method ("cash" theo example trong API)
 const PAYMENT_METHOD_LABEL = {
@@ -168,4 +259,5 @@ const PAYMENT_METHOD_LABEL = {
   card: "Thẻ ngân hàng",
 };
 
-export const formatPaymentMethod = (method) => PAYMENT_METHOD_LABEL[method] ?? method ?? "—";
+export const formatPaymentMethod = (method) =>
+  PAYMENT_METHOD_LABEL[method] ?? method ?? "—";

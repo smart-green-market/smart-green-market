@@ -232,6 +232,9 @@ export function formatDealerProduct(raw) {
     discount_percent: raw?.discount_percent ?? null,
     has_age_discount: raw?.has_age_discount ?? false,
     nearest_expiry_date: raw?.nearest_expiry_date ?? null,
+    production_date: raw?.production_date ?? null,
+    expiry_date: raw?.expiry_date ?? null,
+    days_to_expiry: raw?.days_to_expiry ?? null,
     age_discount_reason: raw?.age_discount_reason ?? "",
     wholesale_price: retailPrice,
     price: effectivePrice ?? retailPrice,
@@ -338,10 +341,20 @@ export function formatStorageDuration(days) {
 }
 
 export function formatStorageTemperature(min, max) {
-  if (min == null && max == null) return null;
-  if (min != null && max != null) return `${min}°C — ${max}°C`;
-  if (min != null) return `Tối thiểu ${min}°C`;
-  return `Tối đa ${max}°C`;
+  const toInt = (value) => {
+    if (value == null || value === "") return null;
+    const parsed = Number(value);
+    if (Number.isNaN(parsed)) return null;
+    return Math.round(parsed);
+  };
+
+  const minInt = toInt(min);
+  const maxInt = toInt(max);
+
+  if (minInt == null && maxInt == null) return null;
+  if (minInt != null && maxInt != null) return `${minInt}°C — ${maxInt}°C`;
+  if (minInt != null) return `Tối thiểu ${minInt}°C`;
+  return `Tối đa ${maxInt}°C`;
 }
 
 export function formatProductPrice(price) {
@@ -377,6 +390,13 @@ export function getStockLabel(status, inStock) {
 
 export function formatDateVi(value) {
   if (!value) return null;
+
+  const raw = String(value).trim();
+  if (/^\d{4}-\d{2}-\d{2}$/.test(raw)) {
+    const [year, month, day] = raw.split("-");
+    return `${day}/${month}/${year}`;
+  }
+
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return null;
   return date.toLocaleDateString("vi-VN", {

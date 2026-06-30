@@ -7,6 +7,8 @@ import OrderListLoading from "../../components/User/OrderTracking/OrderListLoadi
 import OrderListError from "../../components/User/OrderTracking/OrderListError";
 import OrderListEmpty from "../../components/User/OrderTracking/OrderListEmpty";
 import OrderDetailModal from "../../components/User/OrderTracking/OrderDetailModal";
+import CancelOrderModal from "../../components/User/OrderTracking/CancelOrderModal";
+import ReturnOrderModal from "../../components/User/OrderTracking/ReturnOrderModal";
 
 import {
   buyerOrder,
@@ -14,6 +16,7 @@ import {
   parseBuyerOrderList,
 } from "../../services/api/Buyer/buyerOrder";
 import { useDealerSlug } from "../../hooks/useStorefrontPaths";
+import { useOrderStatusNotifications } from "../../hooks/useOrderStatusNotifications";
 import { matchesStatusFilter, isActiveTrackingOrder } from "../../utils/orderUtils";
 
 const FILTER_TABS = [
@@ -24,12 +27,15 @@ const FILTER_TABS = [
 
 export default function OrderTrackingPage() {
   const dealerSlug = useDealerSlug();
+  const { markAsSeen } = useOrderStatusNotifications({ enabled: false });
 
   const [orders, setOrders] = useState([]);
   const [activeFilter, setActiveFilter] = useState("all");
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
   const [selectedOrderId, setSelectedOrderId] = useState(null);
+  const [cancelTarget, setCancelTarget] = useState(null);
+  const [returnTarget, setReturnTarget] = useState(null);
 
   const fetchOrders = useCallback(async () => {
     if (!dealerSlug) {
@@ -54,6 +60,12 @@ export default function OrderTrackingPage() {
   useEffect(() => {
     fetchOrders();
   }, [fetchOrders]);
+
+  useEffect(() => {
+    if (!isLoading && !error) {
+      markAsSeen(orders);
+    }
+  }, [orders, isLoading, error, markAsSeen]);
 
   const activeOrders = useMemo(
     () => orders.filter((order) => isActiveTrackingOrder(order.status)),
@@ -86,6 +98,19 @@ export default function OrderTrackingPage() {
   const handleCloseDetail = useCallback(() => {
     setSelectedOrderId(null);
   }, []);
+
+  const handleCancelRequest = useCallback((order) => {
+    setCancelTarget(order);
+  }, []);
+
+  const handleReturnRequest = useCallback((order) => {
+    setReturnTarget(order);
+  }, []);
+
+  const handleActionSuccess = useCallback(() => {
+    fetchOrders();
+    setSelectedOrderId(null);
+  }, [fetchOrders]);
 
   return (
     <div className="min-h-screen bg-slate-50 px-4 py-8 sm:px-8">
@@ -121,6 +146,8 @@ export default function OrderTrackingPage() {
                 key={order.id}
                 order={order}
                 onViewDetail={handleViewDetail}
+                onCancelOrder={handleCancelRequest}
+                onReturnOrder={handleReturnRequest}
               />
             ))}
           </div>
@@ -133,6 +160,24 @@ export default function OrderTrackingPage() {
         isOpen={selectedOrderId != null}
         onClose={handleCloseDetail}
         onOrderUpdated={fetchOrders}
+        onCancelOrder={handleCancelRequest}
+        onReturnOrder={handleReturnRequest}
+      />
+
+      <CancelOrderModal
+        isOpen={cancelTarget != null}
+        onClose={() => setCancelTarget(null)}
+        dealerSlug={dealerSlug}
+        order={cancelTarget}
+        onSuccess={handleActionSuccess}
+      />
+
+      <ReturnOrderModal
+        isOpen={returnTarget != null}
+        onClose={() => setReturnTarget(null)}
+        dealerSlug={dealerSlug}
+        order={returnTarget}
+        onSuccess={handleActionSuccess}
       />
     </div>
   );

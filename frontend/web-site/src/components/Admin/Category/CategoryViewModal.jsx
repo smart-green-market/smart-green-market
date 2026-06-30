@@ -286,21 +286,21 @@ export default function CategoryViewModal({
 
                                     {isActive ? (
                                         <button
-                                            type="button"
-                                            disabled={loading}
-                                            onClick={() =>
-                                                openConfirm({
-                                                    title: "Khóa danh mục",
-                                                    message: `Bạn có chắc chắn muốn khóa "${category.name}" không?`,
-                                                    confirmText: "Khóa",
-                                                    variant: "warning",
-                                                    action: () => onLock(category),
-                                                })
-                                            }
-                                            className="cursor-pointer rounded-xl bg-gray-500 px-6 py-2.5 font-semibold text-white hover:bg-gray-400 disabled:opacity-50"
-                                        >
-                                            Khóa
-                                        </button>
+                                        type="button"
+                                        disabled={loading}
+                                        onClick={() =>
+                                            openConfirm({
+                                                title: "Xóa danh mục",
+                                                message: `Bạn có chắc chắn muốn xóa "${category.name}"? Hành động này không thể hoàn tác.`,
+                                                confirmText: "Xóa",
+                                                variant: "danger",
+                                                action: () => onDelete(category),
+                                            })
+                                        }
+                                        className="cursor-pointer rounded-xl bg-red-600 px-6 py-2.5 font-semibold text-white hover:bg-red-700 disabled:opacity-50"
+                                    >
+                                        Xóa
+                                    </button>
                                     ) : null}
 
                                     {isInactive ? (
@@ -379,19 +379,21 @@ export default function CategoryViewModal({
 
                             {!isEditing && isCustomScope && isActive ? (
                                 <button
-                                    onClick={() =>
-                                        openConfirm({
-                                            title: "Khóa danh mục",
-                                            message: `Bạn có chắc chắn muốn khóa "${category.name}" không?`,
-                                            confirmText: "Khóa",
-                                            variant: "warning",
-                                            action: () => onLock(category),
-                                        })
-                                    }
-                                    className="cursor-pointer rounded-xl bg-gray-500 px-6 py-2.5 font-semibold text-white hover:bg-gray-400"
-                                >
-                                    Khóa
-                                </button>
+                                type="button"
+                                disabled={loading}
+                                onClick={() =>
+                                    openConfirm({
+                                        title: "Xóa danh mục",
+                                        message: `Bạn có chắc chắn muốn xóa "${category.name}"? Hành động này không thể hoàn tác.`,
+                                        confirmText: "Xóa",
+                                        variant: "danger",
+                                        action: () => onDelete(category),
+                                    })
+                                }
+                                className="cursor-pointer rounded-xl bg-red-600 px-6 py-2.5 font-semibold text-white hover:bg-red-700 disabled:opacity-50"
+                            >
+                                Xóa
+                            </button>
                             ) : null}
 
                             {!isEditing && isCustomScope && isInactive ? (
