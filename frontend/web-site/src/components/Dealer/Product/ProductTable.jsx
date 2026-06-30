@@ -25,7 +25,7 @@ export default function ProductTable({ data, onRowClick, currentPage, totalPages
   const processedData = useMemo(() => {
     return (data || []).map((row) => ({
       ...row,
-      sold: (row.total_quantity || 0) - (row.available_quantity || 0),
+      sold: (row.imported_quantity || 0) - (row.available_quantity || 0),
     }));
   }, [data]);
 
@@ -51,6 +51,7 @@ export default function ProductTable({ data, onRowClick, currentPage, totalPages
                 <SortableHeader label="Sản phẩm" column="title" sortColumn={sortColumn} sortDirection={sortDirection} onSort={handleSort} />
                 <SortableHeader label="Giá bán lẻ" column="retail_price" sortColumn={sortColumn} sortDirection={sortDirection} onSort={handleSort} />
                 <SortableHeader label="Số lượng tồn" column="available_quantity" sortColumn={sortColumn} sortDirection={sortDirection} onSort={handleSort} align="center" />
+                <SortableHeader label="Đã bán" column="sold" sortColumn={sortColumn} sortDirection={sortDirection} onSort={handleSort} align="center" />
                 <SortableHeader label="Trạng thái" column="status" sortColumn={sortColumn} sortDirection={sortDirection} onSort={handleSort} align="center" />
                 <th className="px-6 py-4 text-[11px] font-bold text-neutral-500 uppercase tracking-wider text-right">Thao tác</th>
               </tr>
@@ -90,6 +91,11 @@ export default function ProductTable({ data, onRowClick, currentPage, totalPages
                     <td className="px-6 py-4 text-center">
                       <span className="text-neutral-600 font-medium text-xs">
                         {row.available_quantity || 0} {row.supplier_product_unit}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4 text-center">
+                      <span className="text-neutral-600 font-medium text-xs">
+                        {row.sold || 0} {row.supplier_product_unit}
                       </span>
                     </td>
                     <td className="px-6 py-4 text-center">
