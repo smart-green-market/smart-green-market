@@ -125,6 +125,7 @@ INSTALLED_APPS = [
     "apps.notifications",
     "apps.system_config",
     "apps.dashboard",
+    "apps.voucher",
 ]
 
 if CLOUDINARY_URL:

@@ -107,6 +107,14 @@ class Promotion(models.Model):
         scope = self.dealer.store_name if self.dealer_id else "Platform"
         return f"[{scope}] {self.title}"
 
+    def is_active(self):
+        from django.utils import timezone
+        now = timezone.now()
+        return (
+            self.status == PromotionStatus.ACTIVE
+            and self.start_date <= now <= self.end_date
+        )
+
 
 class PromotionTarget(models.Model):
     """Đối tượng áp dụng của một khuyến mãi."""
