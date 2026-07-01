@@ -63,7 +63,12 @@ class Command(BaseCommand):
 
         if clear:
             self.stdout.write('Clearing existing data...')
-            from apps.marketing.models import CustomerInteraction, DealerSupplierProductInteraction
+            from apps.marketing.models import (
+                CustomerInteraction,
+                CustomerSegment,
+                CustomerSegmentMember,
+                DealerSupplierProductInteraction,
+            )
             from apps.orders.models import (
                 CustomerPayment,
                 OrderReturn,
@@ -107,6 +112,8 @@ class Command(BaseCommand):
             PromotionUsage.objects.all().delete()
             PromotionTarget.objects.all().delete()
             Promotion.objects.all().delete()
+            CustomerSegmentMember.objects.all().delete()
+            CustomerSegment.objects.all().delete()
             CustomerAddress.objects.all().delete()
             CustomerProfile.objects.all().delete()
             DealerProfile.objects.all().delete()
@@ -118,6 +125,9 @@ class Command(BaseCommand):
  
         self.password = make_password(SEED_PASSWORD)
         self.admin_account = self._get_or_create_admin()
+
+        self.stdout.write('Creating system customer segments...')
+        self._seed_customer_segments()
  
         self.stdout.write('Creating Categories...')
         self.categories = self._create_categories()
@@ -317,6 +327,12 @@ class Command(BaseCommand):
             )
             dealers.append(profile)
         return dealers
+
+    def _seed_customer_segments(self):
+        from apps.marketing.segment_defaults import seed_system_customer_segments
+
+        seed_system_customer_segments()
+        self.stdout.write(self.style.SUCCESS('System customer segments ready.'))
 
     def _create_buyers(self, count, dealers):
         from apps.customers.services import build_storefront_username
