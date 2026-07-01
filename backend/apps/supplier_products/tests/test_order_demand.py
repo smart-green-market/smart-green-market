@@ -75,6 +75,7 @@ class SupplierProductOrderDemandTests(TestCase):
             purchase_order=po_pending,
             supplier_product=self.product,
             quantity=Decimal("30"),
+            original_quantity=Decimal("30"),
             unit_price=Decimal("10000"),
             subtotal=Decimal("300000"),
         )
@@ -93,6 +94,7 @@ class SupplierProductOrderDemandTests(TestCase):
             purchase_order=po_prep,
             supplier_product=self.product,
             quantity=Decimal("50"),
+            original_quantity=Decimal("50"),
             unit_price=Decimal("10000"),
             subtotal=Decimal("500000"),
         )
@@ -111,6 +113,7 @@ class SupplierProductOrderDemandTests(TestCase):
             purchase_order=po_done,
             supplier_product=self.product,
             quantity=Decimal("99"),
+            original_quantity=Decimal("99"),
             unit_price=Decimal("10000"),
             subtotal=Decimal("990000"),
         )

@@ -88,6 +88,7 @@ class SupplierProductSoftDeleteTests(TestCase):
             purchase_order=po,
             supplier_product=self.product,
             quantity=Decimal("10"),
+            original_quantity=Decimal("10"),
             unit_price=Decimal("10000"),
             subtotal=Decimal("100000"),
         )
@@ -111,6 +112,7 @@ class SupplierProductSoftDeleteTests(TestCase):
             purchase_order=po,
             supplier_product=self.product,
             quantity=Decimal("10"),
+            original_quantity=Decimal("10"),
             unit_price=Decimal("10000"),
             subtotal=Decimal("100000"),
         )

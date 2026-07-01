@@ -13,7 +13,8 @@ FILE LIÊN QUAN (đọc kèm khi vấn đáp):
 
 === SƠ ĐỒ LUỒNG ===
 [Đại lý] POST /purchase-orders/           → create_purchase_orders (tách theo NCC)
-[NCC]    POST .../confirm/                → supplier_confirm_order (+ tính cọc)
+[NCC]    POST .../confirm/                → supplier_confirm_order (+ duyệt SP)
+[Dealer] POST .../approve-adjustment/     → dealer_approve_adjustment (nếu có điều chỉnh)
 [NCC]    POST .../reject/                 → supplier_reject_order
 [Đại lý] GET  .../payment-qr?deposit      → get_payment_qr (VietQR)
 [Đại lý] POST .../submit-deposit/         → dealer_submit_payment (cọc)
@@ -63,6 +64,7 @@ from common.vietqr import build_supplier_payment_qr
 from .models import (
     PurchaseOrder,
     PurchaseOrderItem,
+    PurchaseOrderItemReviewStatus,
     PurchaseOrderPayment,
     PurchaseOrderPaymentStatus,
     PurchaseOrderPaymentType,
@@ -82,6 +84,7 @@ TERMINAL_STATUSES = {
 
 DEALER_CANCELLABLE = {
     PurchaseOrderStatus.PENDING_SUPPLIER_CONFIRMATION,
+    PurchaseOrderStatus.PENDING_DEALER_CONFIRMATION,
     PurchaseOrderStatus.CONFIRMED,
 }
 
@@ -255,6 +258,7 @@ def build_order_items(order, items_data):
             purchase_order=order,
             supplier_product=product,
             quantity=quantity,
+            original_quantity=quantity,
             unit_price=unit_price,
             subtotal=subtotal,
             note=row.get("note", ""),
@@ -366,6 +370,116 @@ def create_purchase_orders(
     return orders
 
 
+def _normalize_confirm_items(order, items_data):
+    """Chuẩn hóa payload duyệt dòng SP — không gửi items thì duyệt hết với SL hiện tại."""
+    db_items = list(order.items.order_by("id"))
+    if not db_items:
+        raise ValidationError({"items": "Phiếu không có sản phẩm."})
+
+    if not items_data:
+        return [
+            {
+                "id": item.id,
+                "review_status": PurchaseOrderItemReviewStatus.APPROVED,
+                "quantity": item.quantity,
+                "rejection_reason": "",
+            }
+            for item in db_items
+        ]
+
+    item_map = {item.id: item for item in db_items}
+    payload_ids = {row["id"] for row in items_data}
+    if payload_ids != set(item_map):
+        raise ValidationError({"items": "Phải gửi đủ tất cả dòng sản phẩm của phiếu."})
+
+    normalized = []
+    for row in items_data:
+        item_id = row["id"]
+        review_status = row["review_status"]
+        if review_status not in (
+            PurchaseOrderItemReviewStatus.APPROVED,
+            PurchaseOrderItemReviewStatus.REJECTED,
+        ):
+            raise ValidationError(
+                {"items": f"Dòng {item_id}: review_status phải là approved hoặc rejected."}
+            )
+
+        rejection_reason = (row.get("rejection_reason") or "").strip()
+        if review_status == PurchaseOrderItemReviewStatus.REJECTED and not rejection_reason:
+            raise ValidationError(
+                {f"items[{item_id}].rejection_reason": "Bắt buộc khi từ chối dòng sản phẩm."}
+            )
+
+        quantity = row.get("quantity", item_map[item_id].quantity)
+        if review_status == PurchaseOrderItemReviewStatus.APPROVED:
+            quantity = Decimal(quantity)
+            if quantity <= 0:
+                raise ValidationError(
+                    {f"items[{item_id}].quantity": "Số lượng phải lớn hơn 0."}
+                )
+        else:
+            quantity = item_map[item_id].quantity
+
+        normalized.append(
+            {
+                "id": item_id,
+                "review_status": review_status,
+                "quantity": quantity,
+                "rejection_reason": rejection_reason,
+            }
+        )
+    return normalized
+
+
+def _apply_item_reviews(order, items_data):
+    """Cập nhật trạng thái duyệt từng dòng; trả (approved_total, has_item_changes)."""
+    item_map = {item.id: item for item in order.items.select_for_update().order_by("id")}
+    approved_total = Decimal("0")
+    has_item_changes = False
+    approved_count = 0
+
+    for row in items_data:
+        item = item_map[row["id"]]
+        original_qty = item.original_quantity
+        review_status = row["review_status"]
+
+        if review_status == PurchaseOrderItemReviewStatus.REJECTED:
+            item.review_status = PurchaseOrderItemReviewStatus.REJECTED
+            item.rejection_reason = row["rejection_reason"]
+            item.subtotal = Decimal("0")
+            has_item_changes = True
+        else:
+            new_qty = Decimal(row["quantity"])
+            item.review_status = PurchaseOrderItemReviewStatus.APPROVED
+            item.rejection_reason = ""
+            item.quantity = new_qty
+            item.subtotal = (new_qty * item.unit_price).quantize(Decimal("0.01"))
+            approved_total += item.subtotal
+            approved_count += 1
+            if new_qty != original_qty:
+                has_item_changes = True
+
+        item.save(
+            update_fields=[
+                "review_status",
+                "rejection_reason",
+                "quantity",
+                "subtotal",
+            ]
+        )
+
+    if approved_count == 0:
+        raise ValidationError(
+            {"items": "Cần ít nhất một sản phẩm được duyệt. Dùng reject cả phiếu nếu không nhận đơn."}
+        )
+
+    return approved_total, has_item_changes
+
+
+def _delivery_time_changed(order, confirmed_delivery_time):
+    return confirmed_delivery_time != order.requested_delivery_time
+
+
 @transaction.atomic
 def supplier_confirm_order(
     order,
@@ -373,13 +487,22 @@ def supplier_confirm_order(
     deposit_percent=None,
     note="",
     confirmed_delivery_time=None,
+    items_data=None,
 ):
-    """Bước 2 — NCC xác nhận đơn, chốt % cọc và ngày giao cam kết."""
+    """Bước 2 — NCC xác nhận đơn, chốt % cọc, ngày giao và duyệt từng dòng SP.
+
+    Không đổi ngày giao / SP → confirmed (flow cũ).
+    Có đổi → pending_dealer_confirmation, chờ dealer approve-adjustment hoặc cancel.
+    """
     _ensure_not_terminal(order)
     if order.status != PurchaseOrderStatus.PENDING_SUPPLIER_CONFIRMATION:
         raise ValidationError({"detail": "Chỉ xác nhận phiếu đang chờ NCC."})
 
     validate_confirmed_delivery_time(order, confirmed_delivery_time)
+
+    normalized_items = _normalize_confirm_items(order, items_data)
+    approved_total, has_item_changes = _apply_item_reviews(order, normalized_items)
+    validate_order_amount(approved_total)
 
     raw_percent = (
         deposit_percent
@@ -388,14 +511,18 @@ def supplier_confirm_order(
     )
     percent = validate_deposit_percent(raw_percent)
 
+    order.total_amount = approved_total
+    order.debt_amount = max(approved_total - order.paid_amount, Decimal("0"))
     order.deposit_percent = percent
-    order.deposit_amount = (order.total_amount * percent / Decimal("100")).quantize(
+    order.deposit_amount = (approved_total * percent / Decimal("100")).quantize(
         Decimal("0.01")
     )
     order.confirmed_delivery_time = confirmed_delivery_time
     order.confirmed_at = timezone.now()
     order.save(
         update_fields=[
+            "total_amount",
+            "debt_amount",
             "deposit_percent",
             "deposit_amount",
             "confirmed_delivery_time",
@@ -416,11 +543,43 @@ def supplier_confirm_order(
     if note:
         history_note = f"{history_note} {note}"
 
+    delivery_changed = _delivery_time_changed(order, confirmed_delivery_time)
+    needs_dealer_approval = delivery_changed or has_item_changes
+
+    if needs_dealer_approval:
+        record_status_change(
+            order,
+            PurchaseOrderStatus.PENDING_DEALER_CONFIRMATION,
+            user,
+            note=history_note,
+        )
+        from .notifications import notify_adjustment_pending_dealer
+
+        notify_adjustment_pending_dealer(
+            order,
+            actor=user,
+            delivery_changed=delivery_changed,
+            items_changed=has_item_changes,
+        )
+    else:
+        record_status_change(order, PurchaseOrderStatus.CONFIRMED, user, note=history_note)
+
+    return order
+
+
+@transaction.atomic
+def dealer_approve_adjustment(order, user, note=""):
+    """Dealer chấp nhận điều chỉnh ngày giao / sản phẩm từ NCC → confirmed."""
+    _ensure_not_terminal(order)
+    if order.status != PurchaseOrderStatus.PENDING_DEALER_CONFIRMATION:
+        raise ValidationError(
+            {"detail": "Chỉ xác nhận điều chỉnh khi phiếu đang chờ đại lý duyệt."}
+        )
+    if order.dealer.account_id != user.id:
+        raise ValidationError({"detail": "Không có quyền."})
+
+    history_note = note.strip() or "Đại lý đồng ý điều chỉnh của NCC."
     record_status_change(order, PurchaseOrderStatus.CONFIRMED, user, note=history_note)
-
-    from .notifications import notify_delivery_time_adjusted
-
-    notify_delivery_time_adjusted(order, actor=user)
     return order
 
 
@@ -778,7 +937,9 @@ def _import_dealer_inventory(order, user):
     """
     import_date = timezone.now().date()
 
-    for item in order.items.select_related("supplier_product", "supplier_product__category"):
+    for item in order.items.filter(
+        review_status=PurchaseOrderItemReviewStatus.APPROVED,
+    ).select_related("supplier_product", "supplier_product__category"):
         dealer_product, _ = DealerProduct.objects.get_or_create(
             dealer_profile=order.dealer,
             supplier_product=item.supplier_product,

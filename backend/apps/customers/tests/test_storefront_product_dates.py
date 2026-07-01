@@ -147,8 +147,10 @@ class StorefrontProductDatesTests(TestCase):
             purchase_order=order,
             supplier_product=self.supplier_product,
             quantity=10,
+            original_quantity=10,
             unit_price=Decimal("10000"),
             subtotal=Decimal("100000"),
+            review_status="approved",
         )
         _import_dealer_inventory(order, self.dealer.account)
 
