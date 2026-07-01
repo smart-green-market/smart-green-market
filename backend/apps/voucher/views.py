@@ -2,7 +2,14 @@
 from django.utils import timezone
 from rest_framework.response import Response
 from apps.promotions.models import Promotion, PromotionUsage, PromotionStatus
-from .serializers import AvailablePromotionSerializer, PromotionSerializer, VerifyPromotionSerializer, CartApplyVoucherSerializer, ApplyVoucherSerializer
+from .serializers import (
+    AvailablePromotionSerializer,
+    PromotionSerializer,
+    VerifyPromotionSerializer,
+    CartApplyVoucherSerializer,
+    ApplyVoucherSerializer,
+    CartApplyVoucherResponseSerializer
+)
 from .services import CartVoucherService
 from rest_framework import viewsets
 from rest_framework.views import APIView
@@ -220,7 +227,7 @@ class PromotionViewSet(viewsets.ModelViewSet):
                 request_only=True,
             )
         ],
-        responses={200: dict},
+        responses={200: CartApplyVoucherResponseSerializer},
     )
     @action(detail=False, methods=["post"], permission_classes=[IsActive, IsBuyer])
     def apply(self, request):
