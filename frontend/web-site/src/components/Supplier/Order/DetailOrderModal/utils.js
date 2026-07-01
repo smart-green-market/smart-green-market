@@ -146,7 +146,7 @@ export const buildPrintHtml = ({ order, supplier }) => {
           ${item.item_status === "approved"
             ? '<span class="tag-approved">✓ Duyệt</span>'
             : item.item_status === "rejected"
-            ? `<span class="tag-rejected">✗ Từ chối</span>${item.reject_reason ? `<br/><small style="color:#dc2626;font-size:10px">${item.reject_reason}</small>` : ""}`
+            ? `<span class="tag-rejected">✗ Từ chối</span>${(item.reject_reason || item.rejection_reason) ? `<br/><small style="color:#dc2626;font-size:10px">${item.reject_reason || item.rejection_reason}</small>` : ""}`
             : '<span class="tag-pending">Chờ duyệt</span>'}
         </td>
       </tr>`).join("")}
