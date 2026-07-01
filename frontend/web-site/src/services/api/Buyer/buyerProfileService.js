@@ -20,6 +20,24 @@ export const buyerProfileService = {
   //       "store_dealer_slug": "jrFq6bWqvn9q"
   //     },
   //     "favorite_category": 0,
+  //     "segments": [
+  //       {
+  //         "id": 2,
+  //         "code": "PASSIVE",
+  //         "name": "Khách hàng Thụ động",
+  //         "description": "Khách hàng bình thường hoặc khách vãng lai",
+  //         "is_system": true,
+  //         "joined_at": "2026-07-01T03:30:00Z"
+  //       }
+  //     ],
+  //     "primary_segment": {
+  //       "id": 2,
+  //       "code": "PASSIVE",
+  //       "name": "Khách hàng Thụ động",
+  //       "description": "Khách hàng bình thường hoặc khách vãng lai",
+  //       "is_system": true,
+  //       "joined_at": "2026-07-01T03:30:00Z"
+  //     },
   //     "total_orders": 0,
   //     "total_spent": "164883618.93",
   //     "loyalty_points": 0,
@@ -69,6 +87,24 @@ export const buyerProfileService = {
   //       "store_dealer_slug": "A5Cz"
   //     },
   //     "favorite_category": 0,
+  //     "segments": [
+  //       {
+  //         "id": 2,
+  //         "code": "PASSIVE",
+  //         "name": "Khách hàng Thụ động",
+  //         "description": "Khách hàng bình thường hoặc khách vãng lai",
+  //         "is_system": true,
+  //         "joined_at": "2026-07-01T03:30:00Z"
+  //       }
+  //     ],
+  //     "primary_segment": {
+  //       "id": 2,
+  //       "code": "PASSIVE",
+  //       "name": "Khách hàng Thụ động",
+  //       "description": "Khách hàng bình thường hoặc khách vãng lai",
+  //       "is_system": true,
+  //       "joined_at": "2026-07-01T03:30:00Z"
+  //     },
   //     "total_orders": 0,
   //     "total_spent": "",
   //     "loyalty_points": 0,
