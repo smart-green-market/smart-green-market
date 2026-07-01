@@ -1,4 +1,4 @@
-import { ClipboardList, Clock, CheckCircle2, Package, Truck, PackageCheck, XCircle } from "lucide-react";
+import { ClipboardList, Clock, CheckCircle2, Package, RotateCcw, XCircle } from "lucide-react";
 
 const STAT_CARDS = [
     {
@@ -35,15 +35,15 @@ const STAT_CARDS = [
         activeBg: "bg-indigo-100",
     },
     {
-        key: "completed",
-        label: "Hoàn tất",
-        icon: CheckCircle2,
-        filterValue: "completed",
-        bgColor: "bg-green-50",
-        iconColor: "text-green-500",
-        countColor: "text-green-700",
-        borderColor: "border-green-200",
-        activeBg: "bg-green-100",
+        key: "return_requested",
+        label: "Yêu cầu hoàn trả",
+        icon: RotateCcw,
+        filterValue: "return_requested",
+        bgColor: "bg-pink-50",
+        iconColor: "text-pink-500",
+        countColor: "text-pink-700",
+        borderColor: "border-pink-200",
+        activeBg: "bg-pink-100",
     },
     {
         key: "cancelled",

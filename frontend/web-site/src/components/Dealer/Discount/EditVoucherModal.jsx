@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { X, Loader2 } from 'lucide-react';
 import { voucherService } from '../../../services/api/voucherService';
+import { customerSegmentService } from '../../../services/api/customerSegmentService';
 import { toast } from 'sonner';
 
 export default function EditVoucherModal({ isOpen, onClose, onSuccess, voucherId }) {
@@ -21,6 +22,11 @@ export default function EditVoucherModal({ isOpen, onClose, onSuccess, voucherId
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [originalStartDate, setOriginalStartDate] = useState('');
+
+  const [segments, setSegments] = useState([]);
+
+  const [targetType, setTargetType] = useState('customer_group');
+  const [targetId, setTargetId] = useState('');
 
   useEffect(() => {
     if (isOpen && voucherId) {
@@ -49,7 +55,13 @@ export default function EditVoucherModal({ isOpen, onClose, onSuccess, voucherId
   const fetchVoucherDetail = async () => {
     try {
       setIsLoading(true);
-      const data = await voucherService.getById(voucherId);
+      const [segmentsData, data] = await Promise.all([
+        customerSegmentService.getAll({ limit: 100 }).catch(() => ({ results: [] })),
+        voucherService.getById(voucherId),
+      ]);
+
+      setSegments(Array.isArray(segmentsData) ? segmentsData : segmentsData?.results || []);
+
       setOriginalStartDate(data.start_date || '');
       setFormData({
         title: data.title || '',
@@ -64,6 +76,15 @@ export default function EditVoucherModal({ isOpen, onClose, onSuccess, voucherId
         start_date: formatDateTimeLocal(data.start_date),
         end_date: formatDateTimeLocal(data.end_date),
       });
+
+      const firstTarget = data.targets?.[0] || { target_type: 'all' };
+      setTargetType('customer_group');
+      
+      let tId = '';
+      if (firstTarget.target_type === 'segment') {
+        tId = firstTarget.segment || '';
+      }
+      setTargetId(tId.toString());
     } catch (error) {
       console.error('Error fetching voucher detail for edit:', error);
       toast.error('Không thể tải thông tin voucher. Vui lòng thử lại sau.');
@@ -100,6 +121,11 @@ export default function EditVoucherModal({ isOpen, onClose, onSuccess, voucherId
       return;
     }
 
+    if (!targetId) {
+      toast.error('Vui lòng chọn nhóm khách hàng áp dụng');
+      return;
+    }
+
     try {
       setIsSubmitting(true);
       
@@ -120,6 +146,13 @@ export default function EditVoucherModal({ isOpen, onClose, onSuccess, voucherId
 
       payload.usage_limit = formData.usage_limit ? parseInt(formData.usage_limit, 10) : null;
       payload.usage_limit_per_customer = formData.usage_limit_per_customer ? parseInt(formData.usage_limit_per_customer, 10) : null;
+
+      // Add targets payload
+      const targetObj = {
+        target_type: 'segment',
+        segment: parseInt(targetId, 10)
+      };
+      payload.targets = [targetObj];
 
       await voucherService.update(voucherId, payload);
       toast.success('Cập nhật voucher thành công');
@@ -206,6 +239,29 @@ export default function EditVoucherModal({ isOpen, onClose, onSuccess, voucherId
                   </div>
                 </div>
               </div>
+
+            {/* Đối tượng áp dụng (Targets) */}
+            <div>
+              <h3 className="text-lg font-semibold text-gray-800 mb-4 border-b pb-2">Đối tượng áp dụng</h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Chọn nhóm khách hàng</label>
+                  <select
+                    value={targetId}
+                    onChange={(e) => setTargetId(e.target.value)}
+                    required
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 bg-white"
+                  >
+                    <option value="">-- Chọn nhóm khách hàng --</option>
+                    {segments.map(group => (
+                      <option key={group.id} value={group.id}>
+                        {group.name} {group.code ? `(${group.code})` : ''}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+            </div>
 
               {/* Discount Rules */}
               <div>

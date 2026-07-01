@@ -49,8 +49,8 @@ export default function DealerPurchaseOrderDetailPage() {
       const mappedOrder = {
         id: data.order_code,
         date: new Date(data.created_at).toLocaleDateString("vi-VN"),
-        deliveryDate: data.requested_delivery_time
-          ? new Date(data.requested_delivery_time).toLocaleDateString("vi-VN")
+        deliveryDate: (data.confirmed_delivery_time || data.requested_delivery_time)
+          ? new Date(data.confirmed_delivery_time || data.requested_delivery_time).toLocaleDateString("vi-VN")
           : "Chưa xác định",
         completedAt: data.completed_at
           ? new Date(data.completed_at).toLocaleString("vi-VN")
@@ -67,8 +67,8 @@ export default function DealerPurchaseOrderDetailPage() {
           recipient: data.receiver_name || "Chưa cung cấp",
           phone: data.receiver_phone || "Chưa cung cấp",
           address: data.delivery_address || "Chưa cung cấp",
-          slot: data.requested_delivery_time
-            ? formatDateTime(data.requested_delivery_time)
+          slot: (data.confirmed_delivery_time || data.requested_delivery_time)
+            ? formatDateTime(data.confirmed_delivery_time || data.requested_delivery_time)
             : "Trong giờ hành chính",
         },
         items: (data.items || []).map((item) => ({
