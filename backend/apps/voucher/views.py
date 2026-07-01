@@ -64,6 +64,8 @@ class PromotionViewSet(viewsets.ModelViewSet):
     def get_permissions(self):
         if self.action == "verify":
             return [IsActive(), IsAdmin()]
+        if self.action in ["apply", "available"]:
+            return [IsActive(), IsBuyer()]
         return super().get_permissions()
 
     def _apply_filters(self, qs, request):
@@ -274,80 +276,3 @@ class PromotionViewSet(viewsets.ModelViewSet):
         promotion.save(update_fields=["status", "reject_reason", "updated_at"])
 
         return Response(PromotionSerializer(promotion, context={"request": request}).data)
-
-@extend_schema_view(
-    post=extend_schema(
-        tags=["Cart Vouchers"],
-        summary="Áp dụng voucher cho giỏ hàng",
-        description=(
-            "Tính toán giá trị giảm giá của voucher cho các sản phẩm trong giỏ hàng. "
-            "Backend tự lấy giá từ database, không tin tưởng giá FE gửi lên."
-        ),
-        request=CartApplyVoucherSerializer,
-        examples=[
-            OpenApiExample(
-                name="Áp dụng mã SALE50K",
-                summary="Ví dụ request giỏ hàng",
-                description="Gửi mã voucher và danh sách sản phẩm trong giỏ.",
-                value={
-                    "voucher_code": "SALE50K",
-                    "items": [
-                        {"dealer_product_id": 45, "quantity": 3},
-                        {"dealer_product_id": 88, "quantity": 1},
-                    ]
-                },
-                request_only=True,
-            )
-        ],
-        responses={
-            200: {
-                "type": "object",
-                "properties": {
-                    "voucher": {
-                        "type": "object",
-                        "properties": {
-                            "id": {"type": "integer"},
-                            "code": {"type": "string"},
-                            "title": {"type": "string"},
-                            "discount_type": {"type": "string", "enum": ["percent", "fixed"]},
-                            "discount_value": {"type": "string"},
-                        }
-                    },
-                    "eligible_total": {"type": "string", "example": "450000.00"},
-                    "order_total": {"type": "string", "example": "650000.00"},
-                    "discount_amount": {"type": "string", "example": "50000.00"},
-                    "final_total": {"type": "string", "example": "600000.00"},
-                }
-            }
-        },
-    )
-)
-class CartApplyVoucherView(APIView):
-    """
-    API View để áp dụng voucher cho giỏ hàng.
-    Chỉ cho phép tài khoản Buyer đã kích hoạt truy cập.
-    """
-    permission_classes = [IsActive, IsBuyer]
-
-    def post(self, request):
-        if not hasattr(request.user, "customer_profile"):
-            return Response(
-                {"detail": "Tài khoản không có quyền truy cập (thiếu thông tin khách hàng)."},
-                status=http_status.HTTP_403_FORBIDDEN
-            )
-
-        customer = request.user.customer_profile
-        serializer = CartApplyVoucherSerializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
-
-        voucher_code = serializer.validated_data["voucher_code"]
-        items = serializer.validated_data["items"]
-
-        # Gọi Service để xử lý logic tính toán và kiểm tra
-        result = CartVoucherService.apply_voucher(
-            customer=customer,
-            voucher_code=voucher_code,
-            items_data=items
-        )
-
-        return Response(result, status=http_status.HTTP_200_OK)
