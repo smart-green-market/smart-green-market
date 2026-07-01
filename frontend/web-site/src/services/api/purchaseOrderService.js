@@ -61,4 +61,10 @@ export const purchaseOrderService = {
     axiosClient
       .post(`/purchase-orders/${id}/returns/${returnId}/review/`, data)
       .then((res) => res.data),
+
+  // Đại lý duyệt điều chỉnh đơn hàng
+  approveAdjustment: (id, data) =>
+    axiosClient
+      .post(`/purchase-orders/${id}/approve-adjustment/`, data)
+      .then((res) => res.data),
 };

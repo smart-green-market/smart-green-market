@@ -48,6 +48,7 @@ export default function DealerSalesOrderPage() {
             case "completed": return "Hoàn tất";
             case "cancelled": return "Đã hủy";
             case "return_requested": return "Yêu cầu trả hàng";
+            case "returned": return "Đã trả hàng";
             default: return status || "Chờ xác nhận";
         }
     };
@@ -117,6 +118,7 @@ export default function DealerSalesOrderPage() {
         { label: "Đang giao", value: "shipping", colorClass: "text-blue-700" },
         { label: "Đã giao", value: "delivered", colorClass: "text-emerald-700" },
         { label: "Yêu cầu trả hàng", value: "return_requested", colorClass: "text-rose-700" },
+        { label: "Đã trả hàng", value: "returned", colorClass: "text-red-700" },
         { label: "Hoàn tất", value: "completed", colorClass: "text-teal-700" },
         { label: "Đã huỷ", value: "cancelled", colorClass: "text-red-700" }
     ];

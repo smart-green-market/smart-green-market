@@ -141,9 +141,9 @@ class CartVoucherService:
                 "code": voucher.code,
                 "title": voucher.title,
                 "discount_type": voucher.discount_type,
-                "discount_value": "{:.2f}".format(voucher.discount_value)
+                "discount_value": "{:.2f}".format(voucher.discount_value),
+                "min_order_amount": "{:.2f}".format(voucher.min_order_amount)
             },
-            "eligible_total": "{:.2f}".format(eligible_total),
             "order_total": "{:.2f}".format(order_total),
             "discount_amount": "{:.2f}".format(discount_amount),
             "final_total": "{:.2f}".format(final_total)

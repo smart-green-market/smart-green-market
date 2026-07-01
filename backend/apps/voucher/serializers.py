@@ -7,7 +7,7 @@ class AvailablePromotionSerializer(serializers.ModelSerializer):
     class Meta:
         model = Promotion
         fields = [
-            "id", "title", "description",
+            "id", "code", "title", "description",
             "discount_type", "discount_value",
             "start_date", "end_date",
         ]
@@ -95,6 +95,24 @@ class PromotionSerializer(serializers.ModelSerializer):
         end_date = attrs.get("end_date")
         if start_date and end_date and start_date >= end_date:
             raise serializers.ValidationError("start_date phải trước end_date")
+
+        # Kiểm tra tính duy nhất của mã voucher cho từng đại lý (UniqueConstraint)
+        code = attrs.get("code")
+        if code:
+            request = self.context.get("request")
+            dealer = None
+            if self.instance:
+                dealer = self.instance.dealer
+            elif request and request.user and hasattr(request.user, "dealer_profile"):
+                dealer = request.user.dealer_profile
+
+            query = Promotion.objects.filter(dealer=dealer, code=code)
+            if self.instance:
+                query = query.exclude(id=self.instance.id)
+
+            if query.exists():
+                raise serializers.ValidationError({"code": "Mã voucher này đã tồn tại trong gian hàng của bạn."})
+
         return attrs
 
     def create(self, validated_data):
@@ -178,3 +196,19 @@ class CartApplyVoucherSerializer(serializers.Serializer):
                     "Mã voucher chỉ được chứa chữ cái không dấu (A-Z), chữ số, dấu gạch ngang (-) và gạch dưới (_), không chứa khoảng trắng."
                 )
         return value
+
+
+class CartVoucherResponseDetailSerializer(serializers.Serializer):
+    id = serializers.IntegerField()
+    code = serializers.CharField()
+    title = serializers.CharField()
+    discount_type = serializers.CharField()
+    discount_value = serializers.DecimalField(max_digits=12, decimal_places=2)
+    min_order_amount = serializers.DecimalField(max_digits=14, decimal_places=2)
+
+
+class CartApplyVoucherResponseSerializer(serializers.Serializer):
+    voucher = CartVoucherResponseDetailSerializer()
+    order_total = serializers.DecimalField(max_digits=14, decimal_places=2)
+    discount_amount = serializers.DecimalField(max_digits=14, decimal_places=2)
+    final_total = serializers.DecimalField(max_digits=14, decimal_places=2)

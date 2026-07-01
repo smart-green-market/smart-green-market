@@ -1,10 +1,11 @@
-import {  useNavigate, useParams } from "react-router-dom";
+import { useNavigate, useParams } from "react-router-dom";
 import { useState, useEffect } from "react";
 import { toast } from "sonner";
 import { XCircle, CheckCircle, RotateCcw } from "lucide-react";
 import { purchaseOrderService } from "../../../services/api/purchaseOrderService";
 import RejectModal from "../../../components/common/RejectModal";
 import RequestReturnModal from "../../../components/Dealer/PurchaseOrderDetail/RequestReturnModal";
+import ApproveAdjustmentModal from "../../../components/Dealer/PurchaseOrderDetail/ApproveAdjustmentModal";
 import OrderDetailHeader from "../../../components/Dealer/PurchaseOrderDetail/OrderDetailHeader";
 import OrderDetailInfoCards from "../../../components/Dealer/PurchaseOrderDetail/OrderDetailInfoCards";
 import OrderDetailItemsTable from "../../../components/Dealer/PurchaseOrderDetail/OrderDetailItemsTable";
@@ -17,12 +18,13 @@ import { formatDateTime } from "../../../components/common/formatDateTime";
 const mapStatusToFrontend = (status) => {
   const statusMap = {
     pending_supplier_confirmation: "Chờ xác nhận",
+    pending_dealer_confirmation: "Chờ đại lý xác nhận thay đổi",
     rejected: "Đã từ chối",
     confirmed: "Đã xác nhận",
     deposit_pending_verification: "Chờ duyệt cọc",
     deposit_paid: "Đã thanh toán cọc",
-    processing: "Đang chuẩn bị hàng ",
-    shipping: "Chờ giao hàng",
+    processing: "Đang chuẩn bị hàng",
+    shipping: "Đang giao hàng",
     delivered: "Đã giao hàng",
     final_payment_pending_verification: "Chờ duyệt thanh toán",
     completed: "Đã hoàn thành",
@@ -39,6 +41,7 @@ export default function DealerPurchaseOrderDetailPage() {
   const [loading, setLoading] = useState(true);
   const [isCancelModalOpen, setIsCancelModalOpen] = useState(false);
   const [isReturnModalOpen, setIsReturnModalOpen] = useState(false);
+  const [isApproveModalOpen, setIsApproveModalOpen] = useState(false);
 
   // Hàm lấy chi tiết phiếu nhập từ API
   const fetchOrderDetail = async () => {
@@ -76,9 +79,12 @@ export default function DealerPurchaseOrderDetailPage() {
           name: item.product_name,
           unit: item.product_unit || "Kg",
           quantity: Number(item.quantity || 0),
+          original_quantity: Number(item.original_quantity || 0),
           price: Number(item.unit_price || 0),
           subtotal: Number(item.subtotal || 0),
           product_thumbnail_url: item.product_thumbnail_url,
+          review_status: item.review_status,
+          rejection_reason: item.rejection_reason,
         })),
         notes: data.note ? [data.note] : [],
         rawSubtotal: Number(data.total_amount || 0),
@@ -157,6 +163,25 @@ export default function DealerPurchaseOrderDetailPage() {
     }
   };
 
+  // Mở modal xác nhận thay đổi đơn hàng
+  const handleApproveAdjustmentClick = () => {
+    setIsApproveModalOpen(true);
+  };
+
+  // Xác nhận duyệt thay đổi từ modal (có nhận optional note)
+  const handleApproveAdjustmentConfirm = async (data) => {
+    try {
+      await purchaseOrderService.approveAdjustment(id, data);
+      toast.success("Xác nhận thay đổi đơn hàng thành công!");
+      await fetchOrderDetail();
+    } catch (error) {
+      console.error("Lỗi khi xác nhận thay đổi đơn hàng:", error);
+      const errMsg = error.response?.data?.detail || "Không thể xác nhận thay đổi đơn hàng.";
+      toast.error(errMsg, { position: "top-center", duration: 5000 });
+      throw error; // Ném lỗi để modal giữ trạng thái loading/không tự đóng
+    }
+  };
+
   // Xử lý hủy đơn hàng - Mở modal nhập lý do
   const handleRejectOrCancelOrder = () => {
     setIsCancelModalOpen(true);
@@ -165,7 +190,7 @@ export default function DealerPurchaseOrderDetailPage() {
   // Xác nhận hủy đơn hàng từ modal
   const handleCancelOrderConfirm = async (reason) => {
     try {
-      await purchaseOrderService.cancel(id, { note: reason });
+      await purchaseOrderService.cancel(id, { reason: reason });
       toast.success(`Đã hủy phiếu nhập ${orderData.id} thành công!`);
       await fetchOrderDetail();
     } catch (error) {
@@ -216,7 +241,8 @@ export default function DealerPurchaseOrderDetailPage() {
   // Kiểm tra điều kiện hiển thị nút hủy đơn
   const canCancel =
     orderData.rawStatus === "pending_supplier_confirmation" ||
-    orderData.rawStatus === "confirmed";
+    orderData.rawStatus === "confirmed" ||
+    orderData.rawStatus === "pending_dealer_confirmation";
 
   // Kiểm tra điều kiện hiển thị quét VietQR thanh toán cọc (status === 'confirmed')
   const showDepositQr = orderData.rawStatus === "confirmed";
@@ -229,6 +255,9 @@ export default function DealerPurchaseOrderDetailPage() {
 
   // Kiểm tra điều kiện hiển thị nút yêu cầu trả hàng (status === 'delivered')
   const showReturnRequest = orderData.rawStatus === "delivered";
+
+  // Kiểm tra điều kiện hiển thị nút xác nhận thay đổi (status === 'pending_dealer_confirmation')
+  const showApproveAdjustment = orderData.rawStatus === "pending_dealer_confirmation";
 
   return (
     <div className="font-['Geist',sans-serif] pb-12 px-4 sm:px-8 md:px-16 lg:px-24 bg-emerald-50/15 min-h-screen pt-6">
@@ -304,6 +333,16 @@ export default function DealerPurchaseOrderDetailPage() {
           </button>
         )}
 
+        {/* Nút xác nhận thay đổi (khi NCC đề xuất điều chỉnh đơn) */}
+        {showApproveAdjustment && (
+          <button
+            onClick={handleApproveAdjustmentClick}
+            className="flex items-center justify-center gap-2 px-6 h-11 bg-emerald-800 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold transition-all shadow-xs cursor-pointer min-w-44 active:scale-95"
+          >
+            <CheckCircle className="w-4 h-4" /> Xác nhận thay đổi
+          </button>
+        )}
+
         {showReturnRequest && (
           <button
             onClick={handleRequestReturn}
@@ -334,6 +373,12 @@ export default function DealerPurchaseOrderDetailPage() {
         onClose={() => setIsReturnModalOpen(false)}
         onConfirm={handleRequestReturnConfirm}
         orderItems={orderData?.items || []}
+      />
+
+      <ApproveAdjustmentModal
+        isOpen={isApproveModalOpen}
+        onClose={() => setIsApproveModalOpen(false)}
+        onConfirm={handleApproveAdjustmentConfirm}
       />
     </div>
   );

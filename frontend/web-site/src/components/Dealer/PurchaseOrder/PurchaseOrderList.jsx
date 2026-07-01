@@ -1,13 +1,13 @@
-import { Calendar, Package, ChevronRight, AlertCircle, CheckCircle2, Clock, Truck } from "lucide-react";
+import { Calendar, Package, ChevronRight, AlertCircle, CheckCircle2, Clock, Truck, CreditCard, Ban, XCircle } from "lucide-react";
 import SortableHeader from "../../common/SortableHeader";
 import useTableSort from "../../../hooks/useTableSort";
 
 const COLUMN_CONFIG = {
-  id:       { key: "id",       type: "string" },
+  id: { key: "id", type: "string" },
   supplier: { key: "supplier", type: "string" },
-  date:     { key: "date",     type: "date" },
-  amount:   { key: "amount",   type: "currency" },
-  status:   { key: "status",   type: "string" },
+  date: { key: "date", type: "date" },
+  amount: { key: "amount", type: "currency" },
+  status: { key: "status", type: "string" },
 };
 
 export default function PurchaseOrderList({ purchaseOrders, onViewDetail }) {
@@ -15,23 +15,34 @@ export default function PurchaseOrderList({ purchaseOrders, onViewDetail }) {
 
   const getStatusConfig = (status) => {
     switch (status) {
-      case "Đã hoàn thành":
-        return { bg: "bg-emerald-50", text: "text-emerald-700", icon: <CheckCircle2 className="w-3.5 h-3.5" />, dot: "bg-emerald-500" };
-      case "Đã xác nhận":
-      case "Chờ giao hàng":
-      case "Đang giao hàng":
-      case "Đang xử lý":
-        return { bg: "bg-blue-50", text: "text-blue-700", icon: <Truck className="w-3.5 h-3.5" />, dot: "bg-blue-500 animate-pulse" };
       case "Chờ xác nhận":
+        return { bg: "bg-amber-50 border-amber-200", text: "text-amber-700", icon: <Clock className="w-3.5 h-3.5" />, dot: "bg-amber-500" };
+      case "Chờ đại lý xác nhận thay đổi":
+        return { bg: "bg-orange-50 border-orange-200", text: "text-orange-700", icon: <AlertCircle className="w-3.5 h-3.5" />, dot: "bg-orange-500" };
+      case "Đã từ chối":
+        return { bg: "bg-rose-50 border-rose-200", text: "text-rose-700", icon: <XCircle className="w-3.5 h-3.5" />, dot: "bg-rose-500" };
+      case "Đã xác nhận":
+        return { bg: "bg-cyan-50 border-cyan-200", text: "text-cyan-700", icon: <CheckCircle2 className="w-3.5 h-3.5" />, dot: "bg-cyan-500 animate-pulse" };
       case "Chờ duyệt cọc":
+        return { bg: "bg-amber-50 border-amber-200", text: "text-amber-700", icon: <Clock className="w-3.5 h-3.5" />, dot: "bg-amber-500 animate-pulse" };
+      case "Đã thanh toán cọc":
+        return { bg: "bg-teal-50 border-teal-200", text: "text-teal-700", icon: <CreditCard className="w-3.5 h-3.5" />, dot: "bg-teal-500" };
+      case "Đang chuẩn bị hàng":
+        return { bg: "bg-indigo-50 border-indigo-200", text: "text-indigo-700", icon: <Package className="w-3.5 h-3.5" />, dot: "bg-indigo-500 animate-pulse" };
+      case "Đang giao hàng":
+      case "Chờ giao hàng":
+        return { bg: "bg-blue-50 border-blue-200", text: "text-blue-700", icon: <Truck className="w-3.5 h-3.5" />, dot: "bg-blue-500 animate-pulse" };
+      case "Đã giao hàng":
+        return { bg: "bg-lime-50 border-lime-200", text: "text-lime-700", icon: <CheckCircle2 className="w-3.5 h-3.5" />, dot: "bg-lime-500" };
       case "Chờ duyệt thanh toán":
       case "Chờ xác nhận thanh toán cuối":
-        return { bg: "bg-amber-50", text: "text-amber-700", icon: <Clock className="w-3.5 h-3.5" />, dot: "bg-amber-500" };
+        return { bg: "bg-yellow-50 border-yellow-200", text: "text-yellow-700", icon: <Clock className="w-3.5 h-3.5" />, dot: "bg-yellow-500 animate-pulse" };
+      case "Đã hoàn thành":
+        return { bg: "bg-emerald-50 border-emerald-200", text: "text-emerald-700", icon: <CheckCircle2 className="w-3.5 h-3.5" />, dot: "bg-emerald-500" };
       case "Đã hủy":
-      case "Đã từ chối":
-        return { bg: "bg-rose-50", text: "text-rose-700", icon: <AlertCircle className="w-3.5 h-3.5" />, dot: "bg-rose-500" };
+        return { bg: "bg-neutral-100 border-neutral-200", text: "text-neutral-600", icon: <Ban className="w-3.5 h-3.5" />, dot: "bg-neutral-400" };
       default:
-        return { bg: "bg-neutral-50", text: "text-neutral-700", icon: <Clock className="w-3.5 h-3.5" />, dot: "bg-neutral-500" };
+        return { bg: "bg-neutral-50 border-neutral-200", text: "text-neutral-700", icon: <Clock className="w-3.5 h-3.5" />, dot: "bg-neutral-500" };
     }
   };
 
@@ -125,7 +136,7 @@ export default function PurchaseOrderList({ purchaseOrders, onViewDetail }) {
                       <div className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-white/50 shadow-xs ${statusConfig.bg}`}>
                         <span className={`w-1.5 h-1.5 rounded-full ${statusConfig.dot}`} />
                         <span className={`text-[11px] font-bold ${statusConfig.text} whitespace-nowrap`}>
-                          {row.status}
+                          {row.status && row.status.length > 12 ? row.status.substring(0, 9) + "..." : row.status}
                         </span>
                       </div>
                     </div>

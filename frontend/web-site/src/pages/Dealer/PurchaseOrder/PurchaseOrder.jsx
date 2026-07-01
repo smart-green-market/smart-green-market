@@ -10,14 +10,15 @@ import { useNavigate, useLocation } from "react-router-dom";
 const mapStatusToFrontend = (status) => {
     const statusMap = {
         pending_supplier_confirmation: "Chờ xác nhận",
+        pending_dealer_confirmation: "Chờ đại lý xác nhận thay đổi",
         rejected: "Đã từ chối",
         confirmed: "Đã xác nhận",
         deposit_pending_verification: "Chờ duyệt cọc",
         deposit_paid: "Đã thanh toán cọc",
-        processing: "Đang chuẩn bị hàng ",
+        processing: "Đang chuẩn bị hàng",
         shipping: "Đang giao hàng",
         delivered: "Đã giao hàng",
-        final_payment_pending_verification: "Chờ xác nhận thanh toán cuối",
+        final_payment_pending_verification: "Chờ duyệt thanh toán",
         completed: "Đã hoàn thành",
         cancelled: "Đã hủy",
     };
@@ -45,17 +46,18 @@ export default function DealerPurchaseOrderPage() {
 
     const filterOptions = [
         { label: "Tất cả", value: "", colorClass: "text-neutral-700" },
-        { label: "Chờ xác nhận", value: "pending_supplier_confirmation", colorClass: "text-sky-700" },
+        { label: "Chờ xác nhận", value: "pending_supplier_confirmation", colorClass: "text-amber-700" },
+        { label: "Chờ đại lý xác nhận thay đổi", value: "pending_dealer_confirmation", colorClass: "text-orange-700" },
         { label: "Đã từ chối", value: "rejected", colorClass: "text-rose-700" },
         { label: "Đã xác nhận", value: "confirmed", colorClass: "text-cyan-700" },
         { label: "Chờ duyệt cọc", value: "deposit_pending_verification", colorClass: "text-amber-700" },
         { label: "Đã thanh toán cọc", value: "deposit_paid", colorClass: "text-teal-700" },
         { label: "Đang chuẩn bị hàng", value: "processing", colorClass: "text-indigo-700" },
-        { label: "Đang giao hàng", value: "shipping", colorClass: "text-orange-700" },
-        { label: "Đã giao hàng", value: "delivered", colorClass: "text-teal-700" },
-        { label: "Chờ xác nhận thanh toán cuối", value: "final_payment_pending_verification", colorClass: "text-yellow-700" },
+        { label: "Đang giao hàng", value: "shipping", colorClass: "text-blue-700" },
+        { label: "Đã giao hàng", value: "delivered", colorClass: "text-lime-700" },
+        { label: "Chờ duyệt thanh toán", value: "final_payment_pending_verification", colorClass: "text-yellow-700" },
         { label: "Đã hoàn thành", value: "completed", colorClass: "text-emerald-700" },
-        { label: "Đã hủy", value: "cancelled", colorClass: "text-red-700" }
+        { label: "Đã hủy", value: "cancelled", colorClass: "text-neutral-500" }
     ];
 
     const handleViewDetail = (order) => {
