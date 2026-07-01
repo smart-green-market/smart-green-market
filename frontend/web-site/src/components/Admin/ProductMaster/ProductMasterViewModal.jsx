@@ -3,6 +3,7 @@ import { X } from "lucide-react";
 import ConfirmModal from "../../common/ConfirmModal";
 import InfoField from "../../common/InfoField";
 import CategorySearchSelect from "./CategorySearchSelect";
+import SeasonMultiSelect from "./SeasonMultiSelect";
 import { PRODUCT_MASTER_STATUS } from "./productMasterHelpers";
 
 function FormField({ label, children, required = false }) {
@@ -34,6 +35,7 @@ export default function ProductMasterViewModal({
         default_unit: "",
         description: "",
         sort_order: "0",
+        season_ids: [],
     });
     const [formError, setFormError] = useState("");
 
@@ -50,6 +52,7 @@ export default function ProductMasterViewModal({
             default_unit: product.default_unit ?? "",
             description: product.description ?? "",
             sort_order: String(product.sort_order ?? 0),
+            season_ids: product.season_ids ?? [],
         });
         setIsEditing(false);
         setFormError("");
@@ -84,6 +87,7 @@ export default function ProductMasterViewModal({
             default_unit: product.default_unit ?? "",
             description: product.description ?? "",
             sort_order: String(product.sort_order ?? 0),
+            season_ids: product.season_ids ?? [],
         });
         setFormError("");
         setIsEditing(true);
@@ -96,6 +100,7 @@ export default function ProductMasterViewModal({
             default_unit: product.default_unit ?? "",
             description: product.description ?? "",
             sort_order: String(product.sort_order ?? 0),
+            season_ids: product.season_ids ?? [],
         });
         setFormError("");
         setIsEditing(false);
@@ -156,6 +161,22 @@ export default function ProductMasterViewModal({
 
                         {isEditing ? (
                             <>
+                                
+
+                                <FormField label="Tên sản phẩm" required>
+                                    <input
+                                        type="text"
+                                        value={form.name}
+                                        onChange={(e) =>
+                                            setForm((prev) => ({
+                                                ...prev,
+                                                name: e.target.value,
+                                            }))
+                                        }
+                                        className="rounded-xl border border-neutral-200 px-4 py-3 text-sm outline-none focus:border-emerald-600 focus:ring-2 focus:ring-emerald-500/10"
+                                    />
+                                </FormField>
+
                                 <FormField label="Danh mục" required>
                                     <CategorySearchSelect
                                         value={form.category_id}
@@ -170,17 +191,16 @@ export default function ProductMasterViewModal({
                                     />
                                 </FormField>
 
-                                <FormField label="Tên sản phẩm" required>
-                                    <input
-                                        type="text"
-                                        value={form.name}
-                                        onChange={(e) =>
+                                <FormField label="Mùa">
+                                    <SeasonMultiSelect
+                                        value={form.season_ids}
+                                        onChange={(seasonIds) =>
                                             setForm((prev) => ({
                                                 ...prev,
-                                                name: e.target.value,
+                                                season_ids: seasonIds,
                                             }))
                                         }
-                                        className="rounded-xl border border-neutral-200 px-4 py-3 text-sm outline-none focus:border-emerald-600 focus:ring-2 focus:ring-emerald-500/10"
+                                        disabled={loading}
                                     />
                                 </FormField>
 
@@ -214,11 +234,29 @@ export default function ProductMasterViewModal({
                             </>
                         ) : (
                             <>
+                            
+                                <InfoField label="Tên sản phẩm" value={product.name} />
                                 <InfoField
                                     label="Danh mục"
                                     value={product.category_name}
                                 />
-                                <InfoField label="Tên sản phẩm" value={product.name} />
+                                
+                                <FormField label="Mùa">
+                                    {product.seasons?.length ? (
+                                        <div className="flex flex-wrap gap-2">
+                                            {product.seasons.map((season) => (
+                                                <span
+                                                    key={season.id}
+                                                    className="inline-flex rounded-full bg-emerald-50 px-3 py-1 text-sm font-medium text-emerald-800"
+                                                >
+                                                    {season.name}
+                                                </span>
+                                            ))}
+                                        </div>
+                                    ) : (
+                                        <p className="text-sm text-neutral-500">—</p>
+                                    )}
+                                </FormField>
                                 <InfoField
                                     label="Đơn vị mặc định"
                                     value={product.default_unit}
@@ -227,7 +265,6 @@ export default function ProductMasterViewModal({
                                     label="Mô tả"
                                     value={product.description || "—"}
                                 />
-                                <InfoField label="Slug" value={product.slug || "—"} />
                             </>
                         )}
                     </div>
@@ -280,7 +317,7 @@ export default function ProductMasterViewModal({
                                     Xóa
                                 </button>
 
-                                {isActive ? (
+                                {/* {isActive ? (
                                     <button
                                         type="button"
                                         disabled={loading}
@@ -301,9 +338,9 @@ export default function ProductMasterViewModal({
                                     >
                                         Khóa
                                     </button>
-                                ) : null}
+                                ) : null} */}
 
-                                {isInactive ? (
+                                {/* {isInactive ? (
                                     <button
                                         type="button"
                                         disabled={loading}
@@ -324,7 +361,7 @@ export default function ProductMasterViewModal({
                                     >
                                         Mở khóa
                                     </button>
-                                ) : null}
+                                ) : null} */}
                             </>
                         )}
                     </div>

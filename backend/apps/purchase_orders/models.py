@@ -7,8 +7,8 @@
 - PurchaseOrderStatusHistory : audit log chuyển trạng thái
 
 === LUỒNG TRẠNG THÁI (xem services.py) ===
-pending_supplier_confirmation → confirmed → deposit_pending_verification
-→ processing → shipping → delivered → final_payment_pending_verification → completed
+pending_supplier_confirmation → confirmed → deposit_pending_verification → ...
+NCC đổi ngày giao / SP → pending_dealer_confirmation → (dealer approve) → confirmed
 Nhánh từ chối: rejected | hủy: cancelled
 """
 
@@ -24,6 +24,10 @@ class PurchaseOrderStatus(models.TextChoices):
         "Chờ NCC xác nhận",
     )
     REJECTED = "rejected", "NCC từ chối"
+    PENDING_DEALER_CONFIRMATION = (
+        "pending_dealer_confirmation",
+        "Chờ đại lý xác nhận điều chỉnh",
+    )
     CONFIRMED = "confirmed", "NCC đã xác nhận"
     DEPOSIT_PENDING_VERIFICATION = (
         "deposit_pending_verification",
@@ -158,6 +162,14 @@ class PurchaseOrder(models.Model):
         return self.order_code
 
 
+class PurchaseOrderItemReviewStatus(models.TextChoices):
+    """Trạng thái duyệt dòng SP khi NCC xác nhận phiếu."""
+
+    PENDING = "pending", "Chờ duyệt"
+    APPROVED = "approved", "Đã duyệt"
+    REJECTED = "rejected", "Từ chối"
+
+
 class PurchaseOrderItem(models.Model):
     """Dòng sản phẩm trong phiếu nhập — không gắn batch kho supplier."""
 
@@ -173,9 +185,20 @@ class PurchaseOrderItem(models.Model):
     )
 
     quantity = models.DecimalField(max_digits=12, decimal_places=2)
+    original_quantity = models.DecimalField(
+        max_digits=12,
+        decimal_places=2,
+        help_text="Số lượng dealer đặt ban đầu — dùng so sánh khi NCC điều chỉnh.",
+    )
     unit_price = models.DecimalField(max_digits=12, decimal_places=2)
     subtotal = models.DecimalField(max_digits=14, decimal_places=2)
     note = models.TextField(blank=True)
+    review_status = models.CharField(
+        max_length=20,
+        choices=PurchaseOrderItemReviewStatus.choices,
+        default=PurchaseOrderItemReviewStatus.PENDING,
+    )
+    rejection_reason = models.TextField(blank=True)
 
     class Meta:
         db_table = "purchase_order_items"

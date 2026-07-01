@@ -1,23 +1,27 @@
 import { X, Package, CheckCircle2, Truck, CreditCard, User, Calendar, MapPin, Receipt, ArrowRight, Printer, Phone, XCircle } from "lucide-react";
 
-export default function SalesOrderDetailPanel({ order, onClose, onPrint, onConfirm, onStartProcessing, onShipOrder, onCancel }) {
+export default function ({ order, onClose, onPrint, onConfirm, onStartProcessing, onShipOrder, onCancel, onApproveReturn, onRejectReturn }) {
   if (!order) return null;
 
   // Status visual mapping
   const getStatusStyle = (status) => {
-    switch(status) {
+    switch (status) {
       case "Chờ xác nhận": return "bg-sky-50 text-sky-700 border-sky-200/50";
       case "Đã xác nhận": return "bg-indigo-50 text-indigo-700 border-indigo-200/50";
       case "Đang chuẩn bị hàng": return "bg-amber-50 text-amber-700 border-amber-200/50";
       case "Đang giao hàng": return "bg-blue-50 text-blue-700 border-blue-200/50";
       case "Đã giao": return "bg-emerald-50 text-emerald-700 border-emerald-200/50";
       case "Đã hủy": return "bg-red-50 text-red-700 border-red-200/50";
+      case "Yêu cầu trả hàng": return "bg-pink-50 text-pink-700 border-pink-200/50";
+      case "Đã trả hàng":
+      case "returned": return "bg-red-50 text-red-700 border-red-200/50";
       default: return "bg-neutral-50 text-neutral-600 border-neutral-200/50";
     }
   };
 
   const fullData = order.originalData || {};
   const products = fullData.items || [];
+  const latestReturn = fullData.returns && fullData.returns.length > 0 ? fullData.returns[0] : null;
   const formatCurrency = (val) => new Intl.NumberFormat('vi-VN').format(Number(val || 0)) + ' đ';
 
   const formatDateTimeVN = (isoString) => {
@@ -34,12 +38,12 @@ export default function SalesOrderDetailPanel({ order, onClose, onPrint, onConfi
 
   return (
     <div className="bg-white border border-neutral-100 rounded-3xl shadow-[0_8px_30px_rgb(0,0,0,0.06)] overflow-hidden font-['Geist',sans-serif] h-full flex flex-col animate-in zoom-in-95 fade-in duration-200 relative z-10">
-      
+
       {/* Header */}
       <div className="relative p-6 border-b border-neutral-100 bg-gradient-to-br from-emerald-50/80 via-white to-white overflow-hidden">
         {/* Decorative background shape */}
         <div className="absolute top-0 right-0 -mr-8 -mt-8 w-32 h-32 bg-emerald-100/50 rounded-full blur-3xl"></div>
-        
+
         <div className="relative flex justify-between items-start">
           <div>
             <div className="flex items-center gap-2 mb-1.5">
@@ -61,14 +65,14 @@ export default function SalesOrderDetailPanel({ order, onClose, onPrint, onConfi
 
       {/* Content */}
       <div className="p-6 flex-1 overflow-y-auto overscroll-contain space-y-8 scrollbar-hide">
-        
+
         {/* Customer & General Info */}
         <div className="space-y-4">
           <div className="flex items-center gap-2">
             <h4 className="text-[11px] font-black text-neutral-400 uppercase tracking-widest">Thông tin khách hàng</h4>
             <div className="h-px bg-neutral-100 flex-1"></div>
           </div>
-          
+
           <div className="bg-white border border-neutral-100 rounded-2xl p-4 flex gap-4 items-start shadow-xs hover:border-emerald-100 transition-colors">
             <div className="w-10 h-10 rounded-full bg-emerald-50 border border-emerald-100 flex items-center justify-center text-emerald-600 shrink-0">
               <User className="w-5 h-5" />
@@ -103,7 +107,7 @@ export default function SalesOrderDetailPanel({ order, onClose, onPrint, onConfi
             <h4 className="text-[11px] font-black text-neutral-400 uppercase tracking-widest">Tiến trình</h4>
             <div className="h-px bg-neutral-100 flex-1"></div>
           </div>
-          
+
           <div className="flex flex-col gap-3">
             <div className={`px-4 py-3 rounded-2xl border flex items-center gap-3 ${getStatusStyle(order.status || order.delivery)}`}>
               <div className="w-2 h-2 rounded-full bg-current animate-pulse"></div>
@@ -160,19 +164,45 @@ export default function SalesOrderDetailPanel({ order, onClose, onPrint, onConfi
           </div>
         )}
 
+        {/* Yêu cầu trả hàng reason */}
+        {(order.status === "Yêu cầu trả hàng" || order.status === "return_requested" || order.status === "Đã trả hàng" || order.status === "returned") && latestReturn && (
+          <div className="space-y-3 pb-2">
+            <div className="flex items-center gap-2">
+              <h4 className="text-[11px] font-black text-neutral-400 uppercase tracking-widest">Yêu cầu hoàn trả</h4>
+              <div className="h-px bg-neutral-100 flex-1"></div>
+            </div>
+            <div className="bg-rose-50 border border-rose-100 rounded-2xl p-4 space-y-3 shadow-xs">
+              <div className="flex flex-col gap-1">
+                <span className="text-[10px] font-black text-rose-700 uppercase tracking-wider">Lý do trả hàng:</span>
+                <p className="text-sm text-rose-800 leading-relaxed italic">
+                  "{latestReturn.reason}"
+                </p>
+              </div>
+              {latestReturn.review_note && (
+                <div className="flex flex-col gap-1 pt-2.5 border-t border-rose-200/50">
+                  <span className="text-[10px] font-black text-rose-700 uppercase tracking-wider">Phản hồi của cửa hàng:</span>
+                  <p className="text-sm text-rose-800 leading-relaxed italic">
+                    "{latestReturn.review_note}"
+                  </p>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
         {/* Payment & Total */}
         <div className="space-y-4 pb-4">
           <div className="flex items-center gap-2">
             <h4 className="text-[11px] font-black text-neutral-400 uppercase tracking-widest">Thanh toán</h4>
             <div className="h-px bg-neutral-100 flex-1"></div>
           </div>
-          
+
           <div className="relative overflow-hidden bg-emerald-700 rounded-2xl p-5 text-white shadow-lg shadow-emerald-700/20">
             {/* Abstract Background pattern */}
             <div className="absolute -right-4 -top-12 opacity-10">
               <CreditCard className="w-40 h-40" />
             </div>
-            
+
             <div className="relative z-10 space-y-4">
               <div className="flex justify-between items-center">
                 <span className="text-emerald-100 text-xs font-medium uppercase tracking-wider">Phương thức</span>
@@ -181,7 +211,7 @@ export default function SalesOrderDetailPanel({ order, onClose, onPrint, onConfi
                 </span>
               </div>
               <div className="h-px bg-emerald-600/50 w-full"></div>
-              
+
               {Number(fullData.shipping_fee) > 0 && (
                 <>
                   <div className="flex justify-between items-center text-sm">
@@ -200,7 +230,7 @@ export default function SalesOrderDetailPanel({ order, onClose, onPrint, onConfi
                   <span className="font-semibold text-white">- {formatCurrency(fullData.discount_amount)}</span>
                 </div>
               )}
-              
+
               <div className="h-px bg-emerald-600/50 w-full"></div>
               <div className="flex justify-between items-end">
                 <span className="text-emerald-100 text-sm font-medium">Tổng tiền</span>
@@ -213,30 +243,45 @@ export default function SalesOrderDetailPanel({ order, onClose, onPrint, onConfi
 
       {/* Action Buttons */}
       <div className="p-5 border-t border-neutral-100 bg-white space-y-3 shadow-[0_-10px_20px_-10px_rgba(0,0,0,0.02)]">
+        {(order.status === "Yêu cầu trả hàng" || order.status === "return_requested") && (
+          <div className="flex gap-3">
+            <button
+              onClick={() => onApproveReturn && onApproveReturn(order)}
+              className="flex-1 py-3.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-sm shadow-md shadow-emerald-200/50 hover:shadow-lg transition-all flex justify-center items-center gap-2 cursor-pointer hover:scale-[1.01] active:scale-[0.98]">
+              <CheckCircle2 className="w-5 h-5" /> Duyệt trả hàng
+            </button>
+            <button
+              onClick={() => onRejectReturn && onRejectReturn(order)}
+              className="flex-1 py-3.5 rounded-xl bg-red-600 hover:bg-red-700 text-white font-bold text-sm shadow-md shadow-red-200/50 hover:shadow-lg transition-all flex justify-center items-center gap-2 cursor-pointer hover:scale-[1.01] active:scale-[0.98]">
+              <XCircle className="w-5 h-5" /> Từ chối trả hàng
+            </button>
+          </div>
+        )}
+
         {order.status === "Chờ xác nhận" && (
-          <button 
+          <button
             onClick={() => onConfirm && onConfirm(order)}
             className="w-full py-3.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-sm shadow-md shadow-emerald-200/50 hover:shadow-lg transition-all flex justify-center items-center gap-2 cursor-pointer hover:scale-[1.01] active:scale-[0.98]">
             <CheckCircle2 className="w-5 h-5" /> Xác nhận đơn hàng
           </button>
         )}
         {order.status === "Đã xác nhận" && (
-          <button 
+          <button
             onClick={() => onStartProcessing && onStartProcessing(order)}
             className="w-full py-3.5 rounded-xl bg-amber-500 hover:bg-amber-600 text-white font-bold text-sm shadow-md shadow-amber-200/50 hover:shadow-lg transition-all flex justify-center items-center gap-2 cursor-pointer hover:scale-[1.01] active:scale-[0.98]">
             <Package className="w-5 h-5" /> Đang chuẩn bị hàng
           </button>
         )}
         {order.status === "Đang chuẩn bị hàng" && (
-          <button 
+          <button
             onClick={() => onShipOrder && onShipOrder(order)}
             className="w-full py-3.5 rounded-xl bg-blue-500 hover:bg-blue-600 text-white font-bold text-sm shadow-md shadow-blue-200/50 hover:shadow-lg transition-all flex justify-center items-center gap-2 cursor-pointer hover:scale-[1.01] active:scale-[0.98]">
             <Truck className="w-5 h-5" /> Bắt đầu giao hàng
           </button>
         )}
-        
+
         {(order.status === "Chờ xác nhận" || order.status === "Đã xác nhận" || order.status === "Đang chuẩn bị hàng") && (
-          <button 
+          <button
             onClick={() => onCancel && onCancel(order)}
             className="w-full py-3 rounded-xl border border-red-200 hover:bg-red-50 text-red-600 font-bold text-sm transition-all cursor-pointer flex items-center justify-center gap-2"
           >
@@ -244,7 +289,7 @@ export default function SalesOrderDetailPanel({ order, onClose, onPrint, onConfi
           </button>
         )}
 
-        <button 
+        <button
           onClick={() => onPrint && onPrint(order)}
           className="w-full py-3 rounded-xl bg-neutral-100 hover:bg-neutral-200 text-neutral-700 font-bold text-sm transition-all cursor-pointer flex items-center justify-center gap-2"
         >

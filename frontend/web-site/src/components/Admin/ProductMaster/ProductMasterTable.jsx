@@ -1,9 +1,29 @@
 import DataTable from "react-data-table-component";
 import { tableStyles, paginationVi } from "../../common/tableStyles";
+import { getSeasonTagClassName } from "./productMasterHelpers";
 
 const STATUS_CONFIG = {
     active: { label: "HOẠT ĐỘNG", bg: "bg-green-200", text: "text-green-800" },
     inactive: { label: "KHÓA", bg: "bg-gray-200", text: "text-gray-800" },
+};
+
+const SeasonCell = ({ seasons = [] }) => {
+    if (!seasons.length) {
+        return <span className="text-sm text-neutral-400">—</span>;
+    }
+
+    return (
+        <div className="mx-auto grid w-full max-w-[220px] grid-cols-2 gap-1.5 py-1.5">
+            {seasons.map((season) => (
+                <span
+                    key={season.id}
+                    className={`inline-flex min-h-[30px] items-center justify-center rounded-lg border px-2 py-1 text-center text-sm font-semibold leading-tight ${getSeasonTagClassName(season)}`}
+                >
+                    {season.name}
+                </span>
+            ))}
+        </div>
+    );
 };
 
 const buildColumns = (onView) => [
@@ -29,6 +49,14 @@ const buildColumns = (onView) => [
                 {row.category_name}
             </span>
         ),
+    },
+    {
+        name: "Mùa",
+        selector: (row) => row.season_label,
+        sortable: true,
+        center: true,
+        grow: 1,
+        cell: (row) => <SeasonCell seasons={row.seasons} />,
     },
     {
         name: "Đơn vị",
@@ -80,6 +108,7 @@ export default function ProductMasterTable({
     data,
     search,
     statusFilter,
+    seasonFilter,
     onView,
 }) {
     const filtered = data.filter((row) => {
@@ -87,11 +116,15 @@ export default function ProductMasterTable({
         const matchSearch =
             row.name.toLowerCase().includes(keyword) ||
             row.category_name.toLowerCase().includes(keyword) ||
-            row.default_unit.toLowerCase().includes(keyword);
+            row.default_unit.toLowerCase().includes(keyword) ||
+            row.season_label.toLowerCase().includes(keyword);
 
         const matchStatus = !statusFilter || row.status === statusFilter;
+        const matchSeason =
+            !seasonFilter ||
+            (row.season_ids ?? []).includes(String(seasonFilter));
 
-        return matchSearch && matchStatus;
+        return matchSearch && matchStatus && matchSeason;
     });
 
     return (

@@ -37,6 +37,15 @@ const STATUS_CONFIG = {
       "Phiếu nhập đã được gửi tới Nhà cung cấp. Hệ thống đã thông báo cho NCC. Bạn sẽ nhận được thông báo khi NCC xác nhận hoặc từ chối đơn hàng.",
     hint: "Bạn có thể hủy phiếu nếu cần thay đổi.",
   },
+  pending_dealer_confirmation: {
+    icon: AlertTriangle,
+    color: "bg-amber-50 border-amber-200 text-amber-800",
+    iconColor: "text-amber-600",
+    title: "Chờ đại lý xác nhận thay đổi",
+    description:
+      "Nhà cung cấp đã đề xuất điều chỉnh thông tin đơn hàng. Vui lòng kiểm tra lại chi tiết đơn hàng và xác nhận thay đổi.",
+    hint: "Bấm \"Xác nhận thay đổi\" bên dưới để đồng ý với các điều chỉnh này.",
+  },
   rejected: {
     icon: XCircle,
     color: "bg-red-50 border-red-200 text-red-800",
