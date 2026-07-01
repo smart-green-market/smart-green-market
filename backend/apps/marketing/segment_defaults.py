@@ -4,6 +4,13 @@ from django.utils import timezone
 
 DEFAULT_CUSTOMER_SEGMENT_CODE = "PASSIVE"
 
+SEGMENT_PRIORITY = {
+    "VIP": 4,
+    "POTENTIAL": 3,
+    "PASSIVE": 2,
+    "CHURN_RISK": 1,
+}
+
 SYSTEM_CUSTOMER_SEGMENTS = [
     {
         "code": "CHURN_RISK",
@@ -54,3 +61,13 @@ def seed_system_customer_segments(*, apps=None, seeded_at=None):
                 created_at=timestamp,
                 updated_at=timestamp,
             )
+
+
+def resolve_primary_segment_membership(memberships):
+    """Chọn segment ưu tiên cao nhất trong danh sách membership."""
+    if not memberships:
+        return None
+    return max(
+        memberships,
+        key=lambda membership: SEGMENT_PRIORITY.get(membership.segment.code, 0),
+    )
