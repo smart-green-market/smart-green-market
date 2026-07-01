@@ -1,15 +1,27 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Outlet, useNavigate, useLocation } from "react-router-dom";
 import { Menu } from "lucide-react";
 import SideBar from "../components/Dealer/UI/SideBar";
 import Logo from "../components/Dealer/UI/Logo";
 import DealerNotificationBell from "../components/common/DealerNotificationBell";
 import AppToaster from "../components/common/AppToaster";
+import { dealerService } from "../services/api/dealerService";
 
 export default function DealerLayout() {
     const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+    const [dealerInfo, setDealerInfo] = useState(null);
     const navigate = useNavigate();
     const location = useLocation();
+
+    useEffect(() => {
+        dealerService.getMe()
+            .then((data) => {
+                setDealerInfo(data);
+            })
+            .catch((err) => {
+                console.error("Failed to fetch dealer info:", err);
+            });
+    }, []);
 
     return (
         <div className="min-h-screen bg-[#F8F9FA]">
@@ -24,7 +36,7 @@ export default function DealerLayout() {
                     >
                         <Menu className="w-5 h-5" />
                     </button>
-                    <Logo />
+                    <Logo username={dealerInfo?.account?.username} />
                 </div>
 
                 {/* Right icons */}
@@ -34,9 +46,17 @@ export default function DealerLayout() {
                     <div className="pl-4 border-l border-gray-200 flex items-center gap-2">
                         <button
                             onClick={() => navigate("/dai-ly/cau-hinh")}
-                            className="w-8 h-8 rounded-full bg-green-600 hover:bg-green-700 flex items-center justify-center text-white text-xs font-bold font-['Geist',sans-serif] shadow-sm active:scale-95 transition-all cursor-pointer"
+                            className="w-8 h-8 rounded-full bg-green-600 hover:bg-green-700 flex items-center justify-center text-white text-xs font-bold font-['Geist',sans-serif] shadow-sm active:scale-95 transition-all cursor-pointer overflow-hidden"
                         >
-                            D
+                            {dealerInfo?.account?.avatar_url ? (
+                                <img
+                                    src={dealerInfo.account.avatar_url}
+                                    alt="Avatar"
+                                    className="w-full h-full object-cover"
+                                />
+                            ) : (
+                                "D"
+                            )}
                         </button>
                     </div>
                 </div>
