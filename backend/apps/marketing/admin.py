@@ -15,9 +15,9 @@ class CustomerSegmentMemberInline(admin.TabularInline):
 
 @admin.register(CustomerSegment)
 class CustomerSegmentAdmin(admin.ModelAdmin):
-    list_display = ("name", "code", "dealer", "is_system", "created_at")
-    list_filter = ("dealer", "is_system")
-    search_fields = ("name", "code", "dealer__store_name")
+    list_display = ("name", "code", "is_system", "created_at")
+    list_filter = ("is_system",)
+    search_fields = ("name", "code")
     inlines = [CustomerSegmentMemberInline]
 
 
