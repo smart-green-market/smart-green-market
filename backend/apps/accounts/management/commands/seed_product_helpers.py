@@ -16,39 +16,40 @@ from apps.dealer_products.models import DealerInventoryBatch, DealerInventoryBat
 from apps.product_catalog.models import Season, SeasonStatus
 from apps.supplier_products.models import CultivationProcess
 
+ALL_SEASONS = ["spring", "summer", "autumn", "winter"]
+
 # (storage_days_min, storage_days_max), nhiệt độ °C, mã season
 CATEGORY_STORAGE_PROFILES: dict[str, dict] = {
-    "Rau ăn lá": {"storage_days": (3, 6), "min_temp": 2, "max_temp": 8, "seasons": ["spring", "autumn", "year-round"]},
-    "Rau ăn củ": {"storage_days": (7, 14), "min_temp": 4, "max_temp": 10, "seasons": ["autumn", "winter", "year-round"]},
-    "Rau ăn quả": {"storage_days": (5, 10), "min_temp": 4, "max_temp": 12, "seasons": ["spring", "summer", "year-round"]},
-    "Rau gia vị & rau thơm": {"storage_days": (5, 9), "min_temp": 2, "max_temp": 8, "seasons": ["spring", "summer", "year-round"]},
-    "Nấm các loại": {"storage_days": (3, 5), "min_temp": 2, "max_temp": 6, "seasons": ["autumn", "winter", "year-round"]},
-    "Trái cây nhiệt đới": {"storage_days": (5, 12), "min_temp": 6, "max_temp": 14, "seasons": ["summer", "year-round"]},
-    "Trái cây có múi": {"storage_days": (10, 21), "min_temp": 4, "max_temp": 12, "seasons": ["winter", "spring", "year-round"]},
-    "Trái cây ôn đới & nhập khẩu": {"storage_days": (7, 14), "min_temp": 2, "max_temp": 8, "seasons": ["summer", "autumn", "year-round"]},
-    "Quả mọng & đặc sản": {"storage_days": (3, 7), "min_temp": 2, "max_temp": 8, "seasons": ["spring", "summer", "year-round"]},
-    "Đậu & hạt tươi": {"storage_days": (4, 8), "min_temp": 4, "max_temp": 10, "seasons": ["spring", "summer", "year-round"]},
-    "Gạo & Ngũ cốc": {"storage_days": (180, 365), "min_temp": 15, "max_temp": 30, "seasons": ["year-round"]},
-    "Đậu khô & hạt khô": {"storage_days": (120, 270), "min_temp": 15, "max_temp": 28, "seasons": ["year-round"]},
-    "Thực phẩm khô": {"storage_days": (90, 180), "min_temp": 15, "max_temp": 30, "seasons": ["year-round"]},
-    "Nông sản sấy khô": {"storage_days": (120, 240), "min_temp": 15, "max_temp": 28, "seasons": ["year-round"]},
-    "Gia vị": {"storage_days": (180, 365), "min_temp": 15, "max_temp": 30, "seasons": ["year-round"]},
-    "Mật ong & sản phẩm từ ong": {"storage_days": (365, 730), "min_temp": 18, "max_temp": 28, "seasons": ["year-round"]},
-    "Trứng gia cầm": {"storage_days": (14, 21), "min_temp": 2, "max_temp": 6, "seasons": ["year-round"]},
-    "Sữa & sản phẩm từ sữa nông trại": {"storage_days": (5, 14), "min_temp": 2, "max_temp": 6, "seasons": ["year-round"]},
-    "Thực phẩm lên men & muối chua": {"storage_days": (30, 90), "min_temp": 4, "max_temp": 12, "seasons": ["year-round"]},
-    "Hoa & cây giống nông nghiệp": {"storage_days": (3, 7), "min_temp": 8, "max_temp": 18, "seasons": ["spring", "summer", "year-round"]},
+    "Rau ăn lá": {"storage_days": (3, 6), "min_temp": 2, "max_temp": 8, "seasons": ["spring", "autumn"]},
+    "Rau ăn củ": {"storage_days": (7, 14), "min_temp": 4, "max_temp": 10, "seasons": ["autumn", "winter"]},
+    "Rau ăn quả": {"storage_days": (5, 10), "min_temp": 4, "max_temp": 12, "seasons": ["spring", "summer"]},
+    "Rau gia vị & rau thơm": {"storage_days": (5, 9), "min_temp": 2, "max_temp": 8, "seasons": ["spring", "summer"]},
+    "Nấm các loại": {"storage_days": (3, 5), "min_temp": 2, "max_temp": 6, "seasons": ["autumn", "winter"]},
+    "Trái cây nhiệt đới": {"storage_days": (5, 12), "min_temp": 6, "max_temp": 14, "seasons": ["summer"]},
+    "Trái cây có múi": {"storage_days": (10, 21), "min_temp": 4, "max_temp": 12, "seasons": ["winter", "spring"]},
+    "Trái cây ôn đới & nhập khẩu": {"storage_days": (7, 14), "min_temp": 2, "max_temp": 8, "seasons": ["summer", "autumn"]},
+    "Quả mọng & đặc sản": {"storage_days": (3, 7), "min_temp": 2, "max_temp": 8, "seasons": ["spring", "summer"]},
+    "Đậu & hạt tươi": {"storage_days": (4, 8), "min_temp": 4, "max_temp": 10, "seasons": ["spring", "summer"]},
+    "Gạo & Ngũ cốc": {"storage_days": (180, 365), "min_temp": 15, "max_temp": 30, "seasons": ALL_SEASONS},
+    "Đậu khô & hạt khô": {"storage_days": (120, 270), "min_temp": 15, "max_temp": 28, "seasons": ALL_SEASONS},
+    "Thực phẩm khô": {"storage_days": (90, 180), "min_temp": 15, "max_temp": 30, "seasons": ALL_SEASONS},
+    "Nông sản sấy khô": {"storage_days": (120, 240), "min_temp": 15, "max_temp": 28, "seasons": ALL_SEASONS},
+    "Gia vị": {"storage_days": (180, 365), "min_temp": 15, "max_temp": 30, "seasons": ALL_SEASONS},
+    "Mật ong & sản phẩm từ ong": {"storage_days": (365, 730), "min_temp": 18, "max_temp": 28, "seasons": ALL_SEASONS},
+    "Trứng gia cầm": {"storage_days": (14, 21), "min_temp": 2, "max_temp": 6, "seasons": ALL_SEASONS},
+    "Sữa & sản phẩm từ sữa nông trại": {"storage_days": (5, 14), "min_temp": 2, "max_temp": 6, "seasons": ALL_SEASONS},
+    "Thực phẩm lên men & muối chua": {"storage_days": (30, 90), "min_temp": 4, "max_temp": 12, "seasons": ALL_SEASONS},
+    "Hoa & cây giống nông nghiệp": {"storage_days": (3, 7), "min_temp": 8, "max_temp": 18, "seasons": ["spring", "summer"]},
 }
 
 DEFAULT_STORAGE_PROFILE = {
     "storage_days": (7, 14),
     "min_temp": 4,
     "max_temp": 12,
-    "seasons": ["year-round"],
+    "seasons": ALL_SEASONS,
 }
 
 SEASON_DEFINITIONS = [
-    ("year-round", "Quanh năm", 1, 12, 0),
     ("spring", "Xuân", 2, 4, 1),
     ("summer", "Hè", 5, 8, 2),
     ("autumn", "Thu", 9, 11, 3),
@@ -64,7 +65,7 @@ CULTIVATION_STEPS = [
 
 
 def ensure_seasons() -> dict[str, Season]:
-    """Tạo/lấy các mùa vụ chuẩn — trả về map code -> Season."""
+    """Tạo/lấy 4 mùa vụ chuẩn (Xuân, Hè, Thu, Đông) — trả về map code -> Season."""
     season_map: dict[str, Season] = {}
     for code, name, start_m, end_m, sort_order in SEASON_DEFINITIONS:
         season, _ = Season.objects.get_or_create(
@@ -79,6 +80,7 @@ def ensure_seasons() -> dict[str, Season]:
             },
         )
         season_map[code] = season
+    Season.objects.filter(code="year-round").delete()
     return season_map
 
 
@@ -92,7 +94,7 @@ def pick_storage_days(profile: dict) -> int:
 
 
 def assign_product_master_seasons(product_master, season_map: dict[str, Season], profile: dict) -> None:
-    codes = profile.get("seasons", ["year-round"])
+    codes = profile.get("seasons", ALL_SEASONS)
     seasons = [season_map[c] for c in codes if c in season_map]
     if seasons:
         product_master.seasons.set(seasons)

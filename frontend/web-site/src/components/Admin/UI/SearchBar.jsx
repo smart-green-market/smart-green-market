@@ -7,25 +7,31 @@ import { Search, X } from "lucide-react";
  *   onChange    : (val: string) => void
  *   placeholder : string
  */
-export default function SearchBar({ value, onChange, placeholder = "Tìm kiếm..." }) {
+export default function SearchBar({
+    value,
+    onChange,
+    placeholder = "Tìm kiếm...",
+    className = "",
+}) {
     return (
-        <div className="relative w-96">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-neutral-400 pointer-events-none" />
+        <div className={`relative w-full min-w-[140px] max-w-[220px] shrink-0 ${className}`}>
+            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-neutral-400" />
             <input
                 type="text"
                 value={value}
                 onChange={(e) => onChange(e.target.value)}
                 placeholder={placeholder}
-                className="w-full pl-10 pr-9 py-2 bg-stone-50 border border-neutral-200 rounded-lg text-sm text-zinc-800 placeholder-gray-400 outline-none focus:ring-2 focus:ring-emerald-300 focus:border-emerald-400 transition-all font-['Geist',sans-serif]"
+                className="w-full rounded-lg border border-neutral-200 bg-stone-50 py-2 pl-9 pr-8 text-sm text-zinc-800 outline-none transition-all placeholder:text-gray-400 focus:border-emerald-400 focus:ring-2 focus:ring-emerald-300 font-['Geist',sans-serif]"
             />
-            {value && (
+            {value ? (
                 <button
+                    type="button"
                     onClick={() => onChange("")}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-neutral-400 hover:text-neutral-600 transition-colors"
+                    className="absolute right-2.5 top-1/2 -translate-y-1/2 text-neutral-400 transition-colors hover:text-neutral-600"
                 >
-                    <X className="w-3.5 h-3.5" />
+                    <X className="h-3.5 w-3.5" />
                 </button>
-            )}
+            ) : null}
         </div>
     );
 }

@@ -22,6 +22,7 @@ from common.validators import require_rejection_reason
 from .models import (
     PurchaseOrder,
     PurchaseOrderItem,
+    PurchaseOrderItemReviewStatus,
     PurchaseOrderPayment,
     PurchaseOrderPaymentMethod,
     PurchaseOrderPaymentStatus,
@@ -102,6 +103,11 @@ class PurchaseOrderItemReadSerializer(serializers.ModelSerializer):
         allow_null=True,
         help_text="Năng lực sản xuất TB/ngày của NCC (cảnh báo UI nếu quantity vượt)",
     )
+    item_status = serializers.CharField(
+        source="review_status",
+        read_only=True,
+        help_text="Alias FE: pending | approved | rejected",
+    )
 
     def get_product_thumbnail_url(self, obj):
         product = obj.supplier_product
@@ -126,16 +132,23 @@ class PurchaseOrderItemReadSerializer(serializers.ModelSerializer):
             "product_images",
             "daily_production_capacity",
             "quantity",
+            "original_quantity",
             "unit_price",
             "subtotal",
             "note",
+            "review_status",
+            "item_status",
+            "rejection_reason",
         ]
         extra_kwargs = {
             "id": {"help_text": "ID dòng sản phẩm"},
-            "quantity": {"help_text": "Số lượng đặt"},
+            "quantity": {"help_text": "Số lượng sau khi NCC duyệt/điều chỉnh"},
+            "original_quantity": {"help_text": "Số lượng dealer đặt ban đầu"},
             "unit_price": {"help_text": "Đơn giá sỉ tại thời điểm tạo đơn (VND)"},
-            "subtotal": {"help_text": "Thành tiền dòng = quantity × unit_price"},
+            "subtotal": {"help_text": "Thành tiền dòng = quantity × unit_price (0 nếu rejected)"},
             "note": {"help_text": "Ghi chú dòng sản phẩm"},
+            "review_status": {"help_text": "pending | approved | rejected"},
+            "rejection_reason": {"help_text": "Lý do NCC từ chối dòng SP"},
         }
 
 
@@ -626,6 +639,30 @@ class PurchaseOrderBatchCreateResponseSerializer(serializers.Serializer):
     )
 
 
+class SupplierConfirmItemSerializer(serializers.Serializer):
+    id = serializers.IntegerField(help_text="ID dòng sản phẩm trong phiếu")
+    review_status = serializers.ChoiceField(
+        choices=[
+            PurchaseOrderItemReviewStatus.APPROVED,
+            PurchaseOrderItemReviewStatus.REJECTED,
+        ],
+        help_text="approved hoặc rejected",
+    )
+    quantity = serializers.DecimalField(
+        max_digits=12,
+        decimal_places=2,
+        min_value=Decimal("0.01"),
+        required=False,
+        help_text="Số lượng mới (chỉ khi approved; mặc định giữ nguyên)",
+    )
+    rejection_reason = serializers.CharField(
+        required=False,
+        allow_blank=True,
+        default="",
+        help_text="Bắt buộc khi review_status=rejected",
+    )
+
+
 class SupplierConfirmSerializer(serializers.Serializer):
     confirmed_delivery_time = serializers.DateTimeField(
         help_text=(
@@ -649,6 +686,14 @@ class SupplierConfirmSerializer(serializers.Serializer):
         allow_blank=True,
         default="",
         help_text="Ghi chú khi NCC xác nhận đơn",
+    )
+    items = SupplierConfirmItemSerializer(
+        many=True,
+        required=False,
+        help_text=(
+            "Duyệt từng dòng SP. Không gửi = duyệt tất cả với số lượng hiện tại. "
+            "Nếu đổi ngày giao hoặc SP → status pending_dealer_confirmation."
+        ),
     )
 
 

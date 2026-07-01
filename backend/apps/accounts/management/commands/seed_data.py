@@ -651,6 +651,7 @@ class Command(BaseCommand):
                         purchase_order=po,
                         supplier_product=item_sp,
                         quantity=qty,
+                        original_quantity=qty,
                         unit_price=price,
                         subtotal=subtotal
                     )

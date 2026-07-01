@@ -12,6 +12,7 @@ from apps.dealers.models import DealerProfile, DealerProfileStatus
 from apps.purchase_orders.models import (
     PurchaseOrder,
     PurchaseOrderItem,
+    PurchaseOrderItemReviewStatus,
     PurchaseOrderReturnStatus,
     PurchaseOrderStatus,
 )
@@ -102,15 +103,19 @@ class PurchaseOrderPartialReturnTests(TestCase):
             purchase_order=self.order,
             supplier_product=self.product_a,
             quantity=Decimal("10"),
+            original_quantity=Decimal("10"),
             unit_price=Decimal("10000"),
             subtotal=Decimal("100000"),
+            review_status=PurchaseOrderItemReviewStatus.APPROVED,
         )
         self.item_b = PurchaseOrderItem.objects.create(
             purchase_order=self.order,
             supplier_product=self.product_b,
             quantity=Decimal("10"),
+            original_quantity=Decimal("10"),
             unit_price=Decimal("8000"),
             subtotal=Decimal("80000"),
+            review_status=PurchaseOrderItemReviewStatus.APPROVED,
         )
 
     def test_partial_return_single_line(self):

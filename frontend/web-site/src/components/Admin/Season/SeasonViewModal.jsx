@@ -2,9 +2,11 @@ import { useEffect, useState } from "react";
 import { X } from "lucide-react";
 import ConfirmModal from "../../common/ConfirmModal";
 import InfoField from "../../common/InfoField";
-import CategorySearchSelect from "./CategorySearchSelect";
-import SeasonMultiSelect from "./SeasonMultiSelect";
-import { PRODUCT_MASTER_STATUS } from "./productMasterHelpers";
+import {
+    MONTH_OPTIONS,
+    SEASON_STATUS,
+    formatMonthRange,
+} from "./seasonHelpers";
 
 function FormField({ label, children, required = false }) {
     return (
@@ -18,10 +20,10 @@ function FormField({ label, children, required = false }) {
     );
 }
 
-export default function ProductMasterViewModal({
+export default function SeasonViewModal({
     isOpen,
     onClose,
-    product,
+    season,
     onUpdate,
     onDelete,
     onToggleStatus,
@@ -30,38 +32,38 @@ export default function ProductMasterViewModal({
     const [confirmConfig, setConfirmConfig] = useState(null);
     const [isEditing, setIsEditing] = useState(false);
     const [form, setForm] = useState({
-        category_id: "",
+        code: "",
         name: "",
-        default_unit: "",
         description: "",
+        start_month: "",
+        end_month: "",
         sort_order: "0",
-        season_ids: [],
     });
     const [formError, setFormError] = useState("");
 
     useEffect(() => {
-        if (!isOpen || !product) {
+        if (!isOpen || !season) {
             setIsEditing(false);
             setFormError("");
             return;
         }
 
         setForm({
-            category_id: String(product.category_id ?? ""),
-            name: product.name ?? "",
-            default_unit: product.default_unit ?? "",
-            description: product.description ?? "",
-            sort_order: String(product.sort_order ?? 0),
-            season_ids: product.season_ids ?? [],
+            code: season.code ?? "",
+            name: season.name ?? "",
+            description: season.description ?? "",
+            start_month: String(season.start_month ?? ""),
+            end_month: String(season.end_month ?? ""),
+            sort_order: String(season.sort_order ?? 0),
         });
         setIsEditing(false);
         setFormError("");
-    }, [isOpen, product]);
+    }, [isOpen, season]);
 
-    if (!isOpen || !product) return null;
+    if (!isOpen || !season) return null;
 
-    const isActive = product.status === PRODUCT_MASTER_STATUS.ACTIVE;
-    const isInactive = product.status === PRODUCT_MASTER_STATUS.INACTIVE;
+    const isActive = season.status === SEASON_STATUS.ACTIVE;
+    const isInactive = season.status === SEASON_STATUS.INACTIVE;
 
     const openConfirm = ({
         title,
@@ -80,54 +82,49 @@ export default function ProductMasterViewModal({
         setConfirmConfig(null);
     };
 
+    const resetFormFromSeason = () => ({
+        code: season.code ?? "",
+        name: season.name ?? "",
+        description: season.description ?? "",
+        start_month: String(season.start_month ?? ""),
+        end_month: String(season.end_month ?? ""),
+        sort_order: String(season.sort_order ?? 0),
+    });
+
     const handleStartEdit = () => {
-        setForm({
-            category_id: String(product.category_id ?? ""),
-            name: product.name ?? "",
-            default_unit: product.default_unit ?? "",
-            description: product.description ?? "",
-            sort_order: String(product.sort_order ?? 0),
-            season_ids: product.season_ids ?? [],
-        });
+        setForm(resetFormFromSeason());
         setFormError("");
         setIsEditing(true);
     };
 
     const handleCancelEdit = () => {
-        setForm({
-            category_id: String(product.category_id ?? ""),
-            name: product.name ?? "",
-            default_unit: product.default_unit ?? "",
-            description: product.description ?? "",
-            sort_order: String(product.sort_order ?? 0),
-            season_ids: product.season_ids ?? [],
-        });
+        setForm(resetFormFromSeason());
         setFormError("");
         setIsEditing(false);
     };
 
     const handleSaveUpdate = async () => {
-        if (!form.category_id) {
-            setFormError("Vui lòng chọn danh mục.");
-            return;
-        }
-
         if (!form.name.trim()) {
-            setFormError("Vui lòng nhập tên sản phẩm.");
+            setFormError("Vui lòng nhập tên mùa.");
             return;
         }
 
-        if (!form.default_unit.trim()) {
-            setFormError("Vui lòng nhập đơn vị mặc định.");
+        if (!form.start_month || !form.end_month) {
+            setFormError("Vui lòng chọn khoảng tháng.");
+            return;
+        }
+
+        if (Number(form.start_month) > Number(form.end_month)) {
+            setFormError("Tháng bắt đầu không được lớn hơn tháng kết thúc.");
             return;
         }
 
         try {
             setFormError("");
-            await onUpdate(product, form);
+            await onUpdate(season, form);
             setIsEditing(false);
         } catch (error) {
-            setFormError(error?.message ?? "Không thể cập nhật sản phẩm.");
+            setFormError(error?.message ?? "Không thể cập nhật mùa.");
         }
     };
 
@@ -138,9 +135,7 @@ export default function ProductMasterViewModal({
                     <div className="flex shrink-0 items-center justify-between border-b border-neutral-200 px-6 py-4">
                         <div>
                             <h2 className="text-lg font-bold text-neutral-900">
-                                {isEditing
-                                    ? "Cập nhật danh mục sản phẩm"
-                                    : "Chi tiết danh mục sản phẩm"}
+                                {isEditing ? "Cập nhật mùa" : "Chi tiết mùa"}
                             </h2>
                         </div>
                         <button
@@ -161,70 +156,75 @@ export default function ProductMasterViewModal({
 
                         {isEditing ? (
                             <>
-                                
-
-                                <FormField label="Tên sản phẩm" required>
+                                <FormField label="Tên mùa" required>
                                     <input
                                         type="text"
                                         value={form.name}
-                                        onChange={(e) =>
+                                        onChange={(event) =>
                                             setForm((prev) => ({
                                                 ...prev,
-                                                name: e.target.value,
+                                                name: event.target.value,
                                             }))
                                         }
                                         className="rounded-xl border border-neutral-200 px-4 py-3 text-sm outline-none focus:border-emerald-600 focus:ring-2 focus:ring-emerald-500/10"
                                     />
                                 </FormField>
 
-                                <FormField label="Danh mục" required>
-                                    <CategorySearchSelect
-                                        value={form.category_id}
-                                        selectedLabel={product.category_name}
-                                        onChange={(categoryId) =>
-                                            setForm((prev) => ({
-                                                ...prev,
-                                                category_id: categoryId,
-                                            }))
-                                        }
-                                        disabled={loading}
-                                    />
-                                </FormField>
+                                <div className="grid grid-cols-2 gap-4">
+                                    <FormField label="Tháng bắt đầu" required>
+                                        <select
+                                            value={form.start_month}
+                                            onChange={(event) =>
+                                                setForm((prev) => ({
+                                                    ...prev,
+                                                    start_month: event.target.value,
+                                                }))
+                                            }
+                                            className="cursor-pointer rounded-xl border border-neutral-200 bg-white px-4 py-3 text-sm outline-none focus:border-emerald-600 focus:ring-2 focus:ring-emerald-500/10"
+                                        >
+                                            <option value="">Chọn tháng</option>
+                                            {MONTH_OPTIONS.map((option) => (
+                                                <option
+                                                    key={option.value}
+                                                    value={option.value}
+                                                >
+                                                    {option.label}
+                                                </option>
+                                            ))}
+                                        </select>
+                                    </FormField>
 
-                                <FormField label="Mùa">
-                                    <SeasonMultiSelect
-                                        value={form.season_ids}
-                                        onChange={(seasonIds) =>
-                                            setForm((prev) => ({
-                                                ...prev,
-                                                season_ids: seasonIds,
-                                            }))
-                                        }
-                                        disabled={loading}
-                                    />
-                                </FormField>
-
-                                <FormField label="Đơn vị mặc định" required>
-                                    <input
-                                        type="text"
-                                        value={form.default_unit}
-                                        onChange={(e) =>
-                                            setForm((prev) => ({
-                                                ...prev,
-                                                default_unit: e.target.value,
-                                            }))
-                                        }
-                                        className="rounded-xl border border-neutral-200 px-4 py-3 text-sm outline-none focus:border-emerald-600 focus:ring-2 focus:ring-emerald-500/10"
-                                    />
-                                </FormField>
+                                    <FormField label="Tháng kết thúc" required>
+                                        <select
+                                            value={form.end_month}
+                                            onChange={(event) =>
+                                                setForm((prev) => ({
+                                                    ...prev,
+                                                    end_month: event.target.value,
+                                                }))
+                                            }
+                                            className="cursor-pointer rounded-xl border border-neutral-200 bg-white px-4 py-3 text-sm outline-none focus:border-emerald-600 focus:ring-2 focus:ring-emerald-500/10"
+                                        >
+                                            <option value="">Chọn tháng</option>
+                                            {MONTH_OPTIONS.map((option) => (
+                                                <option
+                                                    key={option.value}
+                                                    value={option.value}
+                                                >
+                                                    {option.label}
+                                                </option>
+                                            ))}
+                                        </select>
+                                    </FormField>
+                                </div>
 
                                 <FormField label="Mô tả">
                                     <textarea
                                         value={form.description}
-                                        onChange={(e) =>
+                                        onChange={(event) =>
                                             setForm((prev) => ({
                                                 ...prev,
-                                                description: e.target.value,
+                                                description: event.target.value,
                                             }))
                                         }
                                         rows={3}
@@ -234,36 +234,17 @@ export default function ProductMasterViewModal({
                             </>
                         ) : (
                             <>
-                            
-                                <InfoField label="Tên sản phẩm" value={product.name} />
+                                <InfoField label="Tên mùa" value={season.name} />
                                 <InfoField
-                                    label="Danh mục"
-                                    value={product.category_name}
-                                />
-                                
-                                <FormField label="Mùa">
-                                    {product.seasons?.length ? (
-                                        <div className="flex flex-wrap gap-2">
-                                            {product.seasons.map((season) => (
-                                                <span
-                                                    key={season.id}
-                                                    className="inline-flex rounded-full bg-emerald-50 px-3 py-1 text-sm font-medium text-emerald-800"
-                                                >
-                                                    {season.name}
-                                                </span>
-                                            ))}
-                                        </div>
-                                    ) : (
-                                        <p className="text-sm text-neutral-500">—</p>
+                                    label="Khoảng tháng"
+                                    value={formatMonthRange(
+                                        season.start_month,
+                                        season.end_month,
                                     )}
-                                </FormField>
-                                <InfoField
-                                    label="Đơn vị mặc định"
-                                    value={product.default_unit}
                                 />
                                 <InfoField
                                     label="Mô tả"
-                                    value={product.description || "—"}
+                                    value={season.description || "—"}
                                 />
                             </>
                         )}
@@ -305,11 +286,11 @@ export default function ProductMasterViewModal({
                                     disabled={loading}
                                     onClick={() =>
                                         openConfirm({
-                                            title: "Xóa danh mục sản phẩm",
-                                            message: `Bạn có chắc chắn muốn xóa danh mục sản phẩm "${product.name}"? Hành động này không thể hoàn tác.`,
+                                            title: "Xóa mùa",
+                                            message: `Bạn có chắc chắn muốn xóa "${season.name}"? Hành động này không thể hoàn tác.`,
                                             confirmText: "Xóa",
                                             variant: "danger",
-                                            action: () => onDelete(product),
+                                            action: () => onDelete(season),
                                         })
                                     }
                                     className="cursor-pointer rounded-xl bg-red-600 px-6 py-2.5 font-semibold text-white hover:bg-red-700 disabled:opacity-50"
@@ -323,14 +304,14 @@ export default function ProductMasterViewModal({
                                         disabled={loading}
                                         onClick={() =>
                                             openConfirm({
-                                                title: "Khóa sản phẩm",
-                                                message: `Bạn có chắc chắn muốn khóa "${product.name}" không?`,
+                                                title: "Khóa mùa",
+                                                message: `Bạn có chắc chắn muốn khóa "${season.name}" không?`,
                                                 confirmText: "Khóa",
                                                 variant: "warning",
                                                 action: () =>
                                                     onToggleStatus(
-                                                        product,
-                                                        PRODUCT_MASTER_STATUS.INACTIVE,
+                                                        season,
+                                                        SEASON_STATUS.INACTIVE,
                                                     ),
                                             })
                                         }
@@ -346,14 +327,14 @@ export default function ProductMasterViewModal({
                                         disabled={loading}
                                         onClick={() =>
                                             openConfirm({
-                                                title: "Mở khóa sản phẩm",
-                                                message: `Bạn có chắc chắn muốn mở khóa "${product.name}" không?`,
+                                                title: "Mở khóa mùa",
+                                                message: `Bạn có chắc chắn muốn mở khóa "${season.name}" không?`,
                                                 confirmText: "Mở khóa",
                                                 variant: "success",
                                                 action: () =>
                                                     onToggleStatus(
-                                                        product,
-                                                        PRODUCT_MASTER_STATUS.ACTIVE,
+                                                        season,
+                                                        SEASON_STATUS.ACTIVE,
                                                     ),
                                             })
                                         }
