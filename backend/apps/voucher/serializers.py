@@ -14,46 +14,37 @@ class AvailablePromotionSerializer(serializers.ModelSerializer):
 
 
 class PromotionTargetSerializer(serializers.ModelSerializer):
+    target_type = serializers.ChoiceField(
+        choices=[("segment", "Theo nhóm khách")],
+        default="segment",
+        help_text="Loại đối tượng áp dụng. Chỉ hỗ trợ 'segment'.",
+    )
+
     class Meta:
         model = PromotionTarget
         fields = [
             "id",
             "target_type",
             "segment",
-            "dealer_product",
-            "category",
-            "customer",
         ]
 
     def to_internal_value(self, data):
         data = data.copy() if hasattr(data, 'copy') else dict(data)
-        for field in ["segment", "dealer_product", "category", "customer"]:
-            if field in data:
-                val = data[field]
-                if val == "" or val == 0 or val == "0" or val is None:
-                    data[field] = None
+        if "segment" in data:
+            val = data["segment"]
+            if val == "" or val == 0 or val == "0" or val is None:
+                data["segment"] = None
         return super().to_internal_value(data)
 
     def validate(self, attrs):
         target_type = attrs.get("target_type")
         segment = attrs.get("segment")
-        dealer_product = attrs.get("dealer_product")
-        category = attrs.get("category")
-        customer = attrs.get("customer")
 
-        if target_type == "segment" and segment is None:
+        if target_type != "segment":
+            raise serializers.ValidationError({"target_type": "Chỉ chấp nhận đối tượng áp dụng là phân nhóm khách hàng (segment)."})
+
+        if segment is None:
             raise serializers.ValidationError({"segment": "Trường segment không được để trống khi target_type là 'segment'."})
-        elif target_type == "customer" and customer is None:
-            raise serializers.ValidationError({"customer": "Trường customer không được để trống khi target_type là 'customer'."})
-        elif target_type == "category" and category is None:
-            raise serializers.ValidationError({"category": "Trường category không được để trống khi target_type là 'category'."})
-        elif target_type == "product" and dealer_product is None:
-            raise serializers.ValidationError({"dealer_product": "Trường dealer_product không được để trống khi target_type là 'product'."})
-        elif target_type == "all":
-            attrs["segment"] = None
-            attrs["dealer_product"] = None
-            attrs["category"] = None
-            attrs["customer"] = None
 
         return attrs
 

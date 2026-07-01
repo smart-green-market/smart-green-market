@@ -4,6 +4,7 @@ from rest_framework import serializers
 
 from common.openapi_enums import schema_choice_field
 
+from .models import CustomerSegment
 from .services import STOREFRONT_TRACK_ACTIONS
 
 
@@ -48,3 +49,24 @@ class DealerCatalogInteractionTrackSerializer(serializers.Serializer):
         choices=[(value, value) for value in sorted({"view", "add_cart"})],
         help_text="`view` — xem/click SP (+2). `add_cart` — thêm giỏ lần đầu (+3).",
     )
+
+
+class CustomerSegmentSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = CustomerSegment
+        fields = [
+            "id",
+            "code",
+            "name",
+            "description",
+            "is_system",
+            "created_at",
+            "updated_at",
+        ]
+        read_only_fields = ["id", "is_system", "created_at", "updated_at"]
+
+    def create(self, validated_data):
+        request = self.context.get("request")
+        if request and request.user and hasattr(request.user, "dealer_profile"):
+            validated_data["dealer"] = request.user.dealer_profile
+        return super().create(validated_data)

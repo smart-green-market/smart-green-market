@@ -100,8 +100,8 @@ export default function DealerPurchaseOrderPage() {
                     amount: `${Number(item.total_amount).toLocaleString("vi-VN")} đ`,
                     status: mapStatusToFrontend(item.status),
                     rawStatus: item.status,
-                    deliveryDate: item.requested_delivery_time
-                        ? new Date(item.requested_delivery_time).toLocaleDateString("vi-VN", { day: '2-digit', month: '2-digit', year: 'numeric' })
+                    deliveryDate: (item.confirmed_delivery_time || item.requested_delivery_time)
+                        ? new Date(item.confirmed_delivery_time || item.requested_delivery_time).toLocaleDateString("vi-VN", { day: '2-digit', month: '2-digit', year: 'numeric' })
                         : "Chưa xác định",
                 }));
                 //Check đơn mới đã tồn tại chưa để thêm lên đầu
