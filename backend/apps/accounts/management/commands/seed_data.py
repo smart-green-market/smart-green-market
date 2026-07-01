@@ -20,12 +20,10 @@ from apps.product_catalog.models import ProductMaster
 
 from .seed_customer_journeys import seed_customer_journeys
 from .seed_product_helpers import (
-    assign_product_master_seasons,
     build_dealer_description,
     build_supplier_description,
     create_cultivation_processes,
     create_dealer_inventory_batches,
-    ensure_seasons,
     get_storage_profile,
     link_product_certifications,
     pick_storage_days,
@@ -124,9 +122,6 @@ class Command(BaseCommand):
         self.stdout.write('Creating Categories...')
         self.categories = self._create_categories()
 
-        self.stdout.write('Ensuring seasons...')
-        self.season_map = ensure_seasons()
- 
         self.stdout.write('Creating Product Masters...')
         self.product_masters = self._create_product_masters(self.categories)
  
@@ -477,7 +472,6 @@ class Command(BaseCommand):
         product_masters = []
         for cat in categories:
             names = master_data.get(cat.name, [])
-            profile = get_storage_profile(cat.name)
             for name in names:
                 slug = self.fake.slug(name)
                 pm, created = ProductMaster.objects.get_or_create(
@@ -494,7 +488,6 @@ class Command(BaseCommand):
                         'sort_order': random.randint(1, 100)
                     }
                 )
-                assign_product_master_seasons(pm, self.season_map, profile)
                 product_masters.append(pm)
         return product_masters
 
