@@ -1,9 +1,8 @@
 import { useEffect, useState, useRef, useCallback } from "react";
 import { Bell } from "lucide-react";
-import { useNavigate, useLocation } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import { notificationService, handleApiError } from "../../services/api/notificationService";
-import DealerNotificationDropdown from "./DealerNotificationDropdown";
-import { getNotificationSeeAllPath } from "./notificationRolePaths";
+import NotificationDropdown from "./NotificationDropdown";
 import {
     formatNotificationRow,
     isNotificationUnread,
@@ -13,25 +12,22 @@ import {
 } from "../Admin/Notification/notificationFormatters";
 import { useAuth } from "../../contexts/authProvider";
 import { useNotificationBellData } from "../../hooks/useNotificationBellData";
+import { useStorefrontPaths } from "../../hooks/useStorefrontPaths";
 
-const getNotificationRoute = (item) => {
+const getBuyerNotificationRoute = (item, orderStatusPath) => {
     const referenceType = item.referenceType ?? item.reference_type;
-    const referenceId = item.referenceId ?? item.reference_id;
 
-    switch (referenceType) {
-        case "purchase_order": return `/dai-ly/nhap-hang/chi-tiet/${referenceId}`;
-        case "customer_order": return `/dai-ly/ban-hang`;
-        case "category": return `/dai-ly/danh-muc/${referenceId}`;
-        case "account_document": return `/dai-ly/cau-hinh`;
-        case "dealer": return `/dai-ly/cau-hinh`;
-        default: return null;
+    if (referenceType === "customer_order") {
+        return orderStatusPath;
     }
+
+    return orderStatusPath;
 };
 
-export default function DealerNotificationBell({ role: roleProp }) {
+export default function BuyerNotificationBell() {
     const { user } = useAuth();
-    const role = roleProp ?? user?.role ?? "dealer";
-    const seeAllPath = getNotificationSeeAllPath(role);
+    const paths = useStorefrontPaths();
+    const navigate = useNavigate();
 
     const {
         unreadCount,
@@ -41,10 +37,7 @@ export default function DealerNotificationBell({ role: roleProp }) {
     } = useNotificationBellData({ enabled: Boolean(user) });
 
     const [isOpenDropdown, setIsOpenDropdown] = useState(false);
-
     const dropdownRef = useRef(null);
-    const navigate = useNavigate();
-    const location = useLocation();
 
     useEffect(() => {
         function handleClickOutside(event) {
@@ -58,9 +51,11 @@ export default function DealerNotificationBell({ role: roleProp }) {
 
     const handleMarkRead = useCallback(async (markReadId, receiptId) => {
         if (markReadId == null) return;
+
         try {
             const response = await notificationService.mark_read(markReadId);
             const markedState = getMarkedReadState(response);
+
             setNotifications((prev) =>
                 prev.map((item) =>
                     matchesNotificationRecord(item, markReadId, receiptId)
@@ -79,43 +74,47 @@ export default function DealerNotificationBell({ role: roleProp }) {
 
         const formatted = formatNotificationRow(item);
         const notificationId = resolveMarkReadId(formatted);
+
         if (notificationId != null && isNotificationUnread(formatted)) {
             handleMarkRead(notificationId, formatted.receiptId);
         }
 
-        const route = getNotificationRoute(formatted);
+        const route = getBuyerNotificationRoute(formatted, paths.orderStatus);
         if (route) {
-            if (location.pathname === route) {
-                navigate(route, { replace: true, state: { refresh: Date.now() } });
-            } else {
-                navigate(route);
-            }
+            navigate(route);
         }
-    }, [handleMarkRead, navigate, location.pathname]);
+    }, [handleMarkRead, navigate, paths.orderStatus]);
 
     return (
         <div className="relative" ref={dropdownRef}>
             <button
+                type="button"
                 onClick={() => setIsOpenDropdown(!isOpenDropdown)}
-                className="hover:scale-105 cursor-pointer relative p-2 rounded-full hover:bg-neutral-100 transition-colors text-neutral-600"
+                className="relative flex flex-col items-center gap-0.5 rounded-full p-2 text-white transition-colors hover:bg-white/10 md:rounded-lg md:px-3 md:py-1.5"
+                title="Thông báo"
+                aria-label="Thông báo"
             >
-                <Bell className="w-[18px] h-[18px]" />
-                {unreadCount > 0 && (
-                    <span className="absolute -top-0.5 -right-0.5 min-w-[16px] h-4 px-1 flex items-center justify-center bg-red-600 text-white text-[10px] font-bold rounded-full border border-stone-50 animate-pulse">
-                        {unreadCount > 9 ? "9+" : unreadCount}
-                    </span>
-                )}
+                <span className="relative inline-flex">
+                    <Bell className="h-5 w-5" />
+                    {unreadCount > 0 && (
+                        <span className="absolute -right-1.5 -top-1.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-white px-1 text-[10px] font-bold text-emerald-700 animate-pulse">
+                            {unreadCount > 9 ? "9+" : unreadCount}
+                        </span>
+                    )}
+                </span>
+                <span className="hidden text-xs font-medium leading-none md:block">
+                    Thông báo
+                </span>
             </button>
 
             {isOpenDropdown && (
-                <DealerNotificationDropdown
+                <NotificationDropdown
                     items={notifications}
                     onItemClick={handleItemClick}
                     onSeeMore={() => {
                         setIsOpenDropdown(false);
-                        navigate(seeAllPath);
+                        navigate(paths.orderStatus);
                     }}
-                    hasMore={false}
                 />
             )}
         </div>
