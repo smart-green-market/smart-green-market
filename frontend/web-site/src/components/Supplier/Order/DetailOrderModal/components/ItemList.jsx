@@ -72,7 +72,7 @@ export default function ItemList({
         <div className="sticky bottom-4 mt-3 z-10">
           <div className="flex items-center justify-between gap-3 px-4 py-3 bg-white border border-amber-200 rounded-xl shadow-lg shadow-amber-900/5">
             <p className="text-sm font-medium text-amber-700">
-              {pendingCount} sản phẩm đã đổi số lượng, chưa lưu
+              {pendingCount} sản phẩm đã đổi số lượng, chưa áp dụng
             </p>
             <div className="flex items-center gap-2">
               <button
@@ -94,7 +94,7 @@ export default function ItemList({
                   ? <Loader2 className="w-3.5 h-3.5 animate-spin" />
                   : <Save className="w-3.5 h-3.5" />
                 }
-                {saving ? "Đang lưu..." : `Cập nhật (${pendingCount})`}
+                {saving ? "Đang áp dụng..." : `Áp dụng (${pendingCount})`}
               </button>
             </div>
           </div>

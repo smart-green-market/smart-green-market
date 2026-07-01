@@ -5,6 +5,7 @@ import { useAuth } from "../../../contexts/authProvider";
 import { isBuyerUser } from "../../../utils/buyerAuthUtils";
 import { useCart } from "../../../contexts/cartProvider";
 import { useStorefrontPaths } from "../../../hooks/useStorefrontPaths";
+import BuyerNotificationBell from "../../common/BuyerNotificationBell";
 
 function HeaderNavLink({ to, icon: Icon, label, title, badge }) {
     return (
@@ -97,6 +98,8 @@ export default function Header() {
                         />
                         {isLoggedIn ? (
                             <>
+                                <HeaderNavDivider />
+                                <BuyerNotificationBell />
                                 <HeaderNavDivider />
                                 <HeaderNavLink
                                     to={paths.orderStatus}

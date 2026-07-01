@@ -91,6 +91,11 @@ export default function ItemRow({
           {item.note && (
             <p className="text-xs text-neutral-400 italic truncate mt-0.5">{item.note}</p>
           )}
+          {isRejected && (item.reject_reason || item.rejection_reason) && (
+            <p className="text-xs text-red-600 mt-0.5 line-clamp-2">
+              Lý do: {item.reject_reason || item.rejection_reason}
+            </p>
+          )}
           {/* Badge trạng thái khi không canEdit */}
           {!canEdit && (
             <span className={`inline-block mt-0.5 text-[10px] font-bold px-1.5 py-0.5 rounded-full ${

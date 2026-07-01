@@ -14,43 +14,26 @@ import {
     matchesNotificationRecord,
 } from "../Admin/Notification/notificationFormatters";
 import { useAuth } from "../../contexts/authProvider";
+import { useNotificationBellData } from "../../hooks/useNotificationBellData";
 
 export default function NotificationBell({ role: roleProp }) {
     const { user } = useAuth();
     const role = roleProp ?? user?.role ?? "admin";
     const seeAllPath = getNotificationSeeAllPath(role);
     const canManageActions = canManageNotificationActions(role);
-    const [unreadCount, setUnreadCount] = useState(0);
-    const [notifications, setNotifications] = useState([]);
+    const {
+        unreadCount,
+        setUnreadCount,
+        notifications,
+        setNotifications,
+    } = useNotificationBellData({ enabled: Boolean(user) });
     const [isOpenDropdown, setIsOpenDropdown] = useState(false);
     const [viewRow, setViewRow] = useState(null);
     const [actionLoading, setActionLoading] = useState(false);
-    
+
     const dropdownRef = useRef(null);
     const navigate = useNavigate();
 
-    // Lấy danh sách và số lượng chưa đọc từ API
-    const fetchBellData = useCallback(async () => {
-        try {
-            const res = await notificationService.getAll(); // Giả định trả về mảng kết quả gốc
-            // Tính toán số lượng chưa đọc dựa vào trường read_at === null
-            const unreadList = res.filter((item) => isNotificationUnread(item));
-            setUnreadCount(unreadList.length);
-            
-            // Map dữ liệu chuẩn hóa giống NotificationPage và giới hạn tối đa 5 phần tử
-            const formatted = res.slice(0, 5).map((item) => formatNotificationRow(item));
-            setNotifications(formatted);
-        } catch (error) {
-            console.error(handleApiError(error, "Không thể tải thông báo chuông"));
-        }
-    }, []);
-
-    useEffect(() => {
-        fetchBellData();
-        // Có thể setup Polling cứ 30s reload data 1 lần nếu cần thiết tại đây
-    }, [fetchBellData]);
-
-    // Đóng dropdown khi click ra ngoài vùng hiển thị
     useEffect(() => {
         function handleClickOutside(event) {
             if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
@@ -61,7 +44,6 @@ export default function NotificationBell({ role: roleProp }) {
         return () => document.removeEventListener("mousedown", handleClickOutside);
     }, []);
 
-    // Xử lý đánh dấu đã đọc khi xem
     const handleMarkRead = useCallback(async (markReadId, receiptId) => {
         if (markReadId == null) return;
 
@@ -88,9 +70,8 @@ export default function NotificationBell({ role: roleProp }) {
         } finally {
             setActionLoading(false);
         }
-    }, []);
+    }, [setNotifications, setUnreadCount]);
 
-    // Xử lý khi nhấn vào từng item thông báo trong chuông
     const handleItemClick = useCallback(async (item) => {
         setIsOpenDropdown(false);
         const formattedDetail = formatNotificationRow(item);
@@ -119,8 +100,7 @@ export default function NotificationBell({ role: roleProp }) {
 
     return (
         <div className="relative" ref={dropdownRef}>
-            {/* Nút Chuông */}
-            <button 
+            <button
                 onClick={() => setIsOpenDropdown(!isOpenDropdown)}
                 className="hover:scale-105 cursor-pointer relative p-2 rounded-full hover:bg-neutral-100 transition-colors text-neutral-600"
             >
@@ -132,10 +112,9 @@ export default function NotificationBell({ role: roleProp }) {
                 )}
             </button>
 
-            {/* Dropdown 5 thông báo */}
             {isOpenDropdown && (
-                <NotificationDropdown 
-                    items={notifications} 
+                <NotificationDropdown
+                    items={notifications}
                     onItemClick={handleItemClick}
                     onSeeMore={() => {
                         setIsOpenDropdown(false);
@@ -145,10 +124,7 @@ export default function NotificationBell({ role: roleProp }) {
             )}
             <NotificationViewModal
                 isOpen={viewRow !== null}
-                onClose={() => {
-                    setViewRow(null);      
-                    fetchBellData();     
-                }}
+                onClose={() => setViewRow(null)}
                 notification={viewRow}
                 loading={actionLoading}
                 canManageActions={canManageActions}

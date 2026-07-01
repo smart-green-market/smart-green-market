@@ -19,6 +19,8 @@ import {
     matchesNotificationRecord,
 } from "../../components/Admin/Notification/notificationFormatters";
 import { useAuth } from "../../contexts/authProvider";
+import { useNotificationWebSocket } from "../../hooks/useNotificationWebSocket";
+import { useNotificationWebSocketHandler } from "../../hooks/useNotificationWebSocketHandler";
 
 import {
     notificationService,
@@ -165,6 +167,17 @@ export default function NotificationPage() {
     useEffect(() => {
         fetchNotifications({ initial: true });
     }, [fetchNotifications]);
+
+    const handleWebSocketMessage = useNotificationWebSocketHandler({
+        setNotifications: setData,
+        maxItems: null,
+    });
+
+    useNotificationWebSocket({
+        enabled: Boolean(user),
+        onMessage: handleWebSocketMessage,
+        onConnect: () => fetchNotifications(),
+    });
 
     return (
         <AdminInitialLoadGate

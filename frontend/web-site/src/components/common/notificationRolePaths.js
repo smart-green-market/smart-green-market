@@ -11,6 +11,10 @@ export const NOTIFICATION_ROLE_PATHS = {
     basePath: "/dai-ly",
     seeAllPath: "/dai-ly/tat-ca-thong-bao",
   },
+  buyer: {
+    basePath: "",
+    seeAllPath: "",
+  },
 };
 
 export function getNotificationSeeAllPath(role = "admin") {
