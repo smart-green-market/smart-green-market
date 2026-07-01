@@ -2,15 +2,19 @@
 
 from django.conf import settings
 from django.db import models
+from django.core.validators import RegexValidator
+
 
 
 class PromotionStatus(models.TextChoices):
     """Trạng thái chương trình khuyến mãi."""
 
     DRAFT = "draft", "Nháp"
+    PENDING = "pending", "Chờ duyệt"
     ACTIVE = "active", "Đang chạy"
     INACTIVE = "inactive", "Tạm dừng"
     EXPIRED = "expired", "Hết hạn"
+    REJECTED = "rejected", "Từ chối"
 
 
 class PromotionDiscountType(models.TextChoices):
@@ -27,6 +31,7 @@ class PromotionTargetType(models.TextChoices):
     SEGMENT = "segment", "Theo nhóm khách"
     PRODUCT = "product", "Theo sản phẩm đại lý"
     CATEGORY = "category", "Theo danh mục"
+    CUSTOMER = "customer", "Theo khách hàng"
 
 
 class Promotion(models.Model):
@@ -49,7 +54,18 @@ class Promotion(models.Model):
     )
 
     title = models.CharField(max_length=255)
-    code = models.CharField(max_length=50, blank=True, help_text="Mã voucher, vd. SUMMER10")
+    code = models.CharField(
+        max_length=50,
+        unique=True,
+        validators=[
+            RegexValidator(
+                regex=r'^[a-zA-Z0-9_-]+$',
+                message="Mã voucher chỉ được chứa chữ cái không dấu, chữ số, dấu gạch ngang (-) và gạch dưới (_), không chứa khoảng trắng.",
+                code='invalid_code'
+            )
+        ],
+        help_text="Mã voucher, vd. SUMMER10"
+    )
     description = models.TextField(blank=True)
 
     discount_type = models.CharField(
@@ -86,7 +102,12 @@ class Promotion(models.Model):
     status = models.CharField(
         max_length=20,
         choices=PromotionStatus.choices,
-        default=PromotionStatus.DRAFT,
+        default=PromotionStatus.PENDING,
+    )
+    reject_reason = models.TextField(
+        null=True,
+        blank=True,
+        help_text="Lý do từ chối duyệt voucher",
     )
 
     created_at = models.DateTimeField(auto_now_add=True)
@@ -106,6 +127,14 @@ class Promotion(models.Model):
     def __str__(self):
         scope = self.dealer.store_name if self.dealer_id else "Platform"
         return f"[{scope}] {self.title}"
+
+    def is_active(self):
+        from django.utils import timezone
+        now = timezone.now()
+        return (
+            self.status == PromotionStatus.ACTIVE
+            and self.start_date <= now <= self.end_date
+        )
 
 
 class PromotionTarget(models.Model):
@@ -136,6 +165,13 @@ class PromotionTarget(models.Model):
     )
     category = models.ForeignKey(
         "categories.Category",
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        related_name="promotion_targets",
+    )
+    customer = models.ForeignKey(
+        "customers.CustomerProfile",
         on_delete=models.CASCADE,
         null=True,
         blank=True,

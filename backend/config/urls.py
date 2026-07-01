@@ -54,6 +54,7 @@ urlpatterns = [
     path("api/", include("apps.certifications.urls")),
     path("api/", include("apps.notifications.urls")),
     path("api/", include("apps.dashboard.urls")),
+    path("api/", include("apps.voucher.urls")),
     path("api/", include("common.urls")),
 ]
 
