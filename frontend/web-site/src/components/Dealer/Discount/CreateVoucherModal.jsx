@@ -1,9 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { X } from 'lucide-react';
 import { voucherService } from '../../../services/api/voucherService';
-import { dealerProductService } from '../../../services/api/dealerProductService';
-import { categoryService } from '../../../services/api/categoryService';
-import { customerService } from '../../../services/api/customerService';
+import { customerSegmentService } from '../../../services/api/customerSegmentService';
 import { toast } from 'sonner';
 
 export default function CreateVoucherModal({ isOpen, onClose, onSuccess }) {
@@ -26,11 +24,9 @@ export default function CreateVoucherModal({ isOpen, onClose, onSuccess }) {
     end_date: getMinDateTime(),
   });
 
-  const [categories, setCategories] = useState([]);
-  const [products, setProducts] = useState([]);
-  const [customers, setCustomers] = useState([]);
+  const [segments, setSegments] = useState([]);
 
-  const [targetType, setTargetType] = useState('all');
+  const [targetType, setTargetType] = useState('customer_group');
   const [targetId, setTargetId] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -49,7 +45,7 @@ export default function CreateVoucherModal({ isOpen, onClose, onSuccess }) {
         start_date: getMinDateTime(),
         end_date: getMinDateTime(),
       });
-      setTargetType('all');
+      setTargetType('customer_group');
       setTargetId('');
       fetchTargetsData();
     }
@@ -57,16 +53,10 @@ export default function CreateVoucherModal({ isOpen, onClose, onSuccess }) {
 
   const fetchTargetsData = async () => {
     try {
-      const [catsData, prodsData, custsData] = await Promise.all([
-        categoryService.getAll({ limit: 100, status: 'active' }).catch(() => []),
-        dealerProductService.getAll({ limit: 100 }).catch(() => []),
-        customerService.getAll({ limit: 100 }).catch(() => []),
-      ]);
-      setCategories(Array.isArray(catsData) ? catsData : catsData?.results || []);
-      setProducts(Array.isArray(prodsData) ? prodsData : prodsData?.results || []);
-      setCustomers(Array.isArray(custsData) ? custsData : custsData?.results || []);
+      const data = await customerSegmentService.getAll({ limit: 100 }).catch(() => ({ results: [] }));
+      setSegments(Array.isArray(data) ? data : data?.results || []);
     } catch (error) {
-      console.error('Error fetching targets data:', error);
+      console.error('Error fetching segments:', error);
     }
   };
 
@@ -97,14 +87,14 @@ export default function CreateVoucherModal({ isOpen, onClose, onSuccess }) {
       return;
     }
 
-    if (targetType !== 'all' && !targetId) {
-      toast.error('Vui lòng chọn đối tượng áp dụng cụ thể');
+    if (!targetId) {
+      toast.error('Vui lòng chọn nhóm khách hàng áp dụng');
       return;
     }
 
     try {
       setIsSubmitting(true);
-      
+
       const payload = {
         title: formData.title,
         code: formData.code.trim().toUpperCase(),
@@ -127,14 +117,10 @@ export default function CreateVoucherModal({ isOpen, onClose, onSuccess }) {
       }
 
       // Add targets payload
-      const targetObj = { target_type: targetType };
-      if (targetType === 'category' && targetId) {
-        targetObj.category = parseInt(targetId, 10);
-      } else if (targetType === 'product' && targetId) {
-        targetObj.dealer_product = parseInt(targetId, 10);
-      } else if (targetType === 'customer' && targetId) {
-        targetObj.customer = parseInt(targetId, 10);
-      }
+      const targetObj = {
+        target_type: 'segment',
+        segment: parseInt(targetId, 10)
+      };
       payload.targets = [targetObj];
 
       await voucherService.create(payload);
@@ -171,7 +157,7 @@ export default function CreateVoucherModal({ isOpen, onClose, onSuccess }) {
 
         <form onSubmit={handleSubmit} className="flex flex-col min-h-0 overflow-hidden font-['Geist',sans-serif]">
           <div className="flex-1 overflow-y-auto p-6 space-y-6">
-            
+
             {/* General Info */}
             <div>
               <h3 className="text-lg font-semibold text-gray-800 mb-4 border-b pb-2">Thông tin chung</h3>
@@ -222,75 +208,21 @@ export default function CreateVoucherModal({ isOpen, onClose, onSuccess }) {
               <h3 className="text-lg font-semibold text-gray-800 mb-4 border-b pb-2">Đối tượng áp dụng</h3>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Loại đối tượng</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Chọn nhóm khách hàng</label>
                   <select
-                    value={targetType}
-                    onChange={(e) => { setTargetType(e.target.value); setTargetId(''); }}
+                    value={targetId}
+                    onChange={(e) => setTargetId(e.target.value)}
+                    required
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 bg-white"
                   >
-                    <option value="all">Tất cả khách hàng & sản phẩm</option>
-                    <option value="product">Theo sản phẩm cụ thể</option>
-                    <option value="category">Theo danh mục sản phẩm</option>
-                    <option value="customer">Theo khách hàng cụ thể</option>
+                    <option value="">-- Chọn nhóm khách hàng --</option>
+                    {segments.map(group => (
+                      <option key={group.id} value={group.id}>
+                        {group.name} {group.code ? `(${group.code})` : ''}
+                      </option>
+                    ))}
                   </select>
                 </div>
-
-                {targetType === 'product' && (
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Chọn sản phẩm</label>
-                    <select
-                      value={targetId}
-                      onChange={(e) => setTargetId(e.target.value)}
-                      required
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 bg-white"
-                    >
-                      <option value="">-- Chọn sản phẩm --</option>
-                      {products.map(prod => (
-                        <option key={prod.id} value={prod.id}>
-                          {prod.title || prod.supplier_product_name}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                )}
-
-                {targetType === 'category' && (
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Chọn danh mục</label>
-                    <select
-                      value={targetId}
-                      onChange={(e) => setTargetId(e.target.value)}
-                      required
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 bg-white"
-                    >
-                      <option value="">-- Chọn danh mục --</option>
-                      {categories.map(cat => (
-                        <option key={cat.id} value={cat.id}>
-                          {cat.name}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                )}
-
-                {targetType === 'customer' && (
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Chọn khách hàng</label>
-                    <select
-                      value={targetId}
-                      onChange={(e) => setTargetId(e.target.value)}
-                      required
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 bg-white"
-                    >
-                      <option value="">-- Chọn khách hàng --</option>
-                      {customers.map(cust => (
-                        <option key={cust.id} value={cust.id}>
-                          {cust.full_name} {cust.phone ? `(${cust.phone})` : ''}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                )}
               </div>
             </div>
 

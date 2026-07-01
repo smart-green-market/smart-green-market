@@ -3,6 +3,7 @@ import SortableHeader from "../../common/SortableHeader";
 import useTableSort from "../../../hooks/useTableSort";
 
 const COLUMN_CONFIG = {
+  id:       { key: "id",       type: "string" },
   supplier: { key: "supplier", type: "string" },
   date:     { key: "date",     type: "date" },
   amount:   { key: "amount",   type: "currency" },
@@ -56,6 +57,7 @@ export default function PurchaseOrderList({ purchaseOrders, onViewDetail }) {
         <table className="w-full border-collapse text-left">
           <thead>
             <tr className="bg-neutral-50 border-b border-neutral-200/60">
+              <SortableHeader label="Mã Đơn" column="id" sortColumn={sortColumn} sortDirection={sortDirection} onSort={handleSort} />
               <SortableHeader label="Nhà Cung Cấp" column="supplier" sortColumn={sortColumn} sortDirection={sortDirection} onSort={handleSort} />
               <SortableHeader label="Thời Gian" column="date" sortColumn={sortColumn} sortDirection={sortDirection} onSort={handleSort} />
               <SortableHeader label="Tổng Tiền" column="amount" sortColumn={sortColumn} sortDirection={sortDirection} onSort={handleSort} align="right" />
@@ -68,10 +70,17 @@ export default function PurchaseOrderList({ purchaseOrders, onViewDetail }) {
               const statusConfig = getStatusConfig(row.status);
               return (
                 <tr
-                  key={row.id}
+                  key={row.rawId || row.id}
                   onClick={() => onViewDetail && onViewDetail(row)}
                   className="hover:bg-emerald-50/30 cursor-pointer transition-colors duration-150 group"
                 >
+                  {/* Mã đơn */}
+                  <td className="px-6 py-4">
+                    <span className="font-mono font-bold text-xs text-neutral-600 bg-neutral-100 px-2.5 py-1 rounded-md">
+                      {row.id}
+                    </span>
+                  </td>
+
                   {/* Nhà cung cấp */}
                   <td className="px-6 py-4">
                     <div className="flex flex-col">

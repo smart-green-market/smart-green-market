@@ -33,7 +33,8 @@ from .seed_product_helpers import (
     seed_supplier_certifications,
 )
 
-# Chạy: python manage.py seed_data --clear
+# Chạy lệnh tạo db: python manage.py migrate
+# Chạy lệnh tạo dữ liệu: python manage.py seed_data --clear
 # Gọn:  python manage.py seed_data --clear --buyers 80
 
 SEED_PASSWORD = "12345678"

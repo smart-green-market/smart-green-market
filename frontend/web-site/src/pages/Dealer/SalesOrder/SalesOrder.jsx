@@ -25,6 +25,10 @@ export default function DealerSalesOrderPage() {
     const [isCancelModalOpen, setIsCancelModalOpen] = useState(false);
     const [orderToCancel, setOrderToCancel] = useState(null);
 
+    // Return review modal states
+    const [isReturnRejectModalOpen, setIsReturnRejectModalOpen] = useState(false);
+    const [orderToRejectReturn, setOrderToRejectReturn] = useState(null);
+
     // Print Modal State
     const [isPrintModalOpen, setIsPrintModalOpen] = useState(false);
     const [ordersToPrint, setOrdersToPrint] = useState([]);
@@ -43,6 +47,7 @@ export default function DealerSalesOrderPage() {
             case "delivered": return "Đã giao";
             case "completed": return "Hoàn tất";
             case "cancelled": return "Đã hủy";
+            case "return_requested": return "Yêu cầu trả hàng";
             default: return status || "Chờ xác nhận";
         }
     };
@@ -111,6 +116,7 @@ export default function DealerSalesOrderPage() {
         { label: "Đang chuẩn bị", value: "processing", colorClass: "text-amber-700" },
         { label: "Đang giao", value: "shipping", colorClass: "text-blue-700" },
         { label: "Đã giao", value: "delivered", colorClass: "text-emerald-700" },
+        { label: "Yêu cầu trả hàng", value: "return_requested", colorClass: "text-rose-700" },
         { label: "Hoàn tất", value: "completed", colorClass: "text-teal-700" },
         { label: "Đã huỷ", value: "cancelled", colorClass: "text-red-700" }
     ];
@@ -274,6 +280,66 @@ export default function DealerSalesOrderPage() {
         }
     };
 
+    const handleApproveReturn = async (order) => {
+        const orderId = order.originalData.id;
+        const returnId = order.originalData.return_summary?.pending_return_id;
+        if (!returnId) {
+            toast.error("Không tìm thấy ID yêu cầu trả hàng.");
+            return;
+        }
+
+        if (!window.confirm(`Bạn có chắc chắn muốn duyệt yêu cầu trả hàng cho đơn hàng ${order.id}?`)) {
+            return;
+        }
+
+        try {
+            await dealerOrderService.reviewReturn(orderId, returnId, { approved: true, review_note: "Đồng ý trả hàng" });
+            toast.success("Đã duyệt yêu cầu trả hàng thành công!");
+            await fetchOrders();
+            await refreshDetailPanel(orderId);
+        } catch (error) {
+            console.error("Lỗi khi duyệt yêu cầu trả hàng:", error);
+            const errMsg = error.response?.data?.detail || "Duyệt yêu cầu thất bại.";
+            toast.error(errMsg);
+        }
+    };
+
+    const handleRejectReturnClick = (order) => {
+        setOrderToRejectReturn(order);
+        setIsReturnRejectModalOpen(true);
+    };
+
+    const handleRejectReturnConfirm = async (reason) => {
+        if (!orderToRejectReturn) return;
+        const orderId = orderToRejectReturn.originalData.id;
+        const returnId = orderToRejectReturn.originalData.return_summary?.pending_return_id;
+        if (!returnId) {
+            toast.error("Không tìm thấy ID yêu cầu trả hàng.");
+            return;
+        }
+
+        try {
+            await dealerOrderService.reviewReturn(orderId, returnId, { approved: false, review_note: reason });
+            toast.success("Đã từ chối yêu cầu trả hàng thành công!");
+            setIsReturnRejectModalOpen(false);
+            setOrderToRejectReturn(null);
+            await fetchOrders();
+            await refreshDetailPanel(orderId);
+        } catch (error) {
+            console.error("Lỗi khi từ chối yêu cầu trả hàng:", error);
+            const errors = error.response?.data;
+            if (errors && typeof errors === 'object') {
+                const errorMsg = Object.entries(errors)
+                    .map(([key, val]) => `${key}: ${Array.isArray(val) ? val.join(', ') : val}`)
+                    .join('\n');
+                toast.error(errorMsg || 'Lỗi khi xử lý từ chối trả hàng');
+            } else {
+                toast.error('Lỗi khi xử lý từ chối trả hàng. Vui lòng thử lại.');
+            }
+            throw error;
+        }
+    };
+
     const handleBulkPrint = () => {
         setOrdersToPrint(selectedRows);
         setIsPrintModalOpen(true);
@@ -409,14 +475,16 @@ export default function DealerSalesOrderPage() {
                     ></div>
                     <div className="relative w-full max-w-md h-[90vh] max-h-[800px]">
                         <SalesOrderDetailPanel
-                                                            order={selectedOrder}
-                                                            onClose={() => setSelectedOrder(null)}
-                                                            onPrint={handleSinglePrint}
-                                                            onConfirm={handleSingleConfirm}
-                                                            onStartProcessing={handleStartProcessing}
-                                                            onShipOrder={handleShipOrder}
-                                                            onCancel={handleCancelClick}
-                                                        />
+                            order={selectedOrder}
+                            onClose={() => setSelectedOrder(null)}
+                            onPrint={handleSinglePrint}
+                            onConfirm={handleSingleConfirm}
+                            onStartProcessing={handleStartProcessing}
+                            onShipOrder={handleShipOrder}
+                            onCancel={handleCancelClick}
+                            onApproveReturn={handleApproveReturn}
+                            onRejectReturn={handleRejectReturnClick}
+                        />
                     </div>
                 </div>
             )}
@@ -449,6 +517,20 @@ export default function DealerSalesOrderPage() {
                 reasonLabel="Lý do hủy"
                 reasonPlaceholder="Nhập lý do hủy đơn..."
                 reasonRequiredMessage="Vui lòng nhập lý do hủy đơn."
+                showToast={false}
+            />
+
+            <RejectModal
+                isOpen={isReturnRejectModalOpen}
+                onClose={() => setIsReturnRejectModalOpen(false)}
+                onConfirm={handleRejectReturnConfirm}
+                title="Từ chối yêu cầu trả hàng"
+                message={orderToRejectReturn ? `Bạn có chắc chắn muốn từ chối yêu cầu trả hàng cho đơn hàng ${orderToRejectReturn.id} không?` : ""}
+                confirmText="Từ chối"
+                cancelText="Đóng"
+                reasonLabel="Lý do từ chối"
+                reasonPlaceholder="Nhập lý do từ chối trả hàng..."
+                reasonRequiredMessage="Vui lòng nhập lý do từ chối."
                 showToast={false}
             />
         </div>

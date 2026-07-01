@@ -1,6 +1,6 @@
 import { X, Package, CheckCircle2, Truck, CreditCard, User, Calendar, MapPin, Receipt, ArrowRight, Printer, Phone, XCircle } from "lucide-react";
 
-export default function SalesOrderDetailPanel({ order, onClose, onPrint, onConfirm, onStartProcessing, onShipOrder, onCancel }) {
+export default function SalesOrderDetailPanel({ order, onClose, onPrint, onConfirm, onStartProcessing, onShipOrder, onCancel, onApproveReturn, onRejectReturn }) {
   if (!order) return null;
 
   // Status visual mapping
@@ -12,6 +12,7 @@ export default function SalesOrderDetailPanel({ order, onClose, onPrint, onConfi
       case "Đang giao hàng": return "bg-blue-50 text-blue-700 border-blue-200/50";
       case "Đã giao": return "bg-emerald-50 text-emerald-700 border-emerald-200/50";
       case "Đã hủy": return "bg-red-50 text-red-700 border-red-200/50";
+      case "Yêu cầu trả hàng": return "bg-pink-50 text-pink-700 border-pink-200/50";
       default: return "bg-neutral-50 text-neutral-600 border-neutral-200/50";
     }
   };
@@ -213,6 +214,21 @@ export default function SalesOrderDetailPanel({ order, onClose, onPrint, onConfi
 
       {/* Action Buttons */}
       <div className="p-5 border-t border-neutral-100 bg-white space-y-3 shadow-[0_-10px_20px_-10px_rgba(0,0,0,0.02)]">
+        {(order.status === "Yêu cầu trả hàng" || order.status === "return_requested") && (
+          <div className="flex gap-3">
+            <button 
+              onClick={() => onApproveReturn && onApproveReturn(order)}
+              className="flex-1 py-3.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-sm shadow-md shadow-emerald-200/50 hover:shadow-lg transition-all flex justify-center items-center gap-2 cursor-pointer hover:scale-[1.01] active:scale-[0.98]">
+              <CheckCircle2 className="w-5 h-5" /> Duyệt trả hàng
+            </button>
+            <button 
+              onClick={() => onRejectReturn && onRejectReturn(order)}
+              className="flex-1 py-3.5 rounded-xl bg-red-600 hover:bg-red-700 text-white font-bold text-sm shadow-md shadow-red-200/50 hover:shadow-lg transition-all flex justify-center items-center gap-2 cursor-pointer hover:scale-[1.01] active:scale-[0.98]">
+              <XCircle className="w-5 h-5" /> Từ chối trả hàng
+            </button>
+          </div>
+        )}
+
         {order.status === "Chờ xác nhận" && (
           <button 
             onClick={() => onConfirm && onConfirm(order)}
