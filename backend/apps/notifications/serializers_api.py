@@ -1,6 +1,15 @@
 """Serialize notification receipts for REST API and WebSocket payloads."""
 
+from rest_framework.fields import DateTimeField
+
 from common.notification_messages import notification_type_label, reference_type_label
+
+
+_datetime_field = DateTimeField()
+
+
+def _format_datetime(value):
+    return _datetime_field.to_representation(value) if value else None
 
 
 def serialize_notification_receipt(receipt, purchase_orders_by_id=None, customer_orders_by_id=None):
@@ -16,8 +25,8 @@ def serialize_notification_receipt(receipt, purchase_orders_by_id=None, customer
         "reference_type": notification.reference_type,
         "reference_type_label": reference_type_label(notification.reference_type),
         "reference_id": notification.reference_id,
-        "read_at": receipt.read_at,
-        "created_at": notification.created_at,
+        "read_at": _format_datetime(receipt.read_at),
+        "created_at": _format_datetime(notification.created_at),
         "reference_status": None,
         "reference_order_code": None,
     }
