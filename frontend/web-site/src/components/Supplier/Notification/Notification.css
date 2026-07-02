@@ -1,0 +1,240 @@
+@import url("https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/tabler-icons.min.css");
+
+/*
+  Notification.css
+  Style được trích xuất NGUYÊN VẸN từ file gốc supplier_dashboard_v2.html
+  (phần "THÔNG BÁO — bell + dropdown", "MODAL (dùng chung)", "TOOLBAR",
+  "BUTTONS (shared)" và style dùng chung cho card/pill/chip).
+
+  ⚠️ QUAN TRỌNG: các class dưới đây dùng biến CSS (--bg, --surface, --green8, ...).
+  Nếu project của bạn CHƯA khai báo các biến này ở :root (thường nằm trong App.css /
+  index.css của app hiện tại), hãy xem khối :root mẫu ở cuối file README.md và
+  copy vào file CSS toàn cục của bạn. Nếu app đã dùng chung theme với bản mockup
+  gốc thì không cần làm gì thêm.
+*/
+
+/* Fallback theme — topbar + trang danh sách thông báo */
+.supplier-notif-root {
+  --text1: #111827;
+  --text2: #565f6b;
+  --text3: #80899a;
+  --surface: #ffffff;
+  --surface2: #f3f4f6;
+  --border: #e5e7eb;
+  --green8: #166534;
+  --green7: #14532d;
+  --green9: #0f3d20;
+  --green1: #d1fae5;
+  --green0: #EAF3DE;
+  --amber0: #FAEEDA;
+  --amber8: #854F0B;
+  --blue0: #E6F1FB;
+  --blue8: #185FA5;
+  --purple0: #EEEDFE;
+  --purple8: #534AB7;
+  --red0: #FCEBEB;
+  --red8: #A32D2D;
+}
+
+/* ════════════════════════════════
+   TOPBAR ICON + BELL BADGE
+════════════════════════════════ */
+.tb-icon-wrap { position: relative; display: flex; align-items: center; }
+.tb-icon {
+  width: 40px; height: 40px; border-radius: 10px;
+  display: flex; align-items: center; justify-content: center;
+  color: var(--text2); font-size: 22px; cursor: pointer;
+  border: none; background: transparent; position: relative;
+}
+.tb-icon:hover { background: var(--surface2); }
+.tb-notif {
+  position: absolute; top: 4px; right: 4px; min-width: 16px; height: 16px; padding: 0 4px;
+  background: var(--red8); border-radius: 20px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 10px; font-weight: 700; color: #fff; line-height: 1;
+}
+.tb-notif.hidden { display: none; }
+
+/* ════════════════════════════════
+   DROPDOWN THÔNG BÁO (trên topbar)
+════════════════════════════════ */
+.notif-dd {
+  position: absolute; top: 40px; right: -6px; width: 356px;
+  background: var(--surface); border: 0.5px solid var(--border);
+  border-radius: 14px; box-shadow: 0 12px 32px rgba(17,24,39,.14);
+  z-index: 60; overflow: hidden; opacity: 0; visibility: hidden;
+  transform: translateY(-6px); transition: opacity .14s, transform .14s, visibility .14s;
+}
+.notif-dd.open { opacity: 1; visibility: visible; transform: translateY(0); }
+.notif-dd-head {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 12px 14px; border-bottom: 0.5px solid var(--border);
+}
+.notif-dd-title { font-size: 13px; font-weight: 600; color: var(--text1); }
+.notif-dd-mark { font-size: 11px; color: var(--green8); cursor: pointer; font-weight: 500; }
+.notif-dd-mark:hover { text-decoration: underline; }
+.notif-dd-list { max-height: 360px; overflow-y: auto; }
+.notif-dd-empty { padding: 34px 16px; text-align: center; color: var(--text3); font-size: 12px; }
+.notif-dd-foot {
+  padding: 10px 14px; text-align: center; border-top: 0.5px solid var(--border);
+  font-size: 12px; color: var(--green8); font-weight: 600; cursor: pointer;
+  background: var(--green0); transition: background .12s, color .12s;
+}
+.notif-dd-foot:hover {
+  background: #DCFCE7;
+  color: var(--green9);
+}
+
+/* ════════════════════════════════
+   NOTIFICATION ITEM (dùng chung dropdown + list)
+════════════════════════════════ */
+.notif-item {
+  display: flex; align-items: flex-start; gap: 10px;
+  padding: 11px 14px; border-bottom: 0.5px solid var(--border);
+  cursor: pointer; transition: background .1s; position: relative;
+}
+.notif-item:last-child { border: none; }
+.notif-item:hover { background: var(--surface2); }
+.notif-item.unread { background: #F7FBF4; }
+.notif-item.unread:hover { background: #EFF7E8; }
+
+.notif-ico {
+  width: 32px; height: 32px; border-radius: 9px; flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center; font-size: 15px;
+}
+.notif-ico.g { background: var(--green0); color: #3B6D11; }
+.notif-ico.a { background: var(--amber0); color: var(--amber8); }
+.notif-ico.b { background: var(--blue0);  color: var(--blue8); }
+.notif-ico.p { background: var(--purple0);color: var(--purple8); }
+.notif-ico.r { background: var(--red0);   color: var(--red8); }
+
+.notif-body { min-width: 0; flex: 1; }
+.notif-top-row { display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; }
+.notif-title { font-size: 12.5px; font-weight: 500; color: var(--text1); line-height: 1.4; }
+.notif-item.unread .notif-title { font-weight: 600; }
+.notif-msg { font-size: 11.5px; color: var(--text2); margin-top: 2px; line-height: 1.45; overflow: hidden; text-overflow: ellipsis; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+.notif-time { font-size: 10px; color: var(--text3); margin-top: 4px; white-space: nowrap; }
+.notif-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--green8); flex-shrink: 0; margin-top: 4px; }
+
+/* trang danh sách thông báo đầy đủ (table) */
+.notif-list-item {
+  display: flex; align-items: flex-start; gap: 12px;
+  padding: 13px 16px; border-bottom: 0.5px solid var(--border);
+  cursor: pointer; transition: background .1s;
+}
+.notif-list-item:last-child { border: none; }
+.notif-list-item:hover { background: var(--surface2); }
+.notif-list-item.unread { background: #F7FBF4; }
+.notif-list-item.unread:hover { background: #EFF7E8; }
+.notif-list-item .notif-ico { width: 38px; height: 38px; border-radius: 10px; font-size: 17px; }
+.notif-list-item .notif-title { font-size: 13px; }
+.notif-list-item .notif-msg { font-size: 12px; -webkit-line-clamp: 1; }
+.notif-list-item .notif-time { font-size: 10.5px; }
+
+/* ════════════════════════════════
+   MODAL (dùng chung — modal chi tiết thông báo)
+════════════════════════════════ */
+.modal-overlay {
+  position: fixed; inset: 0; background: rgba(17,24,39,.44);
+  display: flex; align-items: center; justify-content: center;
+  z-index: 100; opacity: 0; visibility: hidden; transition: opacity .15s, visibility .15s;
+  padding: 20px;
+}
+.modal-overlay.open { opacity: 1; visibility: visible; }
+.modal {
+  background: var(--surface); border-radius: 16px; width: 100%; max-width: 420px;
+  max-height: 86vh; overflow: hidden; display: flex; flex-direction: column;
+  transform: scale(.96) translateY(6px); transition: transform .15s;
+  box-shadow: 0 24px 60px rgba(17,24,39,.25);
+}
+.modal-overlay.open .modal { transform: scale(1) translateY(0); }
+.modal-head { display: flex; align-items: flex-start; gap: 12px; padding: 18px 18px 14px; border-bottom: 0.5px solid var(--border); }
+.modal-head .notif-ico { width: 42px; height: 42px; border-radius: 12px; font-size: 19px; }
+.modal-head-text { flex: 1; min-width: 0; }
+.modal-title { font-size: 14.5px; font-weight: 600; color: var(--text1); line-height: 1.4; }
+.modal-time  { font-size: 11px; color: var(--text3); margin-top: 4px; }
+.modal-close {
+  width: 28px; height: 28px; border-radius: 8px; flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center;
+  color: var(--text3); cursor: pointer; border: none; background: transparent; font-size: 16px;
+}
+.modal-close:hover { background: var(--surface2); color: var(--text1); }
+.modal-body { padding: 16px 18px; overflow-y: auto; font-size: 12.5px; color: var(--text2); line-height: 1.65; }
+.modal-body .pill { margin-top: 10px; }
+.modal-meta-box {
+  background: var(--surface2); border: 0.5px solid var(--border); border-radius: 10px;
+  padding: 10px 12px; margin-top: 12px; display: flex; flex-direction: column; gap: 6px;
+}
+.modal-meta-row { display: flex; justify-content: space-between; font-size: 11.5px; }
+.modal-meta-row span:first-child { color: var(--text3); }
+.modal-meta-row span:last-child  { color: var(--text1); font-weight: 500; }
+.modal-foot { display: flex; gap: 8px; padding: 14px 18px; border-top: 0.5px solid var(--border); }
+.modal-foot .btn-primary, .modal-foot .btn-ghost { flex: 1; justify-content: center; }
+
+/* ════════════════════════════════
+   BUTTONS (shared)
+════════════════════════════════ */
+.btn-primary {
+  display: flex; align-items: center; gap: 6px;
+  padding: 0 14px; height: 34px; border-radius: 9px;
+  background: var(--green8); color: #fff !important;
+  font-size: 12px; font-weight: 500; cursor: pointer;
+  border: none; white-space: nowrap;
+  transition: background .12s, color .12s;
+}
+.btn-primary:hover { background: var(--green7); color: #fff !important; }
+.btn-primary i { color: #fff; }
+.btn-ghost {
+  display: flex; align-items: center; gap: 6px;
+  padding: 0 14px; height: 34px; border-radius: 9px;
+  background: var(--surface); color: var(--text2) !important;
+  font-size: 12px; font-weight: 500; cursor: pointer;
+  border: 0.5px solid var(--border); white-space: nowrap;
+  transition: background .12s, color .12s;
+}
+.btn-ghost:hover { background: var(--surface2); color: var(--text1) !important; }
+.btn-ghost i { color: inherit; }
+
+/* ════════════════════════════════
+   TOOLBAR (search + filter chips) — dùng ở trang danh sách thông báo
+════════════════════════════════ */
+.toolbar { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.search-box {
+  flex: 1; min-width: 200px; display: flex; align-items: center; gap: 8px;
+  background: var(--surface); border: 0.5px solid var(--border);
+  border-radius: 10px; padding: 0 12px; height: 34px;
+}
+.search-box i { color: var(--text3); font-size: 15px; flex-shrink: 0; }
+.search-box input {
+  border: none; outline: none; background: transparent;
+  font-size: 13px; color: var(--text1); flex: 1; height: 100%;
+  font-family: inherit;
+}
+.search-box input::placeholder { color: var(--text3); }
+
+.chip-group { display: flex; gap: 6px; flex-wrap: wrap; }
+.chip {
+  padding: 8px 14px; border-radius: 20px; font-size: 12px; font-weight: 500;
+  color: var(--text2); background: var(--surface); border: 0.5px solid var(--border);
+  cursor: pointer; white-space: nowrap; transition: background .12s;
+}
+.chip:hover { background: var(--surface2); }
+.chip.on    { background: var(--green9); color: var(--green1); border-color: var(--green9); }
+
+/* ════════════════════════════════
+   CARD / SECTION HEADER — khung bao danh sách thông báo đầy đủ
+════════════════════════════════ */
+.card { background: var(--surface); border: 0.5px solid var(--border); border-radius: 12px; overflow: hidden; }
+.ch  { display: flex; align-items: center; justify-content: space-between; padding: 12px 16px; border-bottom: 0.5px solid var(--border); }
+.ch-left { display: flex; align-items: center; gap: 8px; }
+.ch-ico { width: 28px; height: 28px; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 14px; }
+.ch-ico.g { background: var(--green0); color: #3B6D11; }
+.ch-ico.a { background: var(--amber0); color: var(--amber8); }
+.ch-ico.b { background: var(--blue0);  color: var(--blue8); }
+.ch-title { font-size: 13px; font-weight: 500; color: var(--text1); }
+.ch-link  { font-size: 11px; color: var(--green8); cursor: pointer; }
+
+.empty-row { padding: 32px 16px; text-align: center; color: var(--text3); font-size: 12px; }
+
+/* trang bọc ngoài (tuỳ chọn) — có thể bỏ nếu app của bạn đã có layout page riêng */
+.page { display: flex; flex-direction: column; gap: 14px; }
