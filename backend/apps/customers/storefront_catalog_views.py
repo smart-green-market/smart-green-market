@@ -150,7 +150,7 @@ class StorefrontCategoryListView(APIView):
         auth=[],
     )
     def get(self, request, dealer_slug):
-        dealer = _get_dealer_or_404(dealer_slug)
+        dealer = _get_dealer_or_404(dealer_slug)    
         categories_qs = get_storefront_categories_qs(dealer)
 
         def serialize(page):

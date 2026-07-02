@@ -107,6 +107,8 @@ def _get_returned_quantities_by_item_id(order) -> dict[int, Decimal]:
 
 
 def _returnable_quantity(*, order_item, returned_qty: Decimal) -> Decimal:
+    if order_item.review_status != PurchaseOrderItemReviewStatus.APPROVED:
+        return Decimal("0")
     return order_item.quantity - returned_qty
 
 
@@ -117,7 +119,12 @@ def _compute_return_line_refund(order_item, return_qty: Decimal) -> Decimal:
 
 def _all_items_fully_returned(order) -> bool:
     returned_map = _get_returned_quantities_by_item_id(order)
-    for item in order.items.all():
+    approved_items = order.items.filter(
+        review_status=PurchaseOrderItemReviewStatus.APPROVED,
+    )
+    if not approved_items.exists():
+        return False
+    for item in approved_items:
         returned = returned_map.get(item.id, Decimal("0"))
         if returned < item.quantity:
             return False
@@ -446,6 +453,7 @@ def _apply_item_reviews(order, items_data):
         if review_status == PurchaseOrderItemReviewStatus.REJECTED:
             item.review_status = PurchaseOrderItemReviewStatus.REJECTED
             item.rejection_reason = row["rejection_reason"]
+            item.quantity = Decimal("0")
             item.subtotal = Decimal("0")
             has_item_changes = True
         else:
@@ -817,6 +825,10 @@ def dealer_request_return(order, user, *, reason, items, evidence_file=None):
         if order_item is None:
             raise ValidationError(
                 {"items": f"Dòng hàng {item_id} không thuộc phiếu này."}
+            )
+        if order_item.review_status != PurchaseOrderItemReviewStatus.APPROVED:
+            raise ValidationError(
+                {"items": f"Dòng hàng {item_id} chưa được NCC duyệt, không thể trả."}
             )
 
         already_returned = returned_map.get(item_id, Decimal("0"))

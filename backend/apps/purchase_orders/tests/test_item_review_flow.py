@@ -154,6 +154,8 @@ class ItemReviewFlowTests(TestCase):
         self.order.refresh_from_db()
         self.assertEqual(self.order.status, PurchaseOrderStatus.PENDING_DEALER_CONFIRMATION)
         self.assertEqual(self.order.total_amount, Decimal("1000000"))
+        items[1].refresh_from_db()
+        self.assertEqual(items[1].quantity, Decimal("0"))
 
     def test_dealer_approve_adjustment_then_confirmed(self):
         supplier_confirm_order(
