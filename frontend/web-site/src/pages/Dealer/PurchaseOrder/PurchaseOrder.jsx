@@ -21,6 +21,10 @@ const mapStatusToFrontend = (status) => {
         final_payment_pending_verification: "Chờ duyệt thanh toán",
         completed: "Đã hoàn thành",
         cancelled: "Đã hủy",
+        return_requested: "Yêu cầu trả hàng",
+        return_approved: "Đã duyệt trả hàng",
+        return_rejected: "Từ chối trả hàng",
+        returned: "Đã trả hàng",
     };
     return statusMap[status] || status;
 };
@@ -57,7 +61,11 @@ export default function DealerPurchaseOrderPage() {
         { label: "Đã giao hàng", value: "delivered", colorClass: "text-lime-700" },
         { label: "Chờ duyệt thanh toán", value: "final_payment_pending_verification", colorClass: "text-yellow-700" },
         { label: "Đã hoàn thành", value: "completed", colorClass: "text-emerald-700" },
-        { label: "Đã hủy", value: "cancelled", colorClass: "text-neutral-500" }
+        { label: "Đã hủy", value: "cancelled", colorClass: "text-neutral-500" },
+        { label: "Yêu cầu trả hàng", value: "return_requested", colorClass: "text-amber-700" },
+        { label: "Đã duyệt trả hàng", value: "return_approved", colorClass: "text-emerald-700" },
+        { label: "Từ chối trả hàng", value: "return_rejected", colorClass: "text-rose-700" },
+        { label: "Đã trả hàng", value: "returned", colorClass: "text-neutral-500" }
     ];
 
     const handleViewDetail = (order) => {

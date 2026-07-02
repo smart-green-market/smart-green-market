@@ -41,6 +41,14 @@ export default function PurchaseOrderList({ purchaseOrders, onViewDetail }) {
         return { bg: "bg-emerald-50 border-emerald-200", text: "text-emerald-700", icon: <CheckCircle2 className="w-3.5 h-3.5" />, dot: "bg-emerald-500" };
       case "Đã hủy":
         return { bg: "bg-neutral-100 border-neutral-200", text: "text-neutral-600", icon: <Ban className="w-3.5 h-3.5" />, dot: "bg-neutral-400" };
+      case "Yêu cầu trả hàng":
+        return { bg: "bg-amber-50 border-amber-200", text: "text-amber-700", icon: <Clock className="w-3.5 h-3.5" />, dot: "bg-amber-500 animate-pulse" };
+      case "Đã duyệt trả hàng":
+        return { bg: "bg-emerald-50 border-emerald-200", text: "text-emerald-700", icon: <CheckCircle2 className="w-3.5 h-3.5" />, dot: "bg-emerald-500" };
+      case "Từ chối trả hàng":
+        return { bg: "bg-rose-50 border-rose-200", text: "text-rose-700", icon: <XCircle className="w-3.5 h-3.5" />, dot: "bg-rose-500" };
+      case "Đã trả hàng":
+        return { bg: "bg-neutral-100 border-neutral-200", text: "text-neutral-600", icon: <Ban className="w-3.5 h-3.5" />, dot: "bg-neutral-400" };
       default:
         return { bg: "bg-neutral-50 border-neutral-200", text: "text-neutral-700", icon: <Clock className="w-3.5 h-3.5" />, dot: "bg-neutral-500" };
     }

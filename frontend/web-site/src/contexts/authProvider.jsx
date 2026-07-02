@@ -177,6 +177,32 @@ export function AuthProvider({ children }) {
         initAuth();
     }, []);
 
+    // Tự động đá người dùng ra trang đăng nhập khi hết hạn token (không cần reload/F5)
+    useEffect(() => {
+        const handleUnauthorized = () => {
+            clearAuthStorage();
+            setUser(null);
+            const pathname = window.location.pathname;
+            if (pathname.startsWith("/dai-ly")) {
+                navigate("/dai-ly/dang-nhap", { replace: true });
+            } else if (pathname.startsWith("/nha-cung-cap")) {
+                navigate("/nha-cung-cap/dang-nhap", { replace: true });
+            } else if (pathname.startsWith("/quan-tri")) {
+                navigate("/quan-tri/dang-nhap", { replace: true });
+            } else if (pathname.startsWith("/cua-hang/")) {
+                const slug = pathname.split("/")[2];
+                navigate(slug ? `/cua-hang/${encodeURIComponent(slug)}/dang-nhap` : "/", { replace: true });
+            } else {
+                navigate("/", { replace: true });
+            }
+        };
+
+        window.addEventListener("unauthorized", handleUnauthorized);
+        return () => {
+            window.removeEventListener("unauthorized", handleUnauthorized);
+        };
+    }, [navigate]);
+
     const syncSession = useCallback(() => {
         const saved = localStorage.getItem("user");
         setUser(saved ? JSON.parse(saved) : null);
