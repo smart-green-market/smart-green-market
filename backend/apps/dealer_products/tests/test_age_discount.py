@@ -12,7 +12,6 @@ from apps.dealer_products.age_discount import (
     compute_batch_effective_price,
     compute_product_display_price,
     price_for_order_allocation,
-    resolve_matching_tier,
 )
 from apps.dealer_products.inventory_queries import get_sellable_batches_qs
 from apps.dealer_products.models import (
@@ -25,9 +24,6 @@ from apps.dealer_products.models_age_discount import (
     AgeDiscountDiscountType,
     AgeDiscountPolicy,
     AgeDiscountScope,
-    AgeDiscountThresholdType,
-    AgeDiscountTier,
-    AgeDiscountTierOperator,
 )
 from apps.dealers.models import DealerProfile, DealerProfileStatus
 from apps.orders.services import _allocate_batches
@@ -117,58 +113,49 @@ class AgeDiscountServiceTests(TestCase):
         self.assertEqual(result.effective_unit_price, Decimal("18000.00"))
         self.assertEqual(result.age_discount_source, "manual")
 
-    def test_policy_remaining_days_tier(self):
-        policy = AgeDiscountPolicy.objects.create(
+    def test_active_policy_discount_applies_by_time_window(self):
+        AgeDiscountPolicy.objects.create(
             dealer=self.dealer,
-            title="Sắp hết hạn",
+            title="Khung giờ giảm giá",
             scope=AgeDiscountScope.ALL,
-            threshold_type=AgeDiscountThresholdType.REMAINING_DAYS,
-            is_active=True,
-        )
-        AgeDiscountTier.objects.create(
-            policy=policy,
-            operator=AgeDiscountTierOperator.LTE,
-            threshold_value=Decimal("2"),
             discount_type=AgeDiscountDiscountType.PERCENT,
             discount_value=Decimal("20"),
-            sort_order=1,
-        )
-        AgeDiscountTier.objects.create(
-            policy=policy,
-            operator=AgeDiscountTierOperator.LTE,
-            threshold_value=Decimal("1"),
-            discount_type=AgeDiscountDiscountType.PERCENT,
-            discount_value=Decimal("40"),
-            sort_order=2,
+            start_at=timezone.now() - timedelta(hours=1),
+            end_at=timezone.now() + timedelta(hours=1),
+            is_active=True,
         )
         result = compute_batch_effective_price(self.batch_old)
         self.assertEqual(result.age_discount_source, "policy")
-        # batch_old còn 2 ngày → tier 20% (<=2), không phải tier 40% (<=1)
         self.assertEqual(result.effective_unit_price, Decimal("20000.00"))
 
-    def test_display_price_uses_fifo_batch(self):
-        policy = AgeDiscountPolicy.objects.create(
+    def test_policy_outside_time_window_does_not_apply(self):
+        AgeDiscountPolicy.objects.create(
             dealer=self.dealer,
-            title="Sắp hết hạn",
+            title="Khung giờ đã kết thúc",
             scope=AgeDiscountScope.ALL,
-            threshold_type=AgeDiscountThresholdType.REMAINING_DAYS,
-            is_active=True,
-        )
-        AgeDiscountTier.objects.create(
-            policy=policy,
-            operator=AgeDiscountTierOperator.LTE,
-            threshold_value=Decimal("3"),
             discount_type=AgeDiscountDiscountType.PERCENT,
             discount_value=Decimal("20"),
-            sort_order=1,
+            start_at=timezone.now() - timedelta(hours=2),
+            end_at=timezone.now() - timedelta(hours=1),
+            is_active=True,
+        )
+        result = compute_batch_effective_price(self.batch_old)
+        self.assertEqual(result.age_discount_source, "none")
+        self.assertEqual(result.effective_unit_price, self.product.retail_price)
+
+    def test_display_price_uses_fifo_batch(self):
+        AgeDiscountPolicy.objects.create(
+            dealer=self.dealer,
+            title="Giảm theo khung giờ",
+            scope=AgeDiscountScope.ALL,
+            discount_type=AgeDiscountDiscountType.PERCENT,
+            discount_value=Decimal("20"),
+            is_active=True,
         )
         display = compute_product_display_price(self.product)
         old_price = compute_batch_effective_price(self.batch_old)
         self.assertEqual(display.effective_unit_price, old_price.effective_unit_price)
-        self.assertNotEqual(
-            display.effective_unit_price,
-            compute_batch_effective_price(self.batch_new).effective_unit_price,
-        )
+        self.assertEqual(display.effective_unit_price, Decimal("20000.00"))
 
     def test_fifo_allocation_uses_batch_prices(self):
         self.batch_old.manual_sale_price = Decimal("18000.00")
@@ -203,32 +190,24 @@ class AgeDiscountServiceTests(TestCase):
             get_sellable_batches_qs(self.product).filter(pk=expired.pk).exists()
         )
 
-    def test_resolve_matching_tier_picks_highest_sort_order(self):
-        policy = AgeDiscountPolicy.objects.create(
+    def test_product_specific_policy_beats_all_scope_policy(self):
+        AgeDiscountPolicy.objects.create(
             dealer=self.dealer,
-            title="Test",
+            title="Giảm tất cả",
             scope=AgeDiscountScope.ALL,
-            threshold_type=AgeDiscountThresholdType.REMAINING_DAYS,
-            is_active=True,
-        )
-        AgeDiscountTier.objects.create(
-            policy=policy,
-            operator=AgeDiscountTierOperator.LTE,
-            threshold_value=Decimal("2"),
             discount_type=AgeDiscountDiscountType.PERCENT,
             discount_value=Decimal("10"),
-            sort_order=1,
+            is_active=True,
         )
-        high = AgeDiscountTier.objects.create(
-            policy=policy,
-            operator=AgeDiscountTierOperator.LTE,
-            threshold_value=Decimal("2"),
+        AgeDiscountPolicy.objects.create(
+            dealer=self.dealer,
+            title="Giảm sản phẩm cụ thể",
+            scope=AgeDiscountScope.DEALER_PRODUCT,
+            dealer_product=self.product,
             discount_type=AgeDiscountDiscountType.PERCENT,
             discount_value=Decimal("30"),
-            sort_order=5,
+            is_active=True,
         )
-        from apps.dealer_products.age_discount import compute_batch_age_metrics
 
-        metrics = compute_batch_age_metrics(self.batch_old)
-        tier = resolve_matching_tier(policy, metrics)
-        self.assertEqual(tier.id, high.id)
+        result = compute_batch_effective_price(self.batch_old)
+        self.assertEqual(result.effective_unit_price, Decimal("17500.00"))

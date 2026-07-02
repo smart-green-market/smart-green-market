@@ -256,7 +256,4 @@ from .models_age_discount import (  # noqa: E402, F401
     AgeDiscountDiscountType,
     AgeDiscountPolicy,
     AgeDiscountScope,
-    AgeDiscountThresholdType,
-    AgeDiscountTier,
-    AgeDiscountTierOperator,
 )
