@@ -219,6 +219,68 @@ class PurchaseOrderPartialReturnTests(TestCase):
                 ],
             )
 
+    def test_rejected_items_do_not_block_full_return(self):
+        rejected_item = PurchaseOrderItem.objects.create(
+            purchase_order=self.order,
+            supplier_product=self.product_b,
+            quantity=Decimal("5"),
+            original_quantity=Decimal("5"),
+            unit_price=Decimal("8000"),
+            subtotal=Decimal("0"),
+            review_status=PurchaseOrderItemReviewStatus.REJECTED,
+            rejection_reason="NCC từ chối dòng này",
+        )
+
+        po_return = dealer_request_return(
+            self.order,
+            self.dealer_user,
+            reason="Trả hết hàng đã nhận",
+            items=[
+                {
+                    "purchase_order_item_id": self.item_a.id,
+                    "quantity": Decimal("10"),
+                    "reason": "",
+                },
+                {
+                    "purchase_order_item_id": self.item_b.id,
+                    "quantity": Decimal("10"),
+                    "reason": "",
+                },
+            ],
+        )
+        supplier_review_return(po_return, self.supplier_user, approved=True)
+
+        self.order.refresh_from_db()
+        rejected_item.refresh_from_db()
+        self.assertEqual(self.order.status, PurchaseOrderStatus.RETURNED)
+        self.assertEqual(rejected_item.review_status, PurchaseOrderItemReviewStatus.REJECTED)
+
+    def test_rejects_return_for_unapproved_item(self):
+        rejected_item = PurchaseOrderItem.objects.create(
+            purchase_order=self.order,
+            supplier_product=self.product_b,
+            quantity=Decimal("5"),
+            original_quantity=Decimal("5"),
+            unit_price=Decimal("8000"),
+            subtotal=Decimal("0"),
+            review_status=PurchaseOrderItemReviewStatus.REJECTED,
+            rejection_reason="NCC từ chối dòng này",
+        )
+
+        with self.assertRaises(ValidationError):
+            dealer_request_return(
+                self.order,
+                self.dealer_user,
+                reason="Trả dòng bị từ chối",
+                items=[
+                    {
+                        "purchase_order_item_id": rejected_item.id,
+                        "quantity": Decimal("1"),
+                        "reason": "",
+                    }
+                ],
+            )
+
     def test_rejects_when_pending_return_exists(self):
         dealer_request_return(
             self.order,

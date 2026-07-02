@@ -32,8 +32,12 @@ export default function RequestReturnModal({
         setPreviewUrl(null);
       }
     } else if (orderItems) {
+      const returnableItems = orderItems.filter((item) => {
+        const status = item.review_status || item.item_status;
+        return status === "approved" && Number(item.quantity || 0) > 0;
+      });
       setReturnItems(
-        orderItems.map((item) => ({
+        returnableItems.map((item) => ({
           id: item.id,
           name: item.name,
           unit: item.unit || "Kg",
