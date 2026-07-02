@@ -117,6 +117,7 @@ export default function App() {
                             <Route path="khach-hang" element={<DealerCustomerPage />} />
                             <Route path="san-pham" element={<DealerProductManagementPage />} />
                             <Route path="san-pham/:id" element={<DealerProductDetailPage />} />
+                            <Route path="giam-gia" element={<DealerDiscountPage />} />
                         </Route>
                     </Route>
                     <Route path="dai-ly/dang-nhap" element={<DealerLoginPage />} />
