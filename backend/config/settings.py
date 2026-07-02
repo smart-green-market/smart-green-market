@@ -128,6 +128,7 @@ INSTALLED_APPS = [
     "apps.notifications",
     "apps.system_config",
     "apps.dashboard",
+    "apps.training_models",
     "apps.voucher",
 ]
 
