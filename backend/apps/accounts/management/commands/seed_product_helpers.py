@@ -222,36 +222,20 @@ def seed_dealer_age_discount_policy(dealer) -> None:
         AgeDiscountDiscountType,
         AgeDiscountPolicy,
         AgeDiscountScope,
-        AgeDiscountThresholdType,
-        AgeDiscountTier,
-        AgeDiscountTierOperator,
     )
 
-    policy, created = AgeDiscountPolicy.objects.get_or_create(
+    from datetime import time
+
+    AgeDiscountPolicy.objects.get_or_create(
         dealer=dealer,
-        title="Giam gia hang sap het han",
+        title="Giam gia theo khung gio",
         defaults={
             "scope": AgeDiscountScope.ALL,
-            "threshold_type": AgeDiscountThresholdType.REMAINING_DAYS,
+            "discount_type": AgeDiscountDiscountType.PERCENT,
+            "discount_value": Decimal("15"),
             "priority": 10,
             "is_active": True,
+            "daily_start_time": time(7, 0),
+            "daily_end_time": time(10, 0),
         },
-    )
-    if not created:
-        return
-    AgeDiscountTier.objects.create(
-        policy=policy,
-        operator=AgeDiscountTierOperator.LTE,
-        threshold_value=Decimal("3"),
-        discount_type=AgeDiscountDiscountType.PERCENT,
-        discount_value=Decimal("15"),
-        sort_order=2,
-    )
-    AgeDiscountTier.objects.create(
-        policy=policy,
-        operator=AgeDiscountTierOperator.LTE,
-        threshold_value=Decimal("1"),
-        discount_type=AgeDiscountDiscountType.PERCENT,
-        discount_value=Decimal("30"),
-        sort_order=1,
     )

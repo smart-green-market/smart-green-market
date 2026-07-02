@@ -49,6 +49,11 @@ export default function VoucherDetailModal({ isOpen, onClose, voucherId }) {
     }
   };
 
+  const formatTime = (timeStr) => {
+    if (!timeStr) return "—";
+    return String(timeStr).slice(0, 5);
+  };
+
   const getStatusBadge = (status) => {
     switch (status) {
       case "active":
@@ -192,13 +197,35 @@ export default function VoucherDetailModal({ isOpen, onClose, voucherId }) {
               <div className="border border-gray-100 rounded-xl p-4 bg-gray-50/50 space-y-3">
                 <h4 className="text-sm font-semibold text-gray-800 uppercase tracking-wider text-xs border-b pb-1.5 mb-2">Thời gian hoạt động</h4>
                 <div className="flex justify-between items-center text-sm">
-                  <span className="text-gray-500">Ngày bắt đầu:</span>
+                  <span className="text-gray-500">Kiểu áp dụng:</span>
+                  <span className={`font-semibold px-2.5 py-1 rounded-full text-xs ${
+                    voucher.schedule_type === 'daily_time'
+                      ? 'bg-orange-100 text-orange-800 border border-orange-200'
+                      : 'bg-green-100 text-green-800 border border-green-200'
+                  }`}>
+                    {voucher.schedule_type === 'daily_time' ? 'Flash sale hằng ngày' : 'Theo khoảng ngày'}
+                  </span>
+                </div>
+                <div className="flex justify-between items-center text-sm">
+                  <span className="text-gray-500">
+                    {voucher.schedule_type === 'daily_time' ? 'Ngày bắt đầu chiến dịch:' : 'Ngày bắt đầu:'}
+                  </span>
                   <span className="font-medium text-gray-900">{formatDate(voucher.start_date)}</span>
                 </div>
                 <div className="flex justify-between items-center text-sm">
-                  <span className="text-gray-500">Ngày kết thúc:</span>
+                  <span className="text-gray-500">
+                    {voucher.schedule_type === 'daily_time' ? 'Ngày kết thúc chiến dịch:' : 'Ngày kết thúc:'}
+                  </span>
                   <span className="font-medium text-gray-900">{formatDate(voucher.end_date)}</span>
                 </div>
+                {voucher.schedule_type === 'daily_time' && (
+                  <div className="flex justify-between items-center text-sm">
+                    <span className="text-gray-500">Khung giờ mỗi ngày:</span>
+                    <span className="font-semibold text-orange-700">
+                      {formatTime(voucher.daily_start_time)} → {formatTime(voucher.daily_end_time)}
+                    </span>
+                  </div>
+                )}
               </div>
 
             </div>

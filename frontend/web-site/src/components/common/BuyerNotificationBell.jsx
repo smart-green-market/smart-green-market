@@ -90,7 +90,7 @@ export default function BuyerNotificationBell() {
             <button
                 type="button"
                 onClick={() => setIsOpenDropdown(!isOpenDropdown)}
-                className="relative flex flex-col items-center gap-0.5 rounded-full p-2 text-white transition-colors hover:bg-white/10 md:rounded-lg md:px-3 md:py-1.5"
+                className="cursor-pointer hover:scale-110 transition-transform duration-200 relative flex flex-col items-center gap-0.5 rounded-full p-2 text-white transition-colors hover:bg-white/10 md:rounded-lg md:px-3 md:py-1.5"
                 title="Thông báo"
                 aria-label="Thông báo"
             >

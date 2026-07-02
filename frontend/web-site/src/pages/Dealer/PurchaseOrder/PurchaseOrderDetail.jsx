@@ -29,6 +29,10 @@ const mapStatusToFrontend = (status) => {
     final_payment_pending_verification: "Chờ duyệt thanh toán",
     completed: "Đã hoàn thành",
     cancelled: "Đã hủy",
+    return_requested: "Yêu cầu trả hàng",
+    return_approved: "Đã duyệt trả hàng",
+    return_rejected: "Từ chối trả hàng",
+    returned: "Đã trả hàng",
   };
   return statusMap[status] || status;
 };
@@ -116,7 +120,7 @@ export default function DealerPurchaseOrderDetailPage() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-screen bg-emerald-50/15">
+      <div className="p-6 bg-emerald-50/15 min-h-screen flex justify-center items-center">
         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-emerald-600"></div>
       </div>
     );
@@ -245,10 +249,10 @@ export default function DealerPurchaseOrderDetailPage() {
     orderData.rawStatus === "pending_dealer_confirmation";
 
   // Kiểm tra điều kiện hiển thị quét VietQR thanh toán cọc (status === 'confirmed')
-  const showDepositQr = orderData.rawStatus === "confirmed";
-
+  const showDepositQr = orderData.rawStatus === "confirmed" && orderData.depositAmount > 0;
+  
   // Kiểm tra điều kiện hiển thị quét VietQR thanh toán cuối (status === 'delivered')
-  const showFinalQr = orderData.rawStatus === "delivered";
+  const showFinalQr = orderData.rawStatus === "delivered" && orderData.remainingAmount > 0;
 
   // Kiểm tra điều kiện hiển thị nút nhận hàng (status === 'shipping')
   const showConfirmDelivery = orderData.rawStatus === "shipping";
@@ -372,7 +376,7 @@ export default function DealerPurchaseOrderDetailPage() {
         isOpen={isReturnModalOpen}
         onClose={() => setIsReturnModalOpen(false)}
         onConfirm={handleRequestReturnConfirm}
-        orderItems={orderData?.items || []}
+        orderItems={(orderData?.items || []).filter(item => item.review_status !== "rejected")}
       />
 
       <ApproveAdjustmentModal

@@ -1,16 +1,75 @@
 # promotions/serializers.py
 from rest_framework import serializers
-from apps.promotions.models import Promotion, PromotionTarget
+from apps.promotions.models import (
+    CustomerSavedVoucher,
+    Promotion,
+    PromotionScheduleType,
+    PromotionTarget,
+)
 
 
 class AvailablePromotionSerializer(serializers.ModelSerializer):
+    is_saved = serializers.SerializerMethodField()
+
     class Meta:
         model = Promotion
         fields = [
             "id", "code", "title", "description",
             "discount_type", "discount_value",
-            "start_date", "end_date",
+            "min_order_amount", "max_discount_amount",
+            "usage_limit", "usage_limit_per_customer",
+            "start_date", "end_date", "schedule_type",
+            "daily_start_time", "daily_end_time", "is_saved",
         ]
+
+    def get_is_saved(self, obj):
+        saved_ids = self.context.get("saved_promotion_ids", set())
+        return obj.id in saved_ids
+
+
+class SavedPromotionSerializer(serializers.ModelSerializer):
+    id = serializers.IntegerField(source="promotion.id", read_only=True)
+    code = serializers.CharField(source="promotion.code", read_only=True)
+    title = serializers.CharField(source="promotion.title", read_only=True)
+    description = serializers.CharField(source="promotion.description", read_only=True)
+    discount_type = serializers.CharField(source="promotion.discount_type", read_only=True)
+    discount_value = serializers.DecimalField(
+        source="promotion.discount_value",
+        max_digits=12,
+        decimal_places=2,
+        read_only=True,
+    )
+    min_order_amount = serializers.DecimalField(
+        source="promotion.min_order_amount",
+        max_digits=14,
+        decimal_places=2,
+        read_only=True,
+    )
+    max_discount_amount = serializers.DecimalField(
+        source="promotion.max_discount_amount",
+        max_digits=14,
+        decimal_places=2,
+        read_only=True,
+    )
+    start_date = serializers.DateTimeField(source="promotion.start_date", read_only=True)
+    end_date = serializers.DateTimeField(source="promotion.end_date", read_only=True)
+    schedule_type = serializers.CharField(source="promotion.schedule_type", read_only=True)
+    daily_start_time = serializers.TimeField(source="promotion.daily_start_time", read_only=True)
+    daily_end_time = serializers.TimeField(source="promotion.daily_end_time", read_only=True)
+    is_saved = serializers.SerializerMethodField()
+
+    class Meta:
+        model = CustomerSavedVoucher
+        fields = [
+            "id", "code", "title", "description",
+            "discount_type", "discount_value",
+            "min_order_amount", "max_discount_amount",
+            "start_date", "end_date", "schedule_type",
+            "daily_start_time", "daily_end_time", "is_saved", "saved_at",
+        ]
+
+    def get_is_saved(self, obj):
+        return True
 
 
 class PromotionTargetSerializer(serializers.ModelSerializer):
@@ -69,6 +128,9 @@ class PromotionSerializer(serializers.ModelSerializer):
             "usage_limit_per_customer",
             "start_date",
             "end_date",
+            "schedule_type",
+            "daily_start_time",
+            "daily_end_time",
             "status",
             "reject_reason",
             "targets",
@@ -93,8 +155,30 @@ class PromotionSerializer(serializers.ModelSerializer):
     def validate(self, attrs):
         start_date = attrs.get("start_date")
         end_date = attrs.get("end_date")
+        schedule_type = attrs.get(
+            "schedule_type",
+            getattr(self.instance, "schedule_type", PromotionScheduleType.DATE_RANGE),
+        )
+        daily_start_time = attrs.get(
+            "daily_start_time",
+            getattr(self.instance, "daily_start_time", None),
+        )
+        daily_end_time = attrs.get(
+            "daily_end_time",
+            getattr(self.instance, "daily_end_time", None),
+        )
         if start_date and end_date and start_date >= end_date:
             raise serializers.ValidationError("start_date phải trước end_date")
+        if schedule_type == PromotionScheduleType.DAILY_TIME:
+            if daily_start_time is None or daily_end_time is None:
+                raise serializers.ValidationError({
+                    "daily_start_time": "Bắt buộc nhập giờ bắt đầu khi voucher lặp hằng ngày.",
+                    "daily_end_time": "Bắt buộc nhập giờ kết thúc khi voucher lặp hằng ngày.",
+                })
+            if daily_start_time == daily_end_time:
+                raise serializers.ValidationError({
+                    "daily_end_time": "Giờ kết thúc phải khác giờ bắt đầu.",
+                })
 
         # Kiểm tra tính duy nhất của mã voucher cho từng đại lý (UniqueConstraint)
         code = attrs.get("code")

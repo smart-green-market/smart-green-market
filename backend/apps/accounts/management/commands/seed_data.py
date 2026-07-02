@@ -224,16 +224,7 @@ class Command(BaseCommand):
     'Trái cây ôn đới & nhập khẩu',
     'Quả mọng & đặc sản',
     'Đậu & hạt tươi',
-    'Gạo & Ngũ cốc',
-    'Đậu khô & hạt khô',
-    'Thực phẩm khô',
-    'Nông sản sấy khô',
-    'Gia vị',
-    'Mật ong & sản phẩm từ ong',
-    'Trứng gia cầm',
-    'Sữa & sản phẩm từ sữa nông trại',
-    'Thực phẩm lên men & muối chua',
-    'Hoa & cây giống nông nghiệp'
+ 
 ]
         categories = []
         for name in names:
@@ -433,56 +424,9 @@ class Command(BaseCommand):
         'Bắp non', 'Bắp ngọt trái', 'Đậu phộng tươi', 'Đậu nành tươi (edamame)', 'Hạt sen tươi',
         'Củ năng', 'Bông cải trắng', 'Súp lơ xanh', 'Atiso tươi', 'Bông bí'
     ],
-    'Gạo & Ngũ cốc': [
-        'Gạo ST25', 'Gạo lứt huyết rồng', 'Yến mạch', 'Đậu xanh tách vỏ', 'Gạo nàng thơm chợ Đào',
-        'Gạo nếp cái hoa vàng', 'Gạo japonica', 'Gạo tấm', 'Hạt kê', 'Gạo lứt đỏ',
-        'Bột yến mạch nguyên cám', 'Gạo nếp than', 'Hạt diêm mạch (quinoa)', 'Gạo thơm Lài', 'Bắp khô hạt'
-    ],
-    'Đậu khô & hạt khô': [
-        'Hạt điều rang muối', 'Hạt sen khô', 'Đậu đen', 'Đậu phộng', 'Đậu đỏ',
-        'Hạt macca', 'Hạt óc chó', 'Hạt hạnh nhân', 'Đậu trắng', 'Hạt bí rang',
-        'Hạt hướng dương', 'Đậu lăng', 'Hạt dẻ cười', 'Đậu Hà Lan khô', 'Hạt chia'
-    ],
-    'Thực phẩm khô': [
-        'Nấm hương khô', 'Mộc nhĩ', 'Bánh đa cua', 'Miến dong', 'Bún khô',
-        'Phở khô', 'Bánh tráng phơi sương', 'Tôm khô', 'Cá cơm khô', 'Rong biển khô',
-        'Mì gạo khô', 'Bánh phồng tôm', 'Khô mực', 'Hủ tiếu khô', 'Bột năng'
-    ],
-    'Nông sản sấy khô': [
-        'Chuối sấy giòn', 'Mít sấy', 'Khoai lang sấy', 'Xoài sấy dẻo', 'Mãng cầu sấy',
-        'Đu đủ sấy', 'Dứa sấy', 'Cà chua sấy khô', 'Cải kale sấy', 'Khoai môn sấy',
-        'Táo sấy dẻo', 'Cam sấy lát', 'Gừng sấy dẻo', 'Bí đỏ sấy', 'Rong biển sấy'
-    ],
-    'Gia vị': [
-        'Hạt tiêu Phú Quốc', 'Nước mắm Phú Quốc', 'Tỏi Lý Sơn', 'Ớt chỉ thiên', 'Muối tôm Tây Ninh',
-        'Sa tế', 'Bột nghệ', 'Bột ớt', 'Hạt nêm rau củ', 'Tương ớt',
-        'Nước tương', 'Dầu hào', 'Quế chi', 'Hoa hồi', 'Lá nguyệt quế'
-    ],
-    'Mật ong & sản phẩm từ ong': [
-        'Mật ong rừng', 'Sữa ong chúa', 'Phấn hoa', 'Mật ong hoa nhãn', 'Mật ong hoa cà phê',
-        'Mật ong bạc hà', 'Keo ong (propolis)', 'Mật ong rừng U Minh', 'Sáp ong nguyên chất', 'Mật ong hoa vải',
-        'Mật ong chanh đào', 'Trà mật ong gừng', 'Mật ong nghệ', 'Mật ong hoa cúc', 'Mật ong rừng Tây Bắc'
-    ],
-    'Trứng gia cầm': [
-        'Trứng gà ta', 'Trứng vịt', 'Trứng vịt muối', 'Trứng cút', 'Trứng gà công nghiệp',
-        'Trứng vịt lộn', 'Trứng gà ác', 'Trứng ngỗng', 'Trứng cút lộn', 'Trứng gà so',
-        'Trứng vịt bắc thảo', 'Trứng gà hữu cơ', 'Trứng gà Đông Tảo', 'Trứng vịt trời', 'Trứng gà thả vườn'
-    ],
-    'Sữa & sản phẩm từ sữa nông trại': [
-        'Sữa tươi nông trại', 'Sữa chua nếp cẩm', 'Phô mai tươi', 'Sữa chua Hy Lạp', 'Sữa dê tươi',
-        'Bơ tươi nông trại', 'Sữa chua uống', 'Phô mai que', 'Váng sữa', 'Sữa chua trái cây',
-        'Kem tươi nông trại', 'Sữa tươi thanh trùng', 'Sữa hạt óc chó', 'Sữa đậu nành nguyên chất', 'Sữa chua không đường'
-    ],
-    'Thực phẩm lên men & muối chua': [
-        'Dưa cải muối', 'Kim chi', 'Cà pháo muối', 'Măng chua', 'Củ kiệu muối',
-        'Dưa món', 'Cải chua', 'Hành muối', 'Tỏi muối', 'Sung muối',
-        'Đu đủ muối chua', 'Rau cải muối xổi', 'Ớt muối', 'Dưa leo muối', 'Mơ muối'
-    ],
-    'Hoa & cây giống nông nghiệp': [
-        'Hoa hồng Đà Lạt', 'Hoa cúc', 'Cây giống rau', 'Hạt giống hoa', 'Hoa lan hồ điệp',
-        'Hoa ly', 'Cây giống cà chua', 'Cây giống ớt', 'Hạt giống rau cải', 'Cây giống dưa leo',
-        'Hoa hướng dương', 'Cây giống bầu bí', 'Hạt giống rau muống', 'Cây giống xoài', 'Hạt giống dưa hấu'
-    ],
+
+   
+    
 }
         
         product_masters = []

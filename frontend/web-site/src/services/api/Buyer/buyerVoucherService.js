@@ -1,9 +1,9 @@
 import axiosClient from "../axiosClient";
 
 export const buyerVoucherService = {
-  getAll: (params = {}) =>
+  getVoucherAvailable: (params = {}) =>
     axiosClient.get(`/vouchers/available/`, { params }).then((res) => res.data),
-  //Lấy danh sách các voucher đang hoạt động cho cửa hàng checkout.
+  //Buyer xem voucher khả dụng mà Dealer tạo và Buyer truy cập để lấy voucher về để áp dụng vào đơn hàng.
 
   // {
   //     "count": 123,
@@ -22,6 +22,62 @@ export const buyerVoucherService = {
   //       }
   //     ]
   //   }
+
+  saveVoucher: (id, data = {}) =>
+    axiosClient.post(`/vouchers/${id}/save/`, data).then((res) => res.data),
+  //Buyer lưu voucher vào tài khoản của mình.
+
+  // {
+  //     "title": "string",
+  //     "code": "zUPMEznsdhY3W9QUYiSTJ0xXshWfpuWiWpYVssieUlY8eLOxyr",
+  //     "description": "string",
+  //     "discount_type": "percent",
+  //     "discount_value": "-77154",
+  //     "min_order_amount": "-9380662",
+  //     "max_discount_amount": "-306.",
+  //     "usage_limit": 2147483647,
+  //     "usage_limit_per_customer": 2147483647,
+  //     "start_date": "2026-07-02T08:18:02.612Z",
+  //     "end_date": "2026-07-02T08:18:02.612Z",
+  //     "targets": [
+  //       {
+  //         "target_type": "segment",
+  //         "segment": 0
+  //       }
+  //     ]
+  //   }
+
+  unsaveVoucher: (id, params = {}) =>
+    axiosClient
+      .delete(`/vouchers/${id}/unsave/`, { params })
+      .then((res) => res.data),
+  //Buyer xóa voucher khỏi tài khoản của mình.
+
+  getAll: (params = {}) =>
+    axiosClient.get(`/vouchers/saved/`, { params }).then((res) => res.data),
+  //Buyer xem danh sách voucher đã lưu vào tài khoản của mình.
+
+  // {
+  //     "count": 123,
+  //     "next": "http://api.example.org/accounts/?page=4",
+  //     "previous": "http://api.example.org/accounts/?page=2",
+  //     "results": [
+  //         {
+  //         "id": 0,
+  //         "code": "string",
+  //         "title": "string",
+  //         "description": "string",
+  //         "discount_type": "string",
+  //         "discount_value": "-716163",
+  //         "min_order_amount": "6751654483",
+  //         "max_discount_amount": "00.",
+  //         "start_date": "2026-07-02T08:16:48.913Z",
+  //         "end_date": "2026-07-02T08:16:48.913Z",
+  //         "is_saved": "string",
+  //         "saved_at": "2026-07-02T08:16:48.913Z"
+  //         }
+  //     ]
+  //     }
 
   apply: (data) =>
     axiosClient.post(`/vouchers/apply/`, data).then((res) => {
