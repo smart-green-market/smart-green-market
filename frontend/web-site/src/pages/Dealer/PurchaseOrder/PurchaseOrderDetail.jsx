@@ -249,10 +249,10 @@ export default function DealerPurchaseOrderDetailPage() {
     orderData.rawStatus === "pending_dealer_confirmation";
 
   // Kiểm tra điều kiện hiển thị quét VietQR thanh toán cọc (status === 'confirmed')
-  const showDepositQr = orderData.rawStatus === "confirmed";
-
+  const showDepositQr = orderData.rawStatus === "confirmed" && orderData.depositAmount > 0;
+  
   // Kiểm tra điều kiện hiển thị quét VietQR thanh toán cuối (status === 'delivered')
-  const showFinalQr = orderData.rawStatus === "delivered";
+  const showFinalQr = orderData.rawStatus === "delivered" && orderData.remainingAmount > 0;
 
   // Kiểm tra điều kiện hiển thị nút nhận hàng (status === 'shipping')
   const showConfirmDelivery = orderData.rawStatus === "shipping";
