@@ -6,7 +6,7 @@ import useTableSort from "../../../hooks/useTableSort";
 const COLUMN_CONFIG = {
   title: { key: "title", type: "string" },
   scope: { key: "scope", type: "string" },
-  tier_count: { key: "tier_count", type: "number" }
+  discount_value: { key: "discount_value", type: "number" }
 };
 
 export default function DiscountTable({
@@ -24,6 +24,13 @@ export default function DiscountTable({
   const totalPages = Math.ceil(totalCount / limit);
   const { sortedData, sortColumn, sortDirection, handleSort } = useTableSort(policies, COLUMN_CONFIG);
 
+  const formatDiscount = (policy) => {
+    if (policy.discount_type === 'percent') {
+      return `${parseFloat(policy.discount_value || 0)}%`;
+    }
+    return `${parseFloat(policy.discount_value || 0).toLocaleString('vi-VN')}đ`;
+  };
+
   return (
     <div className="flex flex-col gap-4 font-['Geist',sans-serif]">
       <div className="w-full rounded-2xl border border-neutral-200 overflow-hidden bg-white shadow-xs">
@@ -32,8 +39,8 @@ export default function DiscountTable({
             <thead className="bg-gray-50">
               <tr>
                 <SortableHeader column="title" label="Tên chính sách" sortColumn={sortColumn} sortDirection={sortDirection} onSort={handleSort} />
-                <SortableHeader column="scope" label="Sản phẩm" sortColumn={sortColumn} sortDirection={sortDirection} onSort={handleSort} />
-                <SortableHeader column="tier_count" label="Tỷ lệ giảm" sortColumn={sortColumn} sortDirection={sortDirection} onSort={handleSort} />
+                <SortableHeader column="scope" label="Phạm vi" sortColumn={sortColumn} sortDirection={sortDirection} onSort={handleSort} />
+                <SortableHeader column="discount_value" label="Mức giảm" sortColumn={sortColumn} sortDirection={sortDirection} onSort={handleSort} />
                 <th scope="col" className="px-6 py-4 text-[11px] font-bold text-neutral-400 uppercase tracking-wider text-center">
                   Trạng thái
                 </th>
@@ -49,16 +56,21 @@ export default function DiscountTable({
                     <div className="text-sm font-medium text-gray-900">{policy.title || "Chưa có tên"}</div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="text-sm text-gray-900">
+                    <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium ${
+                      policy.scope === 'all' ? 'bg-blue-50 text-blue-700' :
+                      policy.scope === 'category' ? 'bg-purple-50 text-purple-700' :
+                      policy.scope === 'dealer_product' ? 'bg-amber-50 text-amber-700' :
+                      'bg-gray-50 text-gray-700'
+                    }`}>
                       {policy.scope === 'all' ? "Tất cả sản phẩm" :
                         policy.scope === 'category' ? "Theo danh mục" :
                           policy.scope === 'dealer_product' ? "Sản phẩm cụ thể" : "Tất cả"}
-                    </div>
+                    </span>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="text-sm text-gray-900 font-medium">
-                      {policy.tier_count ? `${policy.tier_count} mức giảm` : "0 mức giảm"}
-                    </div>
+                    <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-bold bg-green-50 text-green-700">
+                      {formatDiscount(policy)}
+                    </span>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-center">
                     <button
