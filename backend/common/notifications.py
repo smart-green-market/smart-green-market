@@ -3,6 +3,7 @@
 from django.contrib.auth import get_user_model
 
 from apps.notifications.models import Notification, NotificationReceipt
+from apps.notifications.realtime import push_notification_to_account
 from common.notification_messages import plain_notification_text
 
 User = get_user_model()
@@ -21,10 +22,13 @@ def notify_admins(title, content, reference_type, reference_id, created_by, noti
         reference_id=reference_id,
         created_by=created_by,
     )
-    NotificationReceipt.objects.bulk_create([
+    receipts = NotificationReceipt.objects.bulk_create([
         NotificationReceipt(notification=notification, account=admin)
         for admin in admins
     ])
+    for receipt in receipts:
+        receipt.notification = notification
+        push_notification_to_account(receipt.account_id, receipt)
 
 
 def notify_account(
@@ -47,7 +51,9 @@ def notify_account(
         reference_id=reference_id,
         created_by=created_by,
     )
-    NotificationReceipt.objects.create(
+    receipt = NotificationReceipt.objects.create(
         notification=notification,
         account=account,
     )
+    receipt.notification = notification
+    push_notification_to_account(account.id, receipt)

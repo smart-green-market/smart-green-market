@@ -79,3 +79,55 @@ export function mergeNotificationDetail(detail, fallback = {}) {
     readAt: fallback.readAt ?? detail.read_at ?? null,
   };
 }
+
+export function sortNotificationsByCreatedDesc(items = []) {
+  return [...items].sort((a, b) => {
+    const aTime = new Date(a.createdAt ?? a.created_at ?? 0).getTime();
+    const bTime = new Date(b.createdAt ?? b.created_at ?? 0).getTime();
+    return bTime - aTime;
+  });
+}
+
+/** Chuẩn hóa danh sách API thành state cho chuông thông báo. */
+export function buildBellStateFromList(rawList = [], options = {}) {
+  const formatted = rawList.map((item) => formatNotificationRow(item));
+  const unreadCount =
+    options.unreadCount != null
+      ? options.unreadCount
+      : formatted.filter(isNotificationUnread).length;
+
+  return {
+    unreadCount,
+    notifications: sortNotificationsByCreatedDesc(formatted),
+  };
+}
+
+/** Parse payload WebSocket từ backend (event: notification.new, ...). */
+export function parseNotificationWebSocketMessage(data) {
+  if (!data || typeof data !== "object") return null;
+
+  const { event } = data;
+
+  if (event === "notification.new") {
+    const { event: _ignored, ...item } = data;
+    return { kind: "new", item };
+  }
+
+  if (event === "notification.list" && Array.isArray(data.items)) {
+    return {
+      kind: "list",
+      items: data.items,
+      unreadCount: data.unread_count,
+    };
+  }
+
+  if (event === "notification.unread_count" && data.unread_count != null) {
+    return { kind: "unread_count", unreadCount: data.unread_count };
+  }
+
+  if (data.id != null && (data.title != null || data.content != null)) {
+    return { kind: "new", item: data };
+  }
+
+  return null;
+}

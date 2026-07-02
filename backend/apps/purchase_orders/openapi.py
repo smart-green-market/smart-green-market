@@ -60,9 +60,22 @@ PO_CREATE_DESCRIPTION = (
 PO_CONFIRM_DESCRIPTION = (
     "**Bước 2a — NCC chấp nhận phiếu.** Role: `supplier` (chủ phiếu).\n\n"
     "Điều kiện: `status = pending_supplier_confirmation`.\n\n"
-    "Body: `deposit_percent` (optional, mặc định từ config), `note`.\n"
-    "Sau thành công: `status = confirmed`, có `deposit_amount`.\n\n"
-    "**UI dealer tiếp theo:** hiện nút thanh toán cọc."
+    "Body: `confirmed_delivery_time`, `deposit_percent` (optional), `note`, "
+    "`items[]` (optional — duyệt từng dòng SP).\n\n"
+    "| Kết quả | Khi nào |\n"
+    "|---------|--------|\n"
+    "| `confirmed` | Không đổi ngày giao và không đổi SP/số lượng |\n"
+    "| `pending_dealer_confirmation` | NCC đổi ngày giao hoặc từ chối/điều chỉnh SP |\n\n"
+    "Dealer tiếp theo: `approve-adjustment/` hoặc `cancel/` nếu chờ duyệt; "
+    "nộp cọc nếu `confirmed`."
+)
+
+PO_APPROVE_ADJUSTMENT_DESCRIPTION = (
+    "**Bước 2c — Dealer đồng ý điều chỉnh của NCC.** Role: `dealer` (chủ phiếu).\n\n"
+    "Điều kiện: `status = pending_dealer_confirmation`.\n"
+    "Body: `note` (optional).\n\n"
+    "Sau thành công: `status = confirmed` → dealer có thể nộp cọc.\n"
+    "Không đồng ý: gọi `POST .../cancel/` với `reason`."
 )
 
 PO_REJECT_DESCRIPTION = (
@@ -121,7 +134,7 @@ PO_CANCEL_DESCRIPTION = (
     "**Hủy phiếu.** Role: `dealer` (phiếu của mình) hoặc `admin`.\n\n"
     "| Role | Được hủy khi |\n"
     "|------|----------------|\n"
-    "| dealer | `pending_supplier_confirmation`, `confirmed` |\n"
+    "| dealer | `pending_supplier_confirmation`, `pending_dealer_confirmation`, `confirmed` |\n"
     "| admin | Mọi trạng thái chưa `completed` / `rejected` / `cancelled` |"
 )
 

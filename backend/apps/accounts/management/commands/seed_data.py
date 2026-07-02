@@ -20,12 +20,10 @@ from apps.product_catalog.models import ProductMaster
 
 from .seed_customer_journeys import seed_customer_journeys
 from .seed_product_helpers import (
-    assign_product_master_seasons,
     build_dealer_description,
     build_supplier_description,
     create_cultivation_processes,
     create_dealer_inventory_batches,
-    ensure_seasons,
     get_storage_profile,
     link_product_certifications,
     pick_storage_days,
@@ -33,7 +31,8 @@ from .seed_product_helpers import (
     seed_supplier_certifications,
 )
 
-# Chạy: python manage.py seed_data --clear
+# Chạy lệnh tạo db: python manage.py migrate
+# Chạy lệnh tạo dữ liệu: python manage.py seed_data --clear
 # Gọn:  python manage.py seed_data --clear --buyers 80
 
 SEED_PASSWORD = "12345678"
@@ -64,7 +63,12 @@ class Command(BaseCommand):
 
         if clear:
             self.stdout.write('Clearing existing data...')
-            from apps.marketing.models import CustomerInteraction, DealerSupplierProductInteraction
+            from apps.marketing.models import (
+                CustomerInteraction,
+                CustomerSegment,
+                CustomerSegmentMember,
+                DealerSupplierProductInteraction,
+            )
             from apps.orders.models import (
                 CustomerPayment,
                 OrderReturn,
@@ -108,6 +112,8 @@ class Command(BaseCommand):
             PromotionUsage.objects.all().delete()
             PromotionTarget.objects.all().delete()
             Promotion.objects.all().delete()
+            CustomerSegmentMember.objects.all().delete()
+            CustomerSegment.objects.all().delete()
             CustomerAddress.objects.all().delete()
             CustomerProfile.objects.all().delete()
             DealerProfile.objects.all().delete()
@@ -119,13 +125,13 @@ class Command(BaseCommand):
  
         self.password = make_password(SEED_PASSWORD)
         self.admin_account = self._get_or_create_admin()
+
+        self.stdout.write('Creating system customer segments...')
+        self._seed_customer_segments()
  
         self.stdout.write('Creating Categories...')
         self.categories = self._create_categories()
 
-        self.stdout.write('Ensuring seasons...')
-        self.season_map = ensure_seasons()
- 
         self.stdout.write('Creating Product Masters...')
         self.product_masters = self._create_product_masters(self.categories)
  
@@ -322,6 +328,12 @@ class Command(BaseCommand):
             dealers.append(profile)
         return dealers
 
+    def _seed_customer_segments(self):
+        from apps.marketing.segment_defaults import seed_system_customer_segments
+
+        seed_system_customer_segments()
+        self.stdout.write(self.style.SUCCESS('System customer segments ready.'))
+
     def _create_buyers(self, count, dealers):
         from apps.customers.services import build_storefront_username
 
@@ -476,7 +488,6 @@ class Command(BaseCommand):
         product_masters = []
         for cat in categories:
             names = master_data.get(cat.name, [])
-            profile = get_storage_profile(cat.name)
             for name in names:
                 slug = self.fake.slug(name)
                 pm, created = ProductMaster.objects.get_or_create(
@@ -493,7 +504,6 @@ class Command(BaseCommand):
                         'sort_order': random.randint(1, 100)
                     }
                 )
-                assign_product_master_seasons(pm, self.season_map, profile)
                 product_masters.append(pm)
         return product_masters
 
@@ -650,6 +660,7 @@ class Command(BaseCommand):
                         purchase_order=po,
                         supplier_product=item_sp,
                         quantity=qty,
+                        original_quantity=qty,
                         unit_price=price,
                         subtotal=subtotal
                     )

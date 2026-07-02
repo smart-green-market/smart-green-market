@@ -14,6 +14,7 @@ STATUS_VI = {
     "inactive": "Ngừng hoạt động",
     # Phiếu nhập hàng
     "pending_supplier_confirmation": "Chờ NCC xác nhận",
+    "pending_dealer_confirmation": "Chờ đại lý xác nhận điều chỉnh",
     "confirmed": "Đã xác nhận",
     "deposit_pending_verification": "Chờ xác nhận tiền cọc",
     "deposit_paid": "Đã thanh toán cọc",
@@ -270,6 +271,7 @@ def purchase_order_status_updated(order, old_status=""):
         "deposit_pending_verification",
         "final_payment_pending_verification",
         "pending_supplier_confirmation",
+        "pending_dealer_confirmation",
         "return_requested",
     ):
         notif_type = "warning"

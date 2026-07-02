@@ -10,8 +10,10 @@ import CreateVoucherModal from '../../../components/Dealer/Discount/CreateVouche
 import VoucherDetailModal from '../../../components/Dealer/Discount/VoucherDetailModal';
 import EditVoucherModal from '../../../components/Dealer/Discount/EditVoucherModal';
 import DiscountFilterBar from '../../../components/Dealer/Discount/DiscountFilterBar';
+import VoucherFilterBar from '../../../components/Dealer/Discount/VoucherFilterBar';
 import DiscountTable from '../../../components/Dealer/Discount/DiscountTable';
 import VoucherTable from '../../../components/Dealer/Discount/VoucherTable';
+
 
 export default function DealerDiscountPage() {
   const [activeTab, setActiveTab] = useState("policy"); // "policy" or "voucher"
@@ -250,36 +252,14 @@ export default function DealerDiscountPage() {
       ) : (
         <>
           {/* Voucher Filter Bar */}
-          <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 mb-6 flex flex-col md:flex-row gap-4 items-center justify-between">
-            <div className="relative w-full md:w-96">
-              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">
-                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-search"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
-              </span>
-              <input
-                type="text"
-                placeholder="Tìm kiếm voucher theo mã hoặc tiêu đề..."
-                value={voucherSearch}
-                onChange={(e) => { setVoucherSearch(e.target.value); setVoucherPage(1); }}
-                className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
-              />
-            </div>
-            
-            <div className="flex w-full md:w-auto gap-4">
-              <select 
-                value={voucherStatus} 
-                onChange={(e) => { setVoucherStatus(e.target.value); setVoucherPage(1); }}
-                className="px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 bg-white"
-              >
-                <option value="all">Tất cả trạng thái</option>
-                <option value="draft">Nháp</option>
-                <option value="pending">Chờ duyệt</option>
-                <option value="active">Đang hoạt động</option>
-                <option value="inactive">Tạm dừng</option>
-                <option value="expired">Hết hạn</option>
-                <option value="rejected">Từ chối</option>
-              </select>
-            </div>
-          </div>
+          <VoucherFilterBar
+            search={voucherSearch}
+            setSearch={setVoucherSearch}
+            status={voucherStatus}
+            setStatus={setVoucherStatus}
+            setPage={setVoucherPage}
+          />
+
 
           {isVouchersLoading ? (
             <div className="flex justify-center items-center py-20">

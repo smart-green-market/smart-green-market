@@ -1,4 +1,4 @@
-# Blueprint Render — tạo Web Service + PostgreSQL free tier
+# Blueprint Render — Web Service (ASGI + WebSocket) + PostgreSQL + Key Value (Redis)
 # Docs: https://render.com/docs/blueprint-spec
 
 databases:
@@ -8,13 +8,19 @@ databases:
     plan: free
 
 services:
+  - type: keyvalue
+    name: smart-green-market-redis
+    plan: free
+    ipAllowList: []
+    maxmemoryPolicy: allkeys-lru
+
   - type: web
     name: smart-green-market-api
     runtime: python
     plan: free
     rootDir: backend
     buildCommand: chmod +x build.sh && ./build.sh
-    startCommand: gunicorn config.wsgi:application --bind 0.0.0.0:$PORT
+    startCommand: daphne -b 0.0.0.0 -p $PORT config.asgi:application
     envVars:
       - key: PYTHON_VERSION
         value: "3.13.7"
@@ -25,6 +31,11 @@ services:
       - key: DATABASE_URL
         fromDatabase:
           name: smart-green-market-db
+          property: connectionString
+      - key: REDIS_URL
+        fromService:
+          name: smart-green-market-redis
+          type: keyvalue
           property: connectionString
       - key: CLOUDINARY_URL
         sync: false

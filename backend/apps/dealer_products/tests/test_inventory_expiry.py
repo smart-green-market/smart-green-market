@@ -117,8 +117,10 @@ class InventoryExpiryTests(TestCase):
             purchase_order=order,
             supplier_product=self.supplier_product,
             quantity=50,
+            original_quantity=50,
             unit_price=Decimal("10000"),
             subtotal=Decimal("500000"),
+            review_status="approved",
         )
         import_date = timezone.localdate()
         _import_dealer_inventory(order, self.dealer.account)

@@ -75,6 +75,11 @@ export default function SalesOrderList({ salesOrders, onViewDetail, onSelectedRo
         return { bg: "bg-emerald-50", text: "text-emerald-700", dot: "bg-emerald-500" };
       case "Đã hủy":
         return { bg: "bg-rose-50", text: "text-rose-700", dot: "bg-rose-500" };
+      case "Yêu cầu trả hàng":
+        return { bg: "bg-pink-50", text: "text-pink-700", dot: "bg-pink-500 animate-pulse" };
+      case "Đã trả hàng":
+      case "returned":
+        return { bg: "bg-red-50", text: "text-red-700", dot: "bg-red-500" };
       default:
         return { bg: "bg-neutral-50", text: "text-neutral-700", dot: "bg-neutral-500" };
     }

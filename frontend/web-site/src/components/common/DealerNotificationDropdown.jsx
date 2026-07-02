@@ -53,12 +53,12 @@ export default function DealerNotificationDropdown({ items, onItemClick, onSeeMo
                 )}
             </div>
 
-            {hasMore && (
+            {(onSeeMore && (hasMore || items.length > 0)) && (
                 <button
                     onClick={onSeeMore}
                     className="w-full text-center py-2 px-4 bg-stone-50 hover:bg-stone-100 text-xs font-bold text-emerald-800 transition-colors border-t border-neutral-100 font-['Geist',sans-serif] cursor-pointer"
                 >
-                    Xem thông báo trước đó
+                    {hasMore ? "Xem thông báo trước đó" : "Xem tất cả thông báo"}
                 </button>
             )}
         </div>

@@ -30,7 +30,8 @@ git push origin main
 4. Render đọc file `render.yaml` ở root repo
 5. Bấm **Apply** — tự tạo:
    - PostgreSQL `smart-green-market-db` (free)
-   - Web Service `smart-green-market-api` (free)
+   - Key Value `smart-green-market-redis` (free — channel layer WebSocket)
+   - Web Service `smart-green-market-api` (free, **Daphne ASGI**)
 
 ### Bước 3: Chờ deploy xong
 
@@ -68,7 +69,7 @@ git push origin main
 | **Root Directory** | `backend` |
 | **Runtime** | Python 3 |
 | **Build Command** | `chmod +x build.sh && ./build.sh` |
-| **Start Command** | `gunicorn config.wsgi:application --bind 0.0.0.0:$PORT` |
+| **Start Command** | `daphne -b 0.0.0.0 -p $PORT config.asgi:application` |
 | **Plan** | Free |
 
 4. **Environment Variables:**
@@ -79,6 +80,7 @@ git push origin main
 | `SECRET_KEY` | (Generate hoặc chuỗi random dài) |
 | `DEBUG` | `False` |
 | `DATABASE_URL` | Paste Internal Database URL từ PostgreSQL |
+| `REDIS_URL` | (Blueprint tự gán từ Key Value) hoặc Upstash `rediss://...` |
 
 5. **Create Web Service**
 
@@ -93,7 +95,8 @@ cp .env.example .env
 
 pip install -r requirements.txt
 python manage.py migrate
-python manage.py runserver
+# Cần Redis local cho WebSocket push (hoặc bỏ REDIS_URL → InMemory, single process)
+daphne -b 127.0.0.1 -p 8000 config.asgi:application
 ```
 
 ---
@@ -129,6 +132,7 @@ Hoặc chạy local với `DATABASE_URL` trỏ tới DB Render (External URL).
 | `SECRET_KEY` | ✅ | Django secret |
 | `DEBUG` | ✅ = `False` | Tắt debug production |
 | `RENDER_EXTERNAL_HOSTNAME` | Auto | Render tự inject |
+| `REDIS_URL` | ✅ (Blueprint) | Channel layer — WebSocket push notification |
 | `ALLOWED_HOSTS` | Tùy chọn | Mặc định + hostname Render |
 | `DB_*` | Chỉ local | Dùng trong `.env` khi dev |
 
@@ -146,6 +150,28 @@ Ví dụ đăng ký: `POST .../api/register/`
 
 ---
 
+## WebSocket (notification realtime)
+
+Server chạy **Daphne ASGI** — hỗ trợ HTTP REST và WebSocket trên cùng port.
+
+| | URL |
+|---|-----|
+| **Endpoint** | `wss://<tên-app>.onrender.com/ws/notifications/?token=<JWT_access_token>` |
+| **Auth** | JWT access token qua query `token` (giống login API) |
+| **Event** | `{"event":"notification.new", ...}` khi có thông báo mới |
+
+**Kiểm tra nhanh** (sau khi có token):
+
+```bash
+npx wscat -c "wss://smart-green-market-api.onrender.com/ws/notifications/?token=YOUR_ACCESS_TOKEN"
+```
+
+**Lưu ý free tier:** service sleep → WebSocket **ngắt**, client cần **reconnect**. FE chưa tích hợp WS — noti vẫn qua `GET /api/notifications/my/`.
+
+**Deploy service cũ (đã tạo trước Blueprint):** vào Dashboard → Web Service → Settings → đổi **Start Command** sang Daphne, thêm env `REDIS_URL` (tạo Key Value hoặc Upstash).
+
+---
+
 ## Xử lý lỗi thường gặp
 
 ### Build fail — `psycopg2` / migrate
@@ -160,9 +186,16 @@ Ví dụ đăng ký: `POST .../api/register/`
 
 ### 502 sau deploy
 
-- Xem **Logs** → lỗi gunicorn
+- Xem **Logs** → lỗi Daphne / Redis
 - Start command phải bind `$PORT`:  
-  `gunicorn config.wsgi:application --bind 0.0.0.0:$PORT`
+  `daphne -b 0.0.0.0 -p $PORT config.asgi:application`
+- Kiểm tra `REDIS_URL` đã gán (Key Value hoặc Upstash)
+
+### WebSocket không connect
+
+- Dùng **`wss://`** (không `ws://`) trên production
+- Token hết hạn → 4401 close
+- Service đang sleep → đợi wake (~30–60s) rồi thử lại
 
 ### Logout JWT lỗi blacklist
 
@@ -174,11 +207,12 @@ Ví dụ đăng ký: `POST .../api/register/`
 
 ```
 smart-green-market/
-├── render.yaml          # Blueprint Render
+├── render.yaml          # Blueprint: DB + Key Value + Web (Daphne)
 └── backend/
     ├── build.sh         # install + collectstatic + migrate
-    ├── requirements.txt
+    ├── requirements.txt # channels, daphne, channels-redis
     ├── .env.example     # mẫu env local
     └── config/
-        └── settings.py  # đọc DATABASE_URL, SECRET_KEY từ env
+        ├── asgi.py      # HTTP + WebSocket routing
+        └── settings.py  # DATABASE_URL, REDIS_URL, CHANNEL_LAYERS
 ```
