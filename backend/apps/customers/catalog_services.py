@@ -235,3 +235,24 @@ def parse_bestseller_limit(raw, *, default=10, max_limit=20):
     except (TypeError, ValueError):
         value = default
     return max(1, min(value, max_limit))
+
+
+def get_storefront_related_products(dealer, product_id, *, limit=10):
+    """Sản phẩm liên quan của một SP active trên gian hàng."""
+    from apps.dealer_products.related_recommendation_services import (
+        parse_related_limit,
+        resolve_storefront_related_products,
+    )
+
+    limit = parse_related_limit(limit)
+    product = get_storefront_product_detail(dealer, product_id)
+    if product is None:
+        return None, []
+
+    products, _record = resolve_storefront_related_products(
+        dealer,
+        product,
+        limit=limit,
+        get_products_qs=get_storefront_products_qs,
+    )
+    return product, products

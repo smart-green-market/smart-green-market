@@ -1,6 +1,7 @@
 """Model sản phẩm đại lý, ảnh và quản lý tồn kho."""
 
 from django.conf import settings
+from django.contrib.postgres.fields import ArrayField
 from django.db import models
 
 
@@ -223,6 +224,32 @@ class DealerInventoryTransaction(models.Model):
 
     def __str__(self):
         return f"{self.type} lô {self.batch.batch_number}: {self.quantity_change}"
+
+
+class DealerProductRelatedRecommendation(models.Model):
+    """Cache gợi ý sản phẩm liên quan theo từng sản phẩm đại lý."""
+
+    dealer_product = models.OneToOneField(
+        DealerProduct,
+        on_delete=models.CASCADE,
+        related_name="related_recommendation",
+    )
+    related_product_ids = ArrayField(
+        models.IntegerField(),
+        default=list,
+        blank=True,
+        help_text="Danh sách dealer_product.id được gợi ý, theo thứ tự ưu tiên",
+    )
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = "dealer_product_related_recommendations"
+        ordering = ["-updated_at", "-id"]
+        verbose_name = "Dealer Product Related Recommendation"
+        verbose_name_plural = "Dealer Product Related Recommendations"
+
+    def __str__(self):
+        return f"Gợi ý liên quan #{self.dealer_product_id} ({len(self.related_product_ids)} SP)"
 
 
 from .models_age_discount import (  # noqa: E402, F401

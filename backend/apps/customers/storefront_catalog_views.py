@@ -18,8 +18,10 @@ from .catalog_services import (
     get_storefront_categories_qs,
     get_storefront_product_detail,
     get_storefront_products_qs,
+    get_storefront_related_products,
     parse_bestseller_limit,
 )
+from apps.dealer_products.related_recommendation_services import parse_related_limit
 from .services import get_active_dealer_by_slug
 from .storefront_catalog_serializers import (
     StorefrontBestsellerProductSerializer,
@@ -286,4 +288,53 @@ class StorefrontProductDetailView(APIView):
 
         return Response(
             StorefrontProductDetailSerializer(product, context={"request": request}).data
+        )
+
+
+class StorefrontRelatedProductListView(APIView):
+    """Sản phẩm liên quan trên trang chi tiết — public."""
+
+    permission_classes = [AllowAny]
+
+    @extend_schema(
+        tags=["Storefront Catalog"],
+        operation_id="storefront_catalog_product_related_list",
+        summary="Sản phẩm liên quan",
+        description=(
+            "Buyer xem danh sách sản phẩm gợi ý liên quan của một SP trên gian hàng. "
+            "Ưu tiên `related_product_ids` đã cấu hình; nếu chưa có thì fallback "
+            "các SP cùng danh mục. Chỉ trả sản phẩm `active`. Không cần đăng nhập."
+        ),
+        parameters=[
+            OpenApiParameter(
+                name="limit",
+                type=int,
+                location=OpenApiParameter.QUERY,
+                required=False,
+                description="Số sản phẩm trả về (mặc định 10, tối đa 20)",
+            ),
+        ],
+        responses={200: StorefrontProductListSerializer(many=True)},
+        auth=[],
+    )
+    def get(self, request, dealer_slug, product_id):
+        dealer = _get_dealer_or_404(dealer_slug)
+        if not str(product_id).isdigit():
+            raise ValidationError({"product_id": "ID sản phẩm không hợp lệ."})
+
+        limit = parse_related_limit(request.query_params.get("limit"))
+        source_product, products = get_storefront_related_products(
+            dealer,
+            product_id,
+            limit=limit,
+        )
+        if source_product is None:
+            raise NotFound("Sản phẩm không tồn tại hoặc không còn bán tại cửa hàng này.")
+
+        return Response(
+            StorefrontProductListSerializer(
+                products,
+                many=True,
+                context={"request": request},
+            ).data
         )

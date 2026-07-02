@@ -8,6 +8,7 @@ from .storefront_catalog_views import (
     StorefrontDealerProfileView,
     StorefrontProductDetailView,
     StorefrontProductListView,
+    StorefrontRelatedProductListView,
 )
 from apps.marketing.storefront_views import StorefrontInteractionTrackView
 from apps.reviews.storefront_views import (
@@ -82,6 +83,11 @@ urlpatterns = [
         "storefronts/<slug:dealer_slug>/products/",
         StorefrontProductListView.as_view(),
         name="storefront-products",
+    ),
+    path(
+        "storefronts/<slug:dealer_slug>/products/<int:product_id>/related/",
+        StorefrontRelatedProductListView.as_view(),
+        name="storefront-product-related",
     ),
     path(
         "storefronts/<slug:dealer_slug>/products/<int:product_id>/",

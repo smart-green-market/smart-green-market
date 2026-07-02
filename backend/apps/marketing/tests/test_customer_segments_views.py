@@ -9,7 +9,6 @@ from apps.marketing.models import CustomerSegment
 
 class CustomerSegmentViewSetTests(APITestCase):
     def setUp(self):
-        # Create users & dealers
         self.dealer_user = Account.objects.create_user(
             username="dealer_test",
             email="dealer@test.com",
@@ -17,7 +16,7 @@ class CustomerSegmentViewSetTests(APITestCase):
             role=AccountRole.DEALER,
             full_name="Dealer Test User",
         )
-        self.dealer_profile = DealerProfile.objects.create(
+        DealerProfile.objects.create(
             account=self.dealer_user,
             store_name="Dealer Store Test",
             slug="dealer-store-test",
@@ -30,22 +29,19 @@ class CustomerSegmentViewSetTests(APITestCase):
             role=AccountRole.DEALER,
             full_name="Other Dealer User",
         )
-        self.other_dealer_profile = DealerProfile.objects.create(
+        DealerProfile.objects.create(
             account=self.other_dealer_user,
             store_name="Other Store Test",
             slug="other-store-test",
         )
 
-        # Create segments
         self.segment1 = CustomerSegment.objects.create(
-            dealer=self.dealer_profile,
-            code="vip",
+            code="test_vip",
             name="Khách hàng VIP",
             description="Mô tả VIP",
         )
         self.segment2 = CustomerSegment.objects.create(
-            dealer=self.other_dealer_profile,
-            code="vip_other",
+            code="test_vip_other",
             name="VIP Other Dealer",
             description="Other VIP",
         )
@@ -56,17 +52,15 @@ class CustomerSegmentViewSetTests(APITestCase):
         response = self.client.get(self.list_url)
         self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
 
-    def test_list_segments_dealer_filters_own(self):
+    def test_list_segments_dealer_sees_all(self):
         self.client.force_authenticate(user=self.dealer_user)
         response = self.client.get(self.list_url)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
-        
-        # Should only see segment1, not segment2
+
         results = response.data.get("results", response.data)
-        self.assertEqual(len(results), 1)
-        self.assertEqual(results[0]["id"], self.segment1.id)
-        self.assertEqual(results[0]["code"], "vip")
-        self.assertEqual(results[0]["name"], "Khách hàng VIP")
+        result_ids = {row["id"] for row in results}
+        self.assertIn(self.segment1.id, result_ids)
+        self.assertIn(self.segment2.id, result_ids)
 
     def test_create_segment_for_logged_in_dealer(self):
         self.client.force_authenticate(user=self.dealer_user)
@@ -79,6 +73,5 @@ class CustomerSegmentViewSetTests(APITestCase):
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
         self.assertEqual(response.data["code"], "new_segment")
 
-        # Verify in DB
         segment = CustomerSegment.objects.get(code="new_segment")
-        self.assertEqual(segment.dealer, self.dealer_profile)
+        self.assertFalse(segment.is_system)

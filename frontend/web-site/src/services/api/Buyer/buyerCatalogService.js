@@ -102,6 +102,11 @@ export const buyerCatalogService = {
       .get(`/storefronts/${dealer_slug}/products/${product_id}/`)
       .then((res) => res.data),
 
+  getRelatedProducts: (dealer_slug, product_id, params = {}) =>
+    axiosClient
+      .get(`/storefronts/${dealer_slug}/products/${product_id}/related/`, { params })
+      .then((res) => res.data ?? []),
+
   // in dealer_slug: string, product_id: number
   //Schema
   // {
