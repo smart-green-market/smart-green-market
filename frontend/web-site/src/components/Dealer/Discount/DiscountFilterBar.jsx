@@ -30,6 +30,7 @@ const DiscountFilterBar = ({
           className="px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 bg-white"
         >
           <option value="all">Tất cả phạm vi</option>
+          <option value="all_products">Tất cả sản phẩm</option>
           <option value="category">Theo danh mục</option>
           <option value="dealer_product">Sản phẩm cụ thể</option>
         </select>

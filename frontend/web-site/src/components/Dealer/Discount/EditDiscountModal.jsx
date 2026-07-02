@@ -1,31 +1,20 @@
 import React, { useState, useEffect } from 'react';
-import { X, Percent, DollarSign, Tag, Calendar, Zap } from 'lucide-react';
+import { X, Percent, DollarSign, Tag, Clock, Zap } from 'lucide-react';
 import { dealerProductService } from '../../../services/api/dealerProductService';
 import { categoryService } from '../../../services/api/categoryService';
 import { discountService } from '../../../services/api/discountService';
 import { toast } from 'sonner';
-
-const formatDateForInput = (dateString) => {
-  if (!dateString) return '';
-  const d = new Date(dateString);
-  d.setMinutes(d.getMinutes() - d.getTimezoneOffset());
-  return d.toISOString().slice(0, 16);
-};
+import {
+  INITIAL_DISCOUNT_FORM,
+  buildDiscountPolicyPayload,
+  formatDiscountApiError,
+  handleScopeChange,
+  mapPolicyToFormData,
+  validateDiscountForm,
+} from './discountPolicyUtils';
 
 export default function EditDiscountModal({ isOpen, onClose, onSuccess, policyId }) {
-  const [formData, setFormData] = useState({
-    title: '',
-    scope: 'all',
-    category: '',
-    dealer_product: '',
-    discount_type: 'percent',
-    discount_value: '',
-    priority: 0,
-    is_active: true,
-    start_at: '',
-    end_at: '',
-  });
-
+  const [formData, setFormData] = useState(INITIAL_DISCOUNT_FORM);
   const [categories, setCategories] = useState([]);
   const [products, setProducts] = useState([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -39,19 +28,7 @@ export default function EditDiscountModal({ isOpen, onClose, onSuccess, policyId
         fetchPolicy();
       }
     } else {
-      // reset
-      setFormData({
-        title: '',
-        scope: 'all',
-        category: '',
-        dealer_product: '',
-        discount_type: 'percent',
-        discount_value: '',
-        priority: 0,
-        is_active: true,
-        start_at: '',
-        end_at: '',
-      });
+      setFormData(INITIAL_DISCOUNT_FORM);
     }
   }, [isOpen, policyId]);
 
@@ -77,18 +54,7 @@ export default function EditDiscountModal({ isOpen, onClose, onSuccess, policyId
     try {
       setIsLoading(true);
       const data = await discountService.getById(policyId);
-      setFormData({
-        title: data.title || '',
-        scope: data.scope || 'all',
-        category: data.category || '',
-        dealer_product: data.dealer_product || '',
-        discount_type: data.discount_type || 'percent',
-        discount_value: data.discount_value || '',
-        priority: data.priority || 0,
-        is_active: data.is_active ?? true,
-        start_at: formatDateForInput(data.start_at),
-        end_at: formatDateForInput(data.end_at),
-      });
+      setFormData(mapPolicyToFormData(data));
     } catch (error) {
       console.error('Error fetching policy:', error);
       toast.error('Không thể tải thông tin chi tiết. Vui lòng thử lại sau.');
@@ -100,62 +66,34 @@ export default function EditDiscountModal({ isOpen, onClose, onSuccess, policyId
 
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target;
-    setFormData(prev => ({
+    if (name === 'scope') {
+      setFormData((prev) => handleScopeChange(prev, value));
+      return;
+    }
+    setFormData((prev) => ({
       ...prev,
-      [name]: type === 'checkbox' ? checked : value
+      [name]: type === 'checkbox' ? checked : value,
     }));
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
 
-    if (!formData.discount_value || parseFloat(formData.discount_value) <= 0) {
-      toast.error('Vui lòng nhập mức giảm giá hợp lệ');
-      return;
-    }
-
-    if (formData.discount_type === 'percent' && parseFloat(formData.discount_value) > 100) {
-      toast.error('Phần trăm giảm giá không được vượt quá 100%');
+    const validationError = validateDiscountForm(formData);
+    if (validationError) {
+      toast.error(validationError);
       return;
     }
 
     try {
       setIsSubmitting(true);
-      const payload = {
-        title: formData.title,
-        scope: formData.scope,
-        discount_type: formData.discount_type,
-        discount_value: formData.discount_value,
-        priority: parseInt(formData.priority) || 0,
-        is_active: formData.is_active,
-        start_at: formData.start_at ? new Date(formData.start_at).toISOString() : null,
-        end_at: formData.end_at ? new Date(formData.end_at).toISOString() : null,
-      };
-
-      // Only include category/dealer_product based on scope
-      if (formData.scope === 'category' && formData.category) {
-        payload.category = parseInt(formData.category);
-      }
-
-      if (formData.scope === 'dealer_product' && formData.dealer_product) {
-        payload.dealer_product = parseInt(formData.dealer_product);
-      }
-
-      await discountService.update(policyId, payload);
+      await discountService.update(policyId, buildDiscountPolicyPayload(formData));
       toast.success('Cập nhật chính sách giảm giá thành công');
       onSuccess();
       onClose();
     } catch (error) {
       console.error('Error updating discount policy:', error);
-      const errData = error.response?.data;
-      if (errData && typeof errData === 'object') {
-        const messages = Object.entries(errData)
-          .map(([key, val]) => `${key}: ${Array.isArray(val) ? val.join(', ') : val}`)
-          .join('\n');
-        toast.error(messages || 'Lỗi khi cập nhật chính sách');
-      } else {
-        toast.error(errData?.detail || 'Lỗi khi cập nhật chính sách');
-      }
+      toast.error(formatDiscountApiError(error));
     } finally {
       setIsSubmitting(false);
     }
@@ -169,7 +107,6 @@ export default function EditDiscountModal({ isOpen, onClose, onSuccess, policyId
         className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl flex flex-col max-h-[90vh] overflow-hidden"
         style={{ animation: 'fadeInScale 0.25s ease-out' }}
       >
-        {/* Header */}
         <div className="flex justify-between items-center px-6 py-5 border-b border-gray-100 bg-gradient-to-r from-blue-50 to-indigo-50">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-xl bg-blue-100 flex items-center justify-center">
@@ -193,7 +130,6 @@ export default function EditDiscountModal({ isOpen, onClose, onSuccess, policyId
         ) : (
           <form onSubmit={handleSubmit} className="flex flex-col min-h-0 overflow-hidden">
             <div className="flex-1 overflow-y-auto p-6 space-y-6">
-              {/* Tên chính sách */}
               <div>
                 <label className="block text-sm font-semibold text-gray-700 mb-2">
                   Tên chính sách giảm giá <span className="text-red-500">*</span>
@@ -205,11 +141,10 @@ export default function EditDiscountModal({ isOpen, onClose, onSuccess, policyId
                   value={formData.title}
                   onChange={handleChange}
                   className="w-full px-4 py-2.5 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all text-sm"
-                  placeholder="VD: Giảm giá mùa hè, Flash sale cuối tuần..."
+                  placeholder="VD: Giảm giá buổi sáng, Flash sale cuối tuần..."
                 />
               </div>
 
-              {/* Phạm vi & Đối tượng */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-semibold text-gray-700 mb-2">Phạm vi áp dụng</label>
@@ -219,9 +154,9 @@ export default function EditDiscountModal({ isOpen, onClose, onSuccess, policyId
                     onChange={handleChange}
                     className="w-full px-4 py-2.5 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all text-sm bg-white"
                   >
-                    <option value="all">🏷️ Tất cả sản phẩm</option>
-                    <option value="category">📂 Theo danh mục</option>
-                    <option value="dealer_product">📦 Sản phẩm cụ thể</option>
+                    <option value="all">Tất cả sản phẩm</option>
+                    <option value="category">Theo danh mục</option>
+                    <option value="dealer_product">Sản phẩm cụ thể</option>
                   </select>
                 </div>
 
@@ -232,13 +167,13 @@ export default function EditDiscountModal({ isOpen, onClose, onSuccess, policyId
                     </label>
                     <select
                       name="category"
-                      value={formData.category || ''}
+                      value={formData.category}
                       onChange={handleChange}
                       required
                       className="w-full px-4 py-2.5 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all text-sm bg-white"
                     >
                       <option value="">-- Chọn danh mục --</option>
-                      {categories.map(cat => (
+                      {categories.map((cat) => (
                         <option key={cat.id} value={cat.id}>{cat.name}</option>
                       ))}
                     </select>
@@ -252,13 +187,13 @@ export default function EditDiscountModal({ isOpen, onClose, onSuccess, policyId
                     </label>
                     <select
                       name="dealer_product"
-                      value={formData.dealer_product || ''}
+                      value={formData.dealer_product}
                       onChange={handleChange}
                       required
                       className="w-full px-4 py-2.5 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all text-sm bg-white"
                     >
                       <option value="">-- Chọn sản phẩm --</option>
-                      {products.map(prod => (
+                      {products.map((prod) => (
                         <option key={prod.id} value={prod.id}>{prod.title || prod.supplier_product_name}</option>
                       ))}
                     </select>
@@ -266,7 +201,6 @@ export default function EditDiscountModal({ isOpen, onClose, onSuccess, policyId
                 )}
               </div>
 
-              {/* Mức giảm giá */}
               <div className="bg-gradient-to-r from-green-50 to-emerald-50 rounded-xl p-5 border border-green-100">
                 <h3 className="text-sm font-bold text-gray-800 mb-4 flex items-center gap-2">
                   <Percent size={16} className="text-green-600" />
@@ -278,7 +212,7 @@ export default function EditDiscountModal({ isOpen, onClose, onSuccess, policyId
                     <div className="flex gap-2">
                       <button
                         type="button"
-                        onClick={() => setFormData(prev => ({ ...prev, discount_type: 'percent' }))}
+                        onClick={() => setFormData((prev) => ({ ...prev, discount_type: 'percent' }))}
                         className={`flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium transition-all border ${
                           formData.discount_type === 'percent'
                             ? 'bg-green-600 text-white border-green-600 shadow-md shadow-green-200'
@@ -290,7 +224,7 @@ export default function EditDiscountModal({ isOpen, onClose, onSuccess, policyId
                       </button>
                       <button
                         type="button"
-                        onClick={() => setFormData(prev => ({ ...prev, discount_type: 'fixed' }))}
+                        onClick={() => setFormData((prev) => ({ ...prev, discount_type: 'fixed' }))}
                         className={`flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium transition-all border ${
                           formData.discount_type === 'fixed'
                             ? 'bg-green-600 text-white border-green-600 shadow-md shadow-green-200'
@@ -328,37 +262,43 @@ export default function EditDiscountModal({ isOpen, onClose, onSuccess, policyId
                 </div>
               </div>
 
-              {/* Thời gian */}
               <div>
                 <h3 className="text-sm font-bold text-gray-800 mb-4 flex items-center gap-2">
-                  <Calendar size={16} className="text-blue-600" />
-                  Thời gian áp dụng
+                  <Clock size={16} className="text-blue-600" />
+                  Khung giờ áp dụng mỗi ngày
                 </h3>
+                <p className="text-xs text-gray-500 mb-4">
+                  Chính sách sẽ tự động giảm giá vào khung giờ này trong tất cả các ngày.
+                </p>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Bắt đầu</label>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Giờ bắt đầu</label>
                     <input
-                      type="datetime-local"
-                      name="start_at"
-                      value={formData.start_at}
+                      type="time"
+                      name="daily_start_time"
+                      required
+                      value={formData.daily_start_time}
                       onChange={handleChange}
                       className="w-full px-4 py-2.5 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all text-sm"
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Kết thúc</label>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Giờ kết thúc</label>
                     <input
-                      type="datetime-local"
-                      name="end_at"
-                      value={formData.end_at}
+                      type="time"
+                      name="daily_end_time"
+                      required
+                      value={formData.daily_end_time}
                       onChange={handleChange}
                       className="w-full px-4 py-2.5 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all text-sm"
                     />
                   </div>
                 </div>
+                <p className="text-xs text-blue-700 bg-blue-50 border border-blue-100 rounded-lg px-3 py-2 mt-3">
+                  Ví dụ: {formData.daily_start_time || '07:00'} – {formData.daily_end_time || '10:00'} thì mỗi ngày trong khung giờ này sản phẩm sẽ được giảm giá.
+                </p>
               </div>
 
-              {/* Độ ưu tiên */}
               <div>
                 <h3 className="text-sm font-bold text-gray-800 mb-4 flex items-center gap-2">
                   <Zap size={16} className="text-amber-500" />
@@ -368,17 +308,17 @@ export default function EditDiscountModal({ isOpen, onClose, onSuccess, policyId
                   <input
                     type="number"
                     name="priority"
+                    min="0"
                     value={formData.priority}
                     onChange={handleChange}
                     className="w-32 px-4 py-2.5 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all text-sm text-center"
                     placeholder="0"
                   />
-                  <p className="text-xs text-gray-500 italic">Số càng nhỏ thì ưu tiên càng cao</p>
+                  <p className="text-xs text-gray-500 italic">Số càng cao thì ưu tiên càng cao khi nhiều chính sách trùng phạm vi</p>
                 </div>
               </div>
             </div>
 
-            {/* Footer */}
             <div className="flex-shrink-0 px-6 py-4 border-t border-gray-100 bg-gray-50/50 flex items-center justify-between gap-3 rounded-b-2xl">
               <label className="flex items-center gap-2 cursor-pointer select-none">
                 <input

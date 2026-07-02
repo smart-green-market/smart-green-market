@@ -17,6 +17,16 @@ class AgeDiscountPolicyListSerializer(serializers.ModelSerializer):
         choices=AgeDiscountDiscountType.choices,
         read_only=True,
     )
+    category_name = serializers.CharField(
+        source="category.name",
+        read_only=True,
+        allow_null=True,
+    )
+    dealer_product_title = serializers.CharField(
+        source="dealer_product.title",
+        read_only=True,
+        allow_null=True,
+    )
 
     class Meta:
         model = AgeDiscountPolicy
@@ -25,13 +35,17 @@ class AgeDiscountPolicyListSerializer(serializers.ModelSerializer):
             "title",
             "scope",
             "category",
+            "category_name",
             "dealer_product",
+            "dealer_product_title",
             "discount_type",
             "discount_value",
             "priority",
             "is_active",
             "start_at",
             "end_at",
+            "daily_start_time",
+            "daily_end_time",
             "created_at",
             "updated_at",
         ]
@@ -40,6 +54,16 @@ class AgeDiscountPolicyListSerializer(serializers.ModelSerializer):
 class AgeDiscountPolicyDetailSerializer(serializers.ModelSerializer):
     scope = schema_choice_field(choices=AgeDiscountScope.choices)
     discount_type = schema_choice_field(choices=AgeDiscountDiscountType.choices)
+    category_name = serializers.CharField(
+        source="category.name",
+        read_only=True,
+        allow_null=True,
+    )
+    dealer_product_title = serializers.CharField(
+        source="dealer_product.title",
+        read_only=True,
+        allow_null=True,
+    )
 
     class Meta:
         model = AgeDiscountPolicy
@@ -48,13 +72,17 @@ class AgeDiscountPolicyDetailSerializer(serializers.ModelSerializer):
             "title",
             "scope",
             "category",
+            "category_name",
             "dealer_product",
+            "dealer_product_title",
             "discount_type",
             "discount_value",
             "priority",
             "is_active",
             "start_at",
             "end_at",
+            "daily_start_time",
+            "daily_end_time",
             "created_at",
             "updated_at",
         ]
@@ -79,6 +107,8 @@ class AgeDiscountPolicyWriteSerializer(serializers.ModelSerializer):
             "is_active",
             "start_at",
             "end_at",
+            "daily_start_time",
+            "daily_end_time",
         ]
 
     def _get_dealer(self):
@@ -140,6 +170,28 @@ class AgeDiscountPolicyWriteSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError(
                 {"end_at": "end_at phải sau start_at."}
             )
+        daily_fields_in_request = (
+            "daily_start_time" in attrs or "daily_end_time" in attrs
+        )
+        is_create = self.instance is None
+        if is_create or daily_fields_in_request:
+            daily_start_time = attrs.get(
+                "daily_start_time",
+                getattr(self.instance, "daily_start_time", None),
+            )
+            daily_end_time = attrs.get(
+                "daily_end_time",
+                getattr(self.instance, "daily_end_time", None),
+            )
+            if daily_start_time is None or daily_end_time is None:
+                raise serializers.ValidationError({
+                    "daily_start_time": "Bắt buộc nhập giờ bắt đầu áp dụng mỗi ngày.",
+                    "daily_end_time": "Bắt buộc nhập giờ kết thúc áp dụng mỗi ngày.",
+                })
+            if daily_start_time == daily_end_time:
+                raise serializers.ValidationError({
+                    "daily_end_time": "Giờ kết thúc phải khác giờ bắt đầu.",
+                })
 
         discount_type = attrs.get(
             "discount_type",
@@ -167,10 +219,24 @@ class AgeDiscountPolicyWriteSerializer(serializers.ModelSerializer):
         dealer = self._get_dealer()
         if dealer is None:
             raise serializers.ValidationError({"detail": "Admin cần chỉ định dealer."})
+        scope = validated_data.get("scope")
+        validated_data = self._apply_scope_foreign_keys(validated_data, scope)
         policy = AgeDiscountPolicy.objects.create(dealer=dealer, **validated_data)
         return policy
 
+    def _apply_scope_foreign_keys(self, validated_data, scope):
+        if scope == AgeDiscountScope.ALL:
+            validated_data["category"] = None
+            validated_data["dealer_product"] = None
+        elif scope == AgeDiscountScope.CATEGORY:
+            validated_data["dealer_product"] = None
+        elif scope == AgeDiscountScope.DEALER_PRODUCT:
+            validated_data["category"] = None
+        return validated_data
+
     def update(self, instance, validated_data):
+        scope = validated_data.get("scope", instance.scope)
+        validated_data = self._apply_scope_foreign_keys(validated_data, scope)
         for attr, value in validated_data.items():
             setattr(instance, attr, value)
         instance.save()

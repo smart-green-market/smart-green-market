@@ -43,6 +43,11 @@ export default function VoucherTable({
     }
   };
 
+  const formatTime = (timeStr) => {
+    if (!timeStr) return "—";
+    return String(timeStr).slice(0, 5);
+  };
+
   const getStatusBadge = (status, rejectReason) => {
     switch (status) {
       case "active":
@@ -179,12 +184,24 @@ export default function VoucherTable({
                       )}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
+                      <div className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold mb-1 ${
+                        voucher.schedule_type === 'daily_time'
+                          ? 'bg-orange-100 text-orange-800 border border-orange-200'
+                          : 'bg-green-50 text-green-700 border border-green-100'
+                      }`}>
+                        {voucher.schedule_type === 'daily_time' ? 'Flash sale hằng ngày' : 'Theo khoảng ngày'}
+                      </div>
                       <div className="text-xs text-gray-950">
-                        Bắt đầu: {formatDate(voucher.start_date)}
+                        {voucher.schedule_type === 'daily_time' ? 'Từ ngày' : 'Bắt đầu'}: {formatDate(voucher.start_date)}
                       </div>
                       <div className="text-xs text-gray-500 mt-0.5">
-                        Kết thúc: {formatDate(voucher.end_date)}
+                        {voucher.schedule_type === 'daily_time' ? 'Đến ngày' : 'Kết thúc'}: {formatDate(voucher.end_date)}
                       </div>
+                      {voucher.schedule_type === 'daily_time' && (
+                        <div className="text-[10px] text-orange-700 mt-0.5 font-medium">
+                          Mỗi ngày: {formatTime(voucher.daily_start_time)} → {formatTime(voucher.daily_end_time)}
+                        </div>
+                      )}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       {getStatusBadge(voucher.status, voucher.reject_reason)}

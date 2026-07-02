@@ -224,6 +224,8 @@ def seed_dealer_age_discount_policy(dealer) -> None:
         AgeDiscountScope,
     )
 
+    from datetime import time
+
     AgeDiscountPolicy.objects.get_or_create(
         dealer=dealer,
         title="Giam gia theo khung gio",
@@ -233,5 +235,7 @@ def seed_dealer_age_discount_policy(dealer) -> None:
             "discount_value": Decimal("15"),
             "priority": 10,
             "is_active": True,
+            "daily_start_time": time(7, 0),
+            "daily_end_time": time(10, 0),
         },
     )

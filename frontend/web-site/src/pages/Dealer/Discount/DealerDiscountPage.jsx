@@ -13,6 +13,10 @@ import DiscountFilterBar from '../../../components/Dealer/Discount/DiscountFilte
 import VoucherFilterBar from '../../../components/Dealer/Discount/VoucherFilterBar';
 import DiscountTable from '../../../components/Dealer/Discount/DiscountTable';
 import VoucherTable from '../../../components/Dealer/Discount/VoucherTable';
+import {
+  formatDiscountApiError,
+  normalizeIsActive,
+} from '../../../components/Dealer/Discount/discountPolicyUtils';
 
 
 export default function DealerDiscountPage() {
@@ -71,7 +75,9 @@ export default function DealerDiscountPage() {
       };
       if (search) params.search = search;
       if (status !== 'all') params.is_active = status === 'active';
-      if (scope !== 'all') params.scope = scope;
+      if (scope !== 'all') {
+        params.scope = scope === 'all_products' ? 'all' : scope;
+      }
 
       const data = await discountService.getAll(params);
 
@@ -108,20 +114,26 @@ export default function DealerDiscountPage() {
   };
 
   const handleToggleActive = async (policy) => {
-    try {
-      const newStatus = !policy.is_active;
-      // We only send the updated is_active field to patch endpoint
-      await discountService.update(policy.id, { is_active: newStatus });
+    const previousStatus = normalizeIsActive(policy.is_active);
+    const newStatus = !previousStatus;
 
-      setPolicies(prevPolicies =>
-        prevPolicies.map(p =>
-          p.id === policy.id ? { ...p, is_active: newStatus } : p
-        )
-      );
+    setPolicies((prevPolicies) =>
+      prevPolicies.map((p) =>
+        p.id === policy.id ? { ...p, is_active: newStatus } : p
+      )
+    );
+
+    try {
+      await discountService.update(policy.id, { is_active: newStatus });
       toast.success(`Đã ${newStatus ? 'bật' : 'tắt'} chính sách thành công`);
     } catch (error) {
-      console.error("Error toggling policy:", error);
-      toast.error("Không thể thay đổi trạng thái. Vui lòng thử lại.");
+      console.error('Error toggling policy:', error);
+      setPolicies((prevPolicies) =>
+        prevPolicies.map((p) =>
+          p.id === policy.id ? { ...p, is_active: previousStatus } : p
+        )
+      );
+      toast.error(formatDiscountApiError(error));
     }
   };
 
@@ -229,9 +241,9 @@ export default function DealerDiscountPage() {
               <div className="w-16 h-16 bg-green-50 text-green-600 rounded-full flex items-center justify-center mx-auto mb-4">
                 <Percent size={32} />
               </div>
-              <h3 className="text-lg font-medium text-gray-900 mb-2">Chưa có mã giảm giá nào</h3>
+              <h3 className="text-lg font-medium text-gray-900 mb-2">Chưa có chính sách giảm giá nào</h3>
               <p className="text-gray-500 max-w-sm mx-auto mb-6">
-                Bắt đầu tạo các chương trình khuyến mãi để thu hút khách hàng và tăng doanh thu.
+                Bắt đầu tạo chính sách giảm giá theo khung giờ để thu hút khách hàng và tăng doanh thu.
               </p>
             </div>
           ) : (
