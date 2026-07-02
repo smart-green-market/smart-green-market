@@ -217,3 +217,32 @@ class PromotionUsage(models.Model):
 
     def __str__(self):
         return f"{self.promotion.title} on {self.order.order_code}"
+
+
+class CustomerSavedVoucher(models.Model):
+    """Voucher customer đã lưu để dùng khi checkout."""
+
+    customer = models.ForeignKey(
+        "customers.CustomerProfile",
+        on_delete=models.CASCADE,
+        related_name="saved_vouchers",
+    )
+    promotion = models.ForeignKey(
+        Promotion,
+        on_delete=models.CASCADE,
+        related_name="saved_by_customers",
+    )
+    saved_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = "customer_saved_vouchers"
+        ordering = ["-saved_at", "-id"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["customer", "promotion"],
+                name="unique_customer_saved_voucher",
+            ),
+        ]
+
+    def __str__(self):
+        return f"{self.customer_id} saved {self.promotion.code}"

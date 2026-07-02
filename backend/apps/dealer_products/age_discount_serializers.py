@@ -8,45 +8,15 @@ from .models_age_discount import (
     AgeDiscountDiscountType,
     AgeDiscountPolicy,
     AgeDiscountScope,
-    AgeDiscountThresholdType,
-    AgeDiscountTier,
-    AgeDiscountTierOperator,
 )
-
-
-class AgeDiscountTierSerializer(serializers.ModelSerializer):
-    operator = schema_choice_field(choices=AgeDiscountTierOperator.choices)
-    discount_type = schema_choice_field(choices=AgeDiscountDiscountType.choices)
-
-    class Meta:
-        model = AgeDiscountTier
-        fields = [
-            "id",
-            "operator",
-            "threshold_value",
-            "discount_type",
-            "discount_value",
-            "sort_order",
-            "created_at",
-        ]
-        read_only_fields = ["id", "created_at"]
-
-
-class AgeDiscountTierWriteSerializer(serializers.Serializer):
-    operator = schema_choice_field(choices=AgeDiscountTierOperator.choices)
-    threshold_value = serializers.DecimalField(max_digits=12, decimal_places=2)
-    discount_type = schema_choice_field(choices=AgeDiscountDiscountType.choices)
-    discount_value = serializers.DecimalField(max_digits=12, decimal_places=2)
-    sort_order = serializers.IntegerField(min_value=0, default=0)
 
 
 class AgeDiscountPolicyListSerializer(serializers.ModelSerializer):
     scope = schema_choice_field(choices=AgeDiscountScope.choices, read_only=True)
-    threshold_type = schema_choice_field(
-        choices=AgeDiscountThresholdType.choices,
+    discount_type = schema_choice_field(
+        choices=AgeDiscountDiscountType.choices,
         read_only=True,
     )
-    tier_count = serializers.IntegerField(read_only=True)
 
     class Meta:
         model = AgeDiscountPolicy
@@ -56,12 +26,12 @@ class AgeDiscountPolicyListSerializer(serializers.ModelSerializer):
             "scope",
             "category",
             "dealer_product",
-            "threshold_type",
+            "discount_type",
+            "discount_value",
             "priority",
             "is_active",
             "start_at",
             "end_at",
-            "tier_count",
             "created_at",
             "updated_at",
         ]
@@ -69,8 +39,7 @@ class AgeDiscountPolicyListSerializer(serializers.ModelSerializer):
 
 class AgeDiscountPolicyDetailSerializer(serializers.ModelSerializer):
     scope = schema_choice_field(choices=AgeDiscountScope.choices)
-    threshold_type = schema_choice_field(choices=AgeDiscountThresholdType.choices)
-    tiers = AgeDiscountTierSerializer(many=True, read_only=True)
+    discount_type = schema_choice_field(choices=AgeDiscountDiscountType.choices)
 
     class Meta:
         model = AgeDiscountPolicy
@@ -80,12 +49,12 @@ class AgeDiscountPolicyDetailSerializer(serializers.ModelSerializer):
             "scope",
             "category",
             "dealer_product",
-            "threshold_type",
+            "discount_type",
+            "discount_value",
             "priority",
             "is_active",
             "start_at",
             "end_at",
-            "tiers",
             "created_at",
             "updated_at",
         ]
@@ -94,8 +63,8 @@ class AgeDiscountPolicyDetailSerializer(serializers.ModelSerializer):
 
 class AgeDiscountPolicyWriteSerializer(serializers.ModelSerializer):
     scope = schema_choice_field(choices=AgeDiscountScope.choices)
-    threshold_type = schema_choice_field(choices=AgeDiscountThresholdType.choices)
-    tiers = AgeDiscountTierWriteSerializer(many=True, required=False, default=list)
+    discount_type = schema_choice_field(choices=AgeDiscountDiscountType.choices)
+    discount_value = serializers.DecimalField(max_digits=12, decimal_places=2)
 
     class Meta:
         model = AgeDiscountPolicy
@@ -104,12 +73,12 @@ class AgeDiscountPolicyWriteSerializer(serializers.ModelSerializer):
             "scope",
             "category",
             "dealer_product",
-            "threshold_type",
+            "discount_type",
+            "discount_value",
             "priority",
             "is_active",
             "start_at",
             "end_at",
-            "tiers",
         ]
 
     def _get_dealer(self):
@@ -172,54 +141,40 @@ class AgeDiscountPolicyWriteSerializer(serializers.ModelSerializer):
                 {"end_at": "end_at phải sau start_at."}
             )
 
-        tiers = attrs.get("tiers")
-        if tiers is not None:
-            for tier in tiers:
-                if tier["discount_value"] <= 0:
-                    raise serializers.ValidationError(
-                        {"tiers": "discount_value phải lớn hơn 0."}
-                    )
-                if (
-                    tier["discount_type"] == AgeDiscountDiscountType.PERCENT
-                    and tier["discount_value"] > 100
-                ):
-                    raise serializers.ValidationError(
-                        {"tiers": "Giảm % không vượt quá 100."}
-                    )
+        discount_type = attrs.get(
+            "discount_type",
+            getattr(self.instance, "discount_type", None),
+        )
+        discount_value = attrs.get(
+            "discount_value",
+            getattr(self.instance, "discount_value", None),
+        )
+        if discount_value is not None:
+            if discount_value <= 0:
+                raise serializers.ValidationError(
+                    {"discount_value": "discount_value phải lớn hơn 0."}
+                )
+            if (
+                discount_type == AgeDiscountDiscountType.PERCENT
+                and discount_value > 100
+            ):
+                raise serializers.ValidationError(
+                    {"discount_value": "Giảm % không vượt quá 100."}
+                )
         return attrs
 
-    def _save_tiers(self, policy, tiers_data):
-        policy.tiers.all().delete()
-        for row in tiers_data:
-            AgeDiscountTier.objects.create(policy=policy, **row)
-
     def create(self, validated_data):
-        tiers_data = validated_data.pop("tiers", [])
         dealer = self._get_dealer()
         if dealer is None:
             raise serializers.ValidationError({"detail": "Admin cần chỉ định dealer."})
         policy = AgeDiscountPolicy.objects.create(dealer=dealer, **validated_data)
-        if tiers_data:
-            self._save_tiers(policy, tiers_data)
         return policy
 
     def update(self, instance, validated_data):
-        tiers_data = validated_data.pop("tiers", None)
         for attr, value in validated_data.items():
             setattr(instance, attr, value)
         instance.save()
-        if tiers_data is not None:
-            self._save_tiers(instance, tiers_data)
         return instance
-
-
-class AgeDiscountTiersReplaceSerializer(serializers.Serializer):
-    tiers = AgeDiscountTierWriteSerializer(many=True)
-
-    def validate_tiers(self, value):
-        if not value:
-            raise serializers.ValidationError("Cần ít nhất một bậc giảm.")
-        return value
 
 
 class SetBatchSalePriceSerializer(serializers.Serializer):

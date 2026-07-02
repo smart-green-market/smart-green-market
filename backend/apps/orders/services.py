@@ -31,6 +31,7 @@ from apps.dealer_products.models import (
 )
 from apps.dealers.models import DealerProfileStatus
 from apps.system_config.services import get_system_settings
+from apps.voucher.services import CartVoucherService
 
 from .models import (
     CustomerPayment,
@@ -211,7 +212,7 @@ def _validate_order_items(dealer, items_data):
     return validated
 
 
-def _build_order_items(order, validated_items, user):
+def _build_order_items(order, validated_items, user, voucher_code=""):
     """Tạo OrderItem + trừ tồn FIFO. Một SP có thể tách nhiều dòng theo lô."""
     subtotal = Decimal("0")
     for row in validated_items:
@@ -240,6 +241,17 @@ def _build_order_items(order, validated_items, user):
 
     shipping_fee = Decimal(get_system_settings().shipping_fee)
     discount = Decimal("0")
+    order.subtotal_amount = subtotal
+    order.discount_amount = discount
+    order.save(update_fields=["subtotal_amount", "discount_amount", "updated_at"])
+
+    if voucher_code:
+        _, discount = CartVoucherService.apply_voucher_to_order(
+            order,
+            voucher_code,
+            require_saved=True,
+        )
+
     total_amount = subtotal - discount + shipping_fee
     if total_amount <= 0:
         raise ValidationError({"detail": "Tổng tiền đơn hàng không hợp lệ."})
@@ -302,6 +314,7 @@ def create_customer_order(
     note,
     items_data,
     user,
+    voucher_code="",
 ):
     """Buyer đặt hàng — status pending, trừ tồn ngay, thanh toán COD."""
     if dealer.status != DealerProfileStatus.ACTIVE:
@@ -325,7 +338,7 @@ def create_customer_order(
         delivery_time=delivery_time,
         note=note or "",
     )
-    _build_order_items(order, validated_items, user)
+    _build_order_items(order, validated_items, user, voucher_code=voucher_code)
     _create_cod_payment(order)
     update_favorite_category_from_order(customer, validated_items)
     track_purchase_interactions_for_order(

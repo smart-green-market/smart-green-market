@@ -405,6 +405,7 @@ class OrderCreateSerializer(serializers.Serializer):
         ),
     )
     note = serializers.CharField(required=False, allow_blank=True, default="")
+    voucher_code = serializers.CharField(required=False, allow_blank=True, default="")
 
     def validate_items(self, value):
         if not value:
@@ -448,6 +449,7 @@ class OrderCreateSerializer(serializers.Serializer):
             delivery_time=validated_data["delivery_time"],
             note=validated_data.get("note", ""),
             items_data=items_data,
+            voucher_code=validated_data.get("voucher_code", ""),
             user=request.user,
         )
 
