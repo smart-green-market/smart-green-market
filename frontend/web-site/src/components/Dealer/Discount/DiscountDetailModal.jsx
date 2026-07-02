@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { X, Loader2, Calendar, Tag, AlertCircle, TrendingDown } from 'lucide-react';
 import { discountService } from '../../../services/api/discountService';
+import { formatDateTime } from '../../common/formatDateTime';
 import { toast } from 'sonner';
 
 export default function DiscountDetailModal({ isOpen, onClose, policyId }) {
@@ -76,9 +77,9 @@ export default function DiscountDetailModal({ isOpen, onClose, policyId }) {
                     <span className="font-medium">Thời gian áp dụng:</span>
                   </div>
                   <div className="flex-1 text-sm text-gray-700">
-                    {policy.start_at ? new Date(policy.start_at).toLocaleString('vi-VN') : 'Không xác định'} 
+                    {policy.start_at ? formatDateTime(policy.start_at) : 'Không xác định'} 
                     {' - '}
-                    {policy.end_at ? new Date(policy.end_at).toLocaleString('vi-VN') : 'Không giới hạn'}
+                    {policy.end_at ? formatDateTime(policy.end_at) : 'Không giới hạn'}
                   </div>
                 </div>
               )}
