@@ -1,7 +1,7 @@
 from rest_framework import viewsets
 from drf_spectacular.utils import extend_schema, extend_schema_view
 
-from common.permission import IsActive, IsAdminOrDealer
+from common.permission import IsActive, IsAdminOrDealer, IsAdmin
 from common.querysets import filter_admin_or_dealer_account
 from common.openapi import PAGINATION_QUERY_HELP, paginated_response_schema
 
@@ -13,7 +13,7 @@ from .serializers import CustomerSegmentSerializer
     list=extend_schema(
         tags=["Customer Segments"],
         summary="Danh sách nhóm khách hàng (Phân trang)",
-        description="Admin xem tất cả. Dealer chỉ thấy nhóm khách hàng của mình." + PAGINATION_QUERY_HELP,
+        description="Admin và Dealer xem tất cả các nhóm khách hàng hệ thống." + PAGINATION_QUERY_HELP,
         responses={
             200: paginated_response_schema(
                 CustomerSegmentSerializer,
@@ -31,15 +31,17 @@ class CustomerSegmentViewSet(viewsets.ModelViewSet):
     """
     ViewSet để quản lý phân nhóm khách hàng (CustomerSegment).
     Admin có toàn quyền.
-    Dealer chỉ thao tác trên các phân nhóm thuộc tài khoản của mình.
+    Dealer chỉ có quyền xem (list/retrieve).
     """
     permission_classes = [IsActive, IsAdminOrDealer]
-    queryset = CustomerSegment.objects.select_related("dealer", "dealer__account")
+    queryset = CustomerSegment.objects.all()
     serializer_class = CustomerSegmentSerializer
 
     def get_queryset(self):
-        return filter_admin_or_dealer_account(
-            self.queryset,
-            self.request.user,
-            account_lookup="dealer__account",
-        )
+        return self.queryset
+
+    def get_permissions(self):
+        if self.action in ["create", "update", "partial_update", "destroy"]:
+            return [IsActive(), IsAdmin()]
+        return [IsActive(), IsAdminOrDealer()]
+
