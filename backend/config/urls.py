@@ -57,6 +57,7 @@ urlpatterns = [
     path("api/", include("apps.voucher.urls")),
     path("api/", include("apps.marketing.urls")),
     path("api/", include("common.urls")),
+    path("ai/", include("apps.training_models.urls")),
 ]
 
 # DEBUG=True: django.contrib.staticfiles phục vụ media.
