@@ -3,7 +3,7 @@ from rest_framework.exceptions import PermissionDenied
 from drf_spectacular.utils import extend_schema, extend_schema_view
 
 from apps.accounts.models import AccountRole
-from common.permission import IsActive, IsAdminOrDealer
+from common.permission import IsActive, IsAdmin, IsAdminOrDealer
 from common.querysets import ORDER_NEWEST, is_admin
 from common.openapi import PAGINATION_QUERY_HELP, paginated_response_schema
 
@@ -33,6 +33,7 @@ class CustomerSegmentViewSet(viewsets.ModelViewSet):
     """
     ViewSet để quản lý phân nhóm khách hàng (CustomerSegment).
     Segment là tài nguyên dùng chung toàn hệ thống; membership gán qua CustomerSegmentMember.
+    Admin có toàn quyền. Dealer chỉ có quyền xem (list/retrieve).
     """
     permission_classes = [IsActive, IsAdminOrDealer]
     queryset = CustomerSegment.objects.all()
@@ -43,6 +44,11 @@ class CustomerSegmentViewSet(viewsets.ModelViewSet):
         if is_admin(user) or user.role == AccountRole.DEALER:
             return self.queryset.order_by(*ORDER_NEWEST)
         return self.queryset.none()
+
+    def get_permissions(self):
+        if self.action in ["create", "update", "partial_update", "destroy"]:
+            return [IsActive(), IsAdmin()]
+        return [IsActive(), IsAdminOrDealer()]
 
     def perform_update(self, serializer):
         if serializer.instance.is_system:

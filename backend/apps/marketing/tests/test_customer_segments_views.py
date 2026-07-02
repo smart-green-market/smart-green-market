@@ -62,7 +62,7 @@ class CustomerSegmentViewSetTests(APITestCase):
         self.assertIn(self.segment1.id, result_ids)
         self.assertIn(self.segment2.id, result_ids)
 
-    def test_create_segment_for_logged_in_dealer(self):
+    def test_create_segment_for_logged_in_dealer_forbidden(self):
         self.client.force_authenticate(user=self.dealer_user)
         payload = {
             "code": "new_segment",
@@ -70,8 +70,4 @@ class CustomerSegmentViewSetTests(APITestCase):
             "description": "Mô tả nhóm mới",
         }
         response = self.client.post(self.list_url, payload)
-        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
-        self.assertEqual(response.data["code"], "new_segment")
-
-        segment = CustomerSegment.objects.get(code="new_segment")
-        self.assertFalse(segment.is_system)
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
