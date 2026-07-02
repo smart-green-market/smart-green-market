@@ -4,6 +4,8 @@
 import os  # os.environ để đọc biến môi trường
 import sys  # sys.argv để lấy các tham số command line ví dụ:python manage.py runserver
 
+os.environ['TF_ENABLE_ONEDNN_OPTS'] = '0'  # Tắt thông báo nhắc nhở oneDNN đúng theo yêu cầu của TF
+os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'   # Ẩn hoàn toàn các log Info và Warning của TensorFlow (Chỉ hiện lỗi Error)
 
 def main():
     """Khởi chạy lệnh quản trị Django từ dòng lệnh."""
