@@ -41,14 +41,24 @@ def storefront_buyer_exists(dealer, email):
 
 
 def customer_profile_detail_queryset():
-    """Queryset hồ sơ buyer kèm user, danh mục yêu thích và địa chỉ."""
+    """Queryset hồ sơ buyer kèm user, danh mục yêu thích, địa chỉ và segment."""
+    from django.db.models import Prefetch
+
+    from apps.marketing.models import CustomerSegmentMember
+
     from .models import CustomerProfile
 
     return CustomerProfile.objects.select_related(
         "user",
         "user__store_dealer",
         "favorite_category",
-    ).prefetch_related("addresses")
+    ).prefetch_related(
+        "addresses",
+        Prefetch(
+            "segment_memberships",
+            queryset=CustomerSegmentMember.objects.select_related("segment"),
+        ),
+    )
 
 
 def resolve_favorite_category_id(items_data):
