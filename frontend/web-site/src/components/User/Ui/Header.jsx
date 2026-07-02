@@ -99,8 +99,6 @@ export default function Header() {
                         {isLoggedIn ? (
                             <>
                                 <HeaderNavDivider />
-                                <BuyerNotificationBell />
-                                <HeaderNavDivider />
                                 <HeaderNavLink
                                     to={paths.orderStatus}
                                     icon={Newspaper}
@@ -123,6 +121,10 @@ export default function Header() {
                                         ) : null
                                     }
                                 />
+                                
+                                <HeaderNavDivider />
+                                <BuyerNotificationBell />
+
                                 <HeaderNavDivider />
                                 <HeaderNavLink
                                     to={paths.account}

@@ -404,7 +404,7 @@ function Pagination({ page, totalPages, onChange }) {
                     key={p}
                     type="button"
                     onClick={() => onChange(p)}
-                    className={`flex h-9 w-9 items-center justify-center rounded-full text-sm font-semibold transition-colors ${p === page
+                    className={`cursor-pointer hover:scale-105 transition-all duration-300 flex h-9 w-9 items-center justify-center rounded-full text-sm font-semibold transition-colors ${p === page
                         ? "bg-emerald-700 text-white"
                         : "text-neutral-600 hover:bg-emerald-50 hover:text-emerald-800"
                         }`}
@@ -437,7 +437,7 @@ function PaginationBtn({ disabled, onClick, children, ...props }) {
             type="button"
             disabled={disabled}
             onClick={onClick}
-            className="cursor-pointer flex h-9 w-9 items-center justify-center rounded-full text-neutral-500 transition-colors hover:bg-emerald-50 hover:text-emerald-800 disabled:cursor-not-allowed disabled:opacity-40"
+            className="cursor-pointer hover:scale-105 flex h-9 w-9 items-center justify-center rounded-full text-neutral-500 transition-colors hover:bg-emerald-50 hover:text-emerald-800 disabled:cursor-not-allowed disabled:opacity-40"
             {...props}
         >
             {children}

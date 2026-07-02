@@ -11,6 +11,7 @@ import {
     LogOut,
     FileCheck,
     FileText,
+    Ticket,
 } from "lucide-react";
 
 const NAV_ITEMS = [
@@ -23,6 +24,7 @@ const NAV_ITEMS = [
     { label: "Quản lý sản phẩm",     icon: Package,         to: "/quan-tri/san-pham" },
     { label: "Quản lý chứng chỉ",    icon: FileCheck,       to: "/quan-tri/chung-chi" },
     { label: "Quản lý giấy tờ",    icon: FileText,       to: "/quan-tri/giay-to" },
+    { label: "Quản lý Voucher",     icon: Ticket,         to: "/quan-tri/khuyen-mai" },
     //{ label: "Quản lý thông báo",    icon: Bell,       to: "/quan-tri/thong-bao" },
 ];
 
