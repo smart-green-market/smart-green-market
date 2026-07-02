@@ -7,4 +7,5 @@ export { default as SupplierInfoPage } from "./SupplierInfoPage";
 export { default as CategorySupplierPage } from "./Category";
 export { default as CultivationSupplierPage } from "./Cultivation";
 export { default as DashboardSupplierPage } from "./DashBoard";
+export { default as SupplierNotificationPage } from "./Notification";
 export { default as NotFound } from "./NotFound"
