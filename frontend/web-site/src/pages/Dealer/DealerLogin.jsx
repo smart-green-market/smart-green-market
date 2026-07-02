@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useAuth } from "../../contexts/authProvider";
+import { Link } from "react-router-dom";
 import { Leaf, Lock, User, Loader2, Eye, EyeOff } from "lucide-react";
 
 // Thêm state
@@ -128,6 +129,16 @@ export default function DealerLoginPage() {
                         )}
                     </button>
                 </form>
+
+                <p className="mt-5 text-center text-xs text-neutral-500">
+                    Chưa có tài khoản đại lý?{" "}
+                    <Link
+                        to="/dai-ly/dang-ky"
+                        className="font-bold text-emerald-700 hover:text-emerald-800 transition-colors hover:underline"
+                    >
+                        Đăng ký ngay
+                    </Link>
+                </p>
 
                 {/* Footer note */}
                 <div className="mt-8 text-center border-t border-neutral-100 pt-6">

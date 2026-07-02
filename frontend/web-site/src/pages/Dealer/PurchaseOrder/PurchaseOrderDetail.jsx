@@ -372,7 +372,7 @@ export default function DealerPurchaseOrderDetailPage() {
         isOpen={isReturnModalOpen}
         onClose={() => setIsReturnModalOpen(false)}
         onConfirm={handleRequestReturnConfirm}
-        orderItems={orderData?.items || []}
+        orderItems={(orderData?.items || []).filter(item => item.review_status !== "rejected")}
       />
 
       <ApproveAdjustmentModal

@@ -25,7 +25,7 @@ export default function EditDiscountModal({ isOpen, onClose, onSuccess, policyId
     end_at: '',
     tiers: [
       {
-        operator: 'gte',
+        operator: 'lte',
         threshold_value: '',
         discount_type: 'percent',
         discount_value: '',
@@ -58,7 +58,7 @@ export default function EditDiscountModal({ isOpen, onClose, onSuccess, policyId
         is_active: true,
         start_at: '',
         end_at: '',
-        tiers: [{ operator: 'gte', threshold_value: '', discount_type: 'percent', discount_value: '', sort_order: 0 }]
+        tiers: [{ operator: 'lte', threshold_value: '', discount_type: 'percent', discount_value: '', sort_order: 0 }]
       });
     }
   }, [isOpen, policyId]);
@@ -100,7 +100,7 @@ export default function EditDiscountModal({ isOpen, onClose, onSuccess, policyId
           threshold_value: t.threshold_value,
           discount_value: t.discount_value
         })) : [{
-          operator: 'gte',
+          operator: 'lte',
           threshold_value: '',
           discount_type: 'percent',
           discount_value: '',
@@ -118,10 +118,20 @@ export default function EditDiscountModal({ isOpen, onClose, onSuccess, policyId
 
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target;
-    setFormData(prev => ({
-      ...prev,
-      [name]: type === 'checkbox' ? checked : value
-    }));
+    setFormData(prev => {
+      const updated = {
+        ...prev,
+        [name]: type === 'checkbox' ? checked : value
+      };
+      if (name === 'threshold_type') {
+        const defaultOperator = value === 'remaining_days' ? 'lte' : 'gte';
+        updated.tiers = prev.tiers.map(tier => ({
+          ...tier,
+          operator: defaultOperator
+        }));
+      }
+      return updated;
+    });
   };
 
   const handleTierChange = (index, field, value) => {
@@ -136,7 +146,7 @@ export default function EditDiscountModal({ isOpen, onClose, onSuccess, policyId
       tiers: [
         ...prev.tiers,
         {
-          operator: 'gte',
+          operator: prev.threshold_type === 'remaining_days' ? 'lte' : 'gte',
           threshold_value: '',
           discount_type: 'percent',
           discount_value: '',
@@ -169,8 +179,8 @@ export default function EditDiscountModal({ isOpen, onClose, onSuccess, policyId
 
       if (payload.category === '') payload.category = null;
       if (payload.dealer_product === '') payload.dealer_product = null;
-      if (!payload.start_at) payload.start_at = null;
-      if (!payload.end_at) payload.end_at = null;
+      payload.start_at = payload.start_at ? new Date(payload.start_at).toISOString() : null;
+      payload.end_at = payload.end_at ? new Date(payload.end_at).toISOString() : null;
 
       await discountService.update(policyId, payload);
       toast.success('Cập nhật chính sách giảm giá thành công');
@@ -322,8 +332,6 @@ export default function EditDiscountModal({ isOpen, onClose, onSuccess, policyId
                     className="w-full md:w-1/2 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
                   >
                     <option value="remaining_days">Số ngày còn lại trước khi hết hạn</option>
-                    <option value="used_shelf_life_percent">% Hạn sử dụng đã qua</option>
-                    <option value="age_days">Số ngày tồn kho</option>
                   </select>
                 </div>
 
@@ -337,10 +345,17 @@ export default function EditDiscountModal({ isOpen, onClose, onSuccess, policyId
                           onChange={(e) => handleTierChange(index, 'operator', e.target.value)}
                           className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 text-sm"
                         >
-                          <option value="gte">&gt;= (Lớn hơn hoặc bằng)</option>
-                          <option value="lte">&lt;= (Nhỏ hơn hoặc bằng)</option>
-                          <option value="gt">&gt; (Lớn hơn)</option>
-                          <option value="lt">&lt; (Nhỏ hơn)</option>
+                          {formData.threshold_type === 'remaining_days' ? (
+                            <>
+                              <option value="lte">&lt;= (Nhỏ hơn hoặc bằng)</option>
+                              <option value="lt">&lt; (Nhỏ hơn)</option>
+                            </>
+                          ) : (
+                            <>
+                              <option value="gte">&gt;= (Lớn hơn hoặc bằng)</option>
+                              <option value="gt">&gt; (Lớn hơn)</option>
+                            </>
+                          )}
                         </select>
                       </div>
 

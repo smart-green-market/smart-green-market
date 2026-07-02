@@ -58,6 +58,7 @@ axiosClient.interceptors.response.use(
       return axiosClient(originalRequest);
     } catch (refreshError) {
       clearAuthStorage();
+      window.dispatchEvent(new Event("unauthorized"));
       redirectToLoginByPath();
       return Promise.reject(refreshError);
     }
