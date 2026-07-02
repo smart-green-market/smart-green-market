@@ -169,12 +169,187 @@ export function isDeliverySlotAvailable(dates = [], date, slotId) {
   return Boolean(slot?.available);
 }
 
+function unwrapVoucherPayload(data) {
+  if (data == null || typeof data !== "object" || Array.isArray(data)) {
+    return data;
+  }
+
+  const nested = data.data ?? data.result ?? data.payload;
+  if (nested && typeof nested === "object" && !Array.isArray(nested)) {
+    return nested;
+  }
+
+  return data;
+}
+
+export function buildVoucherApplyPayload(
+  voucherCode,
+  items = [],
+  dealerSlug = "",
+) {
+  return {
+    voucher_code: String(voucherCode ?? "").trim(),
+    items: items.map((item) => ({
+      dealer_product_id: item.id,
+      quantity: item.quantity,
+    })),
+    ...(dealerSlug ? { dealer_slug: dealerSlug } : {}),
+  };
+}
+
+export function parseAvailableVouchers(response) {
+  const results = response?.results ?? response ?? [];
+  if (!Array.isArray(results)) return [];
+  return results.filter((item) => item?.code);
+}
+
+export function getVoucherMinOrderAmount(voucher) {
+  const raw =
+    voucher?.min_order_amount ??
+    voucher?.minimum_order_amount ??
+    voucher?.min_order_value ??
+    voucher?.min_spend ??
+    0;
+  const value = Number(raw);
+  return Number.isFinite(value) && value > 0 ? value : 0;
+}
+
+export function findVoucherByCode(vouchers = [], code = "") {
+  const normalizedCode = String(code ?? "")
+    .trim()
+    .toLowerCase();
+  if (!normalizedCode) return null;
+
+  return (
+    vouchers.find(
+      (voucher) =>
+        String(voucher?.code ?? "")
+          .trim()
+          .toLowerCase() === normalizedCode,
+    ) ?? null
+  );
+}
+
+export function getVoucherEligibility(voucher, subtotal = 0) {
+  const minOrderAmount = getVoucherMinOrderAmount(voucher);
+  const orderSubtotal = Number(subtotal) || 0;
+
+  if (minOrderAmount <= 0 || orderSubtotal >= minOrderAmount) {
+    return { eligible: true, minOrderAmount, reason: "" };
+  }
+
+  const formattedMin = new Intl.NumberFormat("vi-VN").format(minOrderAmount);
+  return {
+    eligible: false,
+    minOrderAmount,
+    reason: `Chưa đạt giá trị đơn hàng tối thiểu (${formattedMin}đ).`,
+  };
+}
+
+export function filterVouchersByQuery(vouchers = [], query = "") {
+  const normalizedQuery = String(query ?? "")
+    .trim()
+    .toLowerCase();
+  if (!normalizedQuery) return vouchers;
+
+  return vouchers.filter((voucher) => {
+    const code = String(voucher?.code ?? "").toLowerCase();
+    const title = String(voucher?.title ?? "").toLowerCase();
+    const description = String(voucher?.description ?? "").toLowerCase();
+
+    return (
+      code.includes(normalizedQuery) ||
+      title.includes(normalizedQuery) ||
+      description.includes(normalizedQuery)
+    );
+  });
+}
+
+export function parseVoucherApplyResult(data, fallbackCode = "") {
+  const raw = unwrapVoucherPayload(data);
+  if (!raw) return null;
+
+  const voucher =
+    raw.voucher ??
+    raw.voucher_detail ??
+    raw.voucher_info ??
+    raw.applied_voucher ??
+    {};
+
+  const nested = voucher && typeof voucher === "object" ? voucher : {};
+  const pricing =
+    raw.pricing && typeof raw.pricing === "object" ? raw.pricing : raw;
+
+  const code =
+    raw.voucher_code ??
+    raw.code ??
+    nested.code ??
+    nested.voucher_code ??
+    String(fallbackCode ?? "").trim();
+
+  const discountAmount = Number(
+    pricing.discount_amount ??
+      raw.discount_amount ??
+      raw.discount ??
+      raw.total_discount ??
+      raw.discountApplied ??
+      nested.discount_amount ??
+      0,
+  );
+
+  const isExplicitlyInvalid = raw.valid === false || raw.is_valid === false;
+  if (isExplicitlyInvalid) {
+    return {
+      id: nested.id ?? raw.id ?? null,
+      code,
+      title: nested.title ?? raw.title ?? code,
+      description: nested.description ?? raw.description ?? "",
+      discountType: nested.discount_type ?? raw.discount_type ?? "",
+      discountValue: Number(nested.discount_value ?? raw.discount_value ?? 0),
+      discountAmount: Number.isFinite(discountAmount) ? discountAmount : 0,
+      valid: false,
+      message: raw.message ?? raw.detail ?? "Mã voucher không hợp lệ",
+    };
+  }
+
+  if (!code && !Number.isFinite(discountAmount)) return null;
+
+  return {
+    id: nested.id ?? raw.id ?? null,
+    code,
+    title: nested.title ?? raw.title ?? raw.voucher_title ?? code,
+    description: nested.description ?? raw.description ?? "",
+    discountType: nested.discount_type ?? raw.discount_type ?? "",
+    discountValue: Number(nested.discount_value ?? raw.discount_value ?? 0),
+    discountAmount: Number.isFinite(discountAmount) ? discountAmount : 0,
+    valid: true,
+    message: raw.message ?? "",
+  };
+}
+
+export function formatVoucherDiscountLabel(voucher) {
+  const title = voucher?.title || voucher?.code || "Voucher";
+  const type = voucher?.discount_type ?? voucher?.discountType ?? "";
+  const value = Number(voucher?.discount_value ?? voucher?.discountValue ?? 0);
+
+  if (type === "percent" && value > 0) {
+    return `${title} — Giảm ${value}%`;
+  }
+
+  if (value > 0) {
+    return `${title} — Giảm ${new Intl.NumberFormat("vi-VN").format(value)}đ`;
+  }
+
+  return title;
+}
+
 export function buildCreateOrderPayload({
   items,
   customerAddressId,
   deliveryDate,
   deliverySlot,
   note,
+  voucherCode,
 }) {
   return {
     items: items.map((item) => ({
@@ -185,5 +360,6 @@ export function buildCreateOrderPayload({
     delivery_date: deliveryDate,
     delivery_slot: deliverySlot,
     ...(note?.trim() ? { note: note.trim() } : {}),
+    ...(voucherCode?.trim() ? { voucher_code: voucherCode.trim() } : {}),
   };
 }
