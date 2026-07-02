@@ -13,6 +13,7 @@ from apps.dealer_products.inventory_expiry import (
     MAX_STORAGE_DURATION_DAYS,
     backfill_batch_expiry_dates,
     compute_batch_expiry_date,
+    compute_batch_production_date,
     fix_invalid_supplier_storage_duration_days,
     mark_expired_inventory_batches,
     recompute_batch_expiry_date,
@@ -124,7 +125,55 @@ class InventoryExpiryTests(TestCase):
 
         batch = DealerInventoryBatch.objects.get(purchase_order_item=item)
         self.assertEqual(batch.expiry_date, import_date + timedelta(days=7))
+        self.assertEqual(batch.production_date, import_date)
         self.assertEqual(batch.status, DealerInventoryBatchStatus.ACTIVE)
+
+    def test_compute_batch_production_date(self):
+        import_date = timezone.localdate()
+        expiry = import_date + timedelta(days=7)
+        production = compute_batch_production_date(
+            import_date,
+            self.supplier_product,
+            expiry_date=expiry,
+        )
+        self.assertEqual(production, import_date)
+
+    def test_recompute_updates_production_date(self):
+        today = timezone.localdate()
+        batch = DealerInventoryBatch.objects.create(
+            dealer_product=self.product,
+            batch_number="RECOMP-1",
+            quantity=10,
+            remaining_quantity=10,
+            import_price="10000.00",
+            import_date=today - timedelta(days=2),
+            production_date=None,
+            expiry_date=None,
+            status=DealerInventoryBatchStatus.ACTIVE,
+        )
+        recompute_batch_expiry_date(batch)
+        batch.refresh_from_db()
+        self.assertEqual(batch.expiry_date, today - timedelta(days=2) + timedelta(days=7))
+        self.assertEqual(batch.production_date, today - timedelta(days=2))
+
+    def test_manual_expiry_does_not_change_production_date(self):
+        today = timezone.localdate()
+        original_production = today - timedelta(days=5)
+        batch = DealerInventoryBatch.objects.create(
+            dealer_product=self.product,
+            batch_number="MANUAL-1",
+            quantity=10,
+            remaining_quantity=10,
+            import_price="10000.00",
+            import_date=today - timedelta(days=3),
+            production_date=original_production,
+            expiry_date=today + timedelta(days=2),
+            status=DealerInventoryBatchStatus.ACTIVE,
+        )
+        set_batch_expiry_date(batch, today + timedelta(days=4))
+        batch.refresh_from_db()
+        self.assertEqual(batch.production_date, original_production)
+        self.assertEqual(batch.expiry_date, today + timedelta(days=4))
 
     def test_mark_expired_inventory_batches(self):
         today = timezone.localdate()

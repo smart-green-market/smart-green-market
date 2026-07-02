@@ -1,6 +1,6 @@
 // src/components/User/OrderTracking/OrderTrackingCard.jsx
 import React from "react";
-import { formatCurrency, formatDateTime, formatEstimatedDeliveryTime, getStatusCfg } from "../../../utils/orderUtils";
+import { formatCurrency, formatDateTime, formatEstimatedDeliveryTime, getStatusCfg, canCancelBuyerOrder, canReturnBuyerOrder } from "../../../utils/orderUtils";
 
 /**
  * =========================================================================
@@ -24,7 +24,7 @@ const StatusBadge = ({ status }) => {
   );
 };
 
-export default function OrderTrackingCard({ order, onViewDetail }) {
+export default function OrderTrackingCard({ order, onViewDetail, onCancelOrder, onReturnOrder }) {
   const {
     id,
     order_code,
@@ -82,19 +82,42 @@ export default function OrderTrackingCard({ order, onViewDetail }) {
         <div className="mb-4" />
       )}
 
-      {/* Tổng tiền + nút xem chi tiết */}
+      {/* Tổng tiền + thao tác */}
       <div className="flex items-center justify-between pt-3 border-t border-gray-100">
         <div>
           <span className="text-[12px] text-gray-400 mr-1.5">Tổng tiền</span>
           <span className="text-[16px] font-semibold text-emerald-700">{formatCurrency(total_amount)}</span>
         </div>
-        <button
-          onClick={() => onViewDetail(id)}
-          className="hover:scale-105 cursor-pointer px-3.5 py-1.5 rounded-lg text-[13px] font-medium text-emerald-700 bg-emerald-50
-            hover:bg-emerald-100 transition-colors"
-        >
-          Xem chi tiết
-        </button>
+        <div className="flex items-center gap-2">
+          {canCancelBuyerOrder(status) && onCancelOrder ? (
+            <button
+              type="button"
+              onClick={() => onCancelOrder(order)}
+              className="hover:scale-105 cursor-pointer px-3.5 py-1.5 rounded-lg text-[13px] font-medium text-red-600 bg-red-50
+                hover:bg-red-100 transition-colors"
+            >
+              Hủy đơn
+            </button>
+          ) : null}
+          {canReturnBuyerOrder(status) && onReturnOrder ? (
+            <button
+              type="button"
+              onClick={() => onReturnOrder(order)}
+              className="hover:scale-105 cursor-pointer px-3.5 py-1.5 rounded-lg text-[13px] font-medium text-amber-700 bg-amber-50
+                hover:bg-amber-100 transition-colors"
+            >
+              Trả hàng
+            </button>
+          ) : null}
+          <button
+            type="button"
+            onClick={() => onViewDetail(id)}
+            className="hover:scale-105 cursor-pointer px-3.5 py-1.5 rounded-lg text-[13px] font-medium text-emerald-700 bg-emerald-50
+              hover:bg-emerald-100 transition-colors"
+          >
+            Xem chi tiết
+          </button>
+        </div>
       </div>
     </div>
   );

@@ -232,8 +232,16 @@ function formatUpdatedAt(value) {
     return date.toLocaleString("vi-VN");
 }
 
+function formatVndPreview(value) {
+    if (value === "" || value == null) return null;
+    const num = Number(value);
+    if (Number.isNaN(num)) return null;
+    return `${new Intl.NumberFormat("vi-VN").format(num)} VNĐ`;
+}
+
 function EditableField({ fieldKey, value, onChange }) {
     const meta = FIELD_META[fieldKey];
+    const vndPreview = meta.suffix === "VNĐ" ? formatVndPreview(value) : null;
 
     return (
         <div className="flex flex-col gap-1.5">
@@ -252,7 +260,7 @@ function EditableField({ fieldKey, value, onChange }) {
                     max={meta.max}
                     step={meta.step ?? 1}
                     onChange={(event) => onChange(fieldKey, event.target.value)}
-                    className="w-full rounded-lg border border-neutral-300 bg-white px-4 py-3 font-mono text-base text-zinc-900 outline-none transition-colors focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20"
+                    className="w-full rounded-lg border border-neutral-300 bg-white px-4 py-3 font-mono text-base text-zinc-900 outline-none transition-colors [appearance:textfield] focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
                 />
                 {meta.suffix ? (
                     <span className="pointer-events-none absolute right-4 text-base font-medium text-neutral-500">
@@ -260,6 +268,9 @@ function EditableField({ fieldKey, value, onChange }) {
                     </span>
                 ) : null}
             </div>
+            {vndPreview ? (
+                <p className="text-sm font-semibold text-emerald-800">{vndPreview}</p>
+            ) : null}
             {meta.hint ? (
                 <p className="text-xs text-neutral-500">{meta.hint}</p>
             ) : null}

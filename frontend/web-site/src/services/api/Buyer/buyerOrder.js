@@ -266,6 +266,34 @@ export const buyerOrder = {
   //     }
   //   ]
   // }
+
+  // Hủy đơn hàng — Buyer hủy khi đơn còn pending
+  cancel: (dealer_slug, id, data) =>
+    axiosClient
+      .post(`/storefronts/${dealer_slug}/orders/${id}/cancel/`, data)
+      .then((res) => res.data),
+
+  //schema
+  // {
+  //   "reason": "string"
+  // }
+
+  // Trả đơn hàng — Buyer yêu cầu trả sau khi completed (FormData: reason, evidence_file?)
+  returnOrder: (dealer_slug, id, data) =>
+    axiosClient
+      .post(`/storefronts/${dealer_slug}/orders/${id}/request-return/`, data, {
+        headers:
+          data instanceof FormData
+            ? { "Content-Type": "multipart/form-data" }
+            : undefined,
+      })
+      .then((res) => res.data),
+
+  //schema
+  // {
+  //   "reason": "string"
+  //   "evidence_file": "file" (tùy chọn) -> upload có review, click xem ảnh được trước khi submit
+  // }
 };
 
 export const handleApiError = (error, defaultMessage = "Có lỗi xảy ra") => {

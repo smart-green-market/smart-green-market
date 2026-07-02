@@ -1,7 +1,7 @@
 // src/components/User/OrderTracking/OrderDetailModal.jsx
 import React, { useEffect, useCallback, useState } from "react";
 import { toast } from "sonner";
-import { PackageCheck, RotateCcw } from "lucide-react";
+import { PackageCheck, RotateCcw, XCircle } from "lucide-react";
 
 import {
   buyerOrder,
@@ -15,6 +15,8 @@ import {
   formatEstimatedDeliveryTime,
   getStatusCfg,
   formatPaymentMethod,
+  canCancelBuyerOrder,
+  canReturnBuyerOrder,
 } from "../../../utils/orderUtils";
 
 /**
@@ -282,8 +284,28 @@ const ModalActionFooter = ({
   actionLoading,
   onConfirmDelivery,
   onComplete,
+  onCancelOrder,
+  onReturnOrder,
 }) => {
   if (!order) return null;
+
+  if (canCancelBuyerOrder(order.status)) {
+    return (
+      <div className="bg-white px-6 py-4 border-t border-gray-200 flex-shrink-0">
+        <button
+          type="button"
+          disabled={actionLoading}
+          onClick={() => onCancelOrder?.(order)}
+          className="hover:scale-105 cursor-pointer w-full flex items-center justify-center gap-2 rounded-xl border border-red-200 bg-red-50 px-4 py-3
+            text-[14px] font-medium text-red-600 hover:bg-red-100 transition-colors
+            disabled:opacity-60 disabled:cursor-not-allowed"
+        >
+          <XCircle size={18} />
+          Hủy đơn hàng
+        </button>
+      </div>
+    );
+  }
 
   if (order.status === "shipping") {
     return (
@@ -306,30 +328,35 @@ const ModalActionFooter = ({
   if (order.status === "delivered") {
     return (
       <div className="bg-white px-6 py-4 border-t border-gray-200 flex-shrink-0">
-        <div className="flex flex-col-reverse sm:flex-row gap-2.5">
-          <button
-            type="button"
-            disabled={actionLoading}
-            onClick={() => toast.info("Tính năng trả hàng đang được phát triển.")}
-            className="hover:scale-105 cursor-pointer flex-1 flex items-center justify-center gap-2 rounded-xl border border-gray-200 px-4 py-3
-              text-[14px] font-medium text-gray-600 hover:bg-gray-50 transition-colors
-              disabled:opacity-60 disabled:cursor-not-allowed"
-          >
-            <RotateCcw size={17} />
-            Trả hàng
-          </button>
-          <button
-            type="button"
-            disabled={actionLoading}
-            onClick={onComplete}
-            className="hover:scale-105 cursor-pointer flex-1 flex items-center justify-center gap-2 rounded-xl bg-emerald-700 px-4 py-3
-              text-[14px] font-medium text-white hover:bg-emerald-800 transition-colors
-              disabled:opacity-60 disabled:cursor-not-allowed"
-          >
-            <PackageCheck size={18} />
-            {actionLoading ? "Đang xử lý..." : "Hoàn thành"}
-          </button>
-        </div>
+        <button
+          type="button"
+          disabled={actionLoading}
+          onClick={onComplete}
+          className="hover:scale-105 cursor-pointer w-full flex items-center justify-center gap-2 rounded-xl bg-emerald-700 px-4 py-3
+            text-[14px] font-medium text-white hover:bg-emerald-800 transition-colors
+            disabled:opacity-60 disabled:cursor-not-allowed"
+        >
+          <PackageCheck size={18} />
+          {actionLoading ? "Đang xử lý..." : "Hoàn thành"}
+        </button>
+      </div>
+    );
+  }
+
+  if (canReturnBuyerOrder(order.status)) {
+    return (
+      <div className="bg-white px-6 py-4 border-t border-gray-200 flex-shrink-0">
+        <button
+          type="button"
+          disabled={actionLoading}
+          onClick={() => onReturnOrder?.(order)}
+          className="hover:scale-105 cursor-pointer w-full flex items-center justify-center gap-2 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3
+            text-[14px] font-medium text-amber-700 hover:bg-amber-100 transition-colors
+            disabled:opacity-60 disabled:cursor-not-allowed"
+        >
+          <RotateCcw size={17} />
+          Trả hàng
+        </button>
       </div>
     );
   }
@@ -349,7 +376,15 @@ export const formatDateTimeVN = (dateStr) => {
   });
 };
 // ── Main modal ──────────────────────────────────────────
-export default function OrderDetailModal({ dealerSlug, orderId, isOpen, onClose, onOrderUpdated }) {
+export default function OrderDetailModal({
+  dealerSlug,
+  orderId,
+  isOpen,
+  onClose,
+  onOrderUpdated,
+  onCancelOrder,
+  onReturnOrder,
+}) {
   const [order, setOrder] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
@@ -532,6 +567,8 @@ export default function OrderDetailModal({ dealerSlug, orderId, isOpen, onClose,
             actionLoading={actionLoading}
             onConfirmDelivery={handleConfirmDelivery}
             onComplete={handleComplete}
+            onCancelOrder={onCancelOrder}
+            onReturnOrder={onReturnOrder}
           />
         )}
       </div>

@@ -1,11 +1,14 @@
 import {
     useCallback,
     useEffect,
+    useMemo,
     useState,
 } from "react";
 
 import Toolbar from "../../components/Admin/UI/Toolbar";
 import { AdminInitialLoadGate } from "../../components/Admin/UI/AdminFetchState";
+import AdminFilterStatsCards from "../../components/Admin/UI/AdminFilterStatsCards";
+import { CERTIFICATION_STAT_CARDS } from "../../components/Admin/UI/adminFilterStatsPresets";
 import Filter from "../../components/Admin/Certification/CertificationFilter";
 import CerificationTable from "../../components/Admin/Certification/CertificationTable";
 import CertificationViewModal from "../../components/Admin/Certification/CertificationViewModal";
@@ -14,6 +17,7 @@ import {
     certificationService,
     handleApiError,
 } from "../../services/api/certificationService";
+import { buildCountsFromCards } from "../../utils/adminFilterStatsUtils";
 
 export default function CertificationPage() {
 
@@ -42,7 +46,7 @@ export default function CertificationPage() {
     const [
         statusFilter,
         setStatusFilter,
-    ] = useState("pending");
+    ] = useState("");
 
     const [viewRow, setViewRow] =
         useState(null);
@@ -149,6 +153,11 @@ export default function CertificationPage() {
         fetchCertifications({ initial: true });
     }, [fetchCertifications]);
 
+    const certificationStats = useMemo(
+        () => buildCountsFromCards(data, CERTIFICATION_STAT_CARDS, { field: "status" }),
+        [data],
+    );
+
     // ── APPROVE ────────────────────────────────────────
     const handleApprove =
         async (certification) => {
@@ -220,6 +229,14 @@ export default function CertificationPage() {
             loadingMessage="Đang tải danh sách chứng chỉ..."
         >
         <div className="flex flex-col gap-6 px-8 pt-6 pb-10">
+
+            <AdminFilterStatsCards
+                counts={certificationStats}
+                cards={CERTIFICATION_STAT_CARDS}
+                activeFilter={statusFilter}
+                onFilterChange={setStatusFilter}
+                loading={isFetching}
+            />
 
             {/* TOOLBAR */}
             <Toolbar

@@ -28,6 +28,7 @@ class DealerInventoryTransactionType(models.TextChoices):
 
     IMPORT = "import", "Nhập kho"
     SALE = "sale", "Bán hàng"
+    CANCEL_RESTORE = "cancel_restore", "Hoàn tồn do hủy đơn"
     WASTAGE = "wastage", "Hao hụt"
     ADJUSTMENT = "adjustment", "Điều chỉnh"
 
@@ -121,6 +122,14 @@ class DealerInventoryBatch(models.Model):
     import_price = models.DecimalField(max_digits=12, decimal_places=2)
 
     import_date = models.DateField()
+    production_date = models.DateField(
+        null=True,
+        blank=True,
+        help_text=(
+            "Ngày sản xuất lô — mốc bắt đầu tính hạn theo storage_duration_days của SP NCC "
+            "(expiry_date − storage_duration_days tại thời điểm nhập kho)."
+        ),
+    )
     expiry_date = models.DateField(null=True, blank=True)
     manual_sale_price = models.DecimalField(
         max_digits=12,

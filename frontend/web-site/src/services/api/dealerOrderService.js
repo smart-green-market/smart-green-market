@@ -50,6 +50,16 @@ export const dealerOrderService = {
       console.error("Lỗi chuyển trạng thái giao hàng", error);
       throw error;
     }
+  },
+
+  cancelOrder: async (id, data) => {
+    try {
+      const res = await axiosClient.post(`/customer-orders/${id}/cancel/`, data);
+      return res.data;
+    } catch (error) {
+      console.error("Lỗi hủy đơn bán hàng", error);
+      throw error;
+    }
   }
 };
 

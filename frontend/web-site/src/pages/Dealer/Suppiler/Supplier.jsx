@@ -76,15 +76,21 @@ export default function DealerSupplierPage() {
       />
 
       {/* Bảng Dữ liệu */}
-      <SupplierTable
-        filteredInventory={filteredInventory}
-        onRowClick={(row) => {
-          navigate(`/dai-ly/nha-cung-cap/${row.id}`);
-        }}
-        currentPage={currentPage}
-        totalPages={totalPages}
-        onPageChange={setCurrentPage}
-      />
+      {loading ? (
+          <div className="flex justify-center items-center py-20">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-emerald-600"></div>
+          </div>
+      ) : (
+          <SupplierTable
+            filteredInventory={filteredInventory}
+            onRowClick={(row) => {
+              navigate(`/dai-ly/nha-cung-cap/${row.id}`);
+            }}
+            currentPage={currentPage}
+            totalPages={totalPages}
+            onPageChange={setCurrentPage}
+          />
+      )}
     </div>
   );
 }

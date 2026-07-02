@@ -32,7 +32,10 @@ from django.db.models import Sum
 from django.utils import timezone
 from rest_framework.exceptions import ValidationError
 
-from apps.dealer_products.inventory_expiry import compute_batch_expiry_date
+from apps.dealer_products.inventory_expiry import (
+    compute_batch_expiry_date,
+    compute_batch_production_date,
+)
 from apps.dealer_products.models import (
     DealerInventoryBatch,
     DealerInventoryBatchStatus,
@@ -63,6 +66,9 @@ from .models import (
     PurchaseOrderPayment,
     PurchaseOrderPaymentStatus,
     PurchaseOrderPaymentType,
+    PurchaseOrderReturn,
+    PurchaseOrderReturnItem,
+    PurchaseOrderReturnStatus,
     PurchaseOrderStatus,
     PurchaseOrderStatusHistory,
 )
@@ -71,12 +77,55 @@ TERMINAL_STATUSES = {
     PurchaseOrderStatus.REJECTED,
     PurchaseOrderStatus.COMPLETED,
     PurchaseOrderStatus.CANCELLED,
+    PurchaseOrderStatus.RETURNED,
 }
 
 DEALER_CANCELLABLE = {
     PurchaseOrderStatus.PENDING_SUPPLIER_CONFIRMATION,
     PurchaseOrderStatus.CONFIRMED,
 }
+
+RETURN_REQUESTABLE = {
+    PurchaseOrderStatus.DELIVERED,
+}
+
+
+def _get_returned_quantities_by_item_id(order) -> dict[int, Decimal]:
+    """Tổng số lượng đã trả (approved) theo từng dòng phiếu nhập."""
+    rows = (
+        PurchaseOrderReturnItem.objects.filter(
+            purchase_order_return__purchase_order=order,
+            purchase_order_return__status=PurchaseOrderReturnStatus.APPROVED,
+        )
+        .values("purchase_order_item_id")
+        .annotate(returned=Sum("quantity"))
+    )
+    return {row["purchase_order_item_id"]: row["returned"] for row in rows}
+
+
+def _returnable_quantity(*, order_item, returned_qty: Decimal) -> Decimal:
+    return order_item.quantity - returned_qty
+
+
+def _compute_return_line_refund(order_item, return_qty: Decimal) -> Decimal:
+    """Hoàn tiền theo đơn giá × số lượng trả."""
+    return (order_item.unit_price * return_qty).quantize(Decimal("0.01"))
+
+
+def _all_items_fully_returned(order) -> bool:
+    returned_map = _get_returned_quantities_by_item_id(order)
+    for item in order.items.all():
+        returned = returned_map.get(item.id, Decimal("0"))
+        if returned < item.quantity:
+            return False
+    return True
+
+
+def _remaining_import_quantity(order, order_item) -> int:
+    """Số lượng còn nhập kho sau khi trừ các lần trả hàng đã duyệt."""
+    returned_map = _get_returned_quantities_by_item_id(order)
+    returned = returned_map.get(order_item.id, Decimal("0"))
+    return max(int(order_item.quantity - returned), 0)
 
 
 def generate_order_code(dealer_id: int) -> str:
@@ -526,16 +575,171 @@ def dealer_confirm_delivery(order, user, note=""):
 
 @transaction.atomic
 def cancel_order(order, user, note="", *, is_admin=False):
-    """Hủy đơn — dealer chỉ hủy được khi pending hoặc confirmed; admin hủy mọi trạng thái chưa terminal."""
+    """Hủy đơn — bắt buộc lý do; dealer chỉ hủy được khi pending hoặc confirmed."""
     _ensure_not_terminal(order)
+    reason = (note or "").strip()
+    if not reason:
+        raise ValidationError({"reason": "Vui lòng nhập lý do hủy."})
     if is_admin:
         allowed = order.status not in TERMINAL_STATUSES
     else:
         allowed = order.status in DEALER_CANCELLABLE
     if not allowed:
         raise ValidationError({"detail": "Không thể hủy phiếu ở trạng thái hiện tại."})
-    record_status_change(order, PurchaseOrderStatus.CANCELLED, user, note=note or "Đã hủy phiếu")
+
+    now = timezone.now()
+    order.cancelled_at = now
+    order.cancelled_by = user
+    order.cancel_reason = reason
+    order.payments.filter(status=PurchaseOrderPaymentStatus.PENDING).update(
+        status=PurchaseOrderPaymentStatus.CANCELLED,
+        verified_by=user,
+        verified_at=now,
+        rejection_reason=reason,
+    )
+    order.save(
+        update_fields=[
+            "cancelled_at",
+            "cancelled_by",
+            "cancel_reason",
+            "updated_at",
+        ]
+    )
+    record_status_change(order, PurchaseOrderStatus.CANCELLED, user, note=reason)
     return order
+
+
+@transaction.atomic
+def dealer_request_return(order, user, *, reason, items, evidence_file=None):
+    """Đại lý yêu cầu trả một phần hoặc toàn bộ dòng hàng sau khi nhận hàng."""
+    _ensure_not_terminal(order)
+    reason = (reason or "").strip()
+    if not reason:
+        raise ValidationError({"reason": "Vui lòng nhập lý do trả hàng."})
+    if not items:
+        raise ValidationError({"items": "Phải chọn ít nhất một dòng hàng để trả."})
+    if order.status not in RETURN_REQUESTABLE:
+        raise ValidationError({"detail": "Chỉ yêu cầu trả hàng sau khi đã nhận hàng."})
+    if order.returns.filter(status=PurchaseOrderReturnStatus.REQUESTED).exists():
+        raise ValidationError({"detail": "Đã có yêu cầu trả hàng đang chờ xử lý."})
+    if _all_items_fully_returned(order):
+        raise ValidationError({"detail": "Tất cả sản phẩm trong phiếu đã được trả hết."})
+
+    order_items_map = {
+        item.id: item
+        for item in order.items.select_related("supplier_product").all()
+    }
+    if not order_items_map:
+        raise ValidationError({"detail": "Phiếu không có sản phẩm để trả."})
+
+    returned_map = _get_returned_quantities_by_item_id(order)
+    seen_item_ids: set[int] = set()
+    refund_amount = Decimal("0")
+
+    po_return = PurchaseOrderReturn.objects.create(
+        purchase_order=order,
+        reason=reason,
+        evidence_file=evidence_file,
+        requested_by=user,
+    )
+
+    for row in items:
+        item_id = row["purchase_order_item_id"]
+        return_qty = row["quantity"]
+        line_reason = (row.get("reason") or "").strip()
+
+        if item_id in seen_item_ids:
+            raise ValidationError(
+                {"items": f"Trùng purchase_order_item_id={item_id} trong một yêu cầu."}
+            )
+        seen_item_ids.add(item_id)
+
+        order_item = order_items_map.get(item_id)
+        if order_item is None:
+            raise ValidationError(
+                {"items": f"Dòng hàng {item_id} không thuộc phiếu này."}
+            )
+
+        already_returned = returned_map.get(item_id, Decimal("0"))
+        returnable = _returnable_quantity(
+            order_item=order_item,
+            returned_qty=already_returned,
+        )
+        if return_qty > returnable:
+            raise ValidationError(
+                {
+                    "items": (
+                        f"Số lượng trả ({return_qty}) vượt quá còn lại "
+                        f"({returnable}) cho dòng {item_id}."
+                    )
+                }
+            )
+
+        line_refund = _compute_return_line_refund(order_item, return_qty)
+        PurchaseOrderReturnItem.objects.create(
+            purchase_order_return=po_return,
+            purchase_order_item=order_item,
+            quantity=return_qty,
+            reason=line_reason,
+        )
+        refund_amount += line_refund
+
+    po_return.refund_amount = refund_amount.quantize(Decimal("0.01"))
+    po_return.save(update_fields=["refund_amount"])
+    record_status_change(order, PurchaseOrderStatus.RETURN_REQUESTED, user, note=reason)
+    return po_return
+
+
+@transaction.atomic
+def supplier_review_return(po_return, user, *, approved, review_note=""):
+    """NCC duyệt/từ chối yêu cầu trả hàng PO."""
+    order = po_return.purchase_order
+    _ensure_not_terminal(order)
+    if order.status != PurchaseOrderStatus.RETURN_REQUESTED:
+        raise ValidationError({"detail": "Phiếu không ở trạng thái chờ xử lý trả hàng."})
+    if po_return.status != PurchaseOrderReturnStatus.REQUESTED:
+        raise ValidationError({"detail": "Yêu cầu trả hàng này đã được xử lý."})
+
+    note = (review_note or "").strip()
+    if not approved and not note:
+        raise ValidationError({"review_note": "Vui lòng nhập lý do từ chối trả hàng."})
+
+    po_return.reviewed_by = user
+    po_return.review_note = note
+    po_return.resolved_at = timezone.now()
+
+    if not approved:
+        po_return.status = PurchaseOrderReturnStatus.REJECTED
+        po_return.save(
+            update_fields=["status", "reviewed_by", "review_note", "resolved_at"]
+        )
+        record_status_change(
+            order,
+            PurchaseOrderStatus.DELIVERED,
+            user,
+            note=note or "Từ chối yêu cầu trả hàng",
+        )
+        return po_return
+
+    po_return.status = PurchaseOrderReturnStatus.APPROVED
+    po_return.save(
+        update_fields=["status", "reviewed_by", "review_note", "resolved_at"]
+    )
+
+    returned_value = po_return.refund_amount
+    order.total_amount = max(order.total_amount - returned_value, Decimal("0"))
+    order.debt_amount = max(order.total_amount - order.paid_amount, Decimal("0"))
+    order.save(update_fields=["total_amount", "debt_amount", "updated_at"])
+
+    if _all_items_fully_returned(order):
+        next_status = PurchaseOrderStatus.RETURNED
+        default_note = "Đã duyệt trả toàn bộ phiếu nhập"
+    else:
+        next_status = PurchaseOrderStatus.DELIVERED
+        default_note = "Đã duyệt trả một phần — phiếu tiếp tục xử lý phần còn lại"
+
+    record_status_change(order, next_status, user, note=note or default_note)
+    return po_return
 
 
 def _complete_order(order, user):
@@ -585,11 +789,16 @@ def _import_dealer_inventory(order, user):
                 "status": DealerProductStatus.ACTIVE,
             },
         )
-        qty = int(item.quantity)
+        qty = _remaining_import_quantity(order, item)
         if qty <= 0:
             continue
         batch_number = f"{order.order_code}-{item.id}"
         expiry_date = compute_batch_expiry_date(import_date, item.supplier_product)
+        production_date = compute_batch_production_date(
+            import_date,
+            item.supplier_product,
+            expiry_date=expiry_date,
+        )
         batch = DealerInventoryBatch.objects.create(
             dealer_product=dealer_product,
             purchase_order_item=item,
@@ -598,6 +807,7 @@ def _import_dealer_inventory(order, user):
             remaining_quantity=qty,
             import_price=item.unit_price,
             import_date=import_date,
+            production_date=production_date,
             expiry_date=expiry_date,
             status=DealerInventoryBatchStatus.ACTIVE,
         )

@@ -126,6 +126,7 @@ INSTALLED_APPS = [
     "apps.system_config",
     "apps.dashboard",
     "apps.training_models",
+    "apps.voucher",
 ]
 
 if CLOUDINARY_URL:

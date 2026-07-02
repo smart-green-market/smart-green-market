@@ -241,6 +241,15 @@ class StorefrontCultivationStepSerializer(serializers.ModelSerializer):
 class StorefrontProductDetailSerializer(StorefrontProductListSerializer):
     """Chi tiết sản phẩm — thêm bảo quản và quy trình canh tác từ NCC gốc."""
 
+    production_date = serializers.SerializerMethodField(
+        help_text="Ngày sản xuất lô FIFO buyer sẽ nhận (lưu trên lô tồn kho)",
+    )
+    expiry_date = serializers.SerializerMethodField(
+        help_text="Ngày hết hạn lô FIFO buyer sẽ nhận",
+    )
+    days_to_expiry = serializers.SerializerMethodField(
+        help_text="Số ngày còn lại đến hạn (tính từ hôm nay)",
+    )
     supplier_product_name = serializers.CharField(
         source="supplier_product.name",
         read_only=True,
@@ -274,8 +283,31 @@ class StorefrontProductDetailSerializer(StorefrontProductListSerializer):
         read_only=True,
     )
 
+    def _batch_dates(self, instance):
+        cached = getattr(instance, "_storefront_batch_dates", None)
+        if cached is None:
+            from apps.dealer_products.inventory_queries import (
+                sellable_batch_dates_for_display,
+            )
+
+            cached = sellable_batch_dates_for_display(instance)
+            instance._storefront_batch_dates = cached
+        return cached
+
+    def get_production_date(self, instance):
+        return self._batch_dates(instance)["production_date"]
+
+    def get_expiry_date(self, instance):
+        return self._batch_dates(instance)["expiry_date"]
+
+    def get_days_to_expiry(self, instance):
+        return self._batch_dates(instance)["days_to_expiry"]
+
     class Meta(StorefrontProductListSerializer.Meta):
         fields = StorefrontProductListSerializer.Meta.fields + [
+            "production_date",
+            "expiry_date",
+            "days_to_expiry",
             "supplier_product_name",
             "supplier_name",
             "storage_duration_days",

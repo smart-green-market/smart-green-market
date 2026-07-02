@@ -3,6 +3,8 @@ import { useState, useEffect } from "react";
 import { toast } from "sonner";
 import { XCircle, CheckCircle, RotateCcw } from "lucide-react";
 import { purchaseOrderService } from "../../../services/api/purchaseOrderService";
+import RejectModal from "../../../components/common/RejectModal";
+import RequestReturnModal from "../../../components/Dealer/PurchaseOrderDetail/RequestReturnModal";
 import OrderDetailHeader from "../../../components/Dealer/PurchaseOrderDetail/OrderDetailHeader";
 import OrderDetailInfoCards from "../../../components/Dealer/PurchaseOrderDetail/OrderDetailInfoCards";
 import OrderDetailItemsTable from "../../../components/Dealer/PurchaseOrderDetail/OrderDetailItemsTable";
@@ -35,6 +37,8 @@ export default function DealerPurchaseOrderDetailPage() {
 
   const [orderData, setOrderData] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [isCancelModalOpen, setIsCancelModalOpen] = useState(false);
+  const [isReturnModalOpen, setIsReturnModalOpen] = useState(false);
 
   // Hàm lấy chi tiết phiếu nhập từ API
   const fetchOrderDetail = async () => {
@@ -153,30 +157,59 @@ export default function DealerPurchaseOrderDetailPage() {
     }
   };
 
-  // Xử lý hủy đơn hàng
-  const handleRejectOrCancelOrder = async () => {
-    const reason = window.prompt(
-      "Nhập lý do hủy phiếu nhập hàng này (bắt buộc):",
-    );
-    if (reason === null) return; // Nhấn Cancel
+  // Xử lý hủy đơn hàng - Mở modal nhập lý do
+  const handleRejectOrCancelOrder = () => {
+    setIsCancelModalOpen(true);
+  };
 
-    if (!reason.trim()) {
-      toast.error("Vui lòng nhập lý do để hủy đơn!", { position: "top-center", duration: 5000 },);
-      return;
-    }
-
-    setLoading(true);
+  // Xác nhận hủy đơn hàng từ modal
+  const handleCancelOrderConfirm = async (reason) => {
     try {
-      await purchaseOrderService.cancel(id, { note: reason.trim() });
+      await purchaseOrderService.cancel(id, { note: reason });
       toast.success(`Đã hủy phiếu nhập ${orderData.id} thành công!`);
       await fetchOrderDetail();
     } catch (error) {
       console.error("Lỗi khi hủy phiếu nhập:", error);
       toast.error(
-        error.response?.data?.detail || "Không thể hủy phiếu nhập hàng.", { position: "top-center", duration: 5000 },
+        error.response?.data?.detail || "Không thể hủy phiếu nhập hàng.",
+        { position: "top-center", duration: 5000 },
       );
-    } finally {
-      setLoading(false);
+      throw error; // Ném lỗi để modal giữ trạng thái loading/không tự đóng
+    }
+  };
+
+  // Mở modal yêu cầu trả hàng
+  const handleRequestReturn = () => {
+    setIsReturnModalOpen(true);
+  };
+
+  // Xác nhận gửi yêu cầu trả hàng từ modal
+  const handleRequestReturnConfirm = async (reason, evidenceFile, selectedItems) => {
+    const formData = new FormData();
+    formData.append("reason", reason);
+    if (evidenceFile) {
+      formData.append("evidence_file", evidenceFile);
+    }
+
+    if (selectedItems && selectedItems.length > 0) {
+      selectedItems.forEach((item, index) => {
+        formData.append(`items[${index}]purchase_order_item_id`, item.purchase_order_item_id);
+        formData.append(`items[${index}]quantity`, item.quantity);
+        if (item.reason) {
+          formData.append(`items[${index}]reason`, item.reason);
+        }
+      });
+    }
+
+    try {
+      await purchaseOrderService.requestReturn(id, formData);
+      toast.success("Gửi yêu cầu trả hàng thành công!");
+      await fetchOrderDetail();
+    } catch (error) {
+      console.error("Lỗi khi gửi yêu cầu trả hàng:", error);
+      const errMsg = error.response?.data?.detail || "Không thể gửi yêu cầu trả hàng.";
+      toast.error(errMsg, { position: "top-center", duration: 5000 });
+      throw error; // Ném lỗi để giữ modal mở và dừng loading
     }
   };
 
@@ -194,8 +227,8 @@ export default function DealerPurchaseOrderDetailPage() {
   // Kiểm tra điều kiện hiển thị nút nhận hàng (status === 'shipping')
   const showConfirmDelivery = orderData.rawStatus === "shipping";
 
-  // Kiểm tra điều kiện hiển thị nút yêu cầu trả hàng (status === 'completed')
-  const showReturnRequest = orderData.rawStatus === "completed";
+  // Kiểm tra điều kiện hiển thị nút yêu cầu trả hàng (status === 'delivered')
+  const showReturnRequest = orderData.rawStatus === "delivered";
 
   return (
     <div className="font-['Geist',sans-serif] pb-12 px-4 sm:px-8 md:px-16 lg:px-24 bg-emerald-50/15 min-h-screen pt-6">
@@ -273,7 +306,7 @@ export default function DealerPurchaseOrderDetailPage() {
 
         {showReturnRequest && (
           <button
-            // onClick={handleRequestReturn}
+            onClick={handleRequestReturn}
             className="flex items-center justify-center gap-2 px-6 h-11 bg-red-600 hover:bg-red-700 text-white rounded-xl text-xs font-bold transition-all shadow-xs cursor-pointer min-w-44 active:scale-95"
           >
             <RotateCcw className="w-4 h-4" />
@@ -281,6 +314,27 @@ export default function DealerPurchaseOrderDetailPage() {
           </button>
         )}
       </div>
+
+      <RejectModal
+        isOpen={isCancelModalOpen}
+        onClose={() => setIsCancelModalOpen(false)}
+        onConfirm={handleCancelOrderConfirm}
+        title="Hủy phiếu nhập"
+        message="Bạn có chắc chắn muốn hủy phiếu nhập hàng này không?"
+        confirmText="Hủy phiếu nhập"
+        cancelText="Đóng"
+        reasonLabel="Lý do hủy"
+        reasonPlaceholder="Nhập lý do hủy phiếu nhập hàng..."
+        reasonRequiredMessage="Vui lòng nhập lý do hủy."
+        showToast={false}
+      />
+
+      <RequestReturnModal
+        isOpen={isReturnModalOpen}
+        onClose={() => setIsReturnModalOpen(false)}
+        onConfirm={handleRequestReturnConfirm}
+        orderItems={orderData?.items || []}
+      />
     </div>
   );
 }
