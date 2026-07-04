@@ -151,9 +151,46 @@ export const supplierService = {
     axiosClient.post(`/suppliers/${id}/verify/`, data).then((res) => res.data),
 
   // id
-  getbyIdSupplier: (id) =>{
-  return axiosClient.get(`/suppliers/${id}/documents/`)
-  }
+  getbyIdSupplier: (id) => {
+    return axiosClient.get(`/suppliers/${id}/documents/`);
+  },
+
+  // --- ADMIN FINANCE
+  getFinanceOverview: (params = {}) =>
+    axiosClient
+      .get("/suppliers/finance-overview/", { params })
+      .then((res) => res.data),
+  // {
+  //   "total_system_revenue": "1000000000",
+  //   "total_cash_in": "800000000",
+  //   "total_cash_out": "200000000",
+  //   "total_commission": "50000000",
+  //   "average_commission_rate": "5.5",
+  //   "supplier_count": 12
+  // }
+
+  getFinanceList: (params = {}) =>
+    axiosClient.get("/suppliers/finance/", { params }).then((res) => res.data),
+  // Phân trang: ?page=1&page_size=5&search=&verification_status=
+  // {
+  //   "count": 12,
+  //   "next": "...",
+  //   "previous": null,
+  //   "results": [{
+  //     "id": 1,
+  //     "company_name": "Cong ty ABC",
+  //     "tax_code": "0123456789",
+  //     "verification_status": "approved",
+  //     "total_revenue": "500000000",
+  //     "cash_in": "400000000",
+  //     "cash_out": "100000000",
+  //     "commission_rate": "5",
+  //     "commission_amount": "25000000",
+  //     "net_revenue": "475000000",
+  //     "order_count": 42,
+  //     "cash_flow": [{ "month": "2026-01", "in": 10000000, "out": 2000000 }]
+  //   }]
+  // }
 };
 
 // Xử lý bug

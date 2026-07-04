@@ -8,3 +8,14 @@
     backface-visibility: hidden;
   }
 }
+
+@layer components {
+  [data-sonner-toaster] {
+    --width: auto;
+  }
+
+  [data-sonner-toast][data-styled="true"] {
+    width: fit-content !important;
+    max-width: min(420px, calc(100vw - 2rem));
+  }
+}
