@@ -68,15 +68,6 @@ export default function CategorySupplierPage() {
 
   return (
     <div className={SUPPLIER_PAGE_CLASS}>
-      {/* Toolbar */}
-      <div className="flex justify-between items-center">
-        <input
-          value={search}
-          onChange={e => setSearch(e.target.value)}
-          placeholder="Tìm kiếm danh mục"
-          className="px-4 py-2 border border-neutral-200 rounded-lg text-sm w-72 outline-none focus:border-emerald-600"
-        />
-
         {/* Action buttons */}
         <div className="flex items-center gap-2">
           <button
@@ -90,16 +81,7 @@ export default function CategorySupplierPage() {
             Thêm danh mục
           </button>
         </div>
-      </div>
-
-      {/* Status filter chips */}
-      <div className="flex items-center gap-3">
-        <span className="text-xs font-semibold text-neutral-400 uppercase tracking-wide font-['Geist',sans-serif]">
-          Lọc:
-        </span>
-        <Filter value={statusFilter} onChange={setStatusFilter} />
-      </div>
-
+        
       {/* Data table */}
       <CategoryTable
         data={data}
