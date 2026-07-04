@@ -73,7 +73,7 @@ export default function CustomerHeader({
               onClick={handleUpdate}
               className="px-4 py-2.5 bg-[#006A3A] hover:bg-[#005A30] text-white rounded-xl text-sm font-bold transition-all active:scale-95 duration-150 cursor-pointer shadow-md"
             >
-              Cập nhật
+              Train AI
             </button>
           </div>
           {/* <button

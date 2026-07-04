@@ -183,7 +183,7 @@ SPECTACULAR_SETTINGS = {
         "x-tagGroups": [
             {
                 "name": "1. Hệ thống",
-                "tags": ["Auth", "System Config", "Banks", "Account Documents"],
+                "tags": ["Auth", "System Config", "Banks", "Account Documents", "Dashboard"],
             },
             {
                 "name": "2. Buyer — Gian hàng (B2C)",
@@ -265,6 +265,10 @@ SPECTACULAR_SETTINGS = {
                 "Swagger: multipart — chọn file cho từng loại giấy tờ. "
                 "Mỗi loại giấy tờ chỉ 1 file/tài khoản."
             ),
+        },
+        {
+            "name": "Dashboard",
+            "description": "Thống kê tổng quan, biểu đồ doanh thu và sản phẩm bán chạy cho Admin, Dealer và Supplier.",
         },
         # --- 2. Buyer — gian hàng đại lý (B2C) ---
         {

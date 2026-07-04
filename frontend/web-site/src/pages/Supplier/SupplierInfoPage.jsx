@@ -1151,7 +1151,7 @@ export default function SupplierInfoPage() {
     if (!Object.keys(changed).length) { setEditingPersonal(false); return; }
     try {
       setIsUpdatingPersonal(true);
-      await accountService.update(changed);
+      await accountService.updateProfile(changed);
       setSupplier((s) => ({ ...s, account: { ...s.account, ...changed } }));
       const saved = getLoggedInUser();
       if (saved) localStorage.setItem("user", JSON.stringify({ ...saved, ...changed }));

@@ -1,7 +1,7 @@
 import { Calendar } from "lucide-react";
 import { isNotificationUnread } from "../Admin/Notification/notificationFormatters";
 
-export default function NotificationDropdown({ items, onItemClick, onSeeMore }) {
+export default function NotificationDropdown({ items, onItemClick, onSeeMore, embedded = false }) {
     // Hàm format định dạng thời gian ngắn gọn
     const formatShortDate = (dateString) => {
         if (!dateString) return "";
@@ -15,7 +15,13 @@ export default function NotificationDropdown({ items, onItemClick, onSeeMore }) 
     };
 
     return (
-        <div className="absolute right-0 mt-2 w-80 bg-white rounded-xl shadow-xl border border-neutral-200 py-2 z-50 overflow-hidden transform origin-top-right transition-all">
+        <div
+            className={
+                embedded
+                    ? "w-full bg-white py-2 overflow-hidden"
+                    : "absolute right-0 mt-2 w-80 bg-white rounded-xl shadow-xl border border-neutral-200 py-2 z-50 overflow-hidden transform origin-top-right transition-all"
+            }
+        >
             <div className="px-4 py-2 border-b border-neutral-100 flex items-center justify-between bg-stone-50">
                 <span className="text-xs font-bold text-neutral-800 font-['Geist',sans-serif]">Thông báo mới nhận</span>
             </div>

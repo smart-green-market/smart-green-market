@@ -5,7 +5,8 @@ Luồng trạng thái:
   (buyer xác nhận nhận hàng từ shipping → completed, set delivered_at)
 
 - Tạo đơn: trừ tồn kho ngay (SALE), thanh toán COD.
-- Phase 1: không hủy đơn.
+- Hủy đơn trước giao: hoàn tồn (CANCEL_RESTORE).
+- Duyệt trả hàng sau completed: hoàn tồn (RETURN_RESTORE).
 """
 
 from decimal import Decimal
@@ -142,23 +143,47 @@ def _deduct_batch(batch, quantity, order_code, user):
     )
 
 
+def _restore_batch_quantity(*, batch, quantity, user, transaction_type, reason):
+    """Cộng lại tồn lô; kích hoạt lại batch nếu trước đó đã hết."""
+    batch = DealerInventoryBatch.objects.select_for_update().get(pk=batch.pk)
+    qty_before = batch.remaining_quantity
+    batch.remaining_quantity += quantity
+    if batch.status == DealerInventoryBatchStatus.DEPLETED:
+        batch.status = DealerInventoryBatchStatus.ACTIVE
+    batch.save(update_fields=["remaining_quantity", "status", "updated_at"])
+    DealerInventoryTransaction.objects.create(
+        batch=batch,
+        type=transaction_type,
+        quantity_before=qty_before,
+        quantity_change=quantity,
+        quantity_after=batch.remaining_quantity,
+        reason=reason,
+        created_by=user,
+    )
+
+
 def _restore_order_inventory(order, user, reason):
     """Hoàn lại tồn kho đã trừ khi đơn bị hủy trước giao hàng."""
     for item in order.items.select_related("batch"):
-        batch = DealerInventoryBatch.objects.select_for_update().get(pk=item.batch_id)
-        qty_before = batch.remaining_quantity
-        batch.remaining_quantity += item.quantity
-        if batch.status == DealerInventoryBatchStatus.DEPLETED:
-            batch.status = DealerInventoryBatchStatus.ACTIVE
-        batch.save(update_fields=["remaining_quantity", "status", "updated_at"])
-        DealerInventoryTransaction.objects.create(
-            batch=batch,
-            type=DealerInventoryTransactionType.CANCEL_RESTORE,
-            quantity_before=qty_before,
-            quantity_change=item.quantity,
-            quantity_after=batch.remaining_quantity,
+        _restore_batch_quantity(
+            batch=item.batch,
+            quantity=item.quantity,
+            user=user,
+            transaction_type=DealerInventoryTransactionType.CANCEL_RESTORE,
             reason=f"Hoàn tồn do hủy đơn {order.order_code}: {reason}",
-            created_by=user,
+        )
+
+
+def _restore_return_inventory(order_return, user, reason):
+    """Hoàn lại tồn kho khi dealer duyệt trả hàng buyer."""
+    order = order_return.order
+    for return_item in order_return.items.select_related("order_item__batch"):
+        _restore_batch_quantity(
+            batch=return_item.order_item.batch,
+            quantity=return_item.quantity,
+            user=user,
+            transaction_type=DealerInventoryTransactionType.RETURN_RESTORE,
+            reason=f"Hoàn tồn do trả hàng {order.order_code}: {reason}",
         )
 
 
@@ -544,6 +569,9 @@ def dealer_review_return(order_return, user, *, approved, review_note=""):
         update_fields=["status", "reviewed_by", "review_note", "resolved_at"]
     )
 
+    restore_note = note or "Đã duyệt trả toàn bộ đơn"
+    _restore_return_inventory(order_return, user, restore_note)
+
     returned_value = order_return.refund_amount
     order.paid_amount = max(order.paid_amount - returned_value, Decimal("0"))
     order.debt_amount = Decimal("0")
@@ -563,6 +591,6 @@ def dealer_review_return(order_return, user, *, approved, review_note=""):
         order,
         OrderStatus.RETURNED,
         user,
-        note=note or "Đã duyệt trả toàn bộ đơn",
+        note=restore_note,
     )
     return order_return

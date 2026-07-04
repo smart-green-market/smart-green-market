@@ -349,18 +349,7 @@ export default function FilterProduct() {
                             {pageProducts.map((product) => (
                                 <FilterProductCard
                                     key={product.id}
-                                    id={product.id}
-                                    brand={product.brand}
-                                    categoryName={product.category_name}
-                                    name={product.name}
-                                    price={product.price}
-                                    priceValue={product.priceValue}
-                                    unitKey={product.unitKey}
-                                    rating={product.rating}
-                                    availableQuantity={product.available_quantity}
-                                    unit={product.unit}
-                                    inStock={product.in_stock}
-                                    image={product.image}
+                                    {...product}
                                 />
                             ))}
                         </div>
