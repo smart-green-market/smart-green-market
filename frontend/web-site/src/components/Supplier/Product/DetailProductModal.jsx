@@ -6,6 +6,8 @@ import {
   XCircle, Loader2, Pencil, Save, Ban, Lock, LockOpen, ImageIcon, CircleDotDashed, Edit
 } from "lucide-react";
 import { productService } from "../../../services/api/productService";
+import ConfirmModal from "../../common/ConfirmModal";
+import { appToast } from "../../common/toast";
 import UpdateProductImagesModal from "./UpdateProductImagesModal";
 import {
   parseSupplierApiErrors,
@@ -262,12 +264,14 @@ export default function DetailProductModal({
   const [loadingCultivation, setLoadingCultivation] = useState(false);
   const [createRow, setCreateRow] = useState(null);
   const [editRow,setEditRow] = useState(null);
+  const [showConfirmSave, setShowConfirmSave] = useState(false);
   useEffect(() => {
     setProduct(initialProduct);
     setSaved(false);
     setError("");
     setShowImageModal(false);
     setCultivationSteps([]);
+    setShowConfirmSave(false);
   }, [initialProduct]);
 
   useEffect(() => {
@@ -310,6 +314,28 @@ export default function DetailProductModal({
   const field = (key) => product[key] ?? "";
   const update = (key, val) => setProduct(p => ({ ...p, [key]: val }));
 
+  const hasChanges = () => {
+    if (!product || !initialProduct) return false;
+    const fields = [
+      "name",
+      "wholesale_price",
+      "daily_production_capacity",
+      "description",
+      "storage_duration_days",
+      "min_storage_temp",
+      "max_storage_temp",
+    ];
+    for (const key of fields) {
+      const val1 = product[key] != null && product[key] !== "" ? String(product[key]) : "";
+      const val2 = initialProduct[key] != null && initialProduct[key] !== "" ? String(initialProduct[key]) : "";
+      if (val1 !== val2) return true;
+    }
+    const catId1 = product.category?.id ?? product.category ?? "";
+    const catId2 = initialProduct.category?.id ?? initialProduct.category ?? "";
+    if (String(catId1) !== String(catId2)) return true;
+    return false;
+  };
+
   const buildUpdatePayload = () => {
     const payload = {
       name: product.name?.trim() ?? "",
@@ -345,7 +371,7 @@ export default function DetailProductModal({
     return payload;
   };
 
-  const handleSave = async () => {
+  const handleSave = () => {
     setError("");
     const errs = validateProductForm({
       name: product.name,
@@ -361,7 +387,10 @@ export default function DetailProductModal({
       setError(errorsToSummary(errs));
       return;
     }
+    setShowConfirmSave(true);
+  };
 
+  const executeSave = async () => {
     setSaving(true);
     try {
       const payload = buildUpdatePayload();
@@ -387,8 +416,10 @@ export default function DetailProductModal({
         fallback: "Cập nhật sản phẩm thất bại. Vui lòng kiểm tra lại thông tin.",
       });
       setError(parsed.general || parsed.summary || extractSupplierApiMessage(err));
+      throw err;
     } finally {
       setSaving(false);
+      setShowConfirmSave(false);
     }
   };
 
@@ -428,10 +459,12 @@ export default function DetailProductModal({
           </div>
 
           <div className="flex items-center gap-2 ml-4 flex-shrink-0">
-            <button onClick={handleSave} disabled={saving}
+            <button onClick={handleSave} disabled={saving || !hasChanges()}
               className={`flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-sm font-semibold transition-all ${saved
                 ? "bg-green-100 text-green-700 border border-green-300"
-                : "bg-green-700 hover:bg-green-800 text-white shadow-sm"
+                : hasChanges()
+                  ? "bg-green-700 hover:bg-green-800 text-white shadow-sm"
+                  : "bg-zinc-100 text-zinc-400 border border-zinc-200 cursor-not-allowed"
                 } disabled:opacity-60`}>
               {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : saved ? <Check className="w-4 h-4" /> : <Save className="w-4 h-4" />}
               {saving ? "Đang lưu…" : saved ? "Đã lưu!" : "Lưu thay đổi"}
@@ -702,8 +735,11 @@ export default function DetailProductModal({
               className="px-4 py-2 text-sm font-medium text-zinc-600 bg-zinc-100 hover:bg-zinc-200 rounded-lg transition-colors">
               Đóng
             </button>
-            <button onClick={handleSave} disabled={saving}
-              className="flex items-center gap-1.5 px-4 py-2 text-sm font-semibold text-white bg-green-700 hover:bg-green-800 rounded-lg transition-colors disabled:opacity-60">
+            <button onClick={handleSave} disabled={saving || !hasChanges()}
+              className={`flex items-center gap-1.5 px-4 py-2 text-sm font-semibold rounded-lg transition-colors ${hasChanges()
+                ? "text-white bg-green-700 hover:bg-green-800"
+                : "bg-zinc-100 text-zinc-400 border border-zinc-200 cursor-not-allowed"
+                } disabled:opacity-60`}>
               {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
               {saving ? "Đang lưu…" : "Lưu thay đổi"}
             </button>
@@ -732,6 +768,18 @@ export default function DetailProductModal({
         process={editRow}
         onSuccess={refreshCultivationSteps}
         productId={product.id}
+      />
+      <ConfirmModal
+        isOpen={showConfirmSave}
+        onClose={() => setShowConfirmSave(false)}
+        onConfirm={executeSave}
+        title="Xác nhận lưu thay đổi"
+        message="Bạn có chắc chắn muốn lưu các thay đổi này không?"
+        confirmText="Xác nhận lưu"
+        cancelText="Hủy"
+        variant="success"
+        successMessage="Cập nhật sản phẩm thành công!"
+        errorMessage="Cập nhật sản phẩm thất bại. Vui lòng thử lại."
       />
       <style>{`
         @keyframes modalIn {
