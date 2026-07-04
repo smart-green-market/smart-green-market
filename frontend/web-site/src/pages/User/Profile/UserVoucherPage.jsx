@@ -49,7 +49,9 @@ export default function UserVoucherPage() {
                 page_size: 100 // Large limit to get all saved vouchers for checking status
             });
             const list = res?.results || (Array.isArray(res) ? res : []);
+            const count = res?.count ?? list.length;
             setAllSavedVouchers(list);
+            setSavedCount(count);
             return list;
         } catch (error) {
             console.error("Failed to load all saved vouchers:", error);
@@ -126,6 +128,16 @@ export default function UserVoucherPage() {
         try {
             await buyerVoucherService.saveVoucher(voucher.id);
             appToast.success(`Lưu mã ${voucher.code} thành công!`);
+
+            // Cập nhật ngay số lượng tab "Voucher của tôi" trước khi refetch
+            setSavedCount((prev) => prev + 1);
+            setAllSavedVouchers((prev) => {
+                const exists = prev.some(
+                    (sv) => sv.code?.toLowerCase() === voucher.code?.toLowerCase()
+                );
+                return exists ? prev : [...prev, voucher];
+            });
+
             await loadData(activeTab, currentPage);
         } catch (error) {
             appToast.error(handleApiError(error, "Lưu voucher thất bại"));
@@ -139,7 +151,13 @@ export default function UserVoucherPage() {
         try {
             await buyerVoucherService.unsaveVoucher(savedId);
             appToast.success(`Hủy lưu mã ${code} thành công!`);
-            
+
+            // Cập nhật ngay số lượng tab "Voucher của tôi"
+            setSavedCount((prev) => Math.max(0, prev - 1));
+            setAllSavedVouchers((prev) =>
+                prev.filter((sv) => sv.id !== savedId && sv.code?.toLowerCase() !== code?.toLowerCase())
+            );
+
             let targetPage = currentPage;
             // If we unsaved the last voucher on the current page, go back 1 page
             if (activeTab === "saved" && savedVouchers.length === 1 && currentPage > 1) {
