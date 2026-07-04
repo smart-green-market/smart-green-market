@@ -115,8 +115,11 @@ class CustomerSegmentationService:
     def execute_pipeline(self, dealer_id=None, t_days=30):
         # 1. Đọc dữ liệu từ Postgres thông qua Django và chuẩn hóa dữ liệu thành TensorFlow Tensor
         tensor_input, df, ordered_segments = self._preprocess_data(dealer_id, t_days)
-        if tensor_input is None:
-            return None, "Không có dữ liệu"
+        if df is None or len(df) == 0:
+            return None, "Không có dữ liệu khách hàng nào phát sinh giao dịch trong thời gian qua."
+            
+        if len(df) < self.k:
+            return None, f"Số lượng khách hàng hiện tại ({len(df)}) quá ít, không đủ điều kiện tối thiểu để chạy mô hình AI phân cụm (Yêu cầu tối thiểu {self.k} khách hàng)."
         # 2. Xử lý thuật toán toán học TensorFlow K-Means
         df_clustered = self._run_kmeans(tensor_input, df)
 
