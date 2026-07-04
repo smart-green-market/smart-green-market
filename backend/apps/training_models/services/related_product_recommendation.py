@@ -194,17 +194,23 @@ class RelatedProductRecommendationService:
                         break
                 
                 # --- LOGIC LƯU VÀO DATABASE ---
-                # Bước 1: Xóa gợi ý cũ của sản phẩm này để tránh trùng lặp dữ liệu
-                cursor.execute(
-                    f'DELETE FROM "{TABLE_NAME}" WHERE dealer_product_id = %s', 
-                    [int(product_id)]
-                )
-                
-                # Bước 2: Chèn dữ liệu mới
+                # Bước 1: Thử cập nhật bản ghi đã tồn tại (Giữ nguyên cột 'id' PK)
                 cursor.execute(
                     f"""
-                    INSERT INTO "{TABLE_NAME}" (dealer_product_id, related_product_ids, updated_at)
-                    VALUES (%s, %s, %s)
-                    """,
-                    [int(product_id), recommendations, current_time]
+                    UPDATE "{TABLE_NAME}" 
+                    SET related_product_ids = %s, updated_at = %s
+                    WHERE dealer_product_id = %s
+                    """, 
+                    [recommendations, current_time, int(product_id)]
                 )
+                
+                # Bước 2: Kiểm tra số dòng bị ảnh hưởng. 
+                # Nếu rowcount == 0, nghĩa là sản phẩm này chưa có trong DB -> Tiến hành thêm mới
+                if cursor.rowcount == 0:
+                    cursor.execute(
+                        f"""
+                        INSERT INTO "{TABLE_NAME}" (dealer_product_id, related_product_ids, updated_at)
+                        VALUES (%s, %s, %s)
+                        """,
+                        [int(product_id), recommendations, current_time]
+                    )
