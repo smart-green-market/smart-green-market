@@ -75,21 +75,13 @@ export default function DiscountTable({
 
 
   const scopeDetail = (policy) => {
-
-    if (policy.scope === 'category' && policy.category_name) {
-
-      return policy.category_name;
-
+    if (policy.scope === 'category') {
+      return policy.category_name || (policy.category && typeof policy.category === 'object' ? policy.category.name : null) || (policy.category ? `Danh mục #${policy.category}` : null);
     }
-
-    if (policy.scope === 'dealer_product' && policy.dealer_product_title) {
-
-      return policy.dealer_product_title;
-
+    if (policy.scope === 'dealer_product') {
+      return policy.dealer_product_title || (policy.dealer_product && typeof policy.dealer_product === 'object' ? policy.dealer_product.title : null) || (policy.dealer_product ? `Sản phẩm #${policy.dealer_product}` : null);
     }
-
     return null;
-
   };
 
 
@@ -165,16 +157,6 @@ export default function DiscountTable({
                           {SCOPE_LABELS[policy.scope] || policy.scope}
 
                         </span>
-
-                        {targetLabel && (
-
-                          <span className="text-xs text-gray-500 max-w-[220px] truncate" title={targetLabel}>
-
-                            {targetLabel}
-
-                          </span>
-
-                        )}
 
                       </div>
 

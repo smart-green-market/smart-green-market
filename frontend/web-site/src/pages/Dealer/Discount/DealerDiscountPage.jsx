@@ -171,8 +171,8 @@ export default function DealerDiscountPage() {
             {activeTab === 'policy' ? 'Quản lý chính sách giảm giá' : 'Quản lý Voucher & Khuyến mãi'}
           </h1>
           <p className="text-sm text-gray-500 mt-1">
-            {activeTab === 'policy' 
-              ? 'Tạo và quản lý các chính sách giảm giá cho sản phẩm' 
+            {activeTab === 'policy'
+              ? 'Tạo và quản lý các chính sách giảm giá cho sản phẩm'
               : 'Theo dõi và quản lý các chương trình mã giảm giá (voucher) áp dụng cho cửa hàng'
             }
           </p>
@@ -200,21 +200,19 @@ export default function DealerDiscountPage() {
       <div className="flex border-b border-gray-200 mb-6">
         <button
           onClick={() => setActiveTab("policy")}
-          className={`py-3 px-6 font-medium text-sm transition-colors relative ${
-            activeTab === "policy"
-              ? "text-green-600 border-b-2 border-green-600 font-semibold"
-              : "text-gray-500 hover:text-gray-700"
-          }`}
+          className={`py-3 px-6 font-medium text-sm transition-colors relative ${activeTab === "policy"
+            ? "text-green-600 border-b-2 border-green-600 font-semibold"
+            : "text-gray-500 hover:text-gray-700"
+            }`}
         >
           Chính sách chiết khấu
         </button>
         <button
           onClick={() => setActiveTab("voucher")}
-          className={`py-3 px-6 font-medium text-sm transition-colors relative ${
-            activeTab === "voucher"
-              ? "text-green-600 border-b-2 border-green-600 font-semibold"
-              : "text-gray-500 hover:text-gray-700"
-          }`}
+          className={`py-3 px-6 font-medium text-sm transition-colors relative ${activeTab === "voucher"
+            ? "text-green-600 border-b-2 border-green-600 font-semibold"
+            : "text-gray-500 hover:text-gray-700"
+            }`}
         >
           Voucher & Mã giảm giá
         </button>

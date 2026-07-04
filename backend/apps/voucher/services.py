@@ -10,6 +10,20 @@ from apps.promotions.models import (
 from apps.dealer_products.models import DealerProduct
 
 
+def normalize_decimal(val):
+    if val is None:
+        return None
+    if not isinstance(val, Decimal):
+        try:
+            val = Decimal(str(val))
+        except Exception:
+            return val
+    normalized = val.normalize()
+    if normalized == normalized.to_integral_value():
+        return int(normalized)
+    return float(normalized)
+
+
 class CartVoucherService:
     """
     Service xử lý nghiệp vụ áp dụng voucher cho giỏ hàng.
@@ -175,12 +189,12 @@ class CartVoucherService:
                 "code": voucher.code,
                 "title": voucher.title,
                 "discount_type": voucher.discount_type,
-                "discount_value": "{:.2f}".format(voucher.discount_value),
-                "min_order_amount": "{:.2f}".format(voucher.min_order_amount)
+                "discount_value": normalize_decimal(voucher.discount_value),
+                "min_order_amount": normalize_decimal(voucher.min_order_amount)
             },
-            "order_total": "{:.2f}".format(order_total),
-            "discount_amount": "{:.2f}".format(discount_amount),
-            "final_total": "{:.2f}".format(final_total)
+            "order_total": normalize_decimal(order_total),
+            "discount_amount": normalize_decimal(discount_amount),
+            "final_total": normalize_decimal(final_total)
         }
 
     @staticmethod

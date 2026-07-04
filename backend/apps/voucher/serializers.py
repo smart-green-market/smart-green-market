@@ -1,15 +1,41 @@
 # promotions/serializers.py
+from decimal import Decimal
+from django.db import IntegrityError
 from rest_framework import serializers
 from apps.promotions.models import (
     CustomerSavedVoucher,
     Promotion,
     PromotionScheduleType,
     PromotionTarget,
+    PromotionDiscountType,
 )
+
+
+class VoucherDecimalField(serializers.DecimalField):
+    def __init__(self, *args, **kwargs):
+        kwargs.setdefault('max_digits', 14)
+        kwargs.setdefault('decimal_places', 2)
+        super().__init__(*args, **kwargs)
+
+    def to_representation(self, value):
+        if value is None:
+            return None
+        if not isinstance(value, Decimal):
+            try:
+                value = Decimal(str(value))
+            except Exception:
+                return super().to_representation(value)
+        normalized = value.normalize()
+        if normalized == normalized.to_integral_value():
+            return int(normalized)
+        return float(normalized)
 
 
 class AvailablePromotionSerializer(serializers.ModelSerializer):
     is_saved = serializers.SerializerMethodField()
+    discount_value = VoucherDecimalField(read_only=True)
+    min_order_amount = VoucherDecimalField(read_only=True)
+    max_discount_amount = VoucherDecimalField(read_only=True)
 
     class Meta:
         model = Promotion
@@ -33,22 +59,16 @@ class SavedPromotionSerializer(serializers.ModelSerializer):
     title = serializers.CharField(source="promotion.title", read_only=True)
     description = serializers.CharField(source="promotion.description", read_only=True)
     discount_type = serializers.CharField(source="promotion.discount_type", read_only=True)
-    discount_value = serializers.DecimalField(
+    discount_value = VoucherDecimalField(
         source="promotion.discount_value",
-        max_digits=12,
-        decimal_places=2,
         read_only=True,
     )
-    min_order_amount = serializers.DecimalField(
+    min_order_amount = VoucherDecimalField(
         source="promotion.min_order_amount",
-        max_digits=14,
-        decimal_places=2,
         read_only=True,
     )
-    max_discount_amount = serializers.DecimalField(
+    max_discount_amount = VoucherDecimalField(
         source="promotion.max_discount_amount",
-        max_digits=14,
-        decimal_places=2,
         read_only=True,
     )
     start_date = serializers.DateTimeField(source="promotion.start_date", read_only=True)
@@ -110,6 +130,76 @@ class PromotionTargetSerializer(serializers.ModelSerializer):
 
 class PromotionSerializer(serializers.ModelSerializer):
     targets = PromotionTargetSerializer(many=True, required=False)
+    title = serializers.CharField(
+        error_messages={
+            "blank": "Tiêu đề voucher không được để trống.",
+            "required": "Tiêu đề voucher không được để trống.",
+        }
+    )
+    # ĐÃ BỎ UniqueValidator ở đây — check trùng code được xử lý tập trung
+    # trong validate() bên dưới (dùng đúng giá trị đã chuẩn hóa .strip().upper())
+    code = serializers.CharField(
+        error_messages={
+            "blank": "Mã voucher không được để trống.",
+            "required": "Mã voucher không được để trống.",
+        }
+    )
+    discount_type = serializers.ChoiceField(
+        choices=PromotionDiscountType.choices,
+        error_messages={
+            "invalid_choice": "Loại giảm giá không hợp lệ.",
+            "required": "Vui lòng chọn loại giảm giá.",
+        }
+    )
+    discount_value = VoucherDecimalField(
+        required=True,
+        error_messages={
+            "invalid": "Mức giảm giá phải là số hợp lệ.",
+            "required": "Vui lòng nhập mức giảm giá.",
+        }
+    )
+    min_order_amount = VoucherDecimalField(
+        required=False,
+        default=0,
+        error_messages={
+            "invalid": "Giá trị đơn hàng tối thiểu phải là số hợp lệ.",
+        }
+    )
+    max_discount_amount = VoucherDecimalField(
+        required=False,
+        allow_null=True,
+        error_messages={
+            "invalid": "Mức giảm tối đa phải là số hợp lệ.",
+        }
+    )
+    start_date = serializers.DateTimeField(
+        required=True,
+        error_messages={
+            "invalid": "Ngày bắt đầu không đúng định dạng.",
+            "required": "Vui lòng chọn ngày bắt đầu.",
+        }
+    )
+    end_date = serializers.DateTimeField(
+        required=True,
+        error_messages={
+            "invalid": "Ngày kết thúc không đúng định dạng.",
+            "required": "Vui lòng chọn ngày kết thúc.",
+        }
+    )
+    usage_limit = serializers.IntegerField(
+        required=False,
+        allow_null=True,
+        error_messages={
+            "invalid": "Giới hạn sử dụng phải là số nguyên hợp lệ.",
+        }
+    )
+    usage_limit_per_customer = serializers.IntegerField(
+        required=False,
+        allow_null=True,
+        error_messages={
+            "invalid": "Giới hạn sử dụng trên mỗi khách hàng phải là số nguyên hợp lệ.",
+        }
+    )
 
     class Meta:
         model = Promotion
@@ -168,7 +258,7 @@ class PromotionSerializer(serializers.ModelSerializer):
             getattr(self.instance, "daily_end_time", None),
         )
         if start_date and end_date and start_date >= end_date:
-            raise serializers.ValidationError("start_date phải trước end_date")
+            raise serializers.ValidationError({"start_date": "Ngày bắt đầu phải trước ngày kết thúc."})
         if schedule_type == PromotionScheduleType.DAILY_TIME:
             if daily_start_time is None or daily_end_time is None:
                 raise serializers.ValidationError({
@@ -180,21 +270,15 @@ class PromotionSerializer(serializers.ModelSerializer):
                     "daily_end_time": "Giờ kết thúc phải khác giờ bắt đầu.",
                 })
 
-        # Kiểm tra tính duy nhất của mã voucher cho từng đại lý (UniqueConstraint)
+        # Kiểm tra tính duy nhất của mã voucher — code có unique=True TOÀN CỤC ở model,
+        # nên phải check global (không chỉ theo dealer) để khớp với constraint thật ở DB.
         code = attrs.get("code")
         if code:
-            request = self.context.get("request")
-            dealer = None
+            global_query = Promotion.objects.filter(code=code)
             if self.instance:
-                dealer = self.instance.dealer
-            elif request and request.user and hasattr(request.user, "dealer_profile"):
-                dealer = request.user.dealer_profile
+                global_query = global_query.exclude(id=self.instance.id)
 
-            query = Promotion.objects.filter(dealer=dealer, code=code)
-            if self.instance:
-                query = query.exclude(id=self.instance.id)
-
-            if query.exists():
+            if global_query.exists():
                 raise serializers.ValidationError({"code": "Mã voucher này đã tồn tại trong gian hàng của bạn."})
 
         return attrs
@@ -202,25 +286,38 @@ class PromotionSerializer(serializers.ModelSerializer):
     def create(self, validated_data):
         targets_data = validated_data.pop("targets", [])
         request = self.context.get("request")
-        
+
         # Determine dealer from request context
         if request and request.user:
             if hasattr(request.user, "dealer_profile"):
                 validated_data["dealer"] = request.user.dealer_profile
             validated_data["created_by"] = request.user
 
-        promotion = Promotion.objects.create(**validated_data)
+        try:
+            promotion = Promotion.objects.create(**validated_data)
+        except IntegrityError:
+            # Lưới an toàn cuối cùng cho race condition (2 request tạo cùng lúc)
+            raise serializers.ValidationError({
+                "code": ["Mã voucher này đã tồn tại, vui lòng chọn mã khác."]
+            })
+
         for target_data in targets_data:
             PromotionTarget.objects.create(promotion=promotion, **target_data)
         return promotion
 
     def update(self, instance, validated_data):
         targets_data = validated_data.pop("targets", None)
-        
+
         # Update promotion fields
         for attr, value in validated_data.items():
             setattr(instance, attr, value)
-        instance.save()
+
+        try:
+            instance.save()
+        except IntegrityError:
+            raise serializers.ValidationError({
+                "code": ["Mã voucher này đã tồn tại, vui lòng chọn mã khác."]
+            })
 
         # Update targets if provided
         if targets_data is not None:
@@ -287,12 +384,12 @@ class CartVoucherResponseDetailSerializer(serializers.Serializer):
     code = serializers.CharField()
     title = serializers.CharField()
     discount_type = serializers.CharField()
-    discount_value = serializers.DecimalField(max_digits=12, decimal_places=2)
-    min_order_amount = serializers.DecimalField(max_digits=14, decimal_places=2)
+    discount_value = VoucherDecimalField()
+    min_order_amount = VoucherDecimalField()
 
 
 class CartApplyVoucherResponseSerializer(serializers.Serializer):
     voucher = CartVoucherResponseDetailSerializer()
-    order_total = serializers.DecimalField(max_digits=14, decimal_places=2)
-    discount_amount = serializers.DecimalField(max_digits=14, decimal_places=2)
-    final_total = serializers.DecimalField(max_digits=14, decimal_places=2)
+    order_total = VoucherDecimalField()
+    discount_amount = VoucherDecimalField()
+    final_total = VoucherDecimalField()
