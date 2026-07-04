@@ -84,7 +84,6 @@ export default function ProductDetailPage() {
                 const relatedList = await fetchRelatedBuyerProducts(
                     paths.slug,
                     detail.id,
-                    detail.category_id,
                     10,
                 );
                 if (!cancelled) setRelated(relatedList);
@@ -204,10 +203,7 @@ export default function ProductDetailPage() {
                 </div>
             </div>
 
-            <RelatedProducts
-                products={related}
-                categoryName={product.category_name}
-            />
+            <RelatedProducts products={related} />
         </>
     );
 }
