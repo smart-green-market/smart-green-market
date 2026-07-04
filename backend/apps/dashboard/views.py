@@ -30,6 +30,7 @@ class DealerDashboardViewSet(viewsets.ViewSet):
 
     @extend_schema(
         summary="Tổng quan Dashboard Đại lý",
+        tags=["Dashboard"],
         description="Lấy thông tin tổng quan của đại lý bao gồm: Doanh thu hôm nay (và % tăng trưởng so với hôm qua), số đơn hàng mới/đang chờ, tổng tồn kho và số lượng cảnh báo (hết hạn/sắp hết hàng).",
         responses={
             200: inline_serializer(
@@ -164,6 +165,7 @@ class DealerDashboardViewSet(viewsets.ViewSet):
 
     @extend_schema(
         summary="Biểu đồ doanh thu Đại lý (7 ngày)",
+        tags=["Dashboard"],
         description="Lấy thống kê doanh thu theo từng ngày trong vòng 7 ngày qua để vẽ biểu đồ.",
         responses={
             200: inline_serializer(
@@ -215,6 +217,7 @@ class DealerDashboardViewSet(viewsets.ViewSet):
 
     @extend_schema(
         summary="Sản phẩm bán chạy nhất (Đại lý)",
+        tags=["Dashboard"],
         description="Lấy danh sách 10 sản phẩm bán chạy nhất của Đại lý dựa trên tổng doanh thu từ trước đến nay.\n\nsales: Tổng số lượng sản phẩm đã bán",
         responses={
             200: inline_serializer(
@@ -286,6 +289,7 @@ class SupplierDashboardViewSet(viewsets.ViewSet):
 
     @extend_schema(
         summary="Tổng quan Dashboard Nhà cung cấp",
+        tags=["Dashboard"],
         description="Lấy dữ liệu thống kê tổng quan của Nhà cung cấp:  \n\n this_month: doanh thu tháng này \n\n  orders.new_this_month: số đơn hàng mới \n\n orders.pending: số đơn đang chờ xử lý \n\n products.active_count: số sản phẩm đang bán.",
         responses={
             200: inline_serializer(
@@ -370,6 +374,7 @@ class SupplierDashboardViewSet(viewsets.ViewSet):
 
     @extend_schema(
         summary="Biểu đồ doanh thu Nhà cung cấp (6 tháng)",
+        tags=["Dashboard"],
         description="Lấy thống kê doanh thu theo tháng trong vòng 6 tháng gần nhất để vẽ biểu đồ.",
         responses={
             200: inline_serializer(
@@ -427,6 +432,7 @@ class SupplierDashboardViewSet(viewsets.ViewSet):
 
     @extend_schema(
         summary="Sản phẩm bán chạy nhất (Nhà cung cấp)",
+        tags=["Dashboard"],
         description="Lấy danh sách 10 sản phẩm bán chạy nhất của Nhà cung cấp.\n\nsales: Tổng số lượng sản phẩm đã bán",
         responses={
             200: inline_serializer(
@@ -485,6 +491,7 @@ class AdminDashboardViewSet(viewsets.ViewSet):
 
     @extend_schema(
         summary="Tổng quan Dashboard Admin",
+        tags=["Dashboard"],
         description="Lấy dữ liệu thống kê tổng quan của toàn nền tảng cho Admin: doanh thu tháng hiện tại, số đại lý và nhà cung cấp đang hoạt động, và số lượng khách hàng đăng ký mới trong tháng.",
         responses={
             200: inline_serializer(
@@ -548,6 +555,7 @@ class AdminDashboardViewSet(viewsets.ViewSet):
 
     @extend_schema(
         summary="Biểu đồ doanh thu toàn hệ thống (6 tháng)",
+        tags=["Dashboard"],
         description="Lấy thống kê doanh thu toàn nền tảng theo tháng trong vòng 6 tháng gần nhất để vẽ biểu đồ.",
         responses={
             200: inline_serializer(
@@ -604,6 +612,7 @@ class AdminDashboardViewSet(viewsets.ViewSet):
 
     @extend_schema(
         summary="Top Đại lý có doanh thu cao nhất",
+        tags=["Dashboard"],
         description="Danh sách 10 Đại lý có tổng doanh thu (các đơn hàng đã hoàn tất) cao nhất toàn hệ thống.",
         responses={
             200: inline_serializer(
@@ -646,6 +655,7 @@ class AdminDashboardViewSet(viewsets.ViewSet):
 
     @extend_schema(
         summary="Top Nhà cung cấp có doanh thu cao nhất",
+        tags=["Dashboard"],
         description="Danh sách 10 Nhà cung cấp có tổng doanh thu (từ các phiếu nhập hàng đã giao/hoàn tất) cao nhất.",
         responses={
             200: inline_serializer(
@@ -688,6 +698,7 @@ class AdminDashboardViewSet(viewsets.ViewSet):
 
     @extend_schema(
         summary="Sản phẩm bán chạy nhất toàn nền tảng",
+        tags=["Dashboard"],
         description="Lấy danh sách 10 sản phẩm có tổng doanh thu cao nhất, so sánh cả sản phẩm của Đại lý (B2C) và Nhà cung cấp (B2B).\n\nsales: Tổng số lượng sản phẩm đã bán",
         responses={
             200: inline_serializer(

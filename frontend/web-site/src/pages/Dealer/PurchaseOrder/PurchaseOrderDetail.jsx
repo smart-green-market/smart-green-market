@@ -55,9 +55,9 @@ export default function DealerPurchaseOrderDetailPage() {
       // Chuẩn hóa cấu trúc dữ liệu từ API
       const mappedOrder = {
         id: data.order_code,
-        date: new Date(data.created_at).toLocaleDateString("vi-VN"),
+        date: new Date(data.created_at).toLocaleDateString("vi-VN", { day: '2-digit', month: '2-digit', year: 'numeric' }),
         deliveryDate: (data.confirmed_delivery_time || data.requested_delivery_time)
-          ? new Date(data.confirmed_delivery_time || data.requested_delivery_time).toLocaleDateString("vi-VN")
+          ? new Date(data.confirmed_delivery_time || data.requested_delivery_time).toLocaleDateString("vi-VN", { day: '2-digit', month: '2-digit', year: 'numeric' })
           : "Chưa xác định",
         completedAt: data.completed_at
           ? new Date(data.completed_at).toLocaleString("vi-VN")
