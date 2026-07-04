@@ -28,4 +28,18 @@ export const customerService = {
     axiosClient
       .patch(`/dealer-customers/${id}/`, data)
       .then((res) => res.data),
+
+  /**
+   * Chạy pipeline phân khúc khách hàng AI
+   * POST /ai/customer-segmentation/
+   */
+  runSegmentation: (dealerId, tDays) => {
+    const origin = axiosClient.defaults.baseURL.split("/api")[0];
+    return axiosClient
+      .post(`${origin}/ai/customer-segmentation/`, {
+        dealer_id: Number(dealerId),
+        t_days: Number(tDays),
+      })
+      .then((res) => res.data);
+  },
 };

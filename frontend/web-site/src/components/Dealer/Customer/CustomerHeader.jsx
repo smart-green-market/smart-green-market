@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { Download, Plus, Users, Award, TrendingUp, XCircle, Clock } from "lucide-react";
 
 const STAT_CARDS = [
@@ -36,7 +37,17 @@ export default function CustomerHeader({
   countStatus = null,
   totalCount = 0,
   totalOrders = 0,
+  onUpdateDays,
 }) {
+  const [days, setDays] = useState("");
+
+  const handleUpdate = () => {
+    if (onUpdateDays) {
+      onUpdateDays(days);
+    } else {
+      console.log("Cập nhật số ngày:", days);
+    }
+  };
 
   return (
     <>
@@ -49,6 +60,22 @@ export default function CustomerHeader({
           </p>
         </div>
         <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2">
+            <input
+              type="number"
+              name="Nhập số ngày"
+              placeholder="Nhập số ngày"
+              value={days}
+              onChange={(e) => setDays(e.target.value)}
+              className="w-32 px-4 py-2.5 border border-neutral-200 rounded-xl text-sm font-medium text-neutral-800 placeholder-neutral-400 focus:outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100 transition-all duration-200 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+            />
+            <button
+              onClick={handleUpdate}
+              className="px-4 py-2.5 bg-[#006A3A] hover:bg-[#005A30] text-white rounded-xl text-sm font-bold transition-all active:scale-95 duration-150 cursor-pointer shadow-md"
+            >
+              Cập nhật
+            </button>
+          </div>
           {/* <button
             onClick={onExport}
             className="flex items-center gap-2 px-4 py-2.5 bg-emerald-100 hover:bg-emerald-200 text-emerald-800 rounded-xl text-sm font-bold transition-colors"
