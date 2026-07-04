@@ -7,6 +7,7 @@ Router: config/urls.py → purchase_orders/urls.py → PurchaseOrderViewSet
 | GET/POST /api/purchase-orders/ | Dealer (POST) | create_purchase_orders |
 | GET /api/purchase-orders/{id}/ | All (phân quyền) | — |
 | POST .../confirm/ | Supplier | supplier_confirm_order |
+| POST .../approve-adjustment/ | Dealer | dealer_approve_adjustment |
 | POST .../reject/ | Supplier | supplier_reject_order |
 | GET .../payment-qr/ | Dealer | get_payment_qr |
 | POST .../submit-deposit/ | Dealer | dealer_submit_payment |
@@ -45,6 +46,7 @@ from common.verify_openapi import (
 
 from . import services
 from .openapi import (
+    PO_APPROVE_ADJUSTMENT_DESCRIPTION,
     PO_CANCEL_DESCRIPTION,
     PO_CONFIRM_DELIVERY_DESCRIPTION,
     PO_CONFIRM_DESCRIPTION,
@@ -280,6 +282,28 @@ class PurchaseOrderViewSet(viewsets.GenericViewSet):
             deposit_percent=serializer.validated_data.get("deposit_percent"),
             note=serializer.validated_data.get("note", ""),
             confirmed_delivery_time=serializer.validated_data["confirmed_delivery_time"],
+            items_data=serializer.validated_data.get("items"),
+        )
+        return Response(_detail_response(order, request))
+
+    @extend_schema(
+        tags=["Purchase Orders"],
+        summary="[Bước 2c] Dealer đồng ý điều chỉnh NCC",
+        description=PO_APPROVE_ADJUSTMENT_DESCRIPTION,
+        request=NoteSerializer,
+        responses={200: PurchaseOrderDetailSerializer},
+    )
+    @action(detail=True, methods=["post"], url_path="approve-adjustment")
+    def approve_adjustment(self, request, pk=None):
+        order = self.get_object()
+        if order.dealer.account_id != request.user.id:
+            return Response({"detail": "Không có quyền."}, status=status.HTTP_403_FORBIDDEN)
+        serializer = NoteSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        order = services.dealer_approve_adjustment(
+            order,
+            request.user,
+            note=serializer.validated_data.get("note", ""),
         )
         return Response(_detail_response(order, request))
 

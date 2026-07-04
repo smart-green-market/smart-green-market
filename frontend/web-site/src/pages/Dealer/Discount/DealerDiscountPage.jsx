@@ -10,8 +10,14 @@ import CreateVoucherModal from '../../../components/Dealer/Discount/CreateVouche
 import VoucherDetailModal from '../../../components/Dealer/Discount/VoucherDetailModal';
 import EditVoucherModal from '../../../components/Dealer/Discount/EditVoucherModal';
 import DiscountFilterBar from '../../../components/Dealer/Discount/DiscountFilterBar';
+import VoucherFilterBar from '../../../components/Dealer/Discount/VoucherFilterBar';
 import DiscountTable from '../../../components/Dealer/Discount/DiscountTable';
 import VoucherTable from '../../../components/Dealer/Discount/VoucherTable';
+import {
+  formatDiscountApiError,
+  normalizeIsActive,
+} from '../../../components/Dealer/Discount/discountPolicyUtils';
+
 
 export default function DealerDiscountPage() {
   const [activeTab, setActiveTab] = useState("policy"); // "policy" or "voucher"
@@ -69,7 +75,9 @@ export default function DealerDiscountPage() {
       };
       if (search) params.search = search;
       if (status !== 'all') params.is_active = status === 'active';
-      if (scope !== 'all') params.scope = scope;
+      if (scope !== 'all') {
+        params.scope = scope === 'all_products' ? 'all' : scope;
+      }
 
       const data = await discountService.getAll(params);
 
@@ -106,20 +114,26 @@ export default function DealerDiscountPage() {
   };
 
   const handleToggleActive = async (policy) => {
-    try {
-      const newStatus = !policy.is_active;
-      // We only send the updated is_active field to patch endpoint
-      await discountService.update(policy.id, { is_active: newStatus });
+    const previousStatus = normalizeIsActive(policy.is_active);
+    const newStatus = !previousStatus;
 
-      setPolicies(prevPolicies =>
-        prevPolicies.map(p =>
-          p.id === policy.id ? { ...p, is_active: newStatus } : p
-        )
-      );
+    setPolicies((prevPolicies) =>
+      prevPolicies.map((p) =>
+        p.id === policy.id ? { ...p, is_active: newStatus } : p
+      )
+    );
+
+    try {
+      await discountService.update(policy.id, { is_active: newStatus });
       toast.success(`Đã ${newStatus ? 'bật' : 'tắt'} chính sách thành công`);
     } catch (error) {
-      console.error("Error toggling policy:", error);
-      toast.error("Không thể thay đổi trạng thái. Vui lòng thử lại.");
+      console.error('Error toggling policy:', error);
+      setPolicies((prevPolicies) =>
+        prevPolicies.map((p) =>
+          p.id === policy.id ? { ...p, is_active: previousStatus } : p
+        )
+      );
+      toast.error(formatDiscountApiError(error));
     }
   };
 
@@ -227,9 +241,9 @@ export default function DealerDiscountPage() {
               <div className="w-16 h-16 bg-green-50 text-green-600 rounded-full flex items-center justify-center mx-auto mb-4">
                 <Percent size={32} />
               </div>
-              <h3 className="text-lg font-medium text-gray-900 mb-2">Chưa có mã giảm giá nào</h3>
+              <h3 className="text-lg font-medium text-gray-900 mb-2">Chưa có chính sách giảm giá nào</h3>
               <p className="text-gray-500 max-w-sm mx-auto mb-6">
-                Bắt đầu tạo các chương trình khuyến mãi để thu hút khách hàng và tăng doanh thu.
+                Bắt đầu tạo chính sách giảm giá theo khung giờ để thu hút khách hàng và tăng doanh thu.
               </p>
             </div>
           ) : (
@@ -250,36 +264,14 @@ export default function DealerDiscountPage() {
       ) : (
         <>
           {/* Voucher Filter Bar */}
-          <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 mb-6 flex flex-col md:flex-row gap-4 items-center justify-between">
-            <div className="relative w-full md:w-96">
-              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">
-                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-search"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
-              </span>
-              <input
-                type="text"
-                placeholder="Tìm kiếm voucher theo mã hoặc tiêu đề..."
-                value={voucherSearch}
-                onChange={(e) => { setVoucherSearch(e.target.value); setVoucherPage(1); }}
-                className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
-              />
-            </div>
-            
-            <div className="flex w-full md:w-auto gap-4">
-              <select 
-                value={voucherStatus} 
-                onChange={(e) => { setVoucherStatus(e.target.value); setVoucherPage(1); }}
-                className="px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 bg-white"
-              >
-                <option value="all">Tất cả trạng thái</option>
-                <option value="draft">Nháp</option>
-                <option value="pending">Chờ duyệt</option>
-                <option value="active">Đang hoạt động</option>
-                <option value="inactive">Tạm dừng</option>
-                <option value="expired">Hết hạn</option>
-                <option value="rejected">Từ chối</option>
-              </select>
-            </div>
-          </div>
+          <VoucherFilterBar
+            search={voucherSearch}
+            setSearch={setVoucherSearch}
+            status={voucherStatus}
+            setStatus={setVoucherStatus}
+            setPage={setVoucherPage}
+          />
+
 
           {isVouchersLoading ? (
             <div className="flex justify-center items-center py-20">

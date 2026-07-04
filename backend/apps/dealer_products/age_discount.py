@@ -1,4 +1,4 @@
-"""Tính giá bán theo tuổi lô / chính sách giảm giá đại lý."""
+"""Tính giá bán theo chính sách giảm giá đại lý."""
 
 from dataclasses import dataclass
 from decimal import Decimal, ROUND_HALF_UP
@@ -13,9 +13,6 @@ from .models_age_discount import (
     AgeDiscountDiscountType,
     AgeDiscountPolicy,
     AgeDiscountScope,
-    AgeDiscountThresholdType,
-    AgeDiscountTier,
-    AgeDiscountTierOperator,
 )
 
 AgeDiscountSource = Literal["manual", "policy", "none"]
@@ -44,7 +41,6 @@ class BatchPriceResult:
     age_discount_source: AgeDiscountSource
     age_discount_reason: str
     applied_policy_id: int | None = None
-    applied_tier_id: int | None = None
     age_days: int | None = None
     days_to_expiry: int | None = None
     used_shelf_life_percent: Decimal | None = None
@@ -76,7 +72,7 @@ def _policy_in_date_range(policy, at):
         return False
     if policy.end_at and at > policy.end_at:
         return False
-    return True
+    return policy.is_within_daily_time(at)
 
 
 def _policy_applies_to_product(policy, dealer_product):
@@ -110,16 +106,16 @@ def build_policies_cache_for_batches(batches, at=None):
 
 
 def _load_active_policies(dealer, at):
-    return list(
+    policies = list(
         AgeDiscountPolicy.objects.filter(
             dealer=dealer,
             is_active=True,
         )
         .filter(Q(start_at__isnull=True) | Q(start_at__lte=at))
         .filter(Q(end_at__isnull=True) | Q(end_at__gte=at))
-        .prefetch_related("tiers")
         .select_related("category", "dealer_product")
     )
+    return [policy for policy in policies if policy.is_within_daily_time(at)]
 
 
 def resolve_age_discount_policy(
@@ -147,62 +143,19 @@ def resolve_age_discount_policy(
     )
 
 
-def _metric_for_threshold(metrics, threshold_type):
-    if threshold_type == AgeDiscountThresholdType.REMAINING_DAYS:
-        return metrics.days_to_expiry
-    if threshold_type == AgeDiscountThresholdType.USED_SHELF_LIFE_PERCENT:
-        return metrics.used_shelf_life_percent
-    if threshold_type == AgeDiscountThresholdType.AGE_DAYS:
-        return metrics.age_days
-    return None
-
-
-def _operator_matches(actual, operator, threshold):
-    if actual is None:
-        return False
-    threshold = Decimal(threshold)
-    actual = Decimal(actual)
-    if operator == AgeDiscountTierOperator.GTE:
-        return actual >= threshold
-    if operator == AgeDiscountTierOperator.LTE:
-        return actual <= threshold
-    if operator == AgeDiscountTierOperator.GT:
-        return actual > threshold
-    if operator == AgeDiscountTierOperator.LT:
-        return actual < threshold
-    return False
-
-
-def resolve_matching_tier(policy, metrics):
-    matched = []
-    for tier in policy.tiers.all():
-        actual = _metric_for_threshold(metrics, policy.threshold_type)
-        if _operator_matches(actual, tier.operator, tier.threshold_value):
-            matched.append(tier)
-    if not matched:
-        return None
-    return max(matched, key=lambda t: (t.sort_order, t.id))
-
-
-def _apply_tier_discount(base_price, tier):
-    if tier.discount_type == AgeDiscountDiscountType.PERCENT:
-        amount = base_price * tier.discount_value / Decimal("100")
+def _apply_policy_discount(base_price, policy):
+    if policy.discount_type == AgeDiscountDiscountType.PERCENT:
+        amount = base_price * policy.discount_value / Decimal("100")
     else:
-        amount = tier.discount_value
+        amount = policy.discount_value
     effective = base_price - amount
     return max(effective, Decimal("0"))
 
 
-def _build_policy_reason(policy, tier, metrics):
-    if policy.threshold_type == AgeDiscountThresholdType.REMAINING_DAYS:
-        days = metrics.days_to_expiry
-        return f"Giảm do hàng sắp hết hạn (còn {days} ngày)"
-    if policy.threshold_type == AgeDiscountThresholdType.USED_SHELF_LIFE_PERCENT:
-        pct = metrics.used_shelf_life_percent
-        return f"Giảm do hàng đã qua {pct}% thời hạn bảo quản"
-    if policy.threshold_type == AgeDiscountThresholdType.AGE_DAYS:
-        return f"Giảm do hàng tồn {metrics.age_days} ngày"
-    return policy.title
+def _build_policy_reason(policy):
+    if policy.discount_type == AgeDiscountDiscountType.PERCENT:
+        return f"{policy.title} - giảm {policy.discount_value}%"
+    return f"{policy.title} - giảm {policy.discount_value}đ"
 
 
 def _finalize_price_result(
@@ -213,7 +166,6 @@ def _finalize_price_result(
     reason,
     metrics=None,
     policy_id=None,
-    tier_id=None,
 ):
     discount_amount = max(base_price - effective, Decimal("0"))
     discount_percent = None
@@ -230,7 +182,6 @@ def _finalize_price_result(
         age_discount_source=source,
         age_discount_reason=reason,
         applied_policy_id=policy_id,
-        applied_tier_id=tier_id,
         age_days=metrics.age_days if metrics else None,
         days_to_expiry=metrics.days_to_expiry if metrics else None,
         used_shelf_life_percent=metrics.used_shelf_life_percent if metrics else None,
@@ -267,18 +218,15 @@ def compute_batch_effective_price(
         policies=policies,
     )
     if policy:
-        tier = resolve_matching_tier(policy, metrics)
-        if tier:
-            effective = _apply_tier_discount(base_price, tier)
-            return _finalize_price_result(
-                base_price=base_price,
-                effective=effective,
-                source="policy",
-                reason=_build_policy_reason(policy, tier, metrics),
-                metrics=metrics,
-                policy_id=policy.id,
-                tier_id=tier.id,
-            )
+        effective = _apply_policy_discount(base_price, policy)
+        return _finalize_price_result(
+            base_price=base_price,
+            effective=effective,
+            source="policy",
+            reason=_build_policy_reason(policy),
+            metrics=metrics,
+            policy_id=policy.id,
+        )
 
     return _finalize_price_result(
         base_price=base_price,

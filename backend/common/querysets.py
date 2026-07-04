@@ -158,6 +158,7 @@ def filter_supplier_products_for_dealer(qs, *, supplier_id=None, ordering=ORDER_
 
 PO_PENDING_STATUSES = (
     "pending_supplier_confirmation",
+    "pending_dealer_confirmation",
     "deposit_pending_verification",
     "final_payment_pending_verification",
 )

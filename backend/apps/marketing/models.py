@@ -4,7 +4,7 @@ from django.db import models
 
 
 class CustomerSegment(models.Model):
-    """Nhóm khách hàng trong phạm vi một đại lý."""
+    """Nhóm khách hàng — gán member qua CustomerProfile."""
 
     code = models.CharField(
         max_length=50,
@@ -26,12 +26,12 @@ class CustomerSegment(models.Model):
         constraints = [
             models.UniqueConstraint(
                 fields=["code"],
-                name="unique_customer_segment_code_per_dealer",
+                name="unique_customer_segment_code",
             ),
         ]
 
     def __str__(self):
-        return f"{self.name}"
+        return self.name
 
 
 class CustomerSegmentMember(models.Model):

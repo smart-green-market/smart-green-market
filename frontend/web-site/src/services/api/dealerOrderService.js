@@ -60,6 +60,16 @@ export const dealerOrderService = {
       console.error("Lỗi hủy đơn bán hàng", error);
       throw error;
     }
+  },
+
+  reviewReturn: async (id, returnId, data) => {
+    try {
+      const res = await axiosClient.post(`/customer-orders/${id}/returns/${returnId}/review/`, data);
+      return res.data;
+    } catch (error) {
+      console.error("Lỗi khi duyệt/từ chối yêu cầu trả hàng", error);
+      throw error;
+    }
   }
 };
 

@@ -6,6 +6,8 @@ from rest_framework import serializers
 
 from apps.accounts.models import AccountRole, AccountStatus
 from apps.customers.storefront_catalog_serializers import StorefrontProductCategorySerializer
+from apps.marketing.segment_defaults import resolve_primary_segment_membership
+from apps.marketing.serializers import CustomerProfileSegmentSerializer
 from common.avatar import build_avatar_url, save_account_avatar
 from common.openapi_enums import schema_choice_field
 from common.validators import validate_image_upload
@@ -74,6 +76,8 @@ class CustomerProfileSerializer(serializers.ModelSerializer):
     favorite_category = StorefrontProductCategorySerializer(read_only=True)
     addresses = CustomerAddressReadSerializer(many=True, read_only=True)
     default_address = serializers.SerializerMethodField()
+    segments = serializers.SerializerMethodField()
+    primary_segment = serializers.SerializerMethodField()
 
     class Meta:
         model = CustomerProfile
@@ -83,6 +87,8 @@ class CustomerProfileSerializer(serializers.ModelSerializer):
             "favorite_category",
             "addresses",
             "default_address",
+            "segments",
+            "primary_segment",
             "total_orders",
             "total_spent",
             "loyalty_points",
@@ -95,6 +101,8 @@ class CustomerProfileSerializer(serializers.ModelSerializer):
             "user",
             "addresses",
             "default_address",
+            "segments",
+            "primary_segment",
             "total_orders",
             "total_spent",
             "loyalty_points",
@@ -103,6 +111,23 @@ class CustomerProfileSerializer(serializers.ModelSerializer):
             "created_at",
             "updated_at",
         ]
+
+    @extend_schema_field(CustomerProfileSegmentSerializer(many=True))
+    def get_segments(self, obj):
+        memberships = obj.segment_memberships.all()
+        return CustomerProfileSegmentSerializer(
+            memberships,
+            many=True,
+            context=self.context,
+        ).data
+
+    @extend_schema_field(CustomerProfileSegmentSerializer(allow_null=True))
+    def get_primary_segment(self, obj):
+        memberships = list(obj.segment_memberships.all())
+        primary = resolve_primary_segment_membership(memberships)
+        if primary is None:
+            return None
+        return CustomerProfileSegmentSerializer(primary, context=self.context).data
 
     @extend_schema_field(CustomerAddressReadSerializer(allow_null=True))
     def get_default_address(self, obj):

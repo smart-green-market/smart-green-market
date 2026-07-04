@@ -85,7 +85,7 @@ class ConfirmedDeliveryTimeTests(TestCase):
             user=dealer_account,
         )
 
-    def test_confirm_with_earlier_delivery_succeeds(self):
+    def test_confirm_with_earlier_delivery_waits_dealer(self):
         confirmed = timezone.now() + timedelta(days=3)
         supplier_confirm_order(
             self.order,
@@ -94,7 +94,7 @@ class ConfirmedDeliveryTimeTests(TestCase):
             confirmed_delivery_time=confirmed,
         )
         self.order.refresh_from_db()
-        self.assertEqual(self.order.status, PurchaseOrderStatus.CONFIRMED)
+        self.assertEqual(self.order.status, PurchaseOrderStatus.PENDING_DEALER_CONFIRMATION)
         self.assertEqual(self.order.confirmed_delivery_time, confirmed)
 
     def test_confirm_too_late_fails(self):
@@ -119,11 +119,11 @@ class ConfirmedDeliveryTimeTests(TestCase):
                 account=self.dealer.account,
                 notification__reference_type="purchase_order",
                 notification__reference_id=self.order.id,
-                notification__title__icontains="Lịch giao đã điều chỉnh",
+                notification__title__icontains="Cần xác nhận điều chỉnh",
             ).exists()
         )
 
-    def test_no_extra_notify_when_same_as_requested(self):
+    def test_no_adjustment_notify_when_same_as_requested(self):
         supplier_confirm_order(
             self.order,
             self.supplier.account,
@@ -134,7 +134,7 @@ class ConfirmedDeliveryTimeTests(TestCase):
                 account=self.dealer.account,
                 notification__reference_type="purchase_order",
                 notification__reference_id=self.order.id,
-                notification__title__icontains="Lịch giao đã điều chỉnh",
+                notification__title__icontains="Cần xác nhận điều chỉnh",
             ).count(),
             0,
         )

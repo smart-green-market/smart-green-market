@@ -36,10 +36,6 @@ export default function PersonalInfoCard({ profile, onEdit }) {
                     <ProfileField label="Email" value={email} />
                     <ProfileField label="Số điện thoại" value={phone} />
                     <ProfileField
-                        label="Điểm tích lũy"
-                        value={String(profile?.loyalty_points ?? 0)}
-                    />
-                    <ProfileField
                         label="Tổng đơn hàng"
                         value={String(profile?.total_orders ?? 0)}
                     />
@@ -52,8 +48,12 @@ export default function PersonalInfoCard({ profile, onEdit }) {
                         value={formatBuyerDate(profile?.last_order_at)}
                     />
                     <ProfileField
-                        label="Ghi chú"
-                        value={profile?.note?.trim() ? profile.note : "—"}
+                        label="Cấp bậc"
+                        value={profile?.note?.trim() ? profile.note : "Khách hàng"}
+                    />
+                    <ProfileField
+                        label="Điểm tích lũy"
+                        value={String(profile?.loyalty_points ?? 0)}
                     />
                 </div>
             </div>

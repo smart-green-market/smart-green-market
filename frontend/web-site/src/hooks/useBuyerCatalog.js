@@ -185,15 +185,22 @@ export async function fetchRelatedBuyerProducts(
   categoryId,
   limit = 4,
 ) {
-  const rows = await buyerCatalogService.getProduct(slug);
-  return (rows ?? [])
-    .map(formatBuyerProduct)
-    .filter(
-      (item) =>
-        String(item.id) !== String(currentId) &&
-        (categoryId ? item.category_id === categoryId : true),
-    )
-    .slice(0, limit);
+  try {
+    const rows = await buyerCatalogService.getRelatedProducts(slug, currentId, {
+      limit,
+    });
+    return (rows ?? []).map(formatBuyerProduct);
+  } catch {
+    const rows = await buyerCatalogService.getProduct(slug);
+    return (rows ?? [])
+      .map(formatBuyerProduct)
+      .filter(
+        (item) =>
+          String(item.id) !== String(currentId) &&
+          (categoryId ? item.category_id === categoryId : true),
+      )
+      .slice(0, limit);
+  }
 }
 
 export function clearBuyerCatalogCache(slug) {

@@ -1,7 +1,14 @@
 import React, { useState, useEffect } from 'react';
-import { X, Loader2, Calendar, Tag, AlertCircle, TrendingDown } from 'lucide-react';
+import { X, Loader2, Clock, Tag, AlertCircle, Percent, DollarSign, FolderTree, Package } from 'lucide-react';
 import { discountService } from '../../../services/api/discountService';
 import { toast } from 'sonner';
+import {
+  DISCOUNT_TYPE_LABELS,
+  SCOPE_LABELS,
+  formatDiscountValue,
+  formatTimeDisplay,
+  normalizeIsActive,
+} from './discountPolicyUtils';
 
 export default function DiscountDetailModal({ isOpen, onClose, policyId }) {
   const [policy, setPolicy] = useState(null);
@@ -31,13 +38,23 @@ export default function DiscountDetailModal({ isOpen, onClose, policyId }) {
 
   if (!isOpen) return null;
 
+  const isActive = normalizeIsActive(policy?.is_active);
+
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 overflow-y-auto">
-      <div className="bg-white rounded-xl shadow-xl w-full max-w-2xl my-8 mx-4">
-        <div className="flex justify-between items-center px-6 py-4 border-b border-gray-100">
-          <h2 className="text-xl font-bold text-gray-800">Chi tiết chính sách giảm giá</h2>
-          <button onClick={onClose} className="text-gray-400 hover:text-gray-600 transition-colors">
-            <X size={24} />
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm overflow-y-auto p-4">
+      <div
+        className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl my-8"
+        style={{ animation: 'fadeInScale 0.25s ease-out' }}
+      >
+        <div className="flex justify-between items-center px-6 py-5 border-b border-gray-100 bg-gradient-to-r from-green-50 to-emerald-50 rounded-t-2xl">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-green-100 flex items-center justify-center">
+              <Tag size={20} className="text-green-600" />
+            </div>
+            <h2 className="text-lg font-bold text-gray-800">Chi tiết chính sách giảm giá</h2>
+          </div>
+          <button onClick={onClose} className="text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg p-1.5 transition-all">
+            <X size={20} />
           </button>
         </div>
 
@@ -48,73 +65,61 @@ export default function DiscountDetailModal({ isOpen, onClose, policyId }) {
             </div>
           ) : policy ? (
             <div className="space-y-6">
-              {/* Header Info */}
               <div>
-                <h3 className="text-2xl font-bold text-gray-900 mb-2">{policy.title}</h3>
-                <div className="flex flex-wrap items-center gap-3 mt-2">
-                  <span className={`px-3 py-1 text-sm font-medium rounded-full ${policy.is_active ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'}`}>
-                    {policy.is_active ? 'Đang hoạt động' : 'Tạm ngưng'}
+                <h3 className="text-2xl font-bold text-gray-900 mb-3">{policy.title}</h3>
+                <div className="flex flex-wrap items-center gap-3">
+                  <span className={`px-3 py-1.5 text-sm font-medium rounded-full ${isActive ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'}`}>
+                    {isActive ? 'Đang hoạt động' : 'Tạm ngưng'}
                   </span>
-                  <span className="flex items-center text-sm text-gray-500 bg-gray-50 px-3 py-1 rounded-full border border-gray-200">
+                  <span className="flex items-center text-sm text-gray-500 bg-gray-50 px-3 py-1.5 rounded-full border border-gray-200">
                     <Tag size={14} className="mr-1.5" />
-                    {policy.scope === 'all' ? 'Tất cả sản phẩm' :
-                     policy.scope === 'category' ? 'Theo danh mục' :
-                     policy.scope === 'dealer_product' ? 'Sản phẩm cụ thể' : 'Tất cả'}
+                    {SCOPE_LABELS[policy.scope] || policy.scope}
                   </span>
-                  <span className="flex items-center text-sm text-gray-500 bg-gray-50 px-3 py-1 rounded-full border border-gray-200">
+                  <span className="flex items-center text-sm text-gray-500 bg-gray-50 px-3 py-1.5 rounded-full border border-gray-200">
                     <AlertCircle size={14} className="mr-1.5" />
-                    Ưu tiên: {policy.priority}
+                    Ưu tiên: {policy.priority ?? 0}
                   </span>
                 </div>
               </div>
 
-              {/* Time Info */}
-              {(policy.start_at || policy.end_at) && (
-                <div className="bg-blue-50/50 border border-blue-100 rounded-lg p-4 flex flex-col sm:flex-row sm:items-center gap-4">
-                  <div className="flex items-center text-blue-800">
-                    <Calendar size={18} className="mr-2" />
-                    <span className="font-medium">Thời gian áp dụng:</span>
-                  </div>
-                  <div className="flex-1 text-sm text-gray-700">
-                    {policy.start_at ? new Date(policy.start_at).toLocaleString('vi-VN') : 'Không xác định'} 
-                    {' - '}
-                    {policy.end_at ? new Date(policy.end_at).toLocaleString('vi-VN') : 'Không giới hạn'}
-                  </div>
+              {(policy.scope === 'category' || policy.scope === 'dealer_product') && (
+                <div className="bg-gray-50 border border-gray-200 rounded-xl p-4">
+                  <h4 className="text-sm font-bold text-gray-800 mb-2">Đối tượng áp dụng</h4>
+                  {policy.scope === 'category' && (
+                    <p className="text-sm text-gray-700 flex items-center gap-2">
+                      <FolderTree size={16} className="text-purple-600" />
+                      {policy.category_name || `Danh mục #${policy.category}`}
+                    </p>
+                  )}
+                  {policy.scope === 'dealer_product' && (
+                    <p className="text-sm text-gray-700 flex items-center gap-2">
+                      <Package size={16} className="text-amber-600" />
+                      {policy.dealer_product_title || `Sản phẩm #${policy.dealer_product}`}
+                    </p>
+                  )}
                 </div>
               )}
 
-              {/* Rules / Tiers */}
-              <div>
-                <h4 className="text-lg font-semibold text-gray-800 mb-3 flex items-center">
-                  <TrendingDown className="mr-2 text-green-600" size={20} />
-                  Các mức giảm giá
+              <div className="bg-gradient-to-r from-green-50 to-emerald-50 rounded-xl p-5 border border-green-100">
+                <h4 className="text-sm font-bold text-gray-800 mb-3 flex items-center gap-2">
+                  {policy.discount_type === 'percent' ? <Percent size={16} className="text-green-600" /> : <DollarSign size={16} className="text-green-600" />}
+                  Mức giảm giá
                 </h4>
-                <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
-                  <div className="mb-4">
-                    <span className="text-sm text-gray-500">Điều kiện áp dụng: </span>
-                    <span className="text-sm font-medium text-gray-900">
-                      {policy.threshold_type === 'remaining_days' ? 'Số ngày còn lại' :
-                       policy.threshold_type === 'used_shelf_life_percent' ? '% Hạn sử dụng đã qua' :
-                       policy.threshold_type === 'age_days' ? 'Số ngày tồn kho' : policy.threshold_type}
-                    </span>
-                  </div>
-                  
-                  {policy.tiers && policy.tiers.length > 0 ? (
-                    <div className="space-y-3">
-                      {policy.tiers.sort((a, b) => a.sort_order - b.sort_order).map((tier) => (
-                        <div key={tier.id} className="flex flex-wrap justify-between items-center bg-white p-3 rounded border border-gray-100 shadow-sm">
-                          <div className="text-sm text-gray-700 font-medium flex items-center">
-                            Nếu giá trị <span className="text-blue-600 mx-1">{tier.operator === 'gte' ? '>=' : tier.operator === 'lte' ? '<=' : tier.operator === 'gt' ? '>' : '<'}</span> {tier.threshold_value}
-                          </div>
-                          <div className="text-sm font-bold text-green-600 flex items-center bg-green-50 px-3 py-1.5 rounded-md">
-                            Giảm {tier.discount_value}{tier.discount_type === 'percent' ? '%' : 'đ'}
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  ) : (
-                    <p className="text-sm text-gray-500 italic">Chưa có mức giảm giá nào được thiết lập.</p>
-                  )}
+                <div className="flex items-center gap-3">
+                  <span className="text-3xl font-bold text-green-700">{formatDiscountValue(policy)}</span>
+                  <span className="text-sm text-gray-500 bg-white px-3 py-1 rounded-full border border-gray-200">
+                    {DISCOUNT_TYPE_LABELS[policy.discount_type] || policy.discount_type}
+                  </span>
+                </div>
+              </div>
+
+              <div className="bg-blue-50/50 border border-blue-100 rounded-xl p-4 flex flex-col sm:flex-row sm:items-center gap-4">
+                <div className="flex items-center text-blue-800">
+                  <Clock size={18} className="mr-2" />
+                  <span className="font-medium text-sm">Khung giờ áp dụng mỗi ngày:</span>
+                </div>
+                <div className="flex-1 text-sm font-semibold text-blue-900">
+                  {formatTimeDisplay(policy.daily_start_time)} – {formatTimeDisplay(policy.daily_end_time)}
                 </div>
               </div>
             </div>
@@ -125,15 +130,22 @@ export default function DiscountDetailModal({ isOpen, onClose, policyId }) {
           )}
         </div>
 
-        <div className="flex justify-end gap-3 px-6 py-4 border-t border-gray-100">
+        <div className="flex justify-end gap-3 px-6 py-4 border-t border-gray-100 bg-gray-50/50 rounded-b-2xl">
           <button
             onClick={onClose}
-            className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+            className="px-5 py-2.5 text-sm font-medium text-gray-700 bg-white border border-gray-200 rounded-xl hover:bg-gray-50 transition-all"
           >
             Đóng
           </button>
         </div>
       </div>
+
+      <style>{`
+        @keyframes fadeInScale {
+          from { opacity: 0; transform: scale(0.95); }
+          to { opacity: 1; transform: scale(1); }
+        }
+      `}</style>
     </div>
   );
 }

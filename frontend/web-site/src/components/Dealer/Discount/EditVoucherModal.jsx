@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { X, Loader2 } from 'lucide-react';
+import { Clock, X, Loader2 } from 'lucide-react';
 import { voucherService } from '../../../services/api/voucherService';
+import { customerSegmentService } from '../../../services/api/customerSegmentService';
 import { toast } from 'sonner';
 
 export default function EditVoucherModal({ isOpen, onClose, onSuccess, voucherId }) {
@@ -16,11 +17,19 @@ export default function EditVoucherModal({ isOpen, onClose, onSuccess, voucherId
     usage_limit_per_customer: '',
     start_date: '',
     end_date: '',
+    schedule_type: 'date_range',
+    daily_start_time: '09:00',
+    daily_end_time: '12:00',
   });
 
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [originalStartDate, setOriginalStartDate] = useState('');
+
+  const [segments, setSegments] = useState([]);
+
+  const [targetType, setTargetType] = useState('customer_group');
+  const [targetId, setTargetId] = useState('');
 
   useEffect(() => {
     if (isOpen && voucherId) {
@@ -49,7 +58,13 @@ export default function EditVoucherModal({ isOpen, onClose, onSuccess, voucherId
   const fetchVoucherDetail = async () => {
     try {
       setIsLoading(true);
-      const data = await voucherService.getById(voucherId);
+      const [segmentsData, data] = await Promise.all([
+        customerSegmentService.getAll({ limit: 100 }).catch(() => ({ results: [] })),
+        voucherService.getById(voucherId),
+      ]);
+
+      setSegments(Array.isArray(segmentsData) ? segmentsData : segmentsData?.results || []);
+
       setOriginalStartDate(data.start_date || '');
       setFormData({
         title: data.title || '',
@@ -63,7 +78,19 @@ export default function EditVoucherModal({ isOpen, onClose, onSuccess, voucherId
         usage_limit_per_customer: data.usage_limit_per_customer || '',
         start_date: formatDateTimeLocal(data.start_date),
         end_date: formatDateTimeLocal(data.end_date),
+        schedule_type: data.schedule_type || 'date_range',
+        daily_start_time: data.daily_start_time ? data.daily_start_time.slice(0, 5) : '09:00',
+        daily_end_time: data.daily_end_time ? data.daily_end_time.slice(0, 5) : '12:00',
       });
+
+      const firstTarget = data.targets?.[0] || { target_type: 'all' };
+      setTargetType('customer_group');
+      
+      let tId = '';
+      if (firstTarget.target_type === 'segment') {
+        tId = firstTarget.segment || '';
+      }
+      setTargetId(tId.toString());
     } catch (error) {
       console.error('Error fetching voucher detail for edit:', error);
       toast.error('Không thể tải thông tin voucher. Vui lòng thử lại sau.');
@@ -100,6 +127,22 @@ export default function EditVoucherModal({ isOpen, onClose, onSuccess, voucherId
       return;
     }
 
+    if (formData.schedule_type === 'daily_time') {
+      if (!formData.daily_start_time || !formData.daily_end_time) {
+        toast.error('Vui lòng nhập đầy đủ khung giờ flash sale');
+        return;
+      }
+      if (formData.daily_start_time === formData.daily_end_time) {
+        toast.error('Giờ bắt đầu và giờ kết thúc flash sale phải khác nhau');
+        return;
+      }
+    }
+
+    if (!targetId) {
+      toast.error('Vui lòng chọn nhóm khách hàng áp dụng');
+      return;
+    }
+
     try {
       setIsSubmitting(true);
       
@@ -112,7 +155,16 @@ export default function EditVoucherModal({ isOpen, onClose, onSuccess, voucherId
         min_order_amount: Number(formData.min_order_amount),
         start_date: new Date(formData.start_date).toISOString(),
         end_date: new Date(formData.end_date).toISOString(),
+        schedule_type: formData.schedule_type,
       };
+
+      if (formData.schedule_type === 'daily_time') {
+        payload.daily_start_time = formData.daily_start_time;
+        payload.daily_end_time = formData.daily_end_time;
+      } else {
+        payload.daily_start_time = null;
+        payload.daily_end_time = null;
+      }
 
       payload.max_discount_amount = formData.discount_type === 'percent' && formData.max_discount_amount
         ? Number(formData.max_discount_amount)
@@ -120,6 +172,13 @@ export default function EditVoucherModal({ isOpen, onClose, onSuccess, voucherId
 
       payload.usage_limit = formData.usage_limit ? parseInt(formData.usage_limit, 10) : null;
       payload.usage_limit_per_customer = formData.usage_limit_per_customer ? parseInt(formData.usage_limit_per_customer, 10) : null;
+
+      // Add targets payload
+      const targetObj = {
+        target_type: 'segment',
+        segment: parseInt(targetId, 10)
+      };
+      payload.targets = [targetObj];
 
       await voucherService.update(voucherId, payload);
       toast.success('Cập nhật voucher thành công');
@@ -206,6 +265,29 @@ export default function EditVoucherModal({ isOpen, onClose, onSuccess, voucherId
                   </div>
                 </div>
               </div>
+
+            {/* Đối tượng áp dụng (Targets) */}
+            <div>
+              <h3 className="text-lg font-semibold text-gray-800 mb-4 border-b pb-2">Đối tượng áp dụng</h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Chọn nhóm khách hàng</label>
+                  <select
+                    value={targetId}
+                    onChange={(e) => setTargetId(e.target.value)}
+                    required
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 bg-white"
+                  >
+                    <option value="">-- Chọn nhóm khách hàng --</option>
+                    {segments.map(group => (
+                      <option key={group.id} value={group.id}>
+                        {group.name} {group.code ? `(${group.code})` : ''}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+            </div>
 
               {/* Discount Rules */}
               <div>
@@ -306,9 +388,43 @@ export default function EditVoucherModal({ isOpen, onClose, onSuccess, voucherId
               {/* Time Settings */}
               <div>
                 <h3 className="text-lg font-semibold text-gray-800 mb-4 border-b pb-2">Thời gian hiệu lực</h3>
+                <div className="mb-4 rounded-xl border border-emerald-100 bg-emerald-50/60 p-3">
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Kiểu thời gian áp dụng</label>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    <button
+                      type="button"
+                      onClick={() => setFormData(prev => ({ ...prev, schedule_type: 'date_range' }))}
+                      className={`rounded-lg border px-4 py-3 text-left transition-colors ${
+                        formData.schedule_type === 'date_range'
+                          ? 'border-green-500 bg-white text-green-700 shadow-sm'
+                          : 'border-gray-200 bg-white/70 text-gray-600 hover:border-green-300'
+                      }`}
+                    >
+                      <div className="font-semibold text-sm">Theo khoảng ngày</div>
+                      <div className="text-xs mt-1">Voucher chạy liên tục từ ngày bắt đầu đến ngày kết thúc.</div>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setFormData(prev => ({ ...prev, schedule_type: 'daily_time' }))}
+                      className={`rounded-lg border px-4 py-3 text-left transition-colors ${
+                        formData.schedule_type === 'daily_time'
+                          ? 'border-orange-500 bg-white text-orange-700 shadow-sm'
+                          : 'border-gray-200 bg-white/70 text-gray-600 hover:border-orange-300'
+                      }`}
+                    >
+                      <div className="font-semibold text-sm flex items-center gap-2">
+                        <Clock size={15} />
+                        Flash sale hằng ngày
+                      </div>
+                      <div className="text-xs mt-1">Trong khoảng ngày đã chọn, mỗi ngày chỉ chạy theo khung giờ.</div>
+                    </button>
+                  </div>
+                </div>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Thời gian bắt đầu</label>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      {formData.schedule_type === 'daily_time' ? 'Ngày bắt đầu chiến dịch' : 'Thời gian bắt đầu'}
+                    </label>
                     <input
                       type="datetime-local"
                       name="start_date"
@@ -321,7 +437,9 @@ export default function EditVoucherModal({ isOpen, onClose, onSuccess, voucherId
                   </div>
 
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Thời gian kết thúc</label>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      {formData.schedule_type === 'daily_time' ? 'Ngày kết thúc chiến dịch' : 'Thời gian kết thúc'}
+                    </label>
                     <input
                       type="datetime-local"
                       name="end_date"
@@ -332,7 +450,40 @@ export default function EditVoucherModal({ isOpen, onClose, onSuccess, voucherId
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
                     />
                   </div>
+
+                  {formData.schedule_type === 'daily_time' && (
+                    <>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Giờ bắt đầu mỗi ngày</label>
+                        <input
+                          type="time"
+                          name="daily_start_time"
+                          required
+                          value={formData.daily_start_time}
+                          onChange={handleChange}
+                          className="w-full px-3 py-2 border border-orange-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Giờ kết thúc mỗi ngày</label>
+                        <input
+                          type="time"
+                          name="daily_end_time"
+                          required
+                          value={formData.daily_end_time}
+                          onChange={handleChange}
+                          className="w-full px-3 py-2 border border-orange-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500"
+                        />
+                      </div>
+                    </>
+                  )}
                 </div>
+                {formData.schedule_type === 'daily_time' && (
+                  <p className="text-xs text-orange-700 bg-orange-50 border border-orange-100 rounded-lg px-3 py-2 mt-3">
+                    Voucher chỉ khả dụng mỗi ngày từ {formData.daily_start_time || '...'} đến {formData.daily_end_time || '...'} trong khoảng ngày chiến dịch.
+                  </p>
+                )}
               </div>
 
             </div>

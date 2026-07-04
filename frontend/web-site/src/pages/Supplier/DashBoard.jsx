@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo } from "react";
 import { orderService, parseOrderList } from "../../services/api/orderService";
 import { NavLink, Link } from "react-router-dom";
+import {dashBoardSupplierService} from "../../services/api/Supplier/dashBoardService";
 // ─── HELPERS ──────────────────────────────────────────────────────────────────
 const fmtMoney = (n) => {
   const num = parseFloat(n) || 0;
@@ -32,21 +33,33 @@ function getLiveDate() {
 
 // Map API status → display label + pill style
 const STATUS_CONFIG = {
-  pending_supplier_confirmation: { label: "Chờ duyệt", cls: "pill-blue" },
-  pending: { label: "Chờ duyệt", cls: "pill-blue" },
-  confirmed: { label: "Đã duyệt", cls: "pill-green" },
-  rejected: { label: "Đã từ chối", cls: "pill-red" },
-  deposit_pending: { label: "Chờ cọc", cls: "pill-amber" },
-  deposit_pending_verification: { label: "Chờ xác nhận cọc", cls: "pill-amber" },
-  processing: { label: "Đang xử lý", cls: "pill-blue" },
-  shipping: { label: "Đang giao", cls: "pill-amber" },
-  final_payment_pending: { label: "Chờ TT cuối", cls: "pill-amber" },
-  final_payment_pending_verification: { label: "Chờ xác nhận TT", cls: "pill-amber" },
-  completed: { label: "Hoàn thành", cls: "pill-green" },
-  cancelled: { label: "Đã hủy", cls: "pill-gray" },
+  pending_supplier_confirmation: { label: "Chờ duyệt", tone: "a" },
+  pending: { label: "Chờ duyệt", tone: "a" },
+  confirmed: { label: "Đã duyệt", tone: "b" },
+  rejected: { label: "Đã từ chối", tone: "r" },
+  deposit_pending: { label: "Chờ cọc", tone: "a" },
+  deposit_pending_verification: { label: "Chờ xác nhận cọc", tone: "a" },
+  processing: { label: "Đang xử lý", tone: "b" },
+  shipping: { label: "Đang giao", tone: "a" },
+  final_payment_pending: { label: "Chờ TT cuối", tone: "a" },
+  final_payment_pending_verification: { label: "Chờ xác nhận TT", tone: "a" },
+  completed: { label: "Hoàn thành", tone: "g" },
+  cancelled: { label: "Đã hủy", tone: "gr" },
 };
 
 const ACTIVE_STATUSES = new Set(["pending_supplier_confirmation", "pending", "shipping"]);
+
+// Bảng màu pill — lấy đúng từ OrderTable.jsx để đồng bộ màu sắc toàn hệ thống
+const PILL_TONES = {
+  g: { bg: "#EAF3DE", text: "#3B6D11" },
+  a: { bg: "#FAEEDA", text: "#854F0B" },
+  b: { bg: "#E6F1FB", text: "#185FA5" },
+  p: { bg: "#EEEDFE", text: "#534AB7" },
+  r: { bg: "#FCEBEB", text: "#A32D2D" },
+  gr: { bg: "#f3f4f6", text: "#565f6b" },
+};
+// Thứ tự tone gán cho từng category (bỏ "r" vì mang nghĩa lỗi/từ chối, không hợp cho category)
+const CATEGORY_TONE_ORDER = ["g", "b", "a", "p", "gr"];
 
 // ─── SPARKLINE DATA (mock revenue 6 months) ───────────────────────────────────
 const REVENUE_DATA = [
@@ -58,17 +71,9 @@ const REVENUE_DATA = [
   { label: "T6", val: 12.4 },
 ];
 
-// ─── TOP PRODUCTS (mock) ──────────────────────────────────────────────────────
-const TOP_PRODUCTS = [
-  { name: "Rau cải thìa hữu cơ", pct: 88 },
-  { name: "Cà chua bi Đà Lạt", pct: 72 },
-  { name: "Dâu tây hữu cơ", pct: 60 },
-  { name: "Súp lơ xanh sạch", pct: 45 },
-];
-
 // ─── SPARKLINE CHART ──────────────────────────────────────────────────────────
 function Sparkline({ data }) {
-  const max = Math.max(...data.map((d) => d.val));
+  const max = Math.max(...data.map((d) => d.val), 0) || 1; // tránh chia cho 0 khi toàn bộ tháng = 0
   return (
     <div className="spk">
       {data.map((d, i) => {
@@ -91,8 +96,16 @@ function Sparkline({ data }) {
 
 // ─── STATUS PILL ──────────────────────────────────────────────────────────────
 function StatusPill({ status }) {
-  const cfg = STATUS_CONFIG[status] ?? { label: status, cls: "pill-gray" };
-  return <span className={`pill ${cfg.cls}`}>{cfg.label}</span>;
+  const cfg = STATUS_CONFIG[status] ?? { label: status, tone: "gr" };
+  const { bg, text } = PILL_TONES[cfg.tone];
+  return (
+    <span
+      className="pill"
+      style={{ background: bg, color: text }}
+    >
+      {cfg.label}
+    </span>
+  );
 }
 
 // ─── ORDER ROW ────────────────────────────────────────────────────────────────
@@ -146,6 +159,10 @@ export default function DashboardPage() {
   const [orders, setOrders] = useState([]); // pending + shipping — để hiển thị
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [revenue, setRevenue] = useState([]);
+  const [allProducts, setAllProducts] = useState(null); //count toàn bộ sản phẩm đã bán
+  const [topProducts, setTopProducts] = useState([]);
+  const [totalRevenue, setTotalRevenue] = useState(0);
 
   useEffect(() => {
     const t = setInterval(() => setLiveDate(getLiveDate()), 60_000);
@@ -175,8 +192,95 @@ export default function DashboardPage() {
     return () => { cancelled = true; };
   }, []);
 
+  useEffect(() => {
+    let cancelled = false;
+    setLoading(true);
+    setError(null);
+      dashBoardSupplierService.getRevenueChart()
+      .then((data) => {
+        if (cancelled) return;
+        setRevenue(data);      
+        setTotalRevenue(data.reduce((sum, d) => sum + (d.revenue || 0), 0));                  
+      })
+      .catch((err) => {
+        if (!cancelled) setError(err.message ?? "Không thể tải doanh thu");
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+
+    return () => { cancelled = true; };
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    setLoading(true);
+    setError(null);
+      dashBoardSupplierService.getTopProducts()
+      .then((data) => {
+        if (cancelled) return;
+        setTopProducts(data);                        
+      })
+      .catch((err) => {
+        if (!cancelled) setError(err.message ?? "Không thể tải sản phẩm hàng đầu");
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+
+    return () => { cancelled = true; };
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    setLoading(true);
+    setError(null);
+      dashBoardSupplierService.getTotalProducts()
+      .then((data) => {
+        if (cancelled) return;
+        setAllProducts(data);                        
+      })
+      .catch((err) => {
+        if (!cancelled) setError(err.message ?? "Không thể tải tổng số sản phẩm");
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+
+    return () => { cancelled = true; };
+  }, []);
+
   const pendingCount = orders.filter((o) => o.status === "pending_supplier_confirmation" || o.status === "pending").length;
   const shippingCount = orders.filter((o) => o.status === "shipping").length;
+
+  // Top 4 sản phẩm bán chạy nhất (theo doanh thu), pct = % doanh thu sản phẩm / tổng doanh thu tháng đó
+  // kèm tone màu category đồng bộ với bảng màu pill trạng thái trong OrderTable.jsx
+  const topProductsChart = useMemo(() => {
+    if (!topProducts.length) return [];
+
+    // Tổng doanh thu tháng đó = tổng doanh thu của TẤT CẢ sản phẩm (không chỉ top 4)
+    const totalMonthRevenue = topProducts.reduce((sum, p) => sum + (p.revenue || 0), 0) || 1;
+
+    const sorted = [...topProducts].sort((a, b) => (b.revenue || 0) - (a.revenue || 0));
+    const top4 = sorted.slice(0, 4);
+
+    // Gán tone màu cố định cho mỗi category (category giống nhau -> màu giống nhau)
+    const catToneMap = {};
+    top4.forEach((p) => {
+      const cat = (p.category || "").trim();
+      if (cat && !(cat in catToneMap)) {
+        catToneMap[cat] = CATEGORY_TONE_ORDER[Object.keys(catToneMap).length % CATEGORY_TONE_ORDER.length];
+      }
+    });
+
+    return top4.map((p) => ({
+      id: p.id,
+      name: p.name,
+      category: p.category,
+      tone: catToneMap[(p.category || "").trim()] || "gr",
+      pct: Math.round(((p.revenue || 0) / totalMonthRevenue) * 1000) / 10, // % doanh thu, làm tròn 1 số thập phân
+    }));
+  }, [topProducts]);
 
   const count_order_month = useMemo(() => {
     const now = new Date();
@@ -187,6 +291,19 @@ export default function DashboardPage() {
       return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
     }).length;
   }, [allOrders]);
+
+  // Map dữ liệu revenue chart từ API ([{month: "2026-02", revenue: 0}, ...])
+  // sang định dạng Sparkline ([{label: "T2", val: 0}, ...], val tính theo triệu đồng)
+  const revenueChartData = useMemo(() => {
+    if (!revenue.length) return REVENUE_DATA; // fallback khi chưa có dữ liệu (đang loading)
+    return revenue.map((d) => {
+      const monthNum = parseInt(d.month?.split("-")[1], 10) || 0;
+      return {
+        label: `T${monthNum}`,
+        val: Math.round(((d.revenue || 0) / 1e6) * 10) / 10, // đổi ra triệu đồng, làm tròn 1 số thập phân
+      };
+    });
+  }, [revenue]);
 
   return (
     <>
@@ -325,11 +442,6 @@ export default function DashboardPage() {
           padding: 2px 8px; border-radius: 20px;
           font-size: 10px; font-weight: 500; white-space: nowrap; flex-shrink: 0;
         }
-        .pill-green  { background: var(--green0); color: #3B6D11; }
-        .pill-amber  { background: var(--amber0); color: var(--amber8); }
-        .pill-blue   { background: var(--blue0);  color: var(--blue8); }
-        .pill-gray   { background: #f3f4f6;        color: var(--text2); }
-        .pill-red    { background: var(--red0);    color: var(--red8); }
 
         /* ── Sparkline ── */
         .spk { display: flex; align-items: flex-end; gap: 5px; padding: 12px 16px 10px; }
@@ -349,6 +461,7 @@ export default function DashboardPage() {
         }
         .pr:last-child { border: none; }
         .pr-name  { font-size: 12px; color: var(--text1); flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .pr-cat   { font-size: 10px; font-weight: 500; padding: 1px 8px; border-radius: 999px; white-space: nowrap; flex-shrink: 0; }
         .pr-track { flex: 1; height: 4px; background: var(--surface2); border-radius: 2px; overflow: hidden; }
         .pr-fill  { height: 100%; border-radius: 2px; background: var(--green8); }
         .pr-pct   { font-size: 11px; color: var(--text3); width: 28px; text-align: right; flex-shrink: 0; }
@@ -465,7 +578,7 @@ export default function DashboardPage() {
                   </svg>
                 </div>
               </div>
-              <div className="mc-val">12.4tr</div>
+              <div className="mc-val">{totalRevenue.toLocaleString("vi-VN")} VNĐ</div>
               <div className="mc-label">Doanh thu tháng 6</div>
             </div>
           </Link>
@@ -494,7 +607,7 @@ export default function DashboardPage() {
                   </svg>
                 </div>
               </div>
-              <div className="mc-val">36</div>
+              <div className="mc-val">{allProducts}</div>
               <div className="mc-label">Sản phẩm đang bán</div>
             </div>
           </Link>
@@ -516,7 +629,7 @@ export default function DashboardPage() {
                 <span className="ch-title">Đơn cần xử lý</span>
               </div>
               <span className="ch-link">
-                <Link to="/nha-cung-cap/don-hang"> {!loading && `${shippingCount} đơn`}</Link>
+                <Link to="/nha-cung-cap/don-hang"> {!loading && `${pendingCount} đơn`}</Link>
               </span>
             </div>
             <div className="cb">
@@ -566,9 +679,9 @@ export default function DashboardPage() {
                   </div>
                   <span className="ch-title">Doanh thu 6 tháng</span>
                 </div>
-                <span style={{ fontSize: 13, fontWeight: 500, color: "#1a5c2a" }}>12.4tr đ</span>
+                <span style={{ fontSize: 13, fontWeight: 500, color: "#1a5c2a" }}>{totalRevenue.toLocaleString("vi-VN")} VNĐ</span>
               </div>
-              <Sparkline data={REVENUE_DATA} />
+              <Sparkline data={revenueChartData} />
             </div>
 
             <div className="card" style={{ flex: 1 }}>
@@ -584,15 +697,26 @@ export default function DashboardPage() {
                 <span className="ch-link">Chi tiết →</span>
               </div>
               <div className="cb">
-                {TOP_PRODUCTS.map((p) => (
-                  <div key={p.name} className="pr">
-                    <span className="pr-name">{p.name}</span>
-                    <div className="pr-track">
-                      <div className="pr-fill" style={{ width: `${p.pct}%` }} />
+                {topProductsChart.length === 0 && (
+                  <div className="db-empty">Chưa có dữ liệu sản phẩm bán chạy.</div>
+                )}
+                {topProductsChart.map((p) => {
+                  const { bg, text } = PILL_TONES[p.tone];
+                  return (
+                    <div key={p.id ?? p.name} className="pr">
+                      <span className="pr-name">{p.name}</span>
+                      {p.category && (
+                        <span className="pr-cat" style={{ background: bg, color: text }}>
+                          {p.category}
+                        </span>
+                      )}
+                      <div className="pr-track">
+                        <div className="pr-fill" style={{ width: `${p.pct}%` }} />
+                      </div>
+                      <span className="pr-pct">{p.pct}%</span>
                     </div>
-                    <span className="pr-pct">{p.pct}%</span>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             </div>
 

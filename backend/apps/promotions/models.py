@@ -24,6 +24,13 @@ class PromotionDiscountType(models.TextChoices):
     FIXED = "fixed", "Số tiền cố định"
 
 
+class PromotionScheduleType(models.TextChoices):
+    """Kiểu thời gian hiệu lực của voucher."""
+
+    DATE_RANGE = "date_range", "Theo khoảng ngày"
+    DAILY_TIME = "daily_time", "Lặp hằng ngày theo khung giờ"
+
+
 class PromotionTargetType(models.TextChoices):
     """Đối tượng áp dụng khuyến mãi."""
 
@@ -99,6 +106,21 @@ class Promotion(models.Model):
 
     start_date = models.DateTimeField()
     end_date = models.DateTimeField()
+    schedule_type = models.CharField(
+        max_length=20,
+        choices=PromotionScheduleType.choices,
+        default=PromotionScheduleType.DATE_RANGE,
+    )
+    daily_start_time = models.TimeField(
+        null=True,
+        blank=True,
+        help_text="Giờ bắt đầu mỗi ngày khi schedule_type=daily_time",
+    )
+    daily_end_time = models.TimeField(
+        null=True,
+        blank=True,
+        help_text="Giờ kết thúc mỗi ngày khi schedule_type=daily_time",
+    )
     status = models.CharField(
         max_length=20,
         choices=PromotionStatus.choices,
@@ -128,13 +150,34 @@ class Promotion(models.Model):
         scope = self.dealer.store_name if self.dealer_id else "Platform"
         return f"[{scope}] {self.title}"
 
-    def is_active(self):
+    def is_within_daily_time(self, at=None):
+        if self.schedule_type != PromotionScheduleType.DAILY_TIME:
+            return True
+        if self.daily_start_time is None or self.daily_end_time is None:
+            return False
+
+        from common.timezone import vn_current_time
+
+        current_time = vn_current_time(at)
+        start_time = self.daily_start_time
+        end_time = self.daily_end_time
+
+        if start_time <= end_time:
+            return start_time <= current_time <= end_time
+        return current_time >= start_time or current_time <= end_time
+
+    def is_active_at(self, at=None):
         from django.utils import timezone
-        now = timezone.now()
+
+        now = at or timezone.now()
         return (
             self.status == PromotionStatus.ACTIVE
             and self.start_date <= now <= self.end_date
+            and self.is_within_daily_time(now)
         )
+
+    def is_active(self):
+        return self.is_active_at()
 
 
 class PromotionTarget(models.Model):
@@ -217,3 +260,32 @@ class PromotionUsage(models.Model):
 
     def __str__(self):
         return f"{self.promotion.title} on {self.order.order_code}"
+
+
+class CustomerSavedVoucher(models.Model):
+    """Voucher customer đã lưu để dùng khi checkout."""
+
+    customer = models.ForeignKey(
+        "customers.CustomerProfile",
+        on_delete=models.CASCADE,
+        related_name="saved_vouchers",
+    )
+    promotion = models.ForeignKey(
+        Promotion,
+        on_delete=models.CASCADE,
+        related_name="saved_by_customers",
+    )
+    saved_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = "customer_saved_vouchers"
+        ordering = ["-saved_at", "-id"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["customer", "promotion"],
+                name="unique_customer_saved_voucher",
+            ),
+        ]
+
+    def __str__(self):
+        return f"{self.customer_id} saved {self.promotion.code}"

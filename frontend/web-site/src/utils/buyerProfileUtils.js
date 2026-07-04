@@ -2,6 +2,26 @@ import { resolveMediaUrl } from "./userProductUtils";
 
 export function normalizeBuyerProfile(raw) {
     const user = raw?.user ?? {};
+    const segments = Array.isArray(raw?.segments)
+        ? raw.segments.map((segment) => ({
+              id: segment?.id ?? null,
+              code: segment?.code ?? "",
+              name: segment?.name ?? "",
+              description: segment?.description ?? "",
+              is_system: Boolean(segment?.is_system),
+              joined_at: segment?.joined_at ?? null,
+          }))
+        : [];
+    const primarySegment = raw?.primary_segment
+        ? {
+              id: raw.primary_segment?.id ?? null,
+              code: raw.primary_segment?.code ?? "",
+              name: raw.primary_segment?.name ?? "",
+              description: raw.primary_segment?.description ?? "",
+              is_system: Boolean(raw.primary_segment?.is_system),
+              joined_at: raw.primary_segment?.joined_at ?? null,
+          }
+        : segments[0] ?? null;
 
     return {
         id: raw?.id,
@@ -16,6 +36,8 @@ export function normalizeBuyerProfile(raw) {
         },
         favorite_category:
             raw?.favorite_category != null ? Number(raw.favorite_category) : null,
+        segments,
+        primary_segment: primarySegment,
         total_orders: raw?.total_orders ?? 0,
         total_spent: raw?.total_spent ?? "0",
         loyalty_points: raw?.loyalty_points ?? 0,

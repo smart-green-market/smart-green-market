@@ -8,7 +8,7 @@ import {
   errorsToSummary,
   extractSupplierApiMessage,
 } from "../../../../utils/supplierValidation";
-import ConfirmModal from "../../../common/ConfirmModal";
+import { appToast } from "../../../common/toast";
 
 import { useProductModalData } from "./hooks/useProductModalData";
 import { getModeTokens, inputCls, selectCls, DEFAULT_FORM } from "./constants";
@@ -36,7 +36,6 @@ export default function CreateProductModal({ isOpen, onClose, onSuccess, mode = 
   const [images, setImages]             = useState([]);
   const [thumbnailIdx, setThumbnailIdx] = useState(0);
   const [saving, setSaving]             = useState(false);
-  const [showConfirm, setShowConfirm]   = useState(false);
   const [error, setError]               = useState(null);
   const [fieldErrors, setFieldErrors]   = useState({});
 
@@ -177,7 +176,7 @@ export default function CreateProductModal({ isOpen, onClose, onSuccess, mode = 
       return;
     }
 
-    setShowConfirm(true);
+    handleSubmit();
   };
 
   // ── Submit ───────────────────────────────────────────────────
@@ -258,6 +257,7 @@ export default function CreateProductModal({ isOpen, onClose, onSuccess, mode = 
         );
       }
 
+      appToast.success("Thêm sản phẩm thành công! Vui lòng chờ admin phê duyệt.");
       onSuccess?.(newProduct);
       onClose();
     } catch (err) {
@@ -398,22 +398,6 @@ export default function CreateProductModal({ isOpen, onClose, onSuccess, mode = 
         `}</style>
       </div>
 
-      <ConfirmModal
-        isOpen={showConfirm}
-        onClose={() => setShowConfirm(false)}
-        onConfirm={handleSubmit}
-        title={isPersonal ? "Xác nhận thêm sản phẩm cá nhân" : "Xác nhận thêm sản phẩm"}
-        message={
-          isPersonal
-            ? `Sản phẩm "${form.name}" sẽ được gửi lên để admin xét duyệt. Bạn có chắc chắn muốn tiếp tục?`
-            : "Sản phẩm sẽ được thêm vào danh sách chờ duyệt. Bạn có chắc chắn muốn tiếp tục?"
-        }
-        confirmText="Xác nhận lưu"
-        cancelText="Kiểm tra lại"
-        variant="warning"
-        successMessage="Thêm sản phẩm thành công! Vui lòng chờ admin phê duyệt."
-        errorMessage="Thêm sản phẩm thất bại. Vui lòng thử lại."
-      />
     </>
   );
 }

@@ -6,6 +6,7 @@ from .models import (
     DealerInventoryWastage,
     DealerProduct,
     DealerProductImage,
+    DealerProductRelatedRecommendation,
 )
 
 
@@ -38,6 +39,17 @@ class DealerInventoryBatchAdmin(admin.ModelAdmin):
 @admin.register(DealerInventoryWastage)
 class DealerInventoryWastageAdmin(admin.ModelAdmin):
     list_display = ("id", "batch", "quantity", "reason", "created_by", "created_at")
+
+
+@admin.register(DealerProductRelatedRecommendation)
+class DealerProductRelatedRecommendationAdmin(admin.ModelAdmin):
+    list_display = ("id", "dealer_product", "related_count", "updated_at")
+    search_fields = ("dealer_product__title", "dealer_product__dealer_profile__store_name")
+    readonly_fields = ("updated_at",)
+
+    @admin.display(description="Số SP gợi ý")
+    def related_count(self, obj):
+        return len(obj.related_product_ids or [])
 
 
 @admin.register(DealerInventoryTransaction)

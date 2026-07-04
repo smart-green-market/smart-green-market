@@ -133,7 +133,7 @@ class DealerCustomerViewSet(viewsets.ModelViewSet):
         summary="Hồ sơ buyer hiện tại",
         description=(
             "Trả hồ sơ buyer đầy đủ: `user`, `favorite_category`, `addresses[]`, "
-            "`default_address`, thống kê đơn hàng.\n\n"
+            "`default_address`, `segments[]`, `primary_segment`, thống kê đơn hàng.\n\n"
             "Cập nhật: `PATCH /api/storefronts/{dealer_slug}/me/` (multipart, chọn file avatar)."
         ),
         responses={200: CustomerProfileSerializer},

@@ -11,18 +11,22 @@ import {
     LogOut,
     FileCheck,
     FileText,
+    Ticket,
+    Wallet,
 } from "lucide-react";
 
 const NAV_ITEMS = [
     { label: "Trang chủ",            icon: LayoutDashboard, to: "/quan-tri",              end: true },
     { label: "Quản lý cấu hình",     icon: Settings,        to: "/quan-tri/cau-hinh" },
     { label: "Quản lý nhà cung cấp", icon: Truck,           to: "/quan-tri/nha-cung-cap" },
+    { label: "Quản lý tài chính",        icon: Wallet,          to: "/quan-tri/tai-chinh-ncc" },
     { label: "Quản lý đại lý",       icon: Store,           to: "/quan-tri/dai-ly" },
     { label: "Quản lý danh mục",     icon: Tag,             to: "/quan-tri/danh-muc" },
     { label: "Catalog sản phẩm",   icon: Layers,          to: "/quan-tri/san-pham-chuan" },
     { label: "Quản lý sản phẩm",     icon: Package,         to: "/quan-tri/san-pham" },
     { label: "Quản lý chứng chỉ",    icon: FileCheck,       to: "/quan-tri/chung-chi" },
     { label: "Quản lý giấy tờ",    icon: FileText,       to: "/quan-tri/giay-to" },
+    { label: "Quản lý Voucher",     icon: Ticket,         to: "/quan-tri/khuyen-mai" },
     //{ label: "Quản lý thông báo",    icon: Bell,       to: "/quan-tri/thong-bao" },
 ];
 

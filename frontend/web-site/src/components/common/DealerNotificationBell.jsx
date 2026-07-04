@@ -12,6 +12,7 @@ import {
     matchesNotificationRecord,
 } from "../Admin/Notification/notificationFormatters";
 import { useAuth } from "../../contexts/authProvider";
+import { useNotificationBellData } from "../../hooks/useNotificationBellData";
 
 const getNotificationRoute = (item) => {
     const referenceType = item.referenceType ?? item.reference_type;
@@ -29,43 +30,26 @@ const getNotificationRoute = (item) => {
 
 export default function DealerNotificationBell({ role: roleProp }) {
     const { user } = useAuth();
-    const role = roleProp ?? user?.role ?? "admin";
+    const role = roleProp ?? user?.role ?? "dealer";
     const seeAllPath = getNotificationSeeAllPath(role);
 
-    const [unreadCount, setUnreadCount] = useState(0);
-    const [notifications, setNotifications] = useState([]);
+    const {
+        unreadCount,
+        setUnreadCount,
+        notifications,
+        setNotifications,
+    } = useNotificationBellData({ enabled: Boolean(user) });
+
     const [isOpenDropdown, setIsOpenDropdown] = useState(false);
-    const [visibleCount, setVisibleCount] = useState(5);
 
     const dropdownRef = useRef(null);
     const navigate = useNavigate();
     const location = useLocation();
 
-    const fetchBellData = useCallback(async () => {
-        try {
-            const data = await notificationService.getMyNotifications();
-            setUnreadCount(data.unread_count || 0);
-
-            const list = data.results || [];
-            const formatted = list.map((item) => formatNotificationRow(item));
-            setNotifications(formatted);
-        } catch (error) {
-            console.error(handleApiError(error, "Không thể tải thông báo chuông"));
-        }
-    }, []);
-
-    useEffect(() => {
-        fetchBellData();
-        // Polling mỗi 30s nếu cần:
-        // const timer = setInterval(fetchBellData, 30000);
-        // return () => clearInterval(timer);
-    }, [fetchBellData]);
-
     useEffect(() => {
         function handleClickOutside(event) {
             if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
                 setIsOpenDropdown(false);
-                setVisibleCount(5);
             }
         }
         document.addEventListener("mousedown", handleClickOutside);
@@ -88,18 +72,18 @@ export default function DealerNotificationBell({ role: roleProp }) {
         } catch (error) {
             console.error(handleApiError(error, "Không thể đánh dấu đã đọc"));
         }
-    }, []);
+    }, [setNotifications, setUnreadCount]);
 
     const handleItemClick = useCallback((item) => {
         setIsOpenDropdown(false);
-        setVisibleCount(5);
 
-        const notificationId = resolveMarkReadId(item);
-        if (notificationId != null && isNotificationUnread(item)) {
-            handleMarkRead(notificationId, item.receiptId ?? item.receipt_id);
+        const formatted = formatNotificationRow(item);
+        const notificationId = resolveMarkReadId(formatted);
+        if (notificationId != null && isNotificationUnread(formatted)) {
+            handleMarkRead(notificationId, formatted.receiptId);
         }
 
-        const route = getNotificationRoute(item);
+        const route = getNotificationRoute(formatted);
         if (route) {
             if (location.pathname === route) {
                 navigate(route, { replace: true, state: { refresh: Date.now() } });
@@ -112,30 +96,26 @@ export default function DealerNotificationBell({ role: roleProp }) {
     return (
         <div className="relative" ref={dropdownRef}>
             <button
-                onClick={() => {
-                    if (isOpenDropdown) {
-                        setVisibleCount(5);
-                    }
-                    setIsOpenDropdown(!isOpenDropdown);
-                }}
+                onClick={() => setIsOpenDropdown(!isOpenDropdown)}
                 className="hover:scale-105 cursor-pointer relative p-2 rounded-full hover:bg-neutral-100 transition-colors text-neutral-600"
             >
                 <Bell className="w-[18px] h-[18px]" />
                 {unreadCount > 0 && (
                     <span className="absolute -top-0.5 -right-0.5 min-w-[16px] h-4 px-1 flex items-center justify-center bg-red-600 text-white text-[10px] font-bold rounded-full border border-stone-50 animate-pulse">
-                        {unreadCount}
+                        {unreadCount > 9 ? "9+" : unreadCount}
                     </span>
                 )}
             </button>
 
             {isOpenDropdown && (
                 <DealerNotificationDropdown
-                    items={notifications.slice(0, visibleCount)}
+                    items={notifications}
                     onItemClick={handleItemClick}
                     onSeeMore={() => {
-                        setVisibleCount(notifications.length);
+                        setIsOpenDropdown(false);
+                        navigate(seeAllPath);
                     }}
-                    hasMore={notifications.length > visibleCount}
+                    hasMore={false}
                 />
             )}
         </div>

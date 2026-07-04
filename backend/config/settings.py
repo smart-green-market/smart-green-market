@@ -99,11 +99,14 @@ CLOUDINARY_STORAGE = (
 )
 
 INSTALLED_APPS = [
+    "daphne",
+    "channels",
     "django.contrib.admin",
     "django.contrib.auth",
     "django.contrib.contenttypes",
     "django.contrib.sessions",
     "django.contrib.messages",
+    "django.contrib.postgres",
     "corsheaders",
     "rest_framework",
     "rest_framework_simplejwt.token_blacklist",
@@ -525,3 +528,23 @@ if not DEBUG:
     SECURE_SSL_REDIRECT = _env_bool("SECURE_SSL_REDIRECT", True)
     SESSION_COOKIE_SECURE = True
     CSRF_COOKIE_SECURE = True
+    
+ASGI_APPLICATION = "config.asgi.application"
+
+_redis_url = (os.environ.get("REDIS_URL") or "").strip()
+if _redis_url:
+    CHANNEL_LAYERS = {
+        "default": {
+            "BACKEND": "channels_redis.core.RedisChannelLayer",
+            "CONFIG": {
+                "hosts": [_redis_url],
+            },
+        },
+    }
+else:
+    # Local dev không có Redis, hoặc override thủ công — single-process Daphne vẫn push WS được.
+    CHANNEL_LAYERS = {
+        "default": {
+            "BACKEND": "channels.layers.InMemoryChannelLayer",
+        },
+    }

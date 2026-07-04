@@ -10,6 +10,7 @@ import {
   Ban,
   PartyPopper,
   Loader2,
+  RotateCcw,
 } from "lucide-react";
 
 /**
@@ -36,6 +37,15 @@ const STATUS_CONFIG = {
     description:
       "Phiếu nhập đã được gửi tới Nhà cung cấp. Hệ thống đã thông báo cho NCC. Bạn sẽ nhận được thông báo khi NCC xác nhận hoặc từ chối đơn hàng.",
     hint: "Bạn có thể hủy phiếu nếu cần thay đổi.",
+  },
+  pending_dealer_confirmation: {
+    icon: AlertTriangle,
+    color: "bg-amber-50 border-amber-200 text-amber-800",
+    iconColor: "text-amber-600",
+    title: "Chờ đại lý xác nhận thay đổi",
+    description:
+      "Nhà cung cấp đã đề xuất điều chỉnh thông tin đơn hàng. Vui lòng kiểm tra lại chi tiết đơn hàng và xác nhận thay đổi.",
+    hint: "Bấm \"Xác nhận thay đổi\" bên dưới để đồng ý với các điều chỉnh này.",
   },
   rejected: {
     icon: XCircle,
@@ -125,6 +135,38 @@ const STATUS_CONFIG = {
     description:
       "Đây là bản xem trước phiếu nhập. Vui lòng kiểm tra thông tin bên dưới rồi bấm \"Xác nhận gửi phiếu\" để gửi tới Nhà cung cấp.",
     hint: "Sau khi gửi, NCC sẽ nhận thông báo và xem xét đơn hàng của bạn.",
+  },
+  returned: {
+    icon: RotateCcw,
+    color: "bg-neutral-50 border-neutral-200 text-neutral-600",
+    iconColor: "text-neutral-500",
+    title: "Đã trả toàn bộ hàng",
+    description: "Đơn hàng đã được trả lại toàn bộ sản phẩm và yêu cầu hoàn tiền đã được xử lý xong.",
+    hint: null,
+  },
+  return_requested: {
+    icon: Loader2,
+    color: "bg-amber-50 border-amber-200 text-amber-800",
+    iconColor: "text-amber-600 animate-spin",
+    title: "Đang chờ NCC duyệt yêu cầu trả hàng",
+    description: "Yêu cầu trả hàng đã được gửi tới Nhà cung cấp. Vui lòng chờ phản hồi.",
+    hint: null,
+  },
+  return_approved: {
+    icon: CheckCircle2,
+    color: "bg-emerald-50 border-emerald-200 text-emerald-800",
+    iconColor: "text-emerald-600",
+    title: "Yêu cầu trả hàng đã được chấp nhận",
+    description: "Yêu cầu trả hàng đã được duyệt thành công.",
+    hint: null,
+  },
+  return_rejected: {
+    icon: XCircle,
+    color: "bg-rose-50 border-rose-200 text-rose-800",
+    iconColor: "text-rose-600",
+    title: "Yêu cầu trả hàng bị từ chối",
+    description: "Nhà cung cấp đã từ chối yêu cầu trả hàng của bạn.",
+    hint: "Xem lý do từ chối cụ thể trong mục chi tiết yêu cầu.",
   },
 };
 

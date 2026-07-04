@@ -4,6 +4,7 @@ from rest_framework import serializers
 
 from common.openapi_enums import schema_choice_field
 
+from .models import CustomerSegment, CustomerSegmentMember
 from .services import STOREFRONT_TRACK_ACTIONS
 
 
@@ -48,3 +49,41 @@ class DealerCatalogInteractionTrackSerializer(serializers.Serializer):
         choices=[(value, value) for value in sorted({"view", "add_cart"})],
         help_text="`view` — xem/click SP (+2). `add_cart` — thêm giỏ lần đầu (+3).",
     )
+
+
+class CustomerSegmentSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = CustomerSegment
+        fields = [
+            "id",
+            "code",
+            "name",
+            "description",
+            "is_system",
+            "created_at",
+            "updated_at",
+        ]
+        read_only_fields = ["id", "is_system", "created_at", "updated_at"]
+
+
+class CustomerProfileSegmentSerializer(serializers.ModelSerializer):
+    """Segment của buyer trên hồ sơ /me — gộp thông tin membership."""
+
+    id = serializers.IntegerField(source="segment.id", read_only=True)
+    code = serializers.CharField(source="segment.code", read_only=True)
+    name = serializers.CharField(source="segment.name", read_only=True)
+    description = serializers.CharField(source="segment.description", read_only=True)
+    is_system = serializers.BooleanField(source="segment.is_system", read_only=True)
+    joined_at = serializers.DateTimeField(source="created_at", read_only=True)
+
+    class Meta:
+        model = CustomerSegmentMember
+        fields = [
+            "id",
+            "code",
+            "name",
+            "description",
+            "is_system",
+            "joined_at",
+        ]
+        read_only_fields = fields

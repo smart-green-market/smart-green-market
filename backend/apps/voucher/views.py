@@ -1,18 +1,26 @@
 # promotions/views.py
 from django.utils import timezone
 from rest_framework.response import Response
-from apps.promotions.models import Promotion, PromotionUsage, PromotionStatus
-from .serializers import AvailablePromotionSerializer, PromotionSerializer, VerifyPromotionSerializer, CartApplyVoucherSerializer, ApplyVoucherSerializer
+from apps.promotions.models import (
+    CustomerSavedVoucher,
+    Promotion,
+    PromotionUsage,
+    PromotionStatus,
+)
+from .serializers import (
+    AvailablePromotionSerializer,
+    PromotionSerializer,
+    VerifyPromotionSerializer,
+    CartApplyVoucherSerializer,
+    CartApplyVoucherResponseSerializer,
+    SavedPromotionSerializer,
+)
 from .services import CartVoucherService
 from rest_framework import viewsets
-from rest_framework.views import APIView
 from common.permission import IsActive, IsAdminOrDealer, IsBuyer, IsAdmin
 from common.querysets import filter_admin_or_dealer_account
-from decimal import Decimal
-from django.db import transaction, IntegrityError
 from rest_framework import status as http_status
 from rest_framework.exceptions import ValidationError
-from apps.orders.models import Order
 from drf_spectacular.utils import extend_schema, extend_schema_view, OpenApiParameter, OpenApiExample
 from common.openapi import PAGINATION_QUERY_HELP, paginated_response_schema
 from rest_framework.decorators import action
@@ -64,7 +72,82 @@ class PromotionViewSet(viewsets.ModelViewSet):
     def get_permissions(self):
         if self.action == "verify":
             return [IsActive(), IsAdmin()]
+        if self.action in ["apply", "available", "save", "unsave", "saved"]:
+            return [IsActive(), IsBuyer()]
         return super().get_permissions()
+
+    def _buyer_customer(self, request):
+        if not hasattr(request.user, "customer_profile"):
+            raise ValidationError("Tài khoản không có thông tin khách hàng.")
+        return request.user.customer_profile
+
+    def _available_promotions_for_customer(self, customer, dealer):
+        now = timezone.now()
+        segment_ids = list(customer.segment_memberships.values_list("segment_id", flat=True))
+
+        promotions = Promotion.objects.filter(
+            status=PromotionStatus.ACTIVE,
+            start_date__lte=now,
+            end_date__gte=now,
+        ).prefetch_related("targets")
+
+        if dealer:
+            from django.db.models import Q
+            promotions = promotions.filter(Q(dealer=dealer) | Q(dealer__isnull=True))
+        else:
+            promotions = promotions.filter(dealer__isnull=True)
+
+        from django.db.models import Count, OuterRef, Subquery, IntegerField, Q, F
+
+        global_usages_subquery = PromotionUsage.objects.filter(
+            promotion=OuterRef("pk")
+        ).values("promotion").annotate(count=Count("id")).values("count")
+
+        customer_usages_subquery = PromotionUsage.objects.filter(
+            promotion=OuterRef("pk"),
+            order__customer=customer
+        ).values("promotion").annotate(count=Count("id")).values("count")
+
+        promotions = promotions.annotate(
+            global_usage_count=Subquery(global_usages_subquery, output_field=IntegerField()),
+            customer_usage_count=Subquery(customer_usages_subquery, output_field=IntegerField())
+        )
+
+        promotions = promotions.filter(
+            Q(global_usage_count__isnull=True) |
+            Q(usage_limit__isnull=True) |
+            Q(global_usage_count__lt=F("usage_limit"))
+        )
+
+        promotions = promotions.filter(
+            Q(customer_usage_count__isnull=True) |
+            Q(usage_limit_per_customer__isnull=True) |
+            Q(customer_usage_count__lt=F("usage_limit_per_customer"))
+        )
+
+        target_filter = Q(targets__isnull=True) | Q(targets__target_type="all")
+
+        if segment_ids:
+            target_filter |= Q(targets__target_type="segment", targets__segment_id__in=segment_ids)
+
+        target_filter |= Q(targets__target_type="customer", targets__customer=customer)
+        target_filter |= Q(targets__target_type="product") | Q(targets__target_type="category")
+
+        promotions = promotions.filter(target_filter).distinct()
+        active_ids = [
+            promotion.id
+            for promotion in promotions
+            if promotion.is_within_daily_time(now)
+        ]
+        return promotions.filter(id__in=active_ids)
+
+    def _saved_promotion_ids(self, customer):
+        return set(
+            CustomerSavedVoucher.objects.filter(customer=customer).values_list(
+                "promotion_id",
+                flat=True,
+            )
+        )
 
     def _apply_filters(self, qs, request):
         from django.db.models import Q
@@ -128,77 +211,63 @@ class PromotionViewSet(viewsets.ModelViewSet):
     )
     @action(detail=False, methods=["get"], permission_classes=[IsActive, IsBuyer])
     def available(self, request):
-        if not hasattr(request.user, "customer_profile"):
-            return Response(
-                {"detail": "Tài khoản không có quyền truy cập (thiếu thông tin khách hàng)."},
-                status=http_status.HTTP_403_FORBIDDEN
-            )
-        customer = request.user.customer_profile
-        now = timezone.now()
-
-        # Tự động lấy dealer của tài khoản buyer đăng ký qua storefront
+        customer = self._buyer_customer(request)
         dealer = request.user.store_dealer
-        segment_ids = list(customer.segment_memberships.values_list("segment_id", flat=True))
-
-        # Filter cơ bản
-        promotions = Promotion.objects.filter(
-            status="active",
-            start_date__lte=now,
-            end_date__gte=now,
+        promotions = self._available_promotions_for_customer(customer, dealer)
+        serializer = AvailablePromotionSerializer(
+            promotions,
+            many=True,
+            context={"saved_promotion_ids": self._saved_promotion_ids(customer)},
         )
-
-        # 1. Lọc theo dealer (gian hàng)
-        if dealer:
-            from django.db.models import Q
-            promotions = promotions.filter(Q(dealer=dealer) | Q(dealer__isnull=True))
-        else:
-            promotions = promotions.filter(dealer__isnull=True)
-
-        # 2. Lọc theo giới hạn số lần sử dụng (usages limit)
-        from django.db.models import Count, OuterRef, Subquery, IntegerField, Q, F
-
-        global_usages_subquery = PromotionUsage.objects.filter(
-            promotion=OuterRef("pk")
-        ).values("promotion").annotate(count=Count("id")).values("count")
-
-        customer_usages_subquery = PromotionUsage.objects.filter(
-            promotion=OuterRef("pk"),
-            order__customer=customer
-        ).values("promotion").annotate(count=Count("id")).values("count")
-
-        promotions = promotions.annotate(
-            global_usage_count=Subquery(global_usages_subquery, output_field=IntegerField()),
-            customer_usage_count=Subquery(customer_usages_subquery, output_field=IntegerField())
-        )
-
-        # Lọc giới hạn tổng lượt dùng
-        promotions = promotions.filter(
-            Q(global_usage_count__isnull=True) |
-            Q(usage_limit__isnull=True) |
-            Q(global_usage_count__lt=F("usage_limit"))
-        )
-
-        # Lọc giới hạn lượt dùng mỗi khách
-        promotions = promotions.filter(
-            Q(customer_usage_count__isnull=True) |
-            Q(usage_limit_per_customer__isnull=True) |
-            Q(customer_usage_count__lt=F("usage_limit_per_customer"))
-        )
-
-        # 3. Lọc theo đối tượng (targets)
-        # Hỗ trợ: tất cả, segment (thân thiết/v.v), khách cụ thể, danh mục sản phẩm, sản phẩm cụ thể
-        target_filter = Q(targets__isnull=True) | Q(targets__target_type="all")
-
-        if segment_ids:
-            target_filter |= Q(targets__target_type="segment", targets__segment_id__in=segment_ids)
-
-        target_filter |= Q(targets__target_type="customer", targets__customer=customer)
-        target_filter |= Q(targets__target_type="product") | Q(targets__target_type="category")
-
-        promotions = promotions.filter(target_filter).distinct()
-
-        serializer = AvailablePromotionSerializer(promotions, many=True)
         return Response(serializer.data)
+
+    @extend_schema(
+        tags=["Vouchers"],
+        summary="Danh sách voucher customer đã lưu",
+        responses={200: SavedPromotionSerializer(many=True)},
+    )
+    @action(detail=False, methods=["get"], permission_classes=[IsActive, IsBuyer])
+    def saved(self, request):
+        customer = self._buyer_customer(request)
+        saved = CustomerSavedVoucher.objects.filter(customer=customer).select_related("promotion")
+        serializer = SavedPromotionSerializer(saved, many=True)
+        return Response(serializer.data)
+
+    @extend_schema(
+        tags=["Vouchers"],
+        summary="Lưu voucher để dùng khi checkout",
+        responses={200: AvailablePromotionSerializer},
+    )
+    @action(detail=True, methods=["post"], permission_classes=[IsActive, IsBuyer])
+    def save(self, request, pk=None):
+        customer = self._buyer_customer(request)
+        dealer = request.user.store_dealer
+        promotion = self._available_promotions_for_customer(customer, dealer).filter(pk=pk).first()
+        if promotion is None:
+            raise ValidationError("Voucher không khả dụng để lưu.")
+
+        CustomerSavedVoucher.objects.get_or_create(
+            customer=customer,
+            promotion=promotion,
+        )
+        serializer = AvailablePromotionSerializer(
+            promotion,
+            context={"saved_promotion_ids": {promotion.id}},
+        )
+        return Response(serializer.data)
+
+    @extend_schema(
+        tags=["Vouchers"],
+        summary="Bỏ lưu voucher",
+    )
+    @action(detail=True, methods=["delete"], permission_classes=[IsActive, IsBuyer])
+    def unsave(self, request, pk=None):
+        customer = self._buyer_customer(request)
+        CustomerSavedVoucher.objects.filter(
+            customer=customer,
+            promotion_id=pk,
+        ).delete()
+        return Response(status=http_status.HTTP_204_NO_CONTENT)
 
     @extend_schema(
         tags=["Vouchers"],
@@ -218,7 +287,7 @@ class PromotionViewSet(viewsets.ModelViewSet):
                 request_only=True,
             )
         ],
-        responses={200: dict},
+        responses={200: CartApplyVoucherResponseSerializer},
     )
     @action(detail=False, methods=["post"], permission_classes=[IsActive, IsBuyer])
     def apply(self, request):
@@ -274,80 +343,3 @@ class PromotionViewSet(viewsets.ModelViewSet):
         promotion.save(update_fields=["status", "reject_reason", "updated_at"])
 
         return Response(PromotionSerializer(promotion, context={"request": request}).data)
-
-@extend_schema_view(
-    post=extend_schema(
-        tags=["Cart Vouchers"],
-        summary="Áp dụng voucher cho giỏ hàng",
-        description=(
-            "Tính toán giá trị giảm giá của voucher cho các sản phẩm trong giỏ hàng. "
-            "Backend tự lấy giá từ database, không tin tưởng giá FE gửi lên."
-        ),
-        request=CartApplyVoucherSerializer,
-        examples=[
-            OpenApiExample(
-                name="Áp dụng mã SALE50K",
-                summary="Ví dụ request giỏ hàng",
-                description="Gửi mã voucher và danh sách sản phẩm trong giỏ.",
-                value={
-                    "voucher_code": "SALE50K",
-                    "items": [
-                        {"dealer_product_id": 45, "quantity": 3},
-                        {"dealer_product_id": 88, "quantity": 1},
-                    ]
-                },
-                request_only=True,
-            )
-        ],
-        responses={
-            200: {
-                "type": "object",
-                "properties": {
-                    "voucher": {
-                        "type": "object",
-                        "properties": {
-                            "id": {"type": "integer"},
-                            "code": {"type": "string"},
-                            "title": {"type": "string"},
-                            "discount_type": {"type": "string", "enum": ["percent", "fixed"]},
-                            "discount_value": {"type": "string"},
-                        }
-                    },
-                    "eligible_total": {"type": "string", "example": "450000.00"},
-                    "order_total": {"type": "string", "example": "650000.00"},
-                    "discount_amount": {"type": "string", "example": "50000.00"},
-                    "final_total": {"type": "string", "example": "600000.00"},
-                }
-            }
-        },
-    )
-)
-class CartApplyVoucherView(APIView):
-    """
-    API View để áp dụng voucher cho giỏ hàng.
-    Chỉ cho phép tài khoản Buyer đã kích hoạt truy cập.
-    """
-    permission_classes = [IsActive, IsBuyer]
-
-    def post(self, request):
-        if not hasattr(request.user, "customer_profile"):
-            return Response(
-                {"detail": "Tài khoản không có quyền truy cập (thiếu thông tin khách hàng)."},
-                status=http_status.HTTP_403_FORBIDDEN
-            )
-
-        customer = request.user.customer_profile
-        serializer = CartApplyVoucherSerializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
-
-        voucher_code = serializer.validated_data["voucher_code"]
-        items = serializer.validated_data["items"]
-
-        # Gọi Service để xử lý logic tính toán và kiểm tra
-        result = CartVoucherService.apply_voucher(
-            customer=customer,
-            voucher_code=voucher_code,
-            items_data=items
-        )
-
-        return Response(result, status=http_status.HTTP_200_OK)

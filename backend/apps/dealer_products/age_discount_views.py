@@ -1,9 +1,7 @@
-"""API quản lý chính sách giảm giá theo tuổi hàng."""
+"""API quản lý chính sách giảm giá theo khung giờ."""
 
-from django.db.models import Count
 from drf_spectacular.utils import OpenApiParameter, extend_schema, extend_schema_view
 from rest_framework import status, viewsets
-from rest_framework.decorators import action
 from rest_framework.exceptions import PermissionDenied
 from rest_framework.response import Response
 
@@ -15,8 +13,6 @@ from .age_discount_serializers import (
     AgeDiscountPolicyDetailSerializer,
     AgeDiscountPolicyListSerializer,
     AgeDiscountPolicyWriteSerializer,
-    AgeDiscountTierSerializer,
-    AgeDiscountTiersReplaceSerializer,
 )
 from .models_age_discount import AgeDiscountPolicy
 
@@ -34,7 +30,7 @@ def _filter_policies_for_user(qs, user):
 @extend_schema_view(
     list=extend_schema(
         tags=["Age Discount Policies"],
-        summary="Danh sách chính sách giảm theo tuổi hàng",
+        summary="Danh sách chính sách giảm theo khung giờ",
         description="Dealer chỉ thấy policy của cửa hàng mình." + PAGINATION_QUERY_HELP,
         parameters=[
             OpenApiParameter("search", str, required=False),
@@ -60,7 +56,7 @@ def _filter_policies_for_user(qs, user):
     ),
     create=extend_schema(
         tags=["Age Discount Policies"],
-        summary="Tạo chính sách + bậc giảm",
+        summary="Tạo chính sách giảm giá",
         request=AgeDiscountPolicyWriteSerializer,
         responses={201: AgeDiscountPolicyDetailSerializer},
     ),
@@ -91,9 +87,9 @@ class AgeDiscountPolicyViewSet(viewsets.ModelViewSet):
             "dealer",
             "category",
             "dealer_product",
-        ).prefetch_related("tiers")
+        )
         qs = _filter_policies_for_user(qs, self.request.user)
-        return qs.annotate(tier_count=Count("tiers")).order_by("-priority", "-updated_at", "-id")
+        return qs.order_by("-priority", "-updated_at", "-id")
 
     def get_serializer_class(self):
         if self.action == "list":
@@ -103,7 +99,7 @@ class AgeDiscountPolicyViewSet(viewsets.ModelViewSet):
         return AgeDiscountPolicyDetailSerializer
 
     def get_permissions(self):
-        if self.action in ("create", "update", "partial_update", "destroy", "replace_tiers"):
+        if self.action in ("create", "update", "partial_update", "destroy"):
             return [IsAdminOrDealer(), IsDealer()]
         return super().get_permissions()
 
@@ -155,23 +151,3 @@ class AgeDiscountPolicyViewSet(viewsets.ModelViewSet):
         return Response(
             AgeDiscountPolicyDetailSerializer(policy, context={"request": request}).data
         )
-
-    @extend_schema(
-        tags=["Age Discount Policies"],
-        summary="Thay toàn bộ bậc giảm",
-        request=AgeDiscountTiersReplaceSerializer,
-        responses={200: AgeDiscountTierSerializer(many=True)},
-    )
-    @action(detail=True, methods=["put"], url_path="tiers")
-    def replace_tiers(self, request, pk=None):
-        from .models_age_discount import AgeDiscountTier
-
-        policy = self.get_object()
-        serializer = AgeDiscountTiersReplaceSerializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
-        policy.tiers.all().delete()
-        created = [
-            AgeDiscountTier.objects.create(policy=policy, **row)
-            for row in serializer.validated_data["tiers"]
-        ]
-        return Response(AgeDiscountTierSerializer(created, many=True).data)

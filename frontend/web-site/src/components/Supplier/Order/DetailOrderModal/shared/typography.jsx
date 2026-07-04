@@ -13,7 +13,7 @@ export function MetaItem({ icon, label, children }) {
       <div className="flex items-center gap-1 text-[11px] text-neutral-400 font-medium uppercase tracking-wide">
         {icon}{label}
       </div>
-      <p className="text-sm font-semibold text-gray-800">{children}</p>
+      <div className="text-sm font-semibold text-gray-800">{children}</div>
     </div>
   );
 }

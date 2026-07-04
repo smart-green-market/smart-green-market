@@ -1,6 +1,6 @@
 import { Outlet, useLocation } from "react-router-dom";
 import { PanelLeftClose, PanelLeftOpen } from "lucide-react";
-import NotificationBell from "../components/common/NotificationBell";
+import { SupplierNotificationBell } from "../components/Supplier/Notification";
 import AppToaster from "../components/common/AppToaster";
 import SideBar from "../components/Supplier/UI/SideBar";
 import SupplierAvatarDropdown from "../components/Supplier/UI/SupplierAvatarDropdown";
@@ -46,7 +46,7 @@ function SupplierLayoutInner() {
 
                     {/* Right icons */}
                     <div className="flex items-center gap-3">
-                        <NotificationBell role="supplier" />
+                        <SupplierNotificationBell />
 
                         <div className="pl-4 border-l border-neutral-200 flex items-center">
                             <SupplierAvatarDropdown supplier={supplier} />

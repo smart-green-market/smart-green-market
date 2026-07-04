@@ -91,6 +91,11 @@ export default function ItemRow({
           {item.note && (
             <p className="text-xs text-neutral-400 italic truncate mt-0.5">{item.note}</p>
           )}
+          {isRejected && (item.reject_reason || item.rejection_reason) && (
+            <p className="text-xs text-red-600 mt-0.5 line-clamp-2">
+              Lý do: {item.reject_reason || item.rejection_reason}
+            </p>
+          )}
           {/* Badge trạng thái khi không canEdit */}
           {!canEdit && (
             <span className={`inline-block mt-0.5 text-[10px] font-bold px-1.5 py-0.5 rounded-full ${
@@ -159,10 +164,15 @@ export default function ItemRow({
 
         {/* Thành tiền */}
         <div className="text-right">
-          <p className={`text-sm font-bold ${(editing || isDirty) ? "text-amber-700" : "text-gray-900"}`}>
+          <p className={`text-sm font-bold ${
+            isRejected ? "text-neutral-400 line-through" :
+            (editing || isDirty) ? "text-amber-700" : "text-gray-900"
+          }`}>
             {fmtPrice((editing || isDirty) ? displaySubtotal : item.subtotal)}
           </p>
-          {(editing || isDirty) && (
+          {isRejected ? (
+            <p className="text-[10px] text-red-500">không tính</p>
+          ) : (editing || isDirty) && (
             <p className="text-[10px] text-amber-500">{editing ? "xem trước" : "chưa lưu"}</p>
           )}
         </div>

@@ -41,14 +41,24 @@ def storefront_buyer_exists(dealer, email):
 
 
 def customer_profile_detail_queryset():
-    """Queryset hồ sơ buyer kèm user, danh mục yêu thích và địa chỉ."""
+    """Queryset hồ sơ buyer kèm user, danh mục yêu thích, địa chỉ và segment."""
+    from django.db.models import Prefetch
+
+    from apps.marketing.models import CustomerSegmentMember
+
     from .models import CustomerProfile
 
     return CustomerProfile.objects.select_related(
         "user",
         "user__store_dealer",
         "favorite_category",
-    ).prefetch_related("addresses")
+    ).prefetch_related(
+        "addresses",
+        Prefetch(
+            "segment_memberships",
+            queryset=CustomerSegmentMember.objects.select_related("segment"),
+        ),
+    )
 
 
 def resolve_favorite_category_id(items_data):
@@ -73,3 +83,19 @@ def update_favorite_category_from_order(customer, items_data):
     if customer.favorite_category_id != category_id:
         customer.favorite_category_id = category_id
         customer.save(update_fields=["favorite_category", "updated_at"])
+
+
+def assign_default_customer_segment(customer_profile):
+    """Gán nhóm khách PASSIVE (mặc định) cho hồ sơ buyer mới."""
+    from apps.marketing.models import CustomerSegment, CustomerSegmentMember
+    from apps.marketing.segment_defaults import DEFAULT_CUSTOMER_SEGMENT_CODE
+
+    segment = CustomerSegment.objects.filter(
+        code=DEFAULT_CUSTOMER_SEGMENT_CODE,
+    ).first()
+    if segment is None:
+        return
+    CustomerSegmentMember.objects.get_or_create(
+        customer_profile=customer_profile,
+        segment=segment,
+    )

@@ -20,12 +20,10 @@ from apps.product_catalog.models import ProductMaster
 
 from .seed_customer_journeys import seed_customer_journeys
 from .seed_product_helpers import (
-    assign_product_master_seasons,
     build_dealer_description,
     build_supplier_description,
     create_cultivation_processes,
     create_dealer_inventory_batches,
-    ensure_seasons,
     get_storage_profile,
     link_product_certifications,
     pick_storage_days,
@@ -33,7 +31,8 @@ from .seed_product_helpers import (
     seed_supplier_certifications,
 )
 
-# Chạy: python manage.py seed_data --clear
+# Chạy lệnh tạo db: python manage.py migrate
+# Chạy lệnh tạo dữ liệu: python manage.py seed_data --clear
 # Gọn:  python manage.py seed_data --clear --buyers 80
 
 SEED_PASSWORD = "12345678"
@@ -64,7 +63,12 @@ class Command(BaseCommand):
 
         if clear:
             self.stdout.write('Clearing existing data...')
-            from apps.marketing.models import CustomerInteraction, DealerSupplierProductInteraction
+            from apps.marketing.models import (
+                CustomerInteraction,
+                CustomerSegment,
+                CustomerSegmentMember,
+                DealerSupplierProductInteraction,
+            )
             from apps.orders.models import (
                 CustomerPayment,
                 OrderReturn,
@@ -108,6 +112,8 @@ class Command(BaseCommand):
             PromotionUsage.objects.all().delete()
             PromotionTarget.objects.all().delete()
             Promotion.objects.all().delete()
+            CustomerSegmentMember.objects.all().delete()
+            CustomerSegment.objects.all().delete()
             CustomerAddress.objects.all().delete()
             CustomerProfile.objects.all().delete()
             DealerProfile.objects.all().delete()
@@ -119,13 +125,13 @@ class Command(BaseCommand):
  
         self.password = make_password(SEED_PASSWORD)
         self.admin_account = self._get_or_create_admin()
+
+        self.stdout.write('Creating system customer segments...')
+        self._seed_customer_segments()
  
         self.stdout.write('Creating Categories...')
         self.categories = self._create_categories()
 
-        self.stdout.write('Ensuring seasons...')
-        self.season_map = ensure_seasons()
- 
         self.stdout.write('Creating Product Masters...')
         self.product_masters = self._create_product_masters(self.categories)
  
@@ -218,16 +224,7 @@ class Command(BaseCommand):
     'Trái cây ôn đới & nhập khẩu',
     'Quả mọng & đặc sản',
     'Đậu & hạt tươi',
-    'Gạo & Ngũ cốc',
-    'Đậu khô & hạt khô',
-    'Thực phẩm khô',
-    'Nông sản sấy khô',
-    'Gia vị',
-    'Mật ong & sản phẩm từ ong',
-    'Trứng gia cầm',
-    'Sữa & sản phẩm từ sữa nông trại',
-    'Thực phẩm lên men & muối chua',
-    'Hoa & cây giống nông nghiệp'
+ 
 ]
         categories = []
         for name in names:
@@ -321,6 +318,12 @@ class Command(BaseCommand):
             )
             dealers.append(profile)
         return dealers
+
+    def _seed_customer_segments(self):
+        from apps.marketing.segment_defaults import seed_system_customer_segments
+
+        seed_system_customer_segments()
+        self.stdout.write(self.style.SUCCESS('System customer segments ready.'))
 
     def _create_buyers(self, count, dealers):
         from apps.customers.services import build_storefront_username
@@ -421,62 +424,14 @@ class Command(BaseCommand):
         'Bắp non', 'Bắp ngọt trái', 'Đậu phộng tươi', 'Đậu nành tươi (edamame)', 'Hạt sen tươi',
         'Củ năng', 'Bông cải trắng', 'Súp lơ xanh', 'Atiso tươi', 'Bông bí'
     ],
-    'Gạo & Ngũ cốc': [
-        'Gạo ST25', 'Gạo lứt huyết rồng', 'Yến mạch', 'Đậu xanh tách vỏ', 'Gạo nàng thơm chợ Đào',
-        'Gạo nếp cái hoa vàng', 'Gạo japonica', 'Gạo tấm', 'Hạt kê', 'Gạo lứt đỏ',
-        'Bột yến mạch nguyên cám', 'Gạo nếp than', 'Hạt diêm mạch (quinoa)', 'Gạo thơm Lài', 'Bắp khô hạt'
-    ],
-    'Đậu khô & hạt khô': [
-        'Hạt điều rang muối', 'Hạt sen khô', 'Đậu đen', 'Đậu phộng', 'Đậu đỏ',
-        'Hạt macca', 'Hạt óc chó', 'Hạt hạnh nhân', 'Đậu trắng', 'Hạt bí rang',
-        'Hạt hướng dương', 'Đậu lăng', 'Hạt dẻ cười', 'Đậu Hà Lan khô', 'Hạt chia'
-    ],
-    'Thực phẩm khô': [
-        'Nấm hương khô', 'Mộc nhĩ', 'Bánh đa cua', 'Miến dong', 'Bún khô',
-        'Phở khô', 'Bánh tráng phơi sương', 'Tôm khô', 'Cá cơm khô', 'Rong biển khô',
-        'Mì gạo khô', 'Bánh phồng tôm', 'Khô mực', 'Hủ tiếu khô', 'Bột năng'
-    ],
-    'Nông sản sấy khô': [
-        'Chuối sấy giòn', 'Mít sấy', 'Khoai lang sấy', 'Xoài sấy dẻo', 'Mãng cầu sấy',
-        'Đu đủ sấy', 'Dứa sấy', 'Cà chua sấy khô', 'Cải kale sấy', 'Khoai môn sấy',
-        'Táo sấy dẻo', 'Cam sấy lát', 'Gừng sấy dẻo', 'Bí đỏ sấy', 'Rong biển sấy'
-    ],
-    'Gia vị': [
-        'Hạt tiêu Phú Quốc', 'Nước mắm Phú Quốc', 'Tỏi Lý Sơn', 'Ớt chỉ thiên', 'Muối tôm Tây Ninh',
-        'Sa tế', 'Bột nghệ', 'Bột ớt', 'Hạt nêm rau củ', 'Tương ớt',
-        'Nước tương', 'Dầu hào', 'Quế chi', 'Hoa hồi', 'Lá nguyệt quế'
-    ],
-    'Mật ong & sản phẩm từ ong': [
-        'Mật ong rừng', 'Sữa ong chúa', 'Phấn hoa', 'Mật ong hoa nhãn', 'Mật ong hoa cà phê',
-        'Mật ong bạc hà', 'Keo ong (propolis)', 'Mật ong rừng U Minh', 'Sáp ong nguyên chất', 'Mật ong hoa vải',
-        'Mật ong chanh đào', 'Trà mật ong gừng', 'Mật ong nghệ', 'Mật ong hoa cúc', 'Mật ong rừng Tây Bắc'
-    ],
-    'Trứng gia cầm': [
-        'Trứng gà ta', 'Trứng vịt', 'Trứng vịt muối', 'Trứng cút', 'Trứng gà công nghiệp',
-        'Trứng vịt lộn', 'Trứng gà ác', 'Trứng ngỗng', 'Trứng cút lộn', 'Trứng gà so',
-        'Trứng vịt bắc thảo', 'Trứng gà hữu cơ', 'Trứng gà Đông Tảo', 'Trứng vịt trời', 'Trứng gà thả vườn'
-    ],
-    'Sữa & sản phẩm từ sữa nông trại': [
-        'Sữa tươi nông trại', 'Sữa chua nếp cẩm', 'Phô mai tươi', 'Sữa chua Hy Lạp', 'Sữa dê tươi',
-        'Bơ tươi nông trại', 'Sữa chua uống', 'Phô mai que', 'Váng sữa', 'Sữa chua trái cây',
-        'Kem tươi nông trại', 'Sữa tươi thanh trùng', 'Sữa hạt óc chó', 'Sữa đậu nành nguyên chất', 'Sữa chua không đường'
-    ],
-    'Thực phẩm lên men & muối chua': [
-        'Dưa cải muối', 'Kim chi', 'Cà pháo muối', 'Măng chua', 'Củ kiệu muối',
-        'Dưa món', 'Cải chua', 'Hành muối', 'Tỏi muối', 'Sung muối',
-        'Đu đủ muối chua', 'Rau cải muối xổi', 'Ớt muối', 'Dưa leo muối', 'Mơ muối'
-    ],
-    'Hoa & cây giống nông nghiệp': [
-        'Hoa hồng Đà Lạt', 'Hoa cúc', 'Cây giống rau', 'Hạt giống hoa', 'Hoa lan hồ điệp',
-        'Hoa ly', 'Cây giống cà chua', 'Cây giống ớt', 'Hạt giống rau cải', 'Cây giống dưa leo',
-        'Hoa hướng dương', 'Cây giống bầu bí', 'Hạt giống rau muống', 'Cây giống xoài', 'Hạt giống dưa hấu'
-    ],
+
+   
+    
 }
         
         product_masters = []
         for cat in categories:
             names = master_data.get(cat.name, [])
-            profile = get_storage_profile(cat.name)
             for name in names:
                 slug = self.fake.slug(name)
                 pm, created = ProductMaster.objects.get_or_create(
@@ -493,7 +448,6 @@ class Command(BaseCommand):
                         'sort_order': random.randint(1, 100)
                     }
                 )
-                assign_product_master_seasons(pm, self.season_map, profile)
                 product_masters.append(pm)
         return product_masters
 
@@ -650,6 +604,7 @@ class Command(BaseCommand):
                         purchase_order=po,
                         supplier_product=item_sp,
                         quantity=qty,
+                        original_quantity=qty,
                         unit_price=price,
                         subtotal=subtotal
                     )
