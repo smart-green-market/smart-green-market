@@ -1,16 +1,23 @@
 import { useState, useEffect, useCallback, useMemo } from "react";
 import {
     HardDrive,
+    Loader2,
     RefreshCw,
     Save,
     Shield,
     ShoppingCart,
+    Sparkles,
     Truck,
     Undo2,
 } from "lucide-react";
 import { AdminPageLoadError, AdminPageLoading } from "../../components/Admin/UI/AdminFetchState";
 import ConfirmModal from "../../components/common/ConfirmModal";
+import { appToast } from "../../components/common/toast";
 import { settingService, handleApiError } from "../../services/api/settingService";
+import {
+    aiTrainingServicer,
+    handleApiError as handleTrainingApiError,
+} from "../../services/api/Admin/aiTrainingServicer";
 
 const EDITABLE_FIELDS = [
     "max_upload_image_size_mb",
@@ -286,6 +293,7 @@ export default function SettingsAside() {
     );
     const [isFetching, setIsFetching] = useState(true);
     const [isSaving, setIsSaving] = useState(false);
+    const [isTraining, setIsTraining] = useState(false);
     const [loadError, setLoadError] = useState("");
     const [confirmOpen, setConfirmOpen] = useState(false);
 
@@ -329,6 +337,28 @@ export default function SettingsAside() {
 
     const handleReset = () => {
         setFormValues(originalValues);
+    };
+
+    const handleTrainAi = async () => {
+        setIsTraining(true);
+        try {
+            const result = await aiTrainingServicer.trainRelatedProducts();
+            if (result?.success) {
+                appToast.success(
+                    result.message || "Đã huấn luyện mô hình gợi ý sản phẩm.",
+                );
+            } else {
+                appToast.warning(
+                    result?.message || "Huấn luyện AI không thành công.",
+                );
+            }
+        } catch (err) {
+            appToast.error(
+                handleTrainingApiError(err, "Không thể huấn luyện mô hình AI."),
+            );
+        } finally {
+            setIsTraining(false);
+        }
     };
 
     const handleConfirmUpdate = async () => {
@@ -392,12 +422,27 @@ export default function SettingsAside() {
                         <button
                             type="button"
                             onClick={fetchConfig}
-                            disabled={isSaving}
+                            disabled={isSaving || isTraining}
                             title="Tải lại"
                             className="cursor-pointer inline-flex shrink-0 items-center gap-2 rounded-lg border border-neutral-300 px-4 py-2.5 text-sm font-semibold text-neutral-700 transition-colors hover:bg-neutral-50 disabled:opacity-50"
                         >
                             <RefreshCw className="h-4 w-4" />
                             Tải lại
+                        </button>
+
+                        <button
+                            type="button"
+                            onClick={handleTrainAi}
+                            disabled={isSaving || isTraining}
+                            title="Huấn luyện gợi ý sản phẩm liên quan"
+                            className="cursor-pointer inline-flex shrink-0 items-center gap-2 rounded-lg border border-violet-300 bg-violet-50 px-4 py-2.5 text-sm font-semibold text-violet-800 transition-colors hover:bg-violet-100 disabled:opacity-50"
+                        >
+                            {isTraining ? (
+                                <Loader2 className="h-4 w-4 animate-spin" />
+                            ) : (
+                                <Sparkles className="h-4 w-4" />
+                            )}
+                            Training AI
                         </button>
 
                         {isDirty ? (
