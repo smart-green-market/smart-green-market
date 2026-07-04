@@ -75,10 +75,9 @@ class AgeDiscountPolicy(models.Model):
         if self.daily_start_time is None or self.daily_end_time is None:
             return True
 
-        from django.utils import timezone
+        from common.timezone import vn_current_time
 
-        at = at or timezone.now()
-        current_time = timezone.localtime(at).time()
+        current_time = vn_current_time(at)
         start_time = self.daily_start_time
         end_time = self.daily_end_time
 

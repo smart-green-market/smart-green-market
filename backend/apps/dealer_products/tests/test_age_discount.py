@@ -1,6 +1,6 @@
 """Tests giảm giá theo tuổi lô hàng."""
 
-from datetime import timedelta
+from datetime import datetime, time, timedelta, timezone as dt_timezone
 from decimal import Decimal
 
 from django.test import TestCase
@@ -189,6 +189,31 @@ class AgeDiscountServiceTests(TestCase):
         self.assertFalse(
             get_sellable_batches_qs(self.product).filter(pk=expired.pk).exists()
         )
+
+    def test_daily_time_window_uses_vietnam_timezone(self):
+        policy = AgeDiscountPolicy.objects.create(
+            dealer=self.dealer,
+            title="Flash sale VN",
+            scope=AgeDiscountScope.ALL,
+            discount_type=AgeDiscountDiscountType.PERCENT,
+            discount_value=Decimal("20"),
+            daily_start_time=time(17, 0),
+            daily_end_time=time(19, 0),
+            is_active=True,
+        )
+        at_vn_evening = datetime(2026, 7, 2, 11, 0, tzinfo=dt_timezone.utc)
+        at_vn_morning = datetime(2026, 7, 2, 3, 0, tzinfo=dt_timezone.utc)
+
+        self.assertTrue(policy.is_within_daily_time(at_vn_evening))
+        self.assertFalse(policy.is_within_daily_time(at_vn_morning))
+
+        result = compute_batch_effective_price(self.batch_old, at=at_vn_evening)
+        self.assertEqual(result.age_discount_source, "policy")
+        self.assertEqual(result.effective_unit_price, Decimal("20000.00"))
+
+        outside = compute_batch_effective_price(self.batch_old, at=at_vn_morning)
+        self.assertEqual(outside.age_discount_source, "none")
+        self.assertEqual(outside.effective_unit_price, self.product.retail_price)
 
     def test_product_specific_policy_beats_all_scope_policy(self):
         AgeDiscountPolicy.objects.create(

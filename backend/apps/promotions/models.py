@@ -151,15 +151,14 @@ class Promotion(models.Model):
         return f"[{scope}] {self.title}"
 
     def is_within_daily_time(self, at=None):
-        from django.utils import timezone
-
         if self.schedule_type != PromotionScheduleType.DAILY_TIME:
             return True
         if self.daily_start_time is None or self.daily_end_time is None:
             return False
 
-        at = at or timezone.now()
-        current_time = timezone.localtime(at).time()
+        from common.timezone import vn_current_time
+
+        current_time = vn_current_time(at)
         start_time = self.daily_start_time
         end_time = self.daily_end_time
 
