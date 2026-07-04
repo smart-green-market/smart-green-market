@@ -1,4 +1,13 @@
-import { CheckCircle2, Clock, FileCheck, Lock, XCircle } from "lucide-react";
+import {
+  ArrowDownLeft,
+  ArrowUpRight,
+  CheckCircle2,
+  Clock,
+  FileCheck,
+  Lock,
+  Percent,
+  XCircle,
+} from "lucide-react";
 
 import { getDealerDisplayStatus } from "../Dealer/DealerFilter";
 
@@ -252,5 +261,37 @@ export const VOUCHER_STAT_CARDS = [
     icon: Clock,
     style: "warning",
     match: (row) => row.status === "pending" || row.status === "draft",
+  }),
+];
+
+/** Tài chính NCC — KPI cards (triệu ₫) */
+export const SUPPLIER_FINANCE_STAT_CARDS = [
+  card({
+    key: "total_revenue",
+    label: "Tổng doanh thu (triệu ₫)",
+    filterValue: "",
+    icon: CheckCircle2,
+    style: "success",
+  }),
+  card({
+    key: "cash_in",
+    label: "Dòng tiền vào (triệu ₫)",
+    filterValue: "",
+    icon: ArrowDownLeft,
+    style: "info",
+  }),
+  card({
+    key: "cash_out",
+    label: "Dòng tiền ra (triệu ₫)",
+    filterValue: "",
+    icon: ArrowUpRight,
+    style: "warning",
+  }),
+  card({
+    key: "commission",
+    label: "Tổng chiết khấu (triệu ₫)",
+    filterValue: "",
+    icon: Percent,
+    style: "danger",
   }),
 ];
