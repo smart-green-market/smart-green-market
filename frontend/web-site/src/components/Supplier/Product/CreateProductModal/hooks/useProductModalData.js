@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect } from "react";
 import { categoryService } from "../../../../../services/api/categoryService";
 import { productService } from "../../../../../services/api/productService";
 import { productMasterService } from "../../../../../services/api/Admin/productMasterService";
@@ -33,13 +33,12 @@ export function useProductModalData({
   const [loadingProducts, setLoadingProducts] = useState(false);
   const [loadingSellingIds, setLoadingSellingIds] = useState(false);
 
-  // Ref lưu set id đang bán — không cần re-render khi thay đổi
-  const sellingMasterIdsRef = useRef(new Set());
+  const [sellingMasterIds, setSellingMasterIds] = useState(null);
 
-  // ── Reset ref khi modal mở ──────────────────────────────────
+  // ── Reset state khi modal mở ──────────────────────────────────
   useEffect(() => {
     if (!isOpen) return;
-    sellingMasterIdsRef.current = new Set();
+    setSellingMasterIds(null);
   }, [isOpen, isPersonal]);
 
   // ── Fetch selling ids (active/approved) ─────────────────────
@@ -53,17 +52,20 @@ export function useProductModalData({
       .then((response) => {
         if (cancelled) return;
         const all = extractProductList(response);
-        const SELLING = new Set(["active", "approved"]);
+        console.log("[useProductModalData] productService.getAll all products:", all);
         const ids = new Set(
           all
-            .filter((p) => SELLING.has(p.status))
             .map((p) => p.product_master?.id ?? p.product_master ?? null)
             .filter(Boolean)
             .map(String)
         );
-        sellingMasterIdsRef.current = ids;
+        console.log("[useProductModalData] mapped product_master ids:", Array.from(ids));
+        setSellingMasterIds(ids);
       })
-      .catch(() => { if (!cancelled) sellingMasterIdsRef.current = new Set(); })
+      .catch((e) => {
+        console.error("[useProductModalData] error fetching supplier products:", e);
+        if (!cancelled) setSellingMasterIds(new Set());
+      })
       .finally(() => { if (!cancelled) setLoadingSellingIds(false); });
 
     return () => { cancelled = true; };
@@ -112,7 +114,7 @@ export function useProductModalData({
   useEffect(() => {
     const targetId = isPersonal ? systemCategoryId : categoryId;
 
-    if (!isOpen || !targetId) {
+    if (!isOpen || !targetId || sellingMasterIds === null) {
       setProducts([]);
       return;
     }
@@ -125,7 +127,7 @@ export function useProductModalData({
       .then((list) => {
         if (cancelled) return;
         const available = (list ?? []).filter(
-          (p) => !sellingMasterIdsRef.current.has(String(p.id))
+          (p) => !sellingMasterIds.has(String(p.id))
         );
         setProducts(available);
         onProductsLoaded?.(available, isPersonal, selectedProductId);
@@ -139,7 +141,7 @@ export function useProductModalData({
       .finally(() => { if (!cancelled) setLoadingProducts(false); });
 
     return () => { cancelled = true; };
-  }, [isOpen, categoryId, systemCategoryId, isPersonal]);
+  }, [isOpen, categoryId, systemCategoryId, isPersonal, sellingMasterIds]);
 
   return {
     categories,

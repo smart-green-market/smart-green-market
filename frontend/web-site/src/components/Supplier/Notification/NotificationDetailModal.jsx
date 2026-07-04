@@ -25,7 +25,7 @@ export default function NotificationDetailModal({
 
   return (
     <div
-      className={`modal-overlay ${isOpen ? 'open' : ''}`}
+      className={`supplier-notif-root modal-overlay ${isOpen ? 'open' : ''}`}
       onClick={(e) => {
         if (e.target === e.currentTarget) onClose?.();
       }}
