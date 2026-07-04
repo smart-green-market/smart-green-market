@@ -130,8 +130,12 @@ export default function StorefrontProductCard({
     );
 
     const titleClass = isCarousel
-        ? "line-clamp-2 px-3 pt-2 text-[13px] font-semibold leading-snug text-emerald-950"
-        : "line-clamp-2 px-4 pt-3 text-[15px] font-semibold leading-snug text-emerald-950";
+        ? "line-clamp-2 min-h-[2.5rem] px-3 pt-2 text-[13px] font-semibold leading-snug text-emerald-950"
+        : "line-clamp-2 min-h-[2.75rem] px-4 pt-3 text-[15px] font-semibold leading-snug text-emerald-950";
+
+    const originalPriceClass = isCarousel
+        ? "block min-h-[14px] text-[11px] leading-tight"
+        : "block min-h-4 text-xs leading-tight";
 
     return (
         <article
@@ -162,20 +166,27 @@ export default function StorefrontProductCard({
                     isCarousel ? "mt-1 px-3 pb-3" : "mt-2 px-4 pb-4"
                 }`}
             >
-                <div className={`flex items-center justify-between ${isCarousel ? "gap-1.5" : "gap-2"}`}>
+                <div className={`flex items-end justify-between ${isCarousel ? "gap-1.5" : "gap-2"}`}>
                 <div className={`flex min-w-0 flex-col ${isCarousel ? "gap-0" : "gap-0.5"}`}>
-                    {hasDiscount && originalPrice ? (
-                        <span
-                            className={`font-medium text-stone-400 line-through ${
-                                isCarousel ? "text-[11px]" : "text-xs"
-                            }`}
-                        >
-                            {originalPrice}
-                            {unitSuffix ? (
-                                <span className="text-stone-300">{unitSuffix}</span>
-                            ) : null}
-                        </span>
-                    ) : null}
+                    <span
+                        className={`${originalPriceClass} font-medium line-through ${
+                            hasDiscount && originalPrice
+                                ? "text-stone-400"
+                                : "invisible"
+                        }`}
+                        aria-hidden={!(hasDiscount && originalPrice)}
+                    >
+                        {hasDiscount && originalPrice ? (
+                            <>
+                                {originalPrice}
+                                {unitSuffix ? (
+                                    <span className="text-stone-300">{unitSuffix}</span>
+                                ) : null}
+                            </>
+                        ) : (
+                            "\u00A0"
+                        )}
+                    </span>
                     <p
                         className={`min-w-0 font-bold tracking-tight ${
                             hasDiscount ? "text-red-600" : "text-emerald-700"

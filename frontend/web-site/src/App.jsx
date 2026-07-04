@@ -21,7 +21,7 @@ import { UserVoucherPage, HomePage, ProductDetailPage, ProductsPage, CartPage, O
 //Supplier Pages
 import { OrderSupplierPage, ProductSupplierPage, CertificationSupplierPage, RegisterPage, SupplierLoginPage, SupplierInfoPage, CategorySupplierPage, CultivationSupplierPage, DashboardSupplierPage, SupplierNotificationPage, NotFound } from "./pages/Supplier";
 //Admin Pages
-import { VoucherPage, AdminLoginPage, AdminDashboardPage, SettingPage, SupplierPage, CategoryPage, ProductPage, ProductMasterPage, SeasonPage, CertificationPage, DocumentPage, NotificationPage, DealerPage, } from "./pages/Admin";
+import { SupplierFinancePage, VoucherPage, AdminLoginPage, AdminDashboardPage, SettingPage, SupplierPage, CategoryPage, ProductPage, ProductMasterPage, SeasonPage, CertificationPage, DocumentPage, NotificationPage, DealerPage, } from "./pages/Admin";
 //Dealer Pages
 import { DealerDiscountPage, RegisterDealerPage, DealerLoginPage, DealerDashboardPage, DealerInventoryPage, DealerSupplierPage, DealerCategoryPage, DealerSalesOrderPage, DealerPurchaseOrderPage, DealerCreatePurchaseOrderPage, DealerPurchaseOrderDetailPage, DealerDraftOrderPreviewPage, DealerSupplierDetailPage, DealerCategoryDetail, DealerInfoPage, DealerCustomerPage, DealerProductManagementPage, DealerProductDetailPage } from "./pages/Dealer";
 
@@ -96,6 +96,7 @@ export default function App() {
                             <Route path="tat-ca-thong-bao" element={<NotificationPage />} />
                             <Route path="dai-ly" element={<DealerPage />} />
                             <Route path="khuyen-mai" element={<VoucherPage />} />
+                            <Route path="tai-chinh-ncc" element={<SupplierFinancePage />} />
                         </Route>
                     </Route>
 

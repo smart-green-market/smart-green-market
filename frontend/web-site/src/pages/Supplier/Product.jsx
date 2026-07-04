@@ -45,7 +45,6 @@ export default function ProductSupplierPage() {
   const [detailRow, setDetailRow] = useState(null);
   const [toggleTarget, setToggleTarget] = useState(null);
   const [togglingId, setTogglingId] = useState(null);
-  const [deleting, setDeleting] = useState(false);
   const [ordersRow, setOrdersRow] = useState(null);
 
   /* ── Fetch ── */
@@ -79,17 +78,8 @@ export default function ProductSupplierPage() {
   /* ── Delete ── */
   const handleDelete = async () => {
     if (!deleteRow) return;
-    try {
-      setDeleting(true);
-      await productService.deleteProduct(deleteRow.id);
-      setData((prev) => prev.filter((row) => row.id !== deleteRow.id));
-      setDeleteRow(null);
-    } catch (error) {
-      console.error("Lỗi khi xoá sản phẩm:", error);
-      alert("Xoá sản phẩm thất bại. Vui lòng thử lại!");
-    } finally {
-      setDeleting(false);
-    }
+    await productService.deleteProduct(deleteRow.id);
+    setData((prev) => prev.filter((row) => row.id !== deleteRow.id));
   };
 
   /* ── Khóa / mở khóa ── */
@@ -240,17 +230,16 @@ export default function ProductSupplierPage() {
 
       <DeleteConfirmModal
         isOpen={deleteRow !== null}
-        onClose={() => !deleting && setDeleteRow(null)}
+        onClose={() => setDeleteRow(null)}
         onConfirm={handleDelete}
         itemName={deleteRow?.name ?? ""}
         itemType="sản phẩm"
-        loading={deleting}
       />
 
       <CreateProductModal
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
-        onSuccess={(p) => { /* reload list */ }}
+        onSuccess={(p) => { fetchProducts(); }}
         mode={modalMode}
       />
 

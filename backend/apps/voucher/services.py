@@ -39,6 +39,8 @@ class CartVoucherService:
             raise ValidationError("Voucher chưa đến thời gian bắt đầu.")
         if voucher.end_date < now:
             raise ValidationError("Voucher đã hết hạn.")
+        if not voucher.is_within_daily_time(now):
+            raise ValidationError("Voucher chưa đến khung giờ áp dụng trong ngày.")
 
     @staticmethod
     def _validate_saved(customer, voucher):

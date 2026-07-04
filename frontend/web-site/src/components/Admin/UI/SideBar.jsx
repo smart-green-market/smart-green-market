@@ -12,12 +12,14 @@ import {
     FileCheck,
     FileText,
     Ticket,
+    Wallet,
 } from "lucide-react";
 
 const NAV_ITEMS = [
     { label: "Trang chủ",            icon: LayoutDashboard, to: "/quan-tri",              end: true },
     { label: "Quản lý cấu hình",     icon: Settings,        to: "/quan-tri/cau-hinh" },
     { label: "Quản lý nhà cung cấp", icon: Truck,           to: "/quan-tri/nha-cung-cap" },
+    { label: "Quản lý tài chính",        icon: Wallet,          to: "/quan-tri/tai-chinh-ncc" },
     { label: "Quản lý đại lý",       icon: Store,           to: "/quan-tri/dai-ly" },
     { label: "Quản lý danh mục",     icon: Tag,             to: "/quan-tri/danh-muc" },
     { label: "Catalog sản phẩm",   icon: Layers,          to: "/quan-tri/san-pham-chuan" },

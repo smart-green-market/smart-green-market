@@ -72,7 +72,7 @@ def _policy_in_date_range(policy, at):
         return False
     if policy.end_at and at > policy.end_at:
         return False
-    return True
+    return policy.is_within_daily_time(at)
 
 
 def _policy_applies_to_product(policy, dealer_product):
@@ -106,7 +106,7 @@ def build_policies_cache_for_batches(batches, at=None):
 
 
 def _load_active_policies(dealer, at):
-    return list(
+    policies = list(
         AgeDiscountPolicy.objects.filter(
             dealer=dealer,
             is_active=True,
@@ -115,6 +115,7 @@ def _load_active_policies(dealer, at):
         .filter(Q(end_at__isnull=True) | Q(end_at__gte=at))
         .select_related("category", "dealer_product")
     )
+    return [policy for policy in policies if policy.is_within_daily_time(at)]
 
 
 def resolve_age_discount_policy(

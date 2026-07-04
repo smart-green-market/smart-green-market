@@ -50,6 +50,16 @@ class AgeDiscountPolicy(models.Model):
     is_active = models.BooleanField(default=True)
     start_at = models.DateTimeField(null=True, blank=True)
     end_at = models.DateTimeField(null=True, blank=True)
+    daily_start_time = models.TimeField(
+        null=True,
+        blank=True,
+        help_text="Giờ bắt đầu áp dụng mỗi ngày",
+    )
+    daily_end_time = models.TimeField(
+        null=True,
+        blank=True,
+        help_text="Giờ kết thúc áp dụng mỗi ngày",
+    )
 
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -60,3 +70,17 @@ class AgeDiscountPolicy(models.Model):
 
     def __str__(self):
         return f"{self.dealer.store_name} — {self.title}"
+
+    def is_within_daily_time(self, at=None):
+        if self.daily_start_time is None or self.daily_end_time is None:
+            return True
+
+        from common.timezone import vn_current_time
+
+        current_time = vn_current_time(at)
+        start_time = self.daily_start_time
+        end_time = self.daily_end_time
+
+        if start_time <= end_time:
+            return start_time <= current_time <= end_time
+        return current_time >= start_time or current_time <= end_time

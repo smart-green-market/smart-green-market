@@ -9,10 +9,11 @@ export default function FilterProductCard({
     discountPercent = 0,
     hasDiscount = false,
     unitKey = "kg",
-    rating = null,
-    availableQuantity = 0,
     unit = "",
-    inStock = true,
+    availableQuantity,
+    available_quantity = 0,
+    inStock,
+    in_stock = true,
     image,
 }) {
     return (
@@ -26,9 +27,8 @@ export default function FilterProductCard({
             priceValue={priceValue}
             unitKey={unitKey}
             unit={unit}
-            availableQuantity={availableQuantity}
-            inStock={inStock}
-            rating={rating}
+            availableQuantity={availableQuantity ?? available_quantity ?? 0}
+            inStock={inStock ?? in_stock ?? true}
             image={image}
             layout="grid"
         />

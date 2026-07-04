@@ -179,28 +179,9 @@ export async function fetchBuyerProductById(slug, id) {
   return formatBuyerProduct(raw);
 }
 
-export async function fetchRelatedBuyerProducts(
-  slug,
-  currentId,
-  categoryId,
-  limit = 4,
-) {
-  try {
-    const rows = await buyerCatalogService.getRelatedProducts(slug, currentId, {
-      limit,
-    });
-    return (rows ?? []).map(formatBuyerProduct);
-  } catch {
-    const rows = await buyerCatalogService.getProduct(slug);
-    return (rows ?? [])
-      .map(formatBuyerProduct)
-      .filter(
-        (item) =>
-          String(item.id) !== String(currentId) &&
-          (categoryId ? item.category_id === categoryId : true),
-      )
-      .slice(0, limit);
-  }
+export async function fetchRelatedBuyerProducts(slug, productId, limit = 10) {
+  const rows = await buyerProductService.getRelated(slug, productId, { limit });
+  return (rows ?? []).map(formatBuyerProduct);
 }
 
 export function clearBuyerCatalogCache(slug) {

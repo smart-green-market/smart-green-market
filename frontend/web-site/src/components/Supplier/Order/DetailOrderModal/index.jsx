@@ -183,6 +183,15 @@ export default function DetailOrderModal({ isOpen, onClose, order: initialOrder,
   const hasConfirmedDelivery = Boolean(order.confirmed_delivery_time);
   const confirmedDeliveryDisplay = hasConfirmedDelivery ? fmtDateShort(order.confirmed_delivery_time) : null;
 
+  // Tổng tiền tính lại tại chỗ từ danh sách item (loại trừ sản phẩm đã từ chối) —
+  // chỉ áp dụng khi đơn còn đang chờ xác nhận (supplier có thể duyệt/từ chối/sửa số lượng).
+  // Sau khi đơn đã xác nhận, dùng order.total_amount từ server làm chuẩn.
+  const computedTotal = items.reduce(
+    (s, i) => s + (i.item_status === "rejected" ? 0 : Number(i.subtotal || 0)),
+    0,
+  );
+  const displayTotalAmount = isPending ? computedTotal : Number(order.total_amount || 0);
+
   // ── Helpers ──────────────────────────────────────────────────────
   const refreshOrderDetail = async () => {
     const detail = await orderService.getById(order.id);
@@ -668,7 +677,10 @@ export default function DetailOrderModal({ isOpen, onClose, order: initialOrder,
                 <h2 className="font-bold text-gray-900 text-sm">Tổng kết đơn hàng</h2>
               </div>
               <div className="flex flex-col gap-2 text-sm max-w-sm ml-auto">
-                <SummaryRow label={`Tạm tính (${total} sản phẩm)`} value={fmtPrice(order.total_amount)} />
+                <SummaryRow
+                  label={`Tạm tính (${isPending ? total - rejected : total} sản phẩm${rejected > 0 && isPending ? `, ${rejected} từ chối` : ""})`}
+                  value={fmtPrice(displayTotalAmount)}
+                />
                 {order.deposit_percent && (
                   <SummaryRow label={`Tiền cọc (${order.deposit_percent}%)`} value={fmtPrice(order.deposit_amount)} />
                 )}
@@ -676,7 +688,7 @@ export default function DetailOrderModal({ isOpen, onClose, order: initialOrder,
                 <SummaryRow label="Còn lại" value={fmtPrice(order.debt_amount)} className="text-red-500" />
                 <div className="border-t border-neutral-100 pt-3 flex justify-between items-end mt-1">
                   <span className="text-neutral-500">Tổng thanh toán</span>
-                  <span className="text-2xl font-extrabold text-emerald-800">{fmtPrice(order.total_amount)}</span>
+                  <span className="text-2xl font-extrabold text-emerald-800">{fmtPrice(displayTotalAmount)}</span>
                 </div>
               </div>
             </div>
@@ -745,9 +757,9 @@ export default function DetailOrderModal({ isOpen, onClose, order: initialOrder,
                       <div className="flex items-center gap-2 text-sm">
                         <span className="text-neutral-400">=</span>
                         <span className="font-bold text-emerald-700">
-                          {fmtPrice(Math.round(parseFloat(order.total_amount) * depositNum / 100))}
+                          {fmtPrice(Math.round(displayTotalAmount * depositNum / 100))}
                         </span>
-                        <span className="text-xs text-neutral-400">/ tổng {fmtPrice(order.total_amount)}</span>
+                        <span className="text-xs text-neutral-400">/ tổng {fmtPrice(displayTotalAmount)}</span>
                       </div>
                     )}
                   </div>
@@ -859,7 +871,7 @@ export default function DetailOrderModal({ isOpen, onClose, order: initialOrder,
         <ConfirmOrderModal
           approved={approved} rejected={rejected} total={total}
           depositPct={depositNum}
-          totalAmount={order.total_amount}
+          totalAmount={displayTotalAmount}
           deliveryDate={deliveryDate}
           originalDeliveryDate={order.requested_delivery_time}
           loading={loading}

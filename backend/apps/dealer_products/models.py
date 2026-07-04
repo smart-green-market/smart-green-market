@@ -30,6 +30,7 @@ class DealerInventoryTransactionType(models.TextChoices):
     IMPORT = "import", "Nhập kho"
     SALE = "sale", "Bán hàng"
     CANCEL_RESTORE = "cancel_restore", "Hoàn tồn do hủy đơn"
+    RETURN_RESTORE = "return_restore", "Hoàn tồn do trả hàng"
     WASTAGE = "wastage", "Hao hụt"
     ADJUSTMENT = "adjustment", "Điều chỉnh"
 

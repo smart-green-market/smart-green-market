@@ -133,7 +133,13 @@ class PromotionViewSet(viewsets.ModelViewSet):
         target_filter |= Q(targets__target_type="customer", targets__customer=customer)
         target_filter |= Q(targets__target_type="product") | Q(targets__target_type="category")
 
-        return promotions.filter(target_filter).distinct()
+        promotions = promotions.filter(target_filter).distinct()
+        active_ids = [
+            promotion.id
+            for promotion in promotions
+            if promotion.is_within_daily_time(now)
+        ]
+        return promotions.filter(id__in=active_ids)
 
     def _saved_promotion_ids(self, customer):
         return set(

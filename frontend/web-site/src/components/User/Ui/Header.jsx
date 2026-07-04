@@ -1,11 +1,11 @@
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { Search, ShoppingCart, Newspaper, User, Package } from "lucide-react";
+import { Search, ShoppingCart, Package } from "lucide-react";
 import { useAuth } from "../../../contexts/authProvider";
 import { isBuyerUser } from "../../../utils/buyerAuthUtils";
 import { useCart } from "../../../contexts/cartProvider";
 import { useStorefrontPaths } from "../../../hooks/useStorefrontPaths";
-import BuyerNotificationBell from "../../common/BuyerNotificationBell";
+import BuyerAccountDropdown from "./BuyerAccountDropdown";
 
 function HeaderNavLink({ to, icon: Icon, label, title, badge }) {
     return (
@@ -68,7 +68,7 @@ export default function Header() {
         <header className="fixed left-0 right-0 top-0 z-50 border-b border-emerald-900/30 bg-emerald-700 shadow-sm">
             <div className="mx-auto max-w-[1280px] px-4 sm:px-6 lg:px-10">
                 {/* Hàng trên: logo + actions */}
-                <div className="flex h-14 items-center justify-between gap-2 sm:gap-4 md:h-[72px] md:gap-8">
+                    <div className="flex h-14 shrink-0 items-center justify-between gap-2 overflow-visible sm:gap-4 md:h-[72px] md:gap-8">
                     <Link
                         to={paths.home}
                         className="min-w-0 shrink text-lg font-bold text-white no-underline sm:text-xl md:text-2xl"
@@ -86,7 +86,7 @@ export default function Header() {
                     </form>
 
                     <div
-                        className={`flex shrink-0 items-center gap-0.5 sm:gap-1 ${
+                        className={`flex shrink-0 items-center gap-0.5 overflow-visible sm:gap-1 ${
                             isLoggedIn ? "md:gap-0" : "md:gap-3"
                         }`}
                     >
@@ -98,13 +98,6 @@ export default function Header() {
                         />
                         {isLoggedIn ? (
                             <>
-                                <HeaderNavDivider />
-                                <HeaderNavLink
-                                    to={paths.orderStatus}
-                                    icon={Newspaper}
-                                    label="Đơn hàng"
-                                    title="Theo dõi đơn hàng"
-                                />
                                 <HeaderNavDivider />
                                 <HeaderNavLink
                                     to={paths.cart}
@@ -121,17 +114,8 @@ export default function Header() {
                                         ) : null
                                     }
                                 />
-                                
                                 <HeaderNavDivider />
-                                <BuyerNotificationBell />
-
-                                <HeaderNavDivider />
-                                <HeaderNavLink
-                                    to={paths.account}
-                                    icon={User}
-                                    label="Tài khoản"
-                                    title="Tài khoản"
-                                />
+                                <BuyerAccountDropdown />
                             </>
                         ) : (
                             <>

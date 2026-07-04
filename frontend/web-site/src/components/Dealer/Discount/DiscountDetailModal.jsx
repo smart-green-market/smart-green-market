@@ -1,8 +1,14 @@
 import React, { useState, useEffect } from 'react';
-import { X, Loader2, Calendar, Tag, AlertCircle, Percent, DollarSign } from 'lucide-react';
+import { X, Loader2, Clock, Tag, AlertCircle, Percent, DollarSign, FolderTree, Package } from 'lucide-react';
 import { discountService } from '../../../services/api/discountService';
-import { formatDateTime } from '../../common/formatDateTime';
 import { toast } from 'sonner';
+import {
+  DISCOUNT_TYPE_LABELS,
+  SCOPE_LABELS,
+  formatDiscountValue,
+  formatTimeDisplay,
+  normalizeIsActive,
+} from './discountPolicyUtils';
 
 export default function DiscountDetailModal({ isOpen, onClose, policyId }) {
   const [policy, setPolicy] = useState(null);
@@ -32,13 +38,7 @@ export default function DiscountDetailModal({ isOpen, onClose, policyId }) {
 
   if (!isOpen) return null;
 
-  const formatDiscount = (p) => {
-    if (!p) return '';
-    if (p.discount_type === 'percent') {
-      return `${parseFloat(p.discount_value || 0)}%`;
-    }
-    return `${parseFloat(p.discount_value || 0).toLocaleString('vi-VN')}đ`;
-  };
+  const isActive = normalizeIsActive(policy?.is_active);
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm overflow-y-auto p-4">
@@ -65,54 +65,63 @@ export default function DiscountDetailModal({ isOpen, onClose, policyId }) {
             </div>
           ) : policy ? (
             <div className="space-y-6">
-              {/* Header Info */}
               <div>
                 <h3 className="text-2xl font-bold text-gray-900 mb-3">{policy.title}</h3>
                 <div className="flex flex-wrap items-center gap-3">
-                  <span className={`px-3 py-1.5 text-sm font-medium rounded-full ${policy.is_active ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'}`}>
-                    {policy.is_active ? '✅ Đang hoạt động' : '⏸️ Tạm ngưng'}
+                  <span className={`px-3 py-1.5 text-sm font-medium rounded-full ${isActive ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'}`}>
+                    {isActive ? 'Đang hoạt động' : 'Tạm ngưng'}
                   </span>
                   <span className="flex items-center text-sm text-gray-500 bg-gray-50 px-3 py-1.5 rounded-full border border-gray-200">
                     <Tag size={14} className="mr-1.5" />
-                    {policy.scope === 'all' ? 'Tất cả sản phẩm' :
-                     policy.scope === 'category' ? 'Theo danh mục' :
-                     policy.scope === 'dealer_product' ? 'Sản phẩm cụ thể' : 'Tất cả'}
+                    {SCOPE_LABELS[policy.scope] || policy.scope}
                   </span>
                   <span className="flex items-center text-sm text-gray-500 bg-gray-50 px-3 py-1.5 rounded-full border border-gray-200">
                     <AlertCircle size={14} className="mr-1.5" />
-                    Ưu tiên: {policy.priority}
+                    Ưu tiên: {policy.priority ?? 0}
                   </span>
                 </div>
               </div>
 
-              {/* Discount Info */}
+              {(policy.scope === 'category' || policy.scope === 'dealer_product') && (
+                <div className="bg-gray-50 border border-gray-200 rounded-xl p-4">
+                  <h4 className="text-sm font-bold text-gray-800 mb-2">Đối tượng áp dụng</h4>
+                  {policy.scope === 'category' && (
+                    <p className="text-sm text-gray-700 flex items-center gap-2">
+                      <FolderTree size={16} className="text-purple-600" />
+                      {policy.category_name || `Danh mục #${policy.category}`}
+                    </p>
+                  )}
+                  {policy.scope === 'dealer_product' && (
+                    <p className="text-sm text-gray-700 flex items-center gap-2">
+                      <Package size={16} className="text-amber-600" />
+                      {policy.dealer_product_title || `Sản phẩm #${policy.dealer_product}`}
+                    </p>
+                  )}
+                </div>
+              )}
+
               <div className="bg-gradient-to-r from-green-50 to-emerald-50 rounded-xl p-5 border border-green-100">
                 <h4 className="text-sm font-bold text-gray-800 mb-3 flex items-center gap-2">
                   {policy.discount_type === 'percent' ? <Percent size={16} className="text-green-600" /> : <DollarSign size={16} className="text-green-600" />}
                   Mức giảm giá
                 </h4>
                 <div className="flex items-center gap-3">
-                  <span className="text-3xl font-bold text-green-700">{formatDiscount(policy)}</span>
+                  <span className="text-3xl font-bold text-green-700">{formatDiscountValue(policy)}</span>
                   <span className="text-sm text-gray-500 bg-white px-3 py-1 rounded-full border border-gray-200">
-                    {policy.discount_type === 'percent' ? 'Giảm theo phần trăm' : 'Giảm số tiền cố định'}
+                    {DISCOUNT_TYPE_LABELS[policy.discount_type] || policy.discount_type}
                   </span>
                 </div>
               </div>
 
-              {/* Time Info */}
-              {(policy.start_at || policy.end_at) && (
-                <div className="bg-blue-50/50 border border-blue-100 rounded-xl p-4 flex flex-col sm:flex-row sm:items-center gap-4">
-                  <div className="flex items-center text-blue-800">
-                    <Calendar size={18} className="mr-2" />
-                    <span className="font-medium text-sm">Thời gian áp dụng:</span>
-                  </div>
-                  <div className="flex-1 text-sm text-gray-700">
-                    {policy.start_at ? formatDateTime(policy.start_at) : 'Không xác định'} 
-                    {' → '}
-                    {policy.end_at ? formatDateTime(policy.end_at) : 'Không giới hạn'}
-                  </div>
+              <div className="bg-blue-50/50 border border-blue-100 rounded-xl p-4 flex flex-col sm:flex-row sm:items-center gap-4">
+                <div className="flex items-center text-blue-800">
+                  <Clock size={18} className="mr-2" />
+                  <span className="font-medium text-sm">Khung giờ áp dụng mỗi ngày:</span>
                 </div>
-              )}
+                <div className="flex-1 text-sm font-semibold text-blue-900">
+                  {formatTimeDisplay(policy.daily_start_time)} – {formatTimeDisplay(policy.daily_end_time)}
+                </div>
+              </div>
             </div>
           ) : (
             <div className="text-center text-gray-500 py-8">
