@@ -121,7 +121,7 @@ class CustomerSegmentationService:
         if len(df) < self.k:
             return None, f"Số lượng khách hàng hiện tại ({len(df)}) quá ít, không đủ điều kiện tối thiểu để chạy mô hình AI phân cụm (Yêu cầu tối thiểu {self.k} khách hàng)."
         # 2. Xử lý thuật toán toán học TensorFlow K-Means
-        df_clustered = self._run_kmeans(tensor_input, df)
+        df_clustered = self._run_bisecting_kmeans(tensor_input, df)
 
         # 3. Gắn nhãn phân cấp động dựa trên điểm số
         df_labeled, label_mapping = self._auto_label_segments(df_clustered, ordered_segments)
@@ -181,22 +181,88 @@ class CustomerSegmentationService:
 
         return tensor_input, df, ordered_segments
 
-    def _run_kmeans(self,tensor_input, df):
+    def _run_bisecting_kmeans(self, tensor_input, df):
         X = tensor_input
         n_samples = X.shape[0]
-        random_indices = tf.random.shuffle(tf.range(n_samples))[:self.k]
-        centroids = tf.gather(X, random_indices)
         
-        for i in range(self.max_iters):
-            distances = tf.reduce_sum(tf.square(tf.expand_dims(X, 1) - tf.expand_dims(centroids, 0)), axis=2)
-            assignments = tf.argmin(distances, axis=1)
-            new_centroids = tf.math.unsorted_segment_mean(X, assignments, num_segments=self.k)
+        # -----------------------------------------------------------------
+        # Hàm cục bộ: Chạy K-Means tiêu chuẩn với k=2 để bổ đôi một cụm con
+        # -----------------------------------------------------------------
+        def run_means(X_sub):
+            n_sub = X_sub.shape[0]
+            if n_sub < 2:
+                return tf.zeros([n_sub], dtype=tf.int64)
+                
+            # Khởi tạo 2 tâm cụm ngẫu nhiên từ tập dữ liệu con này
+            random_indices = tf.random.shuffle(tf.range(n_sub))[:2]
+            centroids = tf.gather(X_sub, random_indices)
+            
+            for _ in range(self.max_iters):
+                # Tính khoảng cách Euclidean
+                distances = tf.reduce_sum(tf.square(tf.expand_dims(X_sub, 1) - tf.expand_dims(centroids, 0)), axis=2)
+                assignments = tf.argmin(distances, axis=1)
+                
+                # Cập nhật tâm cụm mới
+                new_centroids = tf.math.unsorted_segment_mean(X_sub, assignments, num_segments=2)
+                
+                if tf.reduce_all(tf.equal(centroids, new_centroids)):
+                    break
+                centroids = new_centroids
+            return assignments
 
-            if tf.reduce_all(tf.equal(centroids, new_centroids)):
+        # -----------------------------------------------------------------
+        # Khởi tạo cấu trúc cây Bisecting K-Means
+        # -----------------------------------------------------------------
+        # Ban đầu, toàn bộ chỉ số hàng (0 -> n_samples-1) nằm chung trong 1 cụm duy nhất
+        clusters_indices = [np.arange(n_samples)]
+        
+        # Vòng lặp chia đôi liên tục cho đến khi danh sách đạt đủ self.k cụm
+        while len(clusters_indices) < self.k:
+            max_sse = -1.0
+            split_idx = -1
+            
+            # BƯỚC 1: Duyệt qua các cụm hiện tại để tìm cụm có SSE (độ phân tán) lớn nhất
+            for idx, indices in enumerate(clusters_indices):
+                if len(indices) <= 1:
+                    continue
+                
+                X_cluster = tf.gather(X, indices)
+                centroid = tf.reduce_mean(X_cluster, axis=0)
+                # Công thức tính toán SSE bằng toán tử TensorFlow
+                sse = tf.reduce_sum(tf.square(X_cluster - centroid)).numpy()
+                
+                if sse > max_sse:
+                    max_sse = sse
+                    split_idx = idx
+            
+            # Nếu không tìm thấy cụm nào đủ điều kiện hợp lệ để phân rã tiếp, dừng vòng lặp
+            if split_idx == -1:
                 break
-            centroids = new_centroids
-
-        df['Cluster'] = assignments.numpy()
+                
+            # BƯỚC 2: Tiến hành trích xuất và bổ đôi cụm có SSE lớn nhất
+            indices_to_split = clusters_indices[split_idx]
+            X_subset = tf.gather(X, indices_to_split)
+            
+            # Chạy thuật toán 2-Means trên tập dữ liệu con
+            sub_assignments = run_means(X_subset).numpy()
+            
+            # Tạo 2 mảng lưu chỉ số dòng con mới dựa trên kết quả phân loại (0 hoặc 1)
+            indices_0 = indices_to_split[sub_assignments == 0]
+            indices_1 = indices_to_split[sub_assignments == 1]
+            
+            # Xóa cụm cha cũ khỏi danh sách và đẩy 2 cụm con mới vào thay thế
+            clusters_indices.pop(split_idx)
+            clusters_indices.append(indices_0)
+            clusters_indices.append(indices_1)
+            
+        # -----------------------------------------------------------------
+        # BƯỚC 3: Tổng hợp kết quả gán nhãn về định dạng cột DataFrame ban đầu
+        # -----------------------------------------------------------------
+        final_assignments = np.zeros(n_samples, dtype=np.int64)
+        for cluster_id, indices in enumerate(clusters_indices):
+            final_assignments[indices] = cluster_id
+            
+        df['Cluster'] = final_assignments
         return df
 
     def _auto_label_segments(self, df, ordered_segments=None):
