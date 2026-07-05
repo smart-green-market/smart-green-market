@@ -144,8 +144,8 @@ class SavedVoucherFlowTests(TestCase):
             [{"dealer_product_id": self.product.id, "quantity": 2}],
         )
 
-        self.assertEqual(result["discount_amount"], "5000.00")
-        self.assertEqual(result["final_total"], "45000.00")
+        self.assertEqual(result["discount_amount"], 5000)
+        self.assertEqual(result["final_total"], 45000)
 
     def test_order_creation_applies_saved_voucher_and_records_usage(self):
         CustomerSavedVoucher.objects.create(

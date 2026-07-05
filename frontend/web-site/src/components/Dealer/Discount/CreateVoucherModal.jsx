@@ -22,7 +22,7 @@ export default function CreateVoucherModal({ isOpen, onClose, onSuccess }) {
     description: '',
     discount_type: 'percent',
     discount_value: '',
-    min_order_amount: 0,
+    min_order_amount: '',
     max_discount_amount: '',
     usage_limit: '',
     usage_limit_per_customer: '',
@@ -47,7 +47,7 @@ export default function CreateVoucherModal({ isOpen, onClose, onSuccess }) {
         description: '',
         discount_type: 'percent',
         discount_value: '',
-        min_order_amount: 0,
+        min_order_amount: '',
         max_discount_amount: '',
         usage_limit: '',
         usage_limit_per_customer: '',
@@ -161,15 +161,21 @@ export default function CreateVoucherModal({ isOpen, onClose, onSuccess }) {
       onClose();
     } catch (error) {
       console.error('Error creating voucher:', error);
-      const errors = error.response?.data;
-      if (errors && typeof errors === 'object') {
-        const errorMsg = Object.entries(errors)
-          .map(([key, val]) => `${key}: ${Array.isArray(val) ? val.join(', ') : val}`)
-          .join('\n');
-        toast.error(errorMsg || 'Lỗi khi tạo voucher');
-      } else {
-        toast.error('Lỗi khi tạo voucher. Vui lòng thử lại.');
+      const responseData = error.response?.data;
+      const fieldErrors = responseData?.errors;
+      // Ưu tiên lấy lỗi chi tiết từ field errors (nội dung thuần tiếng Việt)
+      if (fieldErrors && typeof fieldErrors === 'object') {
+        const messages = Object.values(fieldErrors)
+          .map((val) => Array.isArray(val) ? val.join(', ') : String(val))
+          .filter(Boolean);
+        if (messages.length > 0) {
+          toast.error(messages.join('\n'));
+          return;
+        }
       }
+      // Fallback: lấy message/detail từ response wrapper
+      const fallbackMsg = responseData?.message || responseData?.detail;
+      toast.error(fallbackMsg || 'Lỗi khi tạo voucher. Vui lòng thử lại.');
     } finally {
       setIsSubmitting(false);
     }
@@ -363,11 +369,10 @@ export default function CreateVoucherModal({ isOpen, onClose, onSuccess }) {
                   <button
                     type="button"
                     onClick={() => setFormData(prev => ({ ...prev, schedule_type: 'date_range' }))}
-                    className={`rounded-lg border px-4 py-3 text-left transition-colors ${
-                      formData.schedule_type === 'date_range'
-                        ? 'border-green-500 bg-white text-green-700 shadow-sm'
-                        : 'border-gray-200 bg-white/70 text-gray-600 hover:border-green-300'
-                    }`}
+                    className={`rounded-lg border px-4 py-3 text-left transition-colors ${formData.schedule_type === 'date_range'
+                      ? 'border-green-500 bg-white text-green-700 shadow-sm'
+                      : 'border-gray-200 bg-white/70 text-gray-600 hover:border-green-300'
+                      }`}
                   >
                     <div className="font-semibold text-sm">Theo khoảng ngày</div>
                     <div className="text-xs mt-1">Voucher chạy liên tục từ ngày bắt đầu đến ngày kết thúc.</div>
@@ -375,11 +380,10 @@ export default function CreateVoucherModal({ isOpen, onClose, onSuccess }) {
                   <button
                     type="button"
                     onClick={() => setFormData(prev => ({ ...prev, schedule_type: 'daily_time' }))}
-                    className={`rounded-lg border px-4 py-3 text-left transition-colors ${
-                      formData.schedule_type === 'daily_time'
-                        ? 'border-orange-500 bg-white text-orange-700 shadow-sm'
-                        : 'border-gray-200 bg-white/70 text-gray-600 hover:border-orange-300'
-                    }`}
+                    className={`rounded-lg border px-4 py-3 text-left transition-colors ${formData.schedule_type === 'daily_time'
+                      ? 'border-orange-500 bg-white text-orange-700 shadow-sm'
+                      : 'border-gray-200 bg-white/70 text-gray-600 hover:border-orange-300'
+                      }`}
                   >
                     <div className="font-semibold text-sm flex items-center gap-2">
                       <Clock size={15} />

@@ -88,13 +88,13 @@ export default function DiscountDetailModal({ isOpen, onClose, policyId }) {
                   {policy.scope === 'category' && (
                     <p className="text-sm text-gray-700 flex items-center gap-2">
                       <FolderTree size={16} className="text-purple-600" />
-                      {policy.category_name || `Danh mục #${policy.category}`}
+                      {policy.category_name || (policy.category && typeof policy.category === 'object' ? policy.category.name : null) || `Danh mục #${policy.category}`}
                     </p>
                   )}
                   {policy.scope === 'dealer_product' && (
                     <p className="text-sm text-gray-700 flex items-center gap-2">
                       <Package size={16} className="text-amber-600" />
-                      {policy.dealer_product_title || `Sản phẩm #${policy.dealer_product}`}
+                      {policy.dealer_product_title || (policy.dealer_product && typeof policy.dealer_product === 'object' ? policy.dealer_product.title : null) || `Sản phẩm #${policy.dealer_product}`}
                     </p>
                   )}
                 </div>

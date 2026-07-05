@@ -71,6 +71,9 @@ class Promotion(models.Model):
                 code='invalid_code'
             )
         ],
+        error_messages={
+            "unique": "Mã voucher này đã tồn tại trong gian hàng của bạn.",
+        },
         help_text="Mã voucher, vd. SUMMER10"
     )
     description = models.TextField(blank=True)

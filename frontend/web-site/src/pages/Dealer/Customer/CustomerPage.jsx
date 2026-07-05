@@ -4,8 +4,11 @@ import CustomerHeader from "../../../components/Dealer/Customer/CustomerHeader";
 import CustomerTable from "../../../components/Dealer/Customer/CustomerTable";
 import { customerService } from "../../../services/api/customerService";
 import { dealerOrderService } from "../../../services/api/dealerOrderService";
+import { useAuth } from "../../../contexts/authProvider";
+import { toast } from "sonner";
 
 export default function DealerCustomerPage() {
+  const { user } = useAuth();
   const [searchQuery, setSearchQuery] = useState("");
   const [debouncedSearchQuery, setDebouncedSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
@@ -82,6 +85,40 @@ export default function DealerCustomerPage() {
     console.log("Thêm khách hàng mới...");
   };
 
+  const handleUpdateDays = async (days) => {
+    if (!days || Number(days) <= 0) {
+      toast.warning("Vui lòng nhập số ngày hợp lệ (> 0) để phân khúc.");
+      return;
+    }
+
+    const dealerId = user?.dealer_profile?.id;
+    if (!dealerId) {
+      toast.error("Không tìm thấy thông tin đại lý. Vui lòng đăng nhập lại.");
+      return;
+    }
+
+    const toastId = toast.loading("Đang chạy pipeline AI phân khúc khách hàng...");
+    try {
+      const res = await customerService.runSegmentation(dealerId, days);
+      if (res.success) {
+        toast.success(res.message || "Phân khúc khách hàng thành công!", { id: toastId });
+        // Tải lại danh sách khách hàng sau khi cập nhật phân khúc
+        fetchCustomers(1);
+      } else {
+        toast.error(res.message || "Phân khúc khách hàng thất bại.", { id: toastId });
+      }
+    } catch (err) {
+      console.error("Lỗi khi chạy phân khúc khách hàng:", err);
+      toast.error(
+        err.response?.data?.message ||
+        err.response?.data?.detail ||
+        err.message ||
+        "Đã có lỗi xảy ra khi chạy phân khúc khách hàng.",
+        { id: toastId }
+      );
+    }
+  };
+
   const filterOptions = [
     { label: "Tất cả", value: "", colorClass: "text-neutral-700" },
     { label: "Hoạt động", value: "active", colorClass: "text-emerald-700" },
@@ -107,6 +144,7 @@ export default function DealerCustomerPage() {
         countStatus={countStatus}
         totalCount={totalCount}
         totalOrders={totalOrders}
+        onUpdateDays={handleUpdateDays}
       />
 
       <SupplierFilter
