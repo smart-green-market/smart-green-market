@@ -1,6 +1,7 @@
 """Serializer đăng ký / đăng nhập buyer trên gian hàng đại lý."""
 
 from django.contrib.auth import get_user_model
+from drf_spectacular.utils import extend_schema_field
 from rest_framework import serializers
 from rest_framework.exceptions import AuthenticationFailed, ValidationError
 
@@ -8,6 +9,8 @@ from apps.accounts.login_guard import check_login_allowed, record_failed_login, 
 from apps.accounts.models import AccountRole, AccountStatus
 from apps.accounts.serializers import LoginAccountSerializer
 from apps.dealers.models import DealerProfile
+from apps.marketing.segment_defaults import resolve_primary_segment_membership
+from apps.marketing.serializers import CustomerProfileSegmentSerializer
 from common.openapi_enums import schema_choice_field
 
 from .models import CustomerProfile
@@ -159,6 +162,8 @@ class DealerCustomerListSerializer(serializers.ModelSerializer):
         choices=AccountStatus.choices,
         read_only=True,
     )
+    segments = serializers.SerializerMethodField()
+    primary_segment = serializers.SerializerMethodField()
 
     class Meta:
         model = CustomerProfile
@@ -177,6 +182,8 @@ class DealerCustomerListSerializer(serializers.ModelSerializer):
             "loyalty_points",
             "last_order_at",
             "note",
+            "segments",
+            "primary_segment",
             "created_at",
             "updated_at",
         ]
@@ -192,9 +199,28 @@ class DealerCustomerListSerializer(serializers.ModelSerializer):
             "total_spent",
             "loyalty_points",
             "last_order_at",
+            "segments",
+            "primary_segment",
             "created_at",
             "updated_at",
         ]
+
+    @extend_schema_field(CustomerProfileSegmentSerializer(many=True))
+    def get_segments(self, obj):
+        memberships = obj.segment_memberships.all()
+        return CustomerProfileSegmentSerializer(
+            memberships,
+            many=True,
+            context=self.context,
+        ).data
+
+    @extend_schema_field(CustomerProfileSegmentSerializer(allow_null=True))
+    def get_primary_segment(self, obj):
+        memberships = list(obj.segment_memberships.all())
+        primary = resolve_primary_segment_membership(memberships)
+        if primary is None:
+            return None
+        return CustomerProfileSegmentSerializer(primary, context=self.context).data
 
 
 class DealerCustomerNoteSerializer(serializers.ModelSerializer):

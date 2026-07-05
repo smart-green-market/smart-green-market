@@ -347,6 +347,9 @@ class SupplierProductListSerializer(SupplierProductReadSerializer):
         default=Decimal("0"),
         help_text="Tổng SL cần chuẩn bị — phiếu đã xác nhận, chưa giao hàng",
     )
+    quantity_discount_tiers = serializers.SerializerMethodField(
+        help_text="Bậc giảm giá theo số lượng đặt (NCC cấu hình)",
+    )
 
     class Meta(SupplierProductReadSerializer.Meta):
         """Mở rộng trường thêm nhà cung cấp và danh mục."""
@@ -356,7 +359,13 @@ class SupplierProductListSerializer(SupplierProductReadSerializer):
             "category",
             "pending_order_quantity",
             "preparation_quantity",
+            "quantity_discount_tiers",
         ]
+
+    def get_quantity_discount_tiers(self, obj):
+        from .quantity_discount import get_quantity_discount_tiers_for_product
+
+        return get_quantity_discount_tiers_for_product(obj)
 
 
 class SupplierProductDetailSerializer(SupplierProductListSerializer):

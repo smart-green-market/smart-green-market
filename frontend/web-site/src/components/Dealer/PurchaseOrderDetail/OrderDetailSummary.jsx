@@ -4,6 +4,8 @@ import { AlertCircle, CheckCircle2 } from "lucide-react";
 export default function OrderDetailSummary({
   orderData,
   rawSubtotal,
+  grossSubtotal = 0,
+  totalDiscountAmount = 0,
   depositAmount,
   remainingAmount,
 }) {
@@ -53,8 +55,24 @@ export default function OrderDetailSummary({
       </div>
 
       {/* Thẻ tóm tắt thanh toán */}
-      <div className="bg-white rounded-2xl border border-neutral-100 p-6 shadow-xs flex flex-col justify-center">
-        <div className="flex justify-between items-baseline pt-2">
+      <div className="bg-white rounded-2xl border border-neutral-100 p-6 shadow-xs flex flex-col justify-center gap-3">
+        {totalDiscountAmount > 0 && (
+          <>
+            <div className="flex justify-between items-baseline text-sm">
+              <span className="font-semibold text-neutral-500">Tạm tính gốc</span>
+              <span className="font-bold text-neutral-700">
+                {grossSubtotal.toLocaleString("vi-VN")} VNĐ
+              </span>
+            </div>
+            <div className="flex justify-between items-baseline text-sm">
+              <span className="font-semibold text-emerald-700">Giảm theo số lượng</span>
+              <span className="font-bold text-emerald-700">
+                -{totalDiscountAmount.toLocaleString("vi-VN")} VNĐ
+              </span>
+            </div>
+          </>
+        )}
+        <div className="flex justify-between items-baseline pt-2 border-t border-neutral-100">
           <span className="font-bold text-neutral-800 text-sm uppercase tracking-wider">
             Tổng tiền thanh toán
           </span>

@@ -134,13 +134,20 @@ export const buildPrintHtml = ({ order, supplier }) => {
       </tr>
     </thead>
     <tbody>
-      ${order.items.map((item, i) => `
+      ${order.items.map((item, i) => {
+        const hasDiscount = Number(item.line_discount_amount || 0) > 0;
+        const discountText = item.discount_label
+          ? item.discount_label
+          : hasDiscount
+          ? `Giảm ${Number(item.line_discount_amount).toLocaleString("vi-VN")}đ`
+          : "";
+        return `
       <tr>
         <td style="color:#999">${i + 1}</td>
-        <td><strong>${item.product_name}</strong>${item.note ? `<br/><small style="color:#999">${item.note}</small>` : ""}</td>
+        <td><strong>${item.product_name}</strong>${item.note ? `<br/><small style="color:#999">${item.note}</small>` : ""}${discountText ? `<br/><small style="color:#059669">${discountText}</small>` : ""}</td>
         <td>${item.product_unit}</td>
         <td style="text-align:right">${item.quantity}</td>
-        <td style="text-align:right">${fmtPrice(item.unit_price)}</td>
+        <td style="text-align:right">${hasDiscount ? `<span style="text-decoration:line-through;color:#999">${fmtPrice(item.base_unit_price)}</span><br/>` : ""}${fmtPrice(item.unit_price)}</td>
         <td style="text-align:right;font-weight:700">${fmtPrice(item.subtotal)}</td>
         <td style="text-align:center">
           ${item.item_status === "approved"
@@ -149,11 +156,13 @@ export const buildPrintHtml = ({ order, supplier }) => {
             ? `<span class="tag-rejected">✗ Từ chối</span>${(item.reject_reason || item.rejection_reason) ? `<br/><small style="color:#dc2626;font-size:10px">${item.reject_reason || item.rejection_reason}</small>` : ""}`
             : '<span class="tag-pending">Chờ duyệt</span>'}
         </td>
-      </tr>`).join("")}
+      </tr>`;
+      }).join("")}
     </tbody>
   </table>
 
   <div class="summary-box">
+    ${Number(order.total_discount_amount || 0) > 0 ? `<div class="summary-row"><span>Tạm tính gốc</span><span>${fmtPrice(order.gross_subtotal)}</span></div><div class="summary-row"><span>Giảm theo số lượng</span><span style="color:#059669">-${fmtPrice(order.total_discount_amount)}</span></div>` : ""}
     <div class="summary-row"><span>Tạm tính (${order.items.length} sản phẩm)</span><span>${fmtPrice(printTotal)}</span></div>
     ${depPct ? `<div class="summary-row deposit"><span>Tiền cọc (${depPct}%)</span><span>${fmtPrice(depAmt)}</span></div>` : ""}
     ${order.paid_amount ? `<div class="summary-row"><span>Đã thanh toán</span><span style="color:#166534;font-weight:700">${fmtPrice(order.paid_amount)}</span></div>` : ""}

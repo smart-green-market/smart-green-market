@@ -36,7 +36,7 @@ export const customerService = {
   runSegmentation: (dealerId, tDays) => {
     const origin = axiosClient.defaults.baseURL.split("/api")[0];
     return axiosClient
-      .post(`${origin}/ai/customer-segmentation/`, {
+      .post(`${origin}/api/customer-segmentation/`, {
         dealer_id: Number(dealerId),
         t_days: Number(tDays),
       })

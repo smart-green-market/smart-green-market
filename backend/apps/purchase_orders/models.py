@@ -12,6 +12,8 @@ NCC đổi ngày giao / SP → pending_dealer_confirmation → (dealer approve) 
 Nhánh từ chối: rejected | hủy: cancelled
 """
 
+from decimal import Decimal
+
 from django.conf import settings
 from django.db import models
 
@@ -137,6 +139,12 @@ class PurchaseOrder(models.Model):
         default=0,
         help_text="Số tiền còn phải thanh toán",
     )
+    credit_amount = models.DecimalField(
+        max_digits=14,
+        decimal_places=2,
+        default=0,
+        help_text="Số tiền NCC cần hoàn lại khi đại lý đã trả thừa sau trả hàng",
+    )
 
     confirmed_at = models.DateTimeField(null=True, blank=True)
     delivered_at = models.DateTimeField(null=True, blank=True)
@@ -191,6 +199,37 @@ class PurchaseOrderItem(models.Model):
         help_text="Số lượng dealer đặt ban đầu — dùng so sánh khi NCC điều chỉnh.",
     )
     unit_price = models.DecimalField(max_digits=12, decimal_places=2)
+    base_unit_price = models.DecimalField(
+        max_digits=12,
+        decimal_places=2,
+        help_text="Giá sỉ gốc tại thời điểm đặt (snapshot).",
+    )
+    discount_type = models.CharField(
+        max_length=20,
+        blank=True,
+        default="",
+        help_text="Loại giảm theo SL: percent | fixed (rỗng nếu không giảm).",
+    )
+    discount_value = models.DecimalField(
+        max_digits=12,
+        decimal_places=2,
+        null=True,
+        blank=True,
+        help_text="Giá trị giảm (% hoặc VND) của bậc đã áp dụng.",
+    )
+    discount_min_quantity = models.DecimalField(
+        max_digits=12,
+        decimal_places=2,
+        null=True,
+        blank=True,
+        help_text="Ngưỡng số lượng tối thiểu của bậc giảm đã áp dụng.",
+    )
+    line_discount_amount = models.DecimalField(
+        max_digits=14,
+        decimal_places=2,
+        default=Decimal("0"),
+        help_text="Tổng tiền giảm của dòng = (base - unit_price) × quantity.",
+    )
     subtotal = models.DecimalField(max_digits=14, decimal_places=2)
     note = models.TextField(blank=True)
     review_status = models.CharField(

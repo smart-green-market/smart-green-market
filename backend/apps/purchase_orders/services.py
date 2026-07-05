@@ -93,6 +93,35 @@ RETURN_REQUESTABLE = {
 }
 
 
+def _quantize_money(value) -> Decimal:
+    return Decimal(value or 0).quantize(Decimal("0.01"))
+
+
+def _recalculate_order_balances(order):
+    """Đồng bộ deposit_amount, debt_amount, credit_amount theo total và paid."""
+    paid = _quantize_money(order.paid_amount)
+    total = _quantize_money(order.total_amount)
+
+    if order.deposit_percent and order.deposit_percent > 0:
+        order.deposit_amount = _quantize_money(
+            total * order.deposit_percent / Decimal("100")
+        )
+    else:
+        order.deposit_amount = Decimal("0")
+
+    order.debt_amount = _quantize_money(max(total - paid, Decimal("0")))
+    order.credit_amount = _quantize_money(max(paid - total, Decimal("0")))
+
+
+def _apply_return_financial_adjustment(order, refund_amount: Decimal):
+    """Giảm tổng đơn sau trả hàng và tính lại các số dư thanh toán."""
+    refund_amount = _quantize_money(refund_amount)
+    order.total_amount = _quantize_money(
+        max(order.total_amount - refund_amount, Decimal("0"))
+    )
+    _recalculate_order_balances(order)
+
+
 def _get_returned_quantities_by_item_id(order) -> dict[int, Decimal]:
     """Tổng số lượng đã trả (approved) theo từng dòng phiếu nhập."""
     rows = (
@@ -187,9 +216,17 @@ def _refresh_payment_totals(order):
         )["total"]
         or Decimal("0")
     )
-    order.paid_amount = paid
-    order.debt_amount = max(order.total_amount - paid, Decimal("0"))
-    order.save(update_fields=["paid_amount", "debt_amount", "updated_at"])
+    order.paid_amount = _quantize_money(paid)
+    _recalculate_order_balances(order)
+    order.save(
+        update_fields=[
+            "paid_amount",
+            "deposit_amount",
+            "debt_amount",
+            "credit_amount",
+            "updated_at",
+        ]
+    )
 
 
 def validate_supplier_for_dealer_order(supplier):
@@ -252,24 +289,42 @@ def group_items_by_supplier(items_data):
     return groups
 
 
+def _apply_pricing_snapshot(item, pricing, quantity: Decimal):
+    """Ghi snapshot giá gốc + ưu đãi theo số lượng lên dòng đơn."""
+    quantity = Decimal(quantity)
+    item.unit_price = pricing.effective_unit_price
+    item.base_unit_price = pricing.base_unit_price
+    item.discount_type = pricing.discount_type or ""
+    item.discount_value = pricing.discount_value
+    item.discount_min_quantity = pricing.min_quantity
+    item.line_discount_amount = (
+        pricing.discount_amount_per_unit * quantity
+    ).quantize(Decimal("0.01"))
+    item.subtotal = (quantity * item.unit_price).quantize(Decimal("0.01"))
+
+
 def build_order_items(order, items_data):
-    """Tạo PurchaseOrderItem, snapshot unit_price từ wholesale_price, tính total_amount."""
+    """Tạo PurchaseOrderItem, snapshot unit_price (có giảm theo số lượng), tính total_amount."""
+    from apps.supplier_products.quantity_discount import compute_wholesale_unit_price
+
     total = Decimal("0")
     created = []
     for row in items_data:
         product = row["supplier_product"]
         quantity = Decimal(row["quantity"])
-        unit_price = product.wholesale_price
-        subtotal = quantity * unit_price
-        item = PurchaseOrderItem.objects.create(
+        pricing = compute_wholesale_unit_price(product, quantity)
+        item = PurchaseOrderItem(
             purchase_order=order,
             supplier_product=product,
             quantity=quantity,
             original_quantity=quantity,
-            unit_price=unit_price,
-            subtotal=subtotal,
             note=row.get("note", ""),
+            unit_price=pricing.effective_unit_price,
+            base_unit_price=pricing.base_unit_price,
         )
+        _apply_pricing_snapshot(item, pricing, quantity)
+        item.save()
+        subtotal = item.subtotal
         total += subtotal
         created.append(item)
     order.total_amount = total
@@ -440,6 +495,8 @@ def _normalize_confirm_items(order, items_data):
 
 def _apply_item_reviews(order, items_data):
     """Cập nhật trạng thái duyệt từng dòng; trả (approved_total, has_item_changes)."""
+    from apps.supplier_products.quantity_discount import compute_wholesale_unit_price
+
     item_map = {item.id: item for item in order.items.select_for_update().order_by("id")}
     approved_total = Decimal("0")
     has_item_changes = False
@@ -455,13 +512,15 @@ def _apply_item_reviews(order, items_data):
             item.rejection_reason = row["rejection_reason"]
             item.quantity = Decimal("0")
             item.subtotal = Decimal("0")
+            item.line_discount_amount = Decimal("0")
             has_item_changes = True
         else:
             new_qty = Decimal(row["quantity"])
             item.review_status = PurchaseOrderItemReviewStatus.APPROVED
             item.rejection_reason = ""
             item.quantity = new_qty
-            item.subtotal = (new_qty * item.unit_price).quantize(Decimal("0.01"))
+            pricing = compute_wholesale_unit_price(item.supplier_product, new_qty)
+            _apply_pricing_snapshot(item, pricing, new_qty)
             approved_total += item.subtotal
             approved_count += 1
             if new_qty != original_qty:
@@ -472,6 +531,12 @@ def _apply_item_reviews(order, items_data):
                 "review_status",
                 "rejection_reason",
                 "quantity",
+                "unit_price",
+                "base_unit_price",
+                "discount_type",
+                "discount_value",
+                "discount_min_quantity",
+                "line_discount_amount",
                 "subtotal",
             ]
         )
@@ -520,17 +585,18 @@ def supplier_confirm_order(
     percent = validate_deposit_percent(raw_percent)
 
     order.total_amount = approved_total
-    order.debt_amount = max(approved_total - order.paid_amount, Decimal("0"))
     order.deposit_percent = percent
     order.deposit_amount = (approved_total * percent / Decimal("100")).quantize(
         Decimal("0.01")
     )
+    _recalculate_order_balances(order)
     order.confirmed_delivery_time = confirmed_delivery_time
     order.confirmed_at = timezone.now()
     order.save(
         update_fields=[
             "total_amount",
             "debt_amount",
+            "credit_amount",
             "deposit_percent",
             "deposit_amount",
             "confirmed_delivery_time",
@@ -898,9 +964,16 @@ def supplier_review_return(po_return, user, *, approved, review_note=""):
     )
 
     returned_value = po_return.refund_amount
-    order.total_amount = max(order.total_amount - returned_value, Decimal("0"))
-    order.debt_amount = max(order.total_amount - order.paid_amount, Decimal("0"))
-    order.save(update_fields=["total_amount", "debt_amount", "updated_at"])
+    _apply_return_financial_adjustment(order, returned_value)
+    order.save(
+        update_fields=[
+            "total_amount",
+            "deposit_amount",
+            "debt_amount",
+            "credit_amount",
+            "updated_at",
+        ]
+    )
 
     if _all_items_fully_returned(order):
         next_status = PurchaseOrderStatus.RETURNED

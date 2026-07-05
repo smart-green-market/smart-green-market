@@ -190,7 +190,22 @@ export default function DetailOrderModal({ isOpen, onClose, order: initialOrder,
     (s, i) => s + (i.item_status === "rejected" ? 0 : Number(i.subtotal || 0)),
     0,
   );
+  const computedGross = items.reduce((sum, i) => {
+    if (i.item_status === "rejected") return sum;
+    const base = Number(i.base_unit_price ?? i.unit_price ?? 0);
+    return sum + Number(i.quantity || 0) * base;
+  }, 0);
+  const computedDiscount = items.reduce((sum, i) => {
+    if (i.item_status === "rejected") return sum;
+    return sum + Number(i.line_discount_amount || 0);
+  }, 0);
   const displayTotalAmount = isPending ? computedTotal : Number(order.total_amount || 0);
+  const displayGrossSubtotal = isPending
+    ? computedGross
+    : Number(order.gross_subtotal ?? computedGross);
+  const displayDiscountAmount = isPending
+    ? computedDiscount
+    : Number(order.total_discount_amount ?? computedDiscount);
 
   // ── Helpers ──────────────────────────────────────────────────────
   const refreshOrderDetail = async () => {
@@ -677,6 +692,19 @@ export default function DetailOrderModal({ isOpen, onClose, order: initialOrder,
                 <h2 className="font-bold text-gray-900 text-sm">Tổng kết đơn hàng</h2>
               </div>
               <div className="flex flex-col gap-2 text-sm max-w-sm ml-auto">
+                {displayDiscountAmount > 0 && (
+                  <>
+                    <SummaryRow
+                      label="Tạm tính gốc"
+                      value={fmtPrice(displayGrossSubtotal)}
+                    />
+                    <SummaryRow
+                      label="Giảm theo số lượng"
+                      value={`-${fmtPrice(displayDiscountAmount)}`}
+                      className="text-emerald-700"
+                    />
+                  </>
+                )}
                 <SummaryRow
                   label={`Tạm tính (${isPending ? total - rejected : total} sản phẩm${rejected > 0 && isPending ? `, ${rejected} từ chối` : ""})`}
                   value={fmtPrice(displayTotalAmount)}

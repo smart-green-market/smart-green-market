@@ -1,13 +1,18 @@
-import { Minus, Plus, ShoppingCart } from "lucide-react";
+import { Minus, Plus, ShoppingCart, Tag } from "lucide-react";
+import { formatTierLabel } from "../../../utils/quantityDiscountUtils";
 
 export default function ProductCard({
   product,
   inputQty = 0,
+  previewPricing,
   onQtyChange,
   onQtyAdjust,
   onAddToCart,
 }) {
-  const isOverStock = inputQty > product.stock;
+  const tiers = product.quantityDiscountTiers || [];
+  const hasDiscount = previewPricing?.discountPerUnit > 0;
+  const basePrice = product.basePrice ?? product.price;
+  const capacity = product.dailyProductionCapacity ?? 0;
 
   return (
     <div className="bg-white rounded-2xl border border-neutral-100 shadow-xs hover:shadow-md hover:border-neutral-200 transition-all overflow-hidden flex flex-col justify-between">
@@ -43,30 +48,54 @@ export default function ProductCard({
             <p className="text-[10px] text-neutral-400 font-semibold uppercase tracking-wider">
               Giá nhập
             </p>
-            <p className="text-emerald-700 font-bold text-lg leading-tight mt-0.5">
-              {Number(product.price).toLocaleString("vi-VN")} đ
-            </p>
+            {hasDiscount && inputQty > 0 ? (
+              <div>
+                <p className="text-xs text-neutral-400 line-through">
+                  {Number(basePrice).toLocaleString("vi-VN")} đ
+                </p>
+                <p className="text-emerald-700 font-bold text-lg leading-tight mt-0.5">
+                  {Number(previewPricing.unitPrice).toLocaleString("vi-VN")} đ
+                </p>
+              </div>
+            ) : (
+              <p className="text-emerald-700 font-bold text-lg leading-tight mt-0.5">
+                {Number(product.price).toLocaleString("vi-VN")} đ
+              </p>
+            )}
           </div>
-          <div className="text-right">
-            <p className="text-[10px] text-neutral-400 font-semibold uppercase tracking-wider">
-              Năng suất
-            </p>
-            <p className="text-neutral-700 font-bold text-sm leading-tight mt-0.5">
-              {product.stock.toLocaleString("vi-VN")} {product.unit} {"/tháng"}
-            </p>
-
-          </div>
+          {capacity > 0 && (
+            <div className="text-right">
+              <p className="text-[10px] text-neutral-400 font-semibold uppercase tracking-wider">
+                Năng lực SX/ngày
+              </p>
+              <p className="text-neutral-600 font-semibold text-xs leading-tight mt-0.5">
+                ~{capacity.toLocaleString("vi-VN")} {product.unit}
+              </p>
+            </div>
+          )}
         </div>
+
+        {tiers.length > 0 && (
+          <div className="mt-3 p-2.5 bg-amber-50 border border-amber-100 rounded-xl">
+            <p className="text-[10px] font-bold text-amber-700 uppercase flex items-center gap-1 mb-1">
+              <Tag className="w-3 h-3" /> Ưu đãi theo số lượng
+            </p>
+            <ul className="space-y-0.5">
+              {tiers.slice(0, 3).map((tier) => (
+                <li key={tier.id} className="text-[11px] text-amber-800">
+                  {formatTierLabel(tier)}
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
 
         {/* Quantity Selector and Add Button */}
         <div className="mt-5 pt-4 border-t border-neutral-100 flex items-center justify-between gap-3">
           <div className="flex items-center gap-1.5">
-            <div
-              className={`flex items-center border rounded-lg overflow-hidden h-9 transition-colors ${
-                isOverStock ? "border-red-500 bg-red-50/10" : "border-neutral-200"
-              }`}
-            >
+            <div className="flex items-center border border-neutral-200 rounded-lg overflow-hidden h-9">
               <button
+                type="button"
                 onClick={() => onQtyAdjust(-1)}
                 className="px-2.5 h-full bg-neutral-50 text-neutral-500 hover:bg-neutral-100 active:bg-neutral-200 transition-colors font-bold text-xs"
               >
@@ -76,11 +105,10 @@ export default function ProductCard({
                 type="text"
                 value={inputQty}
                 onChange={(e) => onQtyChange(e.target.value)}
-                className={`w-10 text-center text-xs font-bold h-full bg-transparent outline-none ${
-                  isOverStock ? "text-red-600" : "text-neutral-700"
-                }`}
+                className="w-14 text-center text-xs font-bold h-full bg-transparent outline-none text-neutral-700"
               />
               <button
+                type="button"
                 onClick={() => onQtyAdjust(1)}
                 className="px-2.5 h-full bg-neutral-50 text-neutral-500 hover:bg-neutral-100 active:bg-neutral-200 transition-colors font-bold text-xs"
               >

@@ -8,6 +8,7 @@ import {
     Coins,
     Users,
     Settings,
+    Percent,
 } from "lucide-react";
 
 export const NAV_SECTIONS = [
@@ -23,6 +24,7 @@ export const NAV_SECTIONS = [
         items: [
             { to: "/nha-cung-cap/don-hang", label: "Đơn hàng", icon: ClipboardList, dot: true },
             { to: "/nha-cung-cap/san-pham", label: "Sản phẩm", icon: Package },
+            { to: "/nha-cung-cap/giam-gia", label: "Giảm giá SL", icon: Percent },
             { to: "/nha-cung-cap/chung-nhan", label: "Chứng nhận", icon: BadgeCheck },
             { to: "/nha-cung-cap/danh-muc", label: "Danh mục", icon: Sprout },
         ],

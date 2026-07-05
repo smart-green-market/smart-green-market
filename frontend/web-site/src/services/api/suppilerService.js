@@ -49,6 +49,27 @@ export const supplierService = {
   getById: (id) => axiosClient.get(`/suppliers/${id}/`).then((res) => res.data),
   getProductById: (id) => axiosClient.get(`/suppliers/${id}/products/`).then((res) => res.data),
 
+  /** Lấy toàn bộ SP của NCC (dealer đặt hàng) — tự phân trang. */
+  getSupplierProducts: async (supplierId, params = {}) => {
+    const allResults = [];
+    let page = 1;
+    let hasMore = true;
+
+    while (hasMore) {
+      const res = await axiosClient.get(`/suppliers/${supplierId}/products/`, {
+        params: { ...params, page, page_size: 100 },
+      });
+      const data = res.data;
+      const batch = Array.isArray(data) ? data : data.results || [];
+      allResults.push(...batch);
+      hasMore = Boolean(data.has_more ?? data.next);
+      page += 1;
+      if (page > 100) break;
+    }
+
+    return allResults;
+  },
+
   // {
   //   "id": 0,
   //   "account": {

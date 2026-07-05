@@ -85,6 +85,16 @@ export default function DealerPurchaseOrderDetailPage() {
           quantity: Number(item.quantity || 0),
           original_quantity: Number(item.original_quantity || 0),
           price: Number(item.unit_price || 0),
+          unit_price: Number(item.unit_price || 0),
+          base_unit_price: Number(item.base_unit_price || item.unit_price || 0),
+          base_price: Number(item.base_unit_price || item.unit_price || 0),
+          discount_type: item.discount_type,
+          discount_value: item.discount_value,
+          discount_min_quantity: item.discount_min_quantity,
+          discount_label: item.discount_label,
+          has_quantity_discount: item.has_quantity_discount,
+          line_discount_amount: Number(item.line_discount_amount || 0),
+          discount_amount: Number(item.line_discount_amount || 0),
           subtotal: Number(item.subtotal || 0),
           product_thumbnail_url: item.product_thumbnail_url,
           review_status: item.review_status,
@@ -92,6 +102,8 @@ export default function DealerPurchaseOrderDetailPage() {
         })),
         notes: data.note ? [data.note] : [],
         rawSubtotal: Number(data.total_amount || 0),
+        grossSubtotal: Number(data.gross_subtotal || data.total_amount || 0),
+        totalDiscountAmount: Number(data.total_discount_amount || 0),
         depositAmount: Number(data.deposit_amount || 0),
         remainingAmount: Number(data.debt_amount || 0),
         payments: data.payments || [],
@@ -137,6 +149,8 @@ export default function DealerPurchaseOrderDetailPage() {
   }
 
   const rawSubtotal = orderData.rawSubtotal;
+  const grossSubtotal = orderData.grossSubtotal ?? rawSubtotal;
+  const totalDiscountAmount = orderData.totalDiscountAmount ?? 0;
   const depositAmount = orderData.depositAmount;
   const remainingAmount = orderData.remainingAmount;
 
@@ -311,6 +325,8 @@ export default function DealerPurchaseOrderDetailPage() {
       <OrderDetailSummary
         orderData={orderData}
         rawSubtotal={rawSubtotal}
+        grossSubtotal={grossSubtotal}
+        totalDiscountAmount={totalDiscountAmount}
         depositAmount={depositAmount}
         remainingAmount={remainingAmount}
       />

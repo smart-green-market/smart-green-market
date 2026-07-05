@@ -28,7 +28,7 @@ export default function DraftInvoice({
           </div>
         ) : (
           <div className="flex flex-col divide-y divide-neutral-50 max-h-60 overflow-y-auto pr-1">
-            {cartItems.map(({ product, quantity, subtotal }) => (
+            {cartItems.map(({ product, quantity, subtotal, discountAmount }) => (
               <div
                 key={product.id}
                 className="py-3 flex items-center justify-between gap-3"
@@ -46,6 +46,11 @@ export default function DraftInvoice({
                     {quantity} {product.unit} x{" "}
                     {Number(product.price).toLocaleString("vi-VN")} đ
                   </p>
+                  {discountAmount > 0 && (
+                    <p className="text-[10px] text-emerald-600 font-medium">
+                      Giảm: -{Number(discountAmount).toLocaleString("vi-VN")} đ
+                    </p>
+                  )}
                 </div>
                 <div className="flex flex-col items-end gap-1">
                   <span className="font-bold text-neutral-800 text-xs">
@@ -72,6 +77,15 @@ export default function DraftInvoice({
             {rawSubtotal.toLocaleString("vi-VN")} đ
           </span>
         </div>
+
+        {discountAmount > 0 && (
+          <div className="flex justify-between text-xs text-emerald-600 font-medium">
+            <span>Đã giảm (theo SL):</span>
+            <span className="font-bold">
+              -{discountAmount.toLocaleString("vi-VN")} đ
+            </span>
+          </div>
+        )}
 
         <div className="flex justify-between items-baseline mt-2 pt-3 border-t border-neutral-100">
           <span className="font-bold text-neutral-800 text-sm">

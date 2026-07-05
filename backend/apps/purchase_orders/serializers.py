@@ -108,6 +108,29 @@ class PurchaseOrderItemReadSerializer(serializers.ModelSerializer):
         read_only=True,
         help_text="Alias FE: pending | approved | rejected",
     )
+    discount_label = serializers.SerializerMethodField(
+        help_text="Nhãn giảm giá đã áp dụng (vd: Giảm 40% từ 1.000 kg)",
+    )
+    has_quantity_discount = serializers.SerializerMethodField(
+        help_text="True nếu dòng có giảm theo số lượng",
+    )
+
+    def get_discount_label(self, obj):
+        if not obj.discount_type or obj.discount_value is None:
+            return None
+        qty = obj.discount_min_quantity
+        qty_text = ""
+        if qty is not None:
+            qty_text = f" từ {qty:g}"
+            unit = getattr(obj.supplier_product, "unit", "") or ""
+            if unit:
+                qty_text = f"{qty_text} {unit}"
+        if obj.discount_type == "percent":
+            return f"Giảm {obj.discount_value:g}%{qty_text}".strip()
+        return f"Giảm {float(obj.discount_value):,.0f}đ{qty_text}".strip()
+
+    def get_has_quantity_discount(self, obj):
+        return bool(obj.line_discount_amount and obj.line_discount_amount > 0)
 
     def get_product_thumbnail_url(self, obj):
         product = obj.supplier_product
@@ -133,7 +156,14 @@ class PurchaseOrderItemReadSerializer(serializers.ModelSerializer):
             "daily_production_capacity",
             "quantity",
             "original_quantity",
+            "base_unit_price",
             "unit_price",
+            "discount_type",
+            "discount_value",
+            "discount_min_quantity",
+            "line_discount_amount",
+            "discount_label",
+            "has_quantity_discount",
             "subtotal",
             "note",
             "review_status",
@@ -144,7 +174,12 @@ class PurchaseOrderItemReadSerializer(serializers.ModelSerializer):
             "id": {"help_text": "ID dòng sản phẩm"},
             "quantity": {"help_text": "Số lượng sau khi NCC duyệt/điều chỉnh"},
             "original_quantity": {"help_text": "Số lượng dealer đặt ban đầu"},
-            "unit_price": {"help_text": "Đơn giá sỉ tại thời điểm tạo đơn (VND)"},
+            "base_unit_price": {"help_text": "Giá sỉ gốc tại thời điểm đặt (VND)"},
+            "unit_price": {"help_text": "Đơn giá sỉ sau giảm tại thời điểm đặt (VND)"},
+            "discount_type": {"help_text": "percent | fixed — rỗng nếu không giảm"},
+            "discount_value": {"help_text": "Giá trị giảm của bậc đã áp dụng"},
+            "discount_min_quantity": {"help_text": "Ngưỡng SL tối thiểu của bậc giảm"},
+            "line_discount_amount": {"help_text": "Tổng tiền giảm của dòng (VND)"},
             "subtotal": {"help_text": "Thành tiền dòng = quantity × unit_price (0 nếu rejected)"},
             "note": {"help_text": "Ghi chú dòng sản phẩm"},
             "review_status": {"help_text": "pending | approved | rejected"},
@@ -388,6 +423,7 @@ class PurchaseOrderListSerializer(
             "deposit_amount",
             "paid_amount",
             "debt_amount",
+            "credit_amount",
             "requested_delivery_time",
             "confirmed_delivery_time",
             "cancelled_at",
@@ -406,6 +442,7 @@ class PurchaseOrderListSerializer(
             "deposit_amount": {"help_text": "Số tiền cọc cần thanh toán (VND)"},
             "paid_amount": {"help_text": "Tổng tiền đã xác nhận thanh toán (VND)"},
             "debt_amount": {"help_text": "Số tiền còn phải thanh toán (VND)"},
+            "credit_amount": {"help_text": "Số tiền NCC cần hoàn khi đại lý đã trả thừa (VND)"},
             "requested_delivery_time": {
                 "help_text": "Thời gian giao mong muốn của đại lý (tham khảo cho NCC)",
             },
@@ -461,6 +498,31 @@ class PurchaseOrderDetailSerializer(
         read_only=True,
         help_text="Email NCC",
     )
+    gross_subtotal = serializers.SerializerMethodField(
+        help_text="Tổng tiền hàng trước giảm theo SL (VND)",
+    )
+    total_discount_amount = serializers.SerializerMethodField(
+        help_text="Tổng tiền giảm theo SL trên đơn (VND)",
+    )
+
+    def _active_items(self, obj):
+        return [
+            item
+            for item in obj.items.all()
+            if item.review_status != PurchaseOrderItemReviewStatus.REJECTED
+        ]
+
+    def get_gross_subtotal(self, obj):
+        total = Decimal("0")
+        for item in self._active_items(obj):
+            total += (item.quantity * item.base_unit_price).quantize(Decimal("0.01"))
+        return total
+
+    def get_total_discount_amount(self, obj):
+        total = Decimal("0")
+        for item in self._active_items(obj):
+            total += item.line_discount_amount or Decimal("0")
+        return total.quantize(Decimal("0.01"))
 
     class Meta:
         model = PurchaseOrder
@@ -485,10 +547,13 @@ class PurchaseOrderDetailSerializer(
             "note",
             "rejection_reason",
             "total_amount",
+            "gross_subtotal",
+            "total_discount_amount",
             "deposit_percent",
             "deposit_amount",
             "paid_amount",
             "debt_amount",
+            "credit_amount",
             "confirmed_at",
             "delivered_at",
             "completed_at",
@@ -525,6 +590,7 @@ class PurchaseOrderDetailSerializer(
             "deposit_amount": {"help_text": "Số tiền cọc (VND)"},
             "paid_amount": {"help_text": "Tổng tiền đã xác nhận thanh toán (VND)"},
             "debt_amount": {"help_text": "Số tiền còn phải thanh toán (VND)"},
+            "credit_amount": {"help_text": "Số tiền NCC cần hoàn khi đại lý đã trả thừa (VND)"},
             "confirmed_at": {"help_text": "Thời điểm NCC xác nhận đơn"},
             "delivered_at": {"help_text": "Thời điểm đại lý xác nhận đã nhận hàng"},
             "completed_at": {"help_text": "Thời điểm hoàn tất (sau xác minh thanh toán cuối)"},
