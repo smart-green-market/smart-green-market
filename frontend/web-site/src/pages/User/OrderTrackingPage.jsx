@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState, useCallback } from "react";
+import { useSearchParams } from "react-router-dom";
 import { ClipboardList } from "lucide-react";
 
 import OrderStatusFilterTabs from "../../components/User/OrderTracking/OrderStatusFilterTabs";
@@ -27,10 +28,11 @@ const FILTER_TABS = [
 
 export default function OrderTrackingPage() {
   const dealerSlug = useDealerSlug();
+  const [searchParams] = useSearchParams();
   const { markAsSeen } = useOrderStatusNotifications({ enabled: false });
 
   const [orders, setOrders] = useState([]);
-  const [activeFilter, setActiveFilter] = useState("all");
+  const [activeFilter, setActiveFilter] = useState(() => searchParams.get("status") || "all");
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
   const [selectedOrderId, setSelectedOrderId] = useState(null);

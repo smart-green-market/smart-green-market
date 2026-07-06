@@ -12,7 +12,7 @@ export default function UserLayout() {
             <ScrollToTopOnNavigate />
             <div className="min-h-screen flex flex-col bg-gray-50">
                 <Header />
-                <main className="flex-1 pt-[108px] md:pt-[72px]">
+                <main className="flex-1">
                     <Outlet />
                 </main>
                 <Footer />
