@@ -7,7 +7,7 @@ import { useBuyerProductSearch } from "../../hooks/useBuyerCatalog";
 import { useStorefrontPaths } from "../../hooks/useStorefrontPaths";
 import { buyerCatalogService } from "../../services/api/Buyer/buyerCatalogService";
 import { toCardProduct } from "../../utils/userProductUtils";
-
+import Banner from "../../components/User/Home/Banner";
 export default function SearchProductPage() {
     const [searchParams, setSearchParams] = useSearchParams();
     const paths = useStorefrontPaths();
@@ -90,86 +90,89 @@ export default function SearchProductPage() {
         "";
 
     return (
-        <div className="mx-auto w-full max-w-[1280px] px-4 py-8 sm:px-10 sm:py-12">
-            <nav className="mb-6 text-sm text-neutral-500">
-                <Link
-                    to={paths.home}
-                    className="text-emerald-800 no-underline hover:underline"
-                >
-                    Cửa hàng
-                </Link>
-                <span className="mx-2">/</span>
-                <span className="text-neutral-700">Tìm kiếm</span>
-            </nav>
+        <>
+            {/* <  Banner /> */}
+            <div className="mx-auto w-full max-w-[1280px] px-4 py-8 sm:px-10 sm:py-12">
+                <nav className="mb-6 text-sm text-neutral-500">
+                    <Link
+                        to={paths.home}
+                        className="text-emerald-800 no-underline hover:underline"
+                    >
+                        Cửa hàng
+                    </Link>
+                    <span className="mx-2">/</span>
+                    <span className="text-neutral-700">Tìm kiếm</span>
+                </nav>
 
-            <div className="mb-8">
-                <h1 className="text-3xl font-bold text-emerald-950">
-                    Tìm kiếm sản phẩm
-                </h1>
-                <p className="mt-2 text-sm text-neutral-600">
-                    Tìm theo tên sản phẩm, mô tả, nhà cung cấp hoặc danh mục.
-                </p>
+                <div className="mb-8">
+                    <h1 className="text-3xl font-bold text-emerald-950">
+                        Tìm kiếm sản phẩm
+                    </h1>
+                    <p className="mt-2 text-sm text-neutral-600">
+                        Tìm theo tên sản phẩm, mô tả, nhà cung cấp hoặc danh mục.
+                    </p>
+                </div>
+
+                <div className="mb-6">
+                    <SearchProductFilter
+                        input={input}
+                        onInputChange={setInput}
+                        ordering={ordering}
+                        onOrderingChange={handleOrderingChange}
+                        category={category}
+                        onCategoryChange={handleCategoryChange}
+                        categories={categories}
+                        loadingCategories={loadingCategories}
+                        onSubmit={handleSubmit}
+                    />
+                </div>
+
+                {query || category ? (
+                    <p className="mb-6 text-sm text-neutral-600">
+                        {query ? (
+                            <>
+                                Kết quả cho &quot;{query}&quot;
+                                {selectedCategoryName
+                                    ? ` trong danh mục "${selectedCategoryName}"`
+                                    : ""}
+                            </>
+                        ) : (
+                            <>Danh mục &quot;{selectedCategoryName}&quot;</>
+                        )}
+                        {" — "}
+                        {items.length} sản phẩm
+                    </p>
+                ) : (
+                    <p className="mb-6 text-sm text-neutral-600">
+                        {items.length} sản phẩm trong cửa hàng
+                    </p>
+                )}
+
+                {error ? (
+                    <div className="mb-6 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+                        {error}
+                    </div>
+                ) : null}
+
+                {loading ? (
+                    <div className="flex h-48 items-center justify-center">
+                        <Loader2 className="h-8 w-8 animate-spin text-emerald-700" />
+                    </div>
+                ) : items.length === 0 ? (
+                    <div className="rounded-xl border border-dashed border-stone-200 bg-white px-6 py-16 text-center text-sm text-neutral-500">
+                        Không tìm thấy sản phẩm phù hợp.
+                    </div>
+                ) : (
+                    <div className="grid grid-cols-2 gap-3 sm:gap-4 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
+                        {items.map((product) => (
+                            <FilterProductCard
+                                key={product.id}
+                                {...product}
+                            />
+                        ))}
+                    </div>
+                )}
             </div>
-
-            <div className="mb-6">
-                <SearchProductFilter
-                    input={input}
-                    onInputChange={setInput}
-                    ordering={ordering}
-                    onOrderingChange={handleOrderingChange}
-                    category={category}
-                    onCategoryChange={handleCategoryChange}
-                    categories={categories}
-                    loadingCategories={loadingCategories}
-                    onSubmit={handleSubmit}
-                />
-            </div>
-
-            {query || category ? (
-                <p className="mb-6 text-sm text-neutral-600">
-                    {query ? (
-                        <>
-                            Kết quả cho &quot;{query}&quot;
-                            {selectedCategoryName
-                                ? ` trong danh mục "${selectedCategoryName}"`
-                                : ""}
-                        </>
-                    ) : (
-                        <>Danh mục &quot;{selectedCategoryName}&quot;</>
-                    )}
-                    {" — "}
-                    {items.length} sản phẩm
-                </p>
-            ) : (
-                <p className="mb-6 text-sm text-neutral-600">
-                    {items.length} sản phẩm trong cửa hàng
-                </p>
-            )}
-
-            {error ? (
-                <div className="mb-6 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-                    {error}
-                </div>
-            ) : null}
-
-            {loading ? (
-                <div className="flex h-48 items-center justify-center">
-                    <Loader2 className="h-8 w-8 animate-spin text-emerald-700" />
-                </div>
-            ) : items.length === 0 ? (
-                <div className="rounded-xl border border-dashed border-stone-200 bg-white px-6 py-16 text-center text-sm text-neutral-500">
-                    Không tìm thấy sản phẩm phù hợp.
-                </div>
-            ) : (
-                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
-                    {items.map((product) => (
-                        <FilterProductCard
-                            key={product.id}
-                            {...product}
-                        />
-                    ))}
-                </div>
-            )}
-        </div>
+        </>
     );
 }

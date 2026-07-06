@@ -11,10 +11,10 @@ export default function AddressRadioCard({
 }) {
     return (
         <label
-            className={`flex cursor-pointer items-start justify-between rounded-xl px-6 pb-6 pt-6 outline outline-2 transition-colors ${
+            className={`flex cursor-pointer items-center justify-between rounded-xl px-5 py-4 border-2 transition-colors ${
                 checked
-                    ? "bg-green-50 outline-teal-800"
-                    : "bg-zinc-100 outline-transparent hover:bg-zinc-50"
+                    ? "border-teal-800 bg-teal-50/50"
+                    : "border-transparent bg-gray-50 hover:bg-gray-100"
             } ${disabled ? "opacity-70" : ""}`}
         >
             <div className="flex min-w-0 items-start gap-4">

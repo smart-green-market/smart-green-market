@@ -12,19 +12,18 @@ import AdminLayout from "./layouts/AdminLayout";
 import SupplierLayout from "./layouts/SupplierLayout";
 import UserProfileLayout from "./layouts/UserProfileLayout";
 import DealerLayout from "./layouts/DealerLayout";
-
+import NotFoundPage from "../public/404";
 
 
 import StorefrontEntryRedirect from "./components/User/StorefrontEntryRedirect";
 //User Pages
-import { UserVoucherPage, HomePage, ProductDetailPage, ProductsPage, CartPage, OrderPage, PaymentPage, OrderStatusPage, UserProfilePage, ChangePasswordPage, OrderHistoryPage, ProductReviewsPage, UserLoginPage, UserRegisterPage, SearchProductPage, DealerSlugEntryPage, CheckoutPage, OrderTrackingPage, PoliciesPage, SupportPage, AboutUsPage } from "./pages/User";
+import { HomePage, ProductDetailPage, ProductsPage, CartPage, OrderPage, PaymentPage, OrderStatusPage, UserProfilePage, ChangePasswordPage, OrderHistoryPage, ProductReviewsPage, UserVoucherPage, UserLoginPage, UserRegisterPage, SearchProductPage, DealerSlugEntryPage, CheckoutPage, OrderTrackingPage, PoliciesPage, SupportPage, AboutUsPage } from "./pages/User";
 //Supplier Pages
-import { OrderSupplierPage, ProductSupplierPage, CertificationSupplierPage, RegisterPage, SupplierLoginPage, SupplierInfoPage, CategorySupplierPage, CultivationSupplierPage, DashboardSupplierPage, SupplierNotificationPage, SupplierDiscountPage, NotFound } from "./pages/Supplier";
+import { OrderSupplierPage, ProductSupplierPage, CertificationSupplierPage, RegisterPage, SupplierLoginPage, SupplierInfoPage, CategorySupplierPage, CultivationSupplierPage, DashboardSupplierPage, SupplierNotificationPage, NotFound,OrderStats,RevenuePage } from "./pages/Supplier";
 //Admin Pages
-import { SupplierFinancePage, VoucherPage, AdminLoginPage, AdminDashboardPage, SettingPage, SupplierPage, CategoryPage, ProductPage, ProductMasterPage, SeasonPage, CertificationPage, DocumentPage, NotificationPage, DealerPage, } from "./pages/Admin";
+import { AdminLoginPage, AdminDashboardPage, SettingPage, SupplierPage, CategoryPage, ProductPage, ProductMasterPage, SeasonPage, CertificationPage, DocumentPage, NotificationPage, DealerPage, VoucherPage, SupplierFinancePage, } from "./pages/Admin";
 //Dealer Pages
-import { DealerDiscountPage, RegisterDealerPage, DealerLoginPage, DealerDashboardPage, DealerInventoryPage, DealerSupplierPage, DealerCategoryPage, DealerSalesOrderPage, DealerPurchaseOrderPage, DealerCreatePurchaseOrderPage, DealerPurchaseOrderDetailPage, DealerDraftOrderPreviewPage, DealerSupplierDetailPage, DealerCategoryDetail, DealerInfoPage, DealerCustomerPage, DealerProductManagementPage, DealerProductDetailPage } from "./pages/Dealer";
-
+import { RegisterDealerPage, DealerLoginPage, DealerDashboardPage, DealerInventoryPage, DealerSupplierPage, DealerCategoryPage, DealerSalesOrderPage, DealerPurchaseOrderPage, DealerCreatePurchaseOrderPage, DealerPurchaseOrderDetailPage, DealerDraftOrderPreviewPage, DealerSupplierDetailPage, DealerCategoryDetail, DealerInfoPage, DealerCustomerPage, DealerProductManagementPage, DealerProductDetailPage } from "./pages/Dealer";
 export default function App() {
     return (
         <BrowserRouter>
@@ -60,7 +59,8 @@ export default function App() {
                                 <Route path="dat-hang-1" element={<CheckoutPage />} />
                             </Route>
                         </Route>
-                    </Route>
+                    </Route>    
+                    <Route path="cua-hang/*" element={<NotFoundPage />} />
 
                     {/* Supplier */}
                     <Route element={<SupplierProtectedRoute />}>
@@ -73,7 +73,8 @@ export default function App() {
                             <Route path="danh-muc" element={<CategorySupplierPage />} />
                             <Route path="tat-ca-thong-bao" element={<SupplierNotificationPage />} />
                             <Route path="canh-tac" element={<CultivationSupplierPage />} />
-                            <Route path="giam-gia" element={<SupplierDiscountPage />} />
+                            <Route path="thong-ke-don-hang" element={<OrderStats />} />
+                            <Route path="doanh-thu" element={<RevenuePage />} />
                             <Route path="*" element={<NotFound />} />
                         </Route>
                     </Route>
@@ -88,6 +89,7 @@ export default function App() {
                             <Route index element={<AdminDashboardPage />} />
                             <Route path="cau-hinh" element={<SettingPage />} />
                             <Route path="nha-cung-cap" element={<SupplierPage />} />
+                            <Route path="tai-chinh-ncc" element={<SupplierFinancePage />} />
                             <Route path="danh-muc" element={<CategoryPage />} />
                             <Route path="san-pham-chuan" element={<ProductMasterPage />} />
                             <Route path="mua-he" element={<SeasonPage />} />
@@ -97,7 +99,6 @@ export default function App() {
                             <Route path="tat-ca-thong-bao" element={<NotificationPage />} />
                             <Route path="dai-ly" element={<DealerPage />} />
                             <Route path="khuyen-mai" element={<VoucherPage />} />
-                            <Route path="tai-chinh-ncc" element={<SupplierFinancePage />} />
                         </Route>
                     </Route>
 
@@ -121,11 +122,11 @@ export default function App() {
                             <Route path="khach-hang" element={<DealerCustomerPage />} />
                             <Route path="san-pham" element={<DealerProductManagementPage />} />
                             <Route path="san-pham/:id" element={<DealerProductDetailPage />} />
-                            <Route path="giam-gia" element={<DealerDiscountPage />} />
                         </Route>
                     </Route>
                     <Route path="dai-ly/dang-nhap" element={<DealerLoginPage />} />
                     <Route path="dai-ly/dang-ky" element={<RegisterDealerPage />} />
+                    <Route path="*" element={<NotFoundPage />} />
                 </Routes>
             </AuthProvider>
         </BrowserRouter>
