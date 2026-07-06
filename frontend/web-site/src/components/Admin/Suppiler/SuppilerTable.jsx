@@ -1,5 +1,5 @@
 import DataTable from "react-data-table-component";
-import { tableStyles, paginationVi } from "../../common/TableStyles";
+import { tableStyles } from "../../common/tableStyles";
 import { formatDateTime } from "../../common/formatDateTime";
 
 // ── Status config ─────────────────────────────────────────────────────────────
@@ -108,9 +108,6 @@ export default function SupplierTable({ data, onView,}) {
             <DataTable
                 columns={buildColumns(onView)}
                 data={data}
-                pagination
-                paginationPerPage={10}
-                paginationComponentOptions={paginationVi}
                 customStyles={tableStyles}
                 noDataComponent={
                     <div className="py-6 text-sm text-neutral-500">
