@@ -190,7 +190,7 @@ export default function DealerDiscountPage() {
 
   return (
     <div className="p-6">
-      <div className="flex justify-between items-center mb-6">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4">
         <div>
           <h1 className="text-2xl font-bold text-gray-800">
             {activeTab === 'policy' ? 'Quản lý chính sách giảm giá' : 'Quản lý Voucher & Khuyến mãi'}
@@ -205,7 +205,7 @@ export default function DealerDiscountPage() {
         {activeTab === 'policy' ? (
           <button
             onClick={() => setIsModalOpen(true)}
-            className="flex items-center gap-2 bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg font-medium transition-colors shadow-sm active:scale-95"
+            className="flex items-center justify-center gap-2 bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg font-medium transition-colors shadow-sm active:scale-95 w-full sm:w-auto"
           >
             <Plus size={18} />
             Tạo chính sách giảm giá
@@ -213,7 +213,7 @@ export default function DealerDiscountPage() {
         ) : (
           <button
             onClick={() => setIsVoucherModalOpen(true)}
-            className="flex items-center gap-2 bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg font-medium transition-colors shadow-sm active:scale-95"
+            className="flex items-center justify-center gap-2 bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg font-medium transition-colors shadow-sm active:scale-95 w-full sm:w-auto"
           >
             <Plus size={18} />
             Tạo Voucher

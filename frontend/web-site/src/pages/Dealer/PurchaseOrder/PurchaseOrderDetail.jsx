@@ -344,12 +344,12 @@ export default function DealerPurchaseOrderDetailPage() {
       />
 
       {/* 8. Các nút hành động ở cuối trang */}
-      <div className="flex justify-end gap-4 border-t border-neutral-100 pt-6">
+      <div className="flex flex-col sm:flex-row justify-end gap-4 border-t border-neutral-100 pt-6">
         {/* Nút hủy đơn */}
         {canCancel && (
           <button
             onClick={handleRejectOrCancelOrder}
-            className="flex items-center justify-center gap-2 px-6 h-11 border border-red-200 hover:bg-red-50 text-red-600 hover:text-red-700 rounded-xl text-xs font-bold transition-all cursor-pointer min-w-36 active:scale-95"
+            className="flex items-center justify-center gap-2 px-6 h-11 border border-red-200 hover:bg-red-50 text-red-600 hover:text-red-700 rounded-xl text-xs font-bold transition-all cursor-pointer w-full sm:w-auto sm:min-w-36 active:scale-95"
           >
             <XCircle className="w-4 h-4" /> Hủy phiếu nhập
           </button>
@@ -359,7 +359,7 @@ export default function DealerPurchaseOrderDetailPage() {
         {showConfirmDelivery && (
           <button
             onClick={handleConfirmDelivery}
-            className="flex items-center justify-center gap-2 px-6 h-11 bg-emerald-800 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold transition-all shadow-xs cursor-pointer min-w-44 active:scale-95"
+            className="flex items-center justify-center gap-2 px-6 h-11 bg-emerald-800 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold transition-all shadow-xs cursor-pointer w-full sm:w-auto sm:min-w-44 active:scale-95"
           >
             <CheckCircle className="w-4 h-4" /> Xác nhận đã nhận hàng
           </button>
@@ -369,7 +369,7 @@ export default function DealerPurchaseOrderDetailPage() {
         {showApproveAdjustment && (
           <button
             onClick={handleApproveAdjustmentClick}
-            className="flex items-center justify-center gap-2 px-6 h-11 bg-emerald-800 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold transition-all shadow-xs cursor-pointer min-w-44 active:scale-95"
+            className="flex items-center justify-center gap-2 px-6 h-11 bg-emerald-800 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold transition-all shadow-xs cursor-pointer w-full sm:w-auto sm:min-w-44 active:scale-95"
           >
             <CheckCircle className="w-4 h-4" /> Xác nhận thay đổi
           </button>
@@ -378,7 +378,7 @@ export default function DealerPurchaseOrderDetailPage() {
         {showReturnRequest && (
           <button
             onClick={handleRequestReturn}
-            className="flex items-center justify-center gap-2 px-6 h-11 bg-red-600 hover:bg-red-700 text-white rounded-xl text-xs font-bold transition-all shadow-xs cursor-pointer min-w-44 active:scale-95"
+            className="flex items-center justify-center gap-2 px-6 h-11 bg-red-600 hover:bg-red-700 text-white rounded-xl text-xs font-bold transition-all shadow-xs cursor-pointer w-full sm:w-auto sm:min-w-44 active:scale-95"
           >
             <RotateCcw className="w-4 h-4" />
             Yêu cầu trả hàng

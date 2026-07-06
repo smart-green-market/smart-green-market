@@ -116,11 +116,23 @@ export default function CreatePurchaseOrder({ onClose, onSuccess }) {
 
   // --- STATE PHÂN TRANG ---
   const [currentPage, setCurrentPage] = useState(1);
+  const [totalProductsCount, setTotalProductsCount] = useState(0);
+  const [debouncedSearchQuery, setDebouncedSearchQuery] = useState("");
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      if (debouncedSearchQuery !== searchQuery) {
+        setDebouncedSearchQuery(searchQuery);
+        setCurrentPage(1);
+      }
+    }, 500);
+    return () => clearTimeout(timer);
+  }, [searchQuery, debouncedSearchQuery]);
 
   // Reset trang về 1 khi thay đổi bộ lọc
   useEffect(() => {
     setCurrentPage(1);
-  }, [selectedSupplier, selectedCategory, searchQuery]);
+  }, [selectedSupplier, selectedCategory, debouncedSearchQuery]);
 
   useEffect(() => {
     const fetchMeta = async () => {
@@ -168,28 +180,42 @@ export default function CreatePurchaseOrder({ onClose, onSuccess }) {
     const fetchProducts = async () => {
       if (!selectedSupplier) {
         setProducts([]);
+        setTotalProductsCount(0);
         setLoading(false);
         return;
       }
       setLoading(true);
       try {
-        const productParams = selectedCategory ? { category: selectedCategory } : {};
-        const productList = await supplierService.getSupplierProducts(
+        const productParams = {
+          page: currentPage,
+          page_size: 9,
+        };
+        if (selectedCategory) {
+          productParams.category = selectedCategory;
+        }
+        if (debouncedSearchQuery) {
+          productParams.search = debouncedSearchQuery;
+        }
+        const response = await supplierService.getSupplierProducts(
           selectedSupplier,
           productParams,
         );
-        setProducts(productList.map(formatPurchaseProduct));
+        const results = response?.results || (Array.isArray(response) ? response : []);
+        const total = response?.count || results.length;
+        setProducts(results.map(formatPurchaseProduct));
+        setTotalProductsCount(total);
       } catch (err) {
         console.error("Lỗi khi tải sản phẩm:", err);
         toast.error("Không thể tải danh sách sản phẩm.", { position: "top-center", duration: 5000 });
         setProducts([]);
+        setTotalProductsCount(0);
       } finally {
         setLoading(false);
       }
     };
 
     fetchProducts();
-  }, [selectedSupplier, selectedCategory]);
+  }, [selectedSupplier, selectedCategory, debouncedSearchQuery, currentPage]);
 
 
 
@@ -267,42 +293,10 @@ export default function CreatePurchaseOrder({ onClose, onSuccess }) {
     });
   };
 
-  // --- LỌC SẢN PHẨM THEO BỘ LỌC ---
-  const filteredProducts = products.filter((p) => {
-    const selectedSupObj = suppliers.find(s => String(s.id) === String(selectedSupplier));
-    const selectedSupName = selectedSupObj ? (selectedSupObj.company_name || selectedSupObj.name) : "";
-
-    const matchesSupplier =
-      selectedSupplier === "" ||
-      (p.supplier && (
-        String(p.supplier?.id || p.supplier) === String(selectedSupplier) ||
-        String(p.supplier?.company_name || p.supplier?.name || p.supplier) === String(selectedSupplier) ||
-        (selectedSupName && String(p.supplier?.company_name || p.supplier?.name || p.supplier).toLowerCase() === selectedSupName.toLowerCase())
-      ));
-
-    const selectedCatObj = categories.find(c => String(c.id) === String(selectedCategory));
-    const selectedCatName = selectedCatObj ? selectedCatObj.name : "";
-
-    const matchesCategory =
-      selectedCategory === "" ||
-      (p.category && (
-        String(p.category?.id || p.category) === String(selectedCategory) ||
-        String(p.category?.name || p.category) === String(selectedCategory) ||
-        (selectedCatName && String(p.category?.name || p.category).toLowerCase() === selectedCatName.toLowerCase())
-      ));
-
-    const matchesSearch =
-      searchQuery === "" ||
-      p.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      p.code.toLowerCase().includes(searchQuery.toLowerCase());
-    return matchesSupplier && matchesCategory && matchesSearch;
-  });
-
   // --- PHÂN TRANG CHO LƯỚI SẢN PHẨM ---
   const ITEMS_PER_PAGE = 9;
-  const totalPages = Math.ceil(filteredProducts.length / ITEMS_PER_PAGE);
-  const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
-  const paginatedProducts = filteredProducts.slice(startIndex, startIndex + ITEMS_PER_PAGE);
+  const totalPages = Math.ceil(totalProductsCount / ITEMS_PER_PAGE);
+  const paginatedProducts = products;
 
   const getLinePricing = (product, quantity) => {
     const pricing = computeDiscountedUnitPrice(
@@ -509,7 +503,7 @@ export default function CreatePurchaseOrder({ onClose, onSuccess }) {
             <div className="flex justify-center items-center py-20">
               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-emerald-600"></div>
             </div>
-          ) : filteredProducts.length === 0 ? (
+          ) : products.length === 0 ? (
             <div className="text-center py-20 bg-white rounded-2xl border border-neutral-100 text-neutral-400 font-medium">
               Không tìm thấy sản phẩm nào khớp với bộ lọc.
             </div>
