@@ -34,20 +34,32 @@ export default function RequestReturnModal({
     } else if (orderItems) {
       const returnableItems = orderItems.filter((item) => {
         const status = item.review_status || item.item_status;
-        return status === "approved" && Number(item.quantity || 0) > 0;
+        const returnStatus = item.return_status || "none";
+        const returnableQty = Number(
+          item.returnable_quantity ?? item.quantity ?? 0
+        );
+        return (
+          status === "approved" &&
+          returnableQty > 0 &&
+          returnStatus !== "return_requested" &&
+          returnStatus !== "fully_returned"
+        );
       });
       setReturnItems(
-        returnableItems.map((item) => ({
+        returnableItems.map((item) => {
+          const maxQty = Number(item.returnable_quantity ?? item.quantity ?? 0);
+          return {
           id: item.id,
           name: item.name,
           unit: item.unit || "Kg",
           product_thumbnail_url: item.product_thumbnail_url,
           price: item.price,
-          maxQuantity: item.quantity,
+          maxQuantity: maxQty,
           quantity: "",
           reason: "",
           checked: false,
-        }))
+        };
+        })
       );
     }
   }, [isOpen, orderItems]);

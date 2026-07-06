@@ -19,6 +19,7 @@ from common.return_summary import account_display_name, build_return_summary
 
 from common.validators import require_rejection_reason
 
+from .item_return_status import build_purchase_order_item_return_info
 from .models import (
     PurchaseOrder,
     PurchaseOrderItem,
@@ -114,6 +115,43 @@ class PurchaseOrderItemReadSerializer(serializers.ModelSerializer):
     has_quantity_discount = serializers.SerializerMethodField(
         help_text="True nếu dòng có giảm theo số lượng",
     )
+    return_status = serializers.SerializerMethodField(
+        help_text="none | return_requested | partially_returned | fully_returned",
+    )
+    return_status_label = serializers.SerializerMethodField(
+        help_text="Nhãn tiếng Việt của return_status",
+    )
+    pending_return_quantity = serializers.SerializerMethodField(
+        help_text="SL đang chờ duyệt trả",
+    )
+    returned_quantity = serializers.SerializerMethodField(
+        help_text="SL đã được NCC duyệt trả",
+    )
+    returnable_quantity = serializers.SerializerMethodField(
+        help_text="SL còn có thể yêu cầu trả",
+    )
+
+    def _return_info(self, obj):
+        cached = getattr(obj, "_return_info_cache", None)
+        if cached is None:
+            cached = build_purchase_order_item_return_info(obj)
+            obj._return_info_cache = cached
+        return cached
+
+    def get_return_status(self, obj):
+        return self._return_info(obj)["return_status"]
+
+    def get_return_status_label(self, obj):
+        return self._return_info(obj)["return_status_label"]
+
+    def get_pending_return_quantity(self, obj):
+        return self._return_info(obj)["pending_return_quantity"]
+
+    def get_returned_quantity(self, obj):
+        return self._return_info(obj)["returned_quantity"]
+
+    def get_returnable_quantity(self, obj):
+        return self._return_info(obj)["returnable_quantity"]
 
     def get_discount_label(self, obj):
         if not obj.discount_type or obj.discount_value is None:
@@ -169,6 +207,11 @@ class PurchaseOrderItemReadSerializer(serializers.ModelSerializer):
             "review_status",
             "item_status",
             "rejection_reason",
+            "return_status",
+            "return_status_label",
+            "pending_return_quantity",
+            "returned_quantity",
+            "returnable_quantity",
         ]
         extra_kwargs = {
             "id": {"help_text": "ID dòng sản phẩm"},
@@ -184,6 +227,9 @@ class PurchaseOrderItemReadSerializer(serializers.ModelSerializer):
             "note": {"help_text": "Ghi chú dòng sản phẩm"},
             "review_status": {"help_text": "pending | approved | rejected"},
             "rejection_reason": {"help_text": "Lý do NCC từ chối dòng SP"},
+            "return_status": {
+                "help_text": "Trạng thái trả hàng dòng: none | return_requested | partially_returned | fully_returned",
+            },
         }
 
 

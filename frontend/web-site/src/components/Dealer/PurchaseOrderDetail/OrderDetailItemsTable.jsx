@@ -37,6 +37,21 @@ export default function OrderDetailItemsTable({ items }) {
           <tbody className="divide-y divide-neutral-100 text-sm">
             {items.map((item, idx) => {
               const isRejected = item.review_status === "rejected";
+              const returnStatus = item.return_status || "none";
+              const returnBadge = {
+                return_requested: {
+                  label: item.return_status_label || "Chờ duyệt trả hàng",
+                  className: "bg-amber-100 text-amber-800",
+                },
+                partially_returned: {
+                  label: item.return_status_label || "Trả một phần",
+                  className: "bg-orange-100 text-orange-800",
+                },
+                fully_returned: {
+                  label: item.return_status_label || "Đã trả hết",
+                  className: "bg-slate-100 text-slate-700",
+                },
+              }[returnStatus];
               const unit = item.unit || item.product_unit || "kg";
               const unitPrice = getOrderItemUnitPrice(item);
               const basePrice = getOrderItemBaseUnitPrice(item);
@@ -77,6 +92,13 @@ export default function OrderDetailItemsTable({ items }) {
                         {isRejected && (
                           <span className="ml-2 bg-red-100 text-red-800 text-[10px] px-2 py-0.5 rounded-full font-bold uppercase tracking-wider">
                             Từ chối
+                          </span>
+                        )}
+                        {!isRejected && returnBadge && (
+                          <span
+                            className={`ml-2 text-[10px] px-2 py-0.5 rounded-full font-bold uppercase tracking-wider ${returnBadge.className}`}
+                          >
+                            {returnBadge.label}
                           </span>
                         )}
                       </div>
