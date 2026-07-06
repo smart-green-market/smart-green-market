@@ -54,7 +54,7 @@ export default function ConfirmOrderModal({
             disabled={loading}
             className="flex-1 py-2.5 rounded-xl bg-emerald-800 text-white text-sm font-bold hover:bg-emerald-700 disabled:opacity-60"
           >
-            {loading ? "Đang xử lý..." : "Xác nhận"}
+            {loading ? <ButtonSpinner label="Đang xử lý..." /> : "Xác nhận"}
           </button>
         </div>
       </div>

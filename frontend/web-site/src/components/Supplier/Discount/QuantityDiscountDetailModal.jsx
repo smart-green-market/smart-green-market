@@ -32,7 +32,7 @@ export default function QuantityDiscountDetailModal({ isOpen, policyId, onClose 
         </div>
         <div className="p-6 space-y-4">
           {isLoading ? (
-            <p className="text-neutral-400 text-sm">Đang tải...</p>
+            <PageSpinner />
           ) : policy ? (
             <>
               <div>

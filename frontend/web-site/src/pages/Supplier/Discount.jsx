@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
-import { Plus, Percent, Loader2 } from "lucide-react";
+import { Plus, Percent } from "lucide-react";
+import { PageSpinner } from "../../components/Supplier/UI/SupplierSpinner";
 import { toast } from "sonner";
 import { quantityDiscountService } from "../../services/api/quantityDiscountService";
 import { formatQuantityDiscountApiError } from "../../utils/quantityDiscountUtils";
@@ -105,9 +106,7 @@ export default function SupplierDiscountPage() {
       </div>
 
       {isLoading ? (
-        <div className="flex justify-center py-20">
-          <Loader2 className="w-8 h-8 animate-spin text-emerald-600" />
-        </div>
+        <PageSpinner />
       ) : (
         <QuantityDiscountTable
           policies={policies}

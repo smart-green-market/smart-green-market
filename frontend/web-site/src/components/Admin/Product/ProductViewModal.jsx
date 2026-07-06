@@ -83,7 +83,7 @@ export default function ProductViewModal({
     return (
         <>
             {/* OVERLAY */}
-            <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
+            <div className="fixed inset-0 z-[150] flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
                 {/* PANEL */}
                 <div className="w-full max-w-3xl max-h-[90vh] bg-white rounded-2xl shadow-2xl border border-neutral-200 flex flex-col overflow-hidden">
                     {/* HEADER */}

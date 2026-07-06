@@ -162,7 +162,7 @@ export default function CategoryViewModal({
 
     return (
         <>
-            <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 backdrop-blur-sm">
+            <div className="fixed inset-0 z-[150] flex items-center justify-center bg-black/40 p-4 backdrop-blur-sm">
                 <div className="flex max-h-[90vh] w-full max-w-[620px] flex-col overflow-hidden rounded-2xl border border-neutral-200 bg-white shadow-2xl">
                     <div className="flex shrink-0 items-center justify-between border-b border-neutral-200 px-6 py-4">
                         <div>

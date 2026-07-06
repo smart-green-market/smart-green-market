@@ -472,7 +472,7 @@ export default function BuyerAccountDropdown() {
                                   <NotificationPanel
                                       items={notifications}
                                       onItemClick={handleNotificationClick}
-                                      onSeeMore={() => handleNavigate(paths.orderStatus)}
+                                      onSeeMore={() => handleNavigate(paths.notifications)}
                                   />
                               </div>
                           </div>

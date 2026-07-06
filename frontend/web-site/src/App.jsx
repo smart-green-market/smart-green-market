@@ -18,7 +18,7 @@ import NotFoundPage from "../public/404";
 
 import StorefrontEntryRedirect from "./components/User/StorefrontEntryRedirect";
 //User Pages
-import { HomePage, ProductDetailPage, ProductsPage, CartPage, OrderPage, PaymentPage, OrderStatusPage, UserProfilePage, ChangePasswordPage, OrderHistoryPage, ProductReviewsPage, UserVoucherPage, UserLoginPage, UserRegisterPage, SearchProductPage, DealerSlugEntryPage, CheckoutPage, OrderTrackingPage, PoliciesPage, SupportPage, AboutUsPage } from "./pages/User";
+import { HomePage, ProductDetailPage, ProductsPage, CartPage, OrderPage, PaymentPage, OrderStatusPage, UserProfilePage, ChangePasswordPage, OrderHistoryPage, ProductReviewsPage, UserVoucherPage, BuyerNotificationsPage, UserLoginPage, UserRegisterPage, SearchProductPage, DealerSlugEntryPage, CheckoutPage, OrderTrackingPage, PoliciesPage, SupportPage, AboutUsPage } from "./pages/User";
 //Supplier Pages
 import { OrderSupplierPage, ProductSupplierPage, CertificationSupplierPage, RegisterPage, SupplierLoginPage, SupplierInfoPage, CategorySupplierPage, CultivationSupplierPage, DashboardSupplierPage, SupplierNotificationPage, NotFound, OrderStats, RevenuePage, SupplierDiscountPage } from "./pages/Supplier";
 //Admin Pages
@@ -57,6 +57,7 @@ export default function App() {
                                     <Route path="lich-su-don-hang" element={<OrderHistoryPage />} />
                                     <Route path="danh-gia-san-pham" element={<ProductReviewsPage />} />
                                     <Route path="vouchers" element={<UserVoucherPage />} />
+                                    <Route path="thong-bao" element={<BuyerNotificationsPage />} />
                                 </Route>
                                 <Route path="dat-hang-1" element={<CheckoutPage />} />
                             </Route>

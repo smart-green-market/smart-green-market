@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { PageSpinner } from '../../components/Supplier/UI/SupplierSpinner';
 import useRevenueStats from '../../hooks/useRevenueStats';
 
 import RevenueToolbar from '../../components/Supplier/Revenue/RevenueToolbar';
@@ -33,10 +34,7 @@ export default function RevenuePage(){
       />
 
       {loading && (
-        <div className="state-box">
-          <i className="ti ti-loader-2" style={{ fontSize: 22 }} />
-          Đang tải dữ liệu doanh thu...
-        </div>
+        <PageSpinner />
       )}
 
       {!loading && error && (

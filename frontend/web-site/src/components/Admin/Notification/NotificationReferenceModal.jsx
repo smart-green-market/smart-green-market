@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { createPortal } from "react-dom";
 import CategoryViewModal from "../Category/CategoryViewModal";
 import ProductViewModal from "../Product/ProductViewModal";
 import SupplierViewModal from "../Suppiler/SupplierViewModal";
@@ -78,18 +79,19 @@ export default function NotificationReferenceModal({
     if (!isOpen) return null;
 
     if (loading) {
-        return (
-            <div className="fixed inset-0 z-[210] flex items-center justify-center bg-black/40 p-4 backdrop-blur-[2px]">
+        return createPortal(
+            <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/40 p-4 backdrop-blur-[2px]">
                 <div className="rounded-xl bg-white px-6 py-4 text-sm text-neutral-600 shadow-xl">
                     Đang tải chi tiết...
                 </div>
-            </div>
+            </div>,
+            document.body
         );
     }
 
     if (error) {
-        return (
-            <div className="fixed inset-0 z-[210] flex items-center justify-center bg-black/40 p-4 backdrop-blur-[2px]">
+        return createPortal(
+            <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/40 p-4 backdrop-blur-[2px]">
                 <div className="w-full max-w-md rounded-xl bg-white p-6 shadow-xl">
                     <h3 className="text-base font-semibold text-zinc-900">
                         Không thể mở chi tiết
@@ -108,7 +110,8 @@ export default function NotificationReferenceModal({
                         </button>
                     </div>
                 </div>
-            </div>
+            </div>,
+            document.body
         );
     }
 
@@ -181,9 +184,5 @@ export default function NotificationReferenceModal({
             return null;
     }
 
-    return (
-        <div style={{ position: "fixed", inset: 0, zIndex: 110 }}>
-            {modalContent}
-        </div>
-    );
+    return createPortal(modalContent, document.body);
 }
