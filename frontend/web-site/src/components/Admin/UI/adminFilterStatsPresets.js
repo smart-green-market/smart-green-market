@@ -5,7 +5,6 @@ import {
   Clock,
   FileCheck,
   Lock,
-  Percent,
   XCircle,
 } from "lucide-react";
 
@@ -286,12 +285,5 @@ export const SUPPLIER_FINANCE_STAT_CARDS = [
     filterValue: "",
     icon: ArrowUpRight,
     style: "warning",
-  }),
-  card({
-    key: "commission",
-    label: "Tổng chiết khấu (triệu ₫)",
-    filterValue: "",
-    icon: Percent,
-    style: "danger",
   }),
 ];
