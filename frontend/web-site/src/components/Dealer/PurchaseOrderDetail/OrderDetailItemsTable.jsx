@@ -9,6 +9,10 @@ import {
 } from "../../../utils/quantityDiscountUtils";
 
 export default function OrderDetailItemsTable({ items }) {
+  const showReturnQty = items.some((item) => item.review_status === "approved");
+
+  const formatQty = (value) => Number(value || 0).toLocaleString("vi-VN");
+
   return (
     <div className="bg-white rounded-2xl border border-neutral-100 shadow-xs mb-6 overflow-hidden">
       <div className="px-6 py-5 border-b border-neutral-50 flex items-center justify-between">
@@ -28,6 +32,12 @@ export default function OrderDetailItemsTable({ items }) {
               <th className="py-3.5 px-5 w-14 text-center whitespace-nowrap">STT</th>
               <th className="py-3.5 px-4 text-left whitespace-nowrap">Sản phẩm</th>
               <th className="py-3.5 px-4 w-24 text-center whitespace-nowrap">SL</th>
+              {showReturnQty && (
+                <>
+                  <th className="py-3.5 px-4 w-24 text-center whitespace-nowrap">Đã trả</th>
+                  <th className="py-3.5 px-4 w-24 text-center whitespace-nowrap">Còn lại</th>
+                </>
+              )}
               <th className="py-3.5 px-4 w-28 text-center whitespace-nowrap">Đơn vị</th>
               <th className="py-3.5 px-4 w-44 text-right whitespace-nowrap">Đơn giá</th>
               <th className="py-3.5 px-4 w-36 text-right whitespace-nowrap">Giảm theo SL</th>
@@ -62,6 +72,12 @@ export default function OrderDetailItemsTable({ items }) {
                 item.subtotal != null
                   ? Number(item.subtotal)
                   : Number(item.quantity) * unitPrice;
+              const isApproved = item.review_status === "approved";
+              const returnedQty = Number(item.returned_quantity || 0);
+              const pendingReturnQty = Number(item.pending_return_quantity || 0);
+              const returnableQty = isApproved
+                ? Number(item.returnable_quantity ?? item.quantity ?? 0)
+                : 0;
 
               return (
                 <React.Fragment key={item.id || idx}>
@@ -104,8 +120,29 @@ export default function OrderDetailItemsTable({ items }) {
                       </div>
                     </td>
                     <td className={`py-4 px-4 text-center font-extrabold ${isRejected ? "text-red-600" : "text-neutral-700"}`}>
-                      {Number(item.quantity).toLocaleString("vi-VN")}
+                      {formatQty(item.quantity)}
                     </td>
+                    {showReturnQty && (
+                      <>
+                        <td className={`py-4 px-4 text-center ${isRejected ? "text-red-500" : "text-orange-700"}`}>
+                          {isApproved ? (
+                            <div className="space-y-0.5">
+                              <div className="font-bold">{formatQty(returnedQty)}</div>
+                              {pendingReturnQty > 0 && (
+                                <div className="text-[10px] font-semibold text-amber-700">
+                                  +{formatQty(pendingReturnQty)} chờ duyệt
+                                </div>
+                              )}
+                            </div>
+                          ) : (
+                            <span className="text-neutral-400">—</span>
+                          )}
+                        </td>
+                        <td className={`py-4 px-4 text-center font-bold ${isRejected ? "text-red-500" : "text-emerald-700"}`}>
+                          {isApproved ? formatQty(returnableQty) : <span className="text-neutral-400">—</span>}
+                        </td>
+                      </>
+                    )}
                     <td className={`py-4 px-4 text-center font-medium ${isRejected ? "text-red-500" : "text-neutral-500"} whitespace-nowrap`}>
                       {unit}
                     </td>
@@ -146,7 +183,7 @@ export default function OrderDetailItemsTable({ items }) {
                   {isRejected && item.rejection_reason && (
                     <tr className="bg-red-50/20">
                       <td />
-                      <td colSpan="6" className="py-2.5 px-4 text-xs font-medium text-red-500 border-t-0">
+                      <td colSpan={showReturnQty ? 8 : 6} className="py-2.5 px-4 text-xs font-medium text-red-500 border-t-0">
                         <div className="flex items-center gap-1.5 pl-3 border-l-2 border-red-500">
                           <span className="font-bold text-red-700 uppercase tracking-wider text-[10px]">Lý do từ chối:</span>
                           <span className="italic">{item.rejection_reason}</span>
