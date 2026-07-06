@@ -8,7 +8,7 @@ import AppToaster from "../components/common/AppToaster";
 import { dealerService } from "../services/api/dealerService";
 
 export default function DealerLayout() {
-    const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+    const [isSidebarOpen, setIsSidebarOpen] = useState(() => window.innerWidth >= 1024);
     const [dealerInfo, setDealerInfo] = useState(null);
     const navigate = useNavigate();
     const location = useLocation();
@@ -21,6 +21,19 @@ export default function DealerLayout() {
             .catch((err) => {
                 console.error("Failed to fetch dealer info:", err);
             });
+    }, []);
+
+    useEffect(() => {
+        const handleResize = () => {
+            if (window.innerWidth < 1024) {
+                setIsSidebarOpen(false);
+            } else {
+                setIsSidebarOpen(true);
+            }
+        };
+
+        window.addEventListener("resize", handleResize);
+        return () => window.removeEventListener("resize", handleResize);
     }, []);
 
     return (
@@ -65,8 +78,16 @@ export default function DealerLayout() {
             {/* ── Sidebar ───────────────────────────────────────────────────── */}
             <SideBar isOpen={isSidebarOpen} />
 
+            {/* Backdrop for mobile/tablet */}
+            {isSidebarOpen && (
+                <div
+                    onClick={() => setIsSidebarOpen(false)}
+                    className="fixed inset-0 top-16 bg-black/45 z-30 lg:hidden cursor-pointer animate-in fade-in duration-200"
+                />
+            )}
+
             {/* ── Main content ──────────────────────────────────────────────── */}
-            <main className={`pt-16 min-h-screen transition-all duration-300 ${isSidebarOpen ? "pl-64" : "pl-0"
+            <main className={`pt-16 min-h-screen transition-all duration-300 ${isSidebarOpen ? "lg:pl-64" : "pl-0"
                 }`}>
                 <Outlet key={location.pathname + (location.state?.refresh ? `-${location.state.refresh}` : "")} />
             </main>

@@ -5,6 +5,7 @@ import {
     getRefreshToken,
     saveAuthTokens,
 } from "./authTokenStorage";
+import { reconnectNotificationWebSocket } from "../notificationWebSocketManager";
 
 let isRefreshing = false;
 let refreshQueue = [];
@@ -65,6 +66,8 @@ export async function refreshAccessToken() {
             access: data.access,
             refresh: data.refresh,
         });
+
+        reconnectNotificationWebSocket();
 
         resolveQueue(null, data);
         return data;

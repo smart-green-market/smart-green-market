@@ -1,14 +1,16 @@
 import React from "react";
 import { FileText, Package } from "lucide-react";
 import {
-  formatOrderItemDiscountLabel,
   getOrderItemBaseUnitPrice,
-  getOrderItemLineDiscount,
   getOrderItemUnitPrice,
   orderItemHasDiscount,
 } from "../../../utils/quantityDiscountUtils";
 
 export default function OrderDetailItemsTable({ items }) {
+  const showReturnQty = items.some((item) => item.review_status === "approved");
+
+  const formatQty = (value) => Number(value || 0).toLocaleString("vi-VN");
+
   return (
     <div className="bg-white rounded-2xl border border-neutral-100 shadow-xs mb-6 overflow-hidden">
       <div className="px-6 py-5 border-b border-neutral-50 flex items-center justify-between">
@@ -28,34 +30,60 @@ export default function OrderDetailItemsTable({ items }) {
               <th className="py-3.5 px-5 w-14 text-center whitespace-nowrap">STT</th>
               <th className="py-3.5 px-4 text-left whitespace-nowrap">Sản phẩm</th>
               <th className="py-3.5 px-4 w-24 text-center whitespace-nowrap">SL</th>
+              {showReturnQty && (
+                <>
+                  <th className="py-3.5 px-4 w-24 text-center whitespace-nowrap">Đã trả</th>
+                  <th className="py-3.5 px-4 w-24 text-center whitespace-nowrap">Còn lại</th>
+                </>
+              )}
               <th className="py-3.5 px-4 w-28 text-center whitespace-nowrap">Đơn vị</th>
               <th className="py-3.5 px-4 w-44 text-right whitespace-nowrap">Đơn giá</th>
-              <th className="py-3.5 px-4 w-36 text-right whitespace-nowrap">Giảm theo SL</th>
               <th className="py-3.5 px-5 w-40 text-right whitespace-nowrap">Thành tiền</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-neutral-100 text-sm">
             {items.map((item, idx) => {
               const isRejected = item.review_status === "rejected";
+              const returnStatus = item.return_status || "none";
+              const returnBadge = {
+                return_requested: {
+                  label: item.return_status_label || "Chờ duyệt trả hàng",
+                  className: "bg-amber-100 text-amber-800",
+                },
+                partially_returned: {
+                  label: item.return_status_label || "Trả một phần",
+                  className: "bg-orange-100 text-orange-800",
+                },
+                fully_returned: {
+                  label: item.return_status_label || "Đã trả hết",
+                  className: "bg-slate-100 text-slate-700",
+                },
+              }[returnStatus] || (item.rejected_returns && item.rejected_returns.length > 0 ? {
+                label: "Từ chối trả hàng",
+                className: "bg-red-100 text-red-800",
+              } : null);
               const unit = item.unit || item.product_unit || "kg";
               const unitPrice = getOrderItemUnitPrice(item);
               const basePrice = getOrderItemBaseUnitPrice(item);
-              const lineDiscount = getOrderItemLineDiscount(item);
               const hasDiscount = orderItemHasDiscount(item);
-              const discountLabel = formatOrderItemDiscountLabel(item, unit);
               const subtotal =
                 item.subtotal != null
                   ? Number(item.subtotal)
                   : Number(item.quantity) * unitPrice;
+              const isApproved = item.review_status === "approved";
+              const returnedQty = Number(item.returned_quantity || 0);
+              const pendingReturnQty = Number(item.pending_return_quantity || 0);
+              const returnableQty = isApproved
+                ? Number(item.returnable_quantity ?? item.quantity ?? 0)
+                : 0;
 
               return (
                 <React.Fragment key={item.id || idx}>
                   <tr
-                    className={`transition-colors ${
-                      isRejected
-                        ? "bg-red-50/40 hover:bg-red-50/60 text-red-600"
-                        : "hover:bg-neutral-50/50"
-                    }`}
+                    className={`transition-colors ${isRejected
+                      ? "bg-red-50/40 hover:bg-red-50/60 text-red-600"
+                      : "hover:bg-neutral-50/50"
+                      }`}
                   >
                     <td className={`py-4 px-5 text-center font-bold ${isRejected ? "text-red-500" : "text-neutral-500"}`}>
                       {idx + 1}
@@ -79,11 +107,39 @@ export default function OrderDetailItemsTable({ items }) {
                             Từ chối
                           </span>
                         )}
+                        {!isRejected && returnBadge && (
+                          <span
+                            className={`ml-2 text-[10px] px-2 py-0.5 rounded-full font-bold uppercase tracking-wider ${returnBadge.className}`}
+                          >
+                            {returnBadge.label}
+                          </span>
+                        )}
                       </div>
                     </td>
                     <td className={`py-4 px-4 text-center font-extrabold ${isRejected ? "text-red-600" : "text-neutral-700"}`}>
-                      {Number(item.quantity).toLocaleString("vi-VN")}
+                      {formatQty(item.quantity)}
                     </td>
+                    {showReturnQty && (
+                      <>
+                        <td className={`py-4 px-4 text-center ${isRejected ? "text-red-500" : "text-orange-700"}`}>
+                          {isApproved ? (
+                            <div className="space-y-0.5">
+                              <div className="font-bold">{formatQty(returnedQty)}</div>
+                              {pendingReturnQty > 0 && (
+                                <div className="text-[10px] font-semibold text-amber-700">
+                                  +{formatQty(pendingReturnQty)} chờ duyệt
+                                </div>
+                              )}
+                            </div>
+                          ) : (
+                            <span className="text-neutral-400">—</span>
+                          )}
+                        </td>
+                        <td className={`py-4 px-4 text-center font-bold ${isRejected ? "text-red-500" : "text-emerald-700"}`}>
+                          {isApproved ? formatQty(returnableQty) : <span className="text-neutral-400">—</span>}
+                        </td>
+                      </>
+                    )}
                     <td className={`py-4 px-4 text-center font-medium ${isRejected ? "text-red-500" : "text-neutral-500"} whitespace-nowrap`}>
                       {unit}
                     </td>
@@ -103,20 +159,6 @@ export default function OrderDetailItemsTable({ items }) {
                         </span>
                       )}
                     </td>
-                    <td className={`py-4 px-4 text-right ${isRejected ? "text-red-500" : "text-emerald-700"}`}>
-                      {hasDiscount ? (
-                        <div className="space-y-0.5">
-                          {discountLabel && (
-                            <div className="text-xs font-semibold">{discountLabel}</div>
-                          )}
-                          <div className="text-xs">
-                            -{lineDiscount.toLocaleString("vi-VN")} đ
-                          </div>
-                        </div>
-                      ) : (
-                        <span className="text-neutral-400">—</span>
-                      )}
-                    </td>
                     <td className={`py-4 px-5 text-right font-extrabold ${isRejected ? "text-red-700" : "text-emerald-700"}`}>
                       {subtotal.toLocaleString("vi-VN")} đ
                     </td>
@@ -124,7 +166,7 @@ export default function OrderDetailItemsTable({ items }) {
                   {isRejected && item.rejection_reason && (
                     <tr className="bg-red-50/20">
                       <td />
-                      <td colSpan="6" className="py-2.5 px-4 text-xs font-medium text-red-500 border-t-0">
+                      <td colSpan={showReturnQty ? 7 : 5} className="py-2.5 px-4 text-xs font-medium text-red-500 border-t-0">
                         <div className="flex items-center gap-1.5 pl-3 border-l-2 border-red-500">
                           <span className="font-bold text-red-700 uppercase tracking-wider text-[10px]">Lý do từ chối:</span>
                           <span className="italic">{item.rejection_reason}</span>
@@ -132,6 +174,17 @@ export default function OrderDetailItemsTable({ items }) {
                       </td>
                     </tr>
                   )}
+                  {item.rejected_returns && item.rejected_returns.map((ret, rIdx) => (
+                    <tr key={`ret-rej-${item.id}-${rIdx}`} className="bg-red-50/10">
+                      <td />
+                      <td colSpan={showReturnQty ? 7 : 5} className="py-2.5 px-4 text-xs font-medium text-red-600 border-t-0">
+                        <div className="flex items-center gap-1.5 pl-3 border-l-2 border-red-500">
+                          <span className="font-bold text-red-700 uppercase tracking-wider text-[10px]">Từ chối trả ({formatQty(ret.quantity)} {unit}):</span>
+                          <span className="italic text-neutral-600">{ret.review_note}</span>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
                 </React.Fragment>
               );
             })}

@@ -8,6 +8,95 @@ from decimal import Decimal
 
 from django.utils import timezone
 
+# Giá sỉ Supplier -> Dealer (VND/kg), làm tròn nghìn đồng.
+PRODUCT_WHOLESALE_PRICE_RANGES = {
+    "Rau ăn lá": {
+        "Rau cải ngọt": (9000, 15000),
+        "Rau muống": (8000, 13000),
+        "Cải thìa": (10000, 17000),
+        "Cải bó xôi": (18000, 28000),
+        "Mồng tơi": (8000, 14000),
+        "Rau dền": (8000, 14000),
+        "Xà lách": (14000, 24000),
+        "Cải xoăn kale": (35000, 60000),
+        "Rau ngót": (15000, 25000),
+        "Cải cúc": (12000, 20000),
+        "Rau lang": (8000, 14000),
+        "Rau đay": (7000, 13000),
+        "Cải bẹ xanh": (9000, 15000),
+        "Xà lách xoong": (22000, 35000),
+        "Rau chân vịt": (25000, 42000),
+    },
+    "Rau ăn củ": {
+        "Khoai tây": (18000, 26000),
+        "Cà rốt Đà Lạt": (22000, 30000),
+        "Củ cải trắng": (8000, 14000),
+        "Su hào": (10000, 17000),
+        "Khoai lang mật": (20000, 35000),
+        "Củ dền": (12000, 20000),
+        "Củ sắn (củ đậu)": (8000, 13000),
+        "Gừng": (28000, 45000),
+        "Nghệ tươi": (18000, 30000),
+        "Khoai môn": (22000, 38000),
+        "Khoai mỡ": (25000, 42000),
+        "Củ niễng": (45000, 75000),
+        "Khoai sọ": (18000, 32000),
+        "Riềng": (18000, 28000),
+        "Sả củ": (10000, 18000),
+    },
+    "Rau ăn quả": {
+        "Cà chua Đà Lạt": (14000, 24000),
+        "Bí đỏ": (12000, 20000),
+        "Bí xanh": (10000, 18000),
+        "Bầu": (10000, 18000),
+        "Mướp hương": (12000, 22000),
+        "Khổ qua": (18000, 28000),
+        "Dưa leo": (10000, 18000),
+        "Ớt chuông": (35000, 60000),
+        "Cà tím": (12000, 22000),
+        "Đậu cô ve": (22000, 32000),
+        "Mướp đắng rừng": (35000, 65000),
+        "Bí ngòi": (25000, 45000),
+        "Cà pháo": (12000, 22000),
+        "Đậu rồng": (18000, 30000),
+        "Su su": (8000, 15000),
+    },
+}
+
+SEED_CATEGORY_NAMES = list(PRODUCT_WHOLESALE_PRICE_RANGES.keys())
+
+SEED_PRODUCT_MASTERS: dict[str, list[str]] = {
+    category: list(products.keys())
+    for category, products in PRODUCT_WHOLESALE_PRICE_RANGES.items()
+}
+
+# Tên danh mục custom dealer hiển thị trên storefront (map 1-1 với category hệ thống).
+DEALER_CUSTOM_CATEGORY_LABELS: dict[str, str] = {
+    "Rau ăn lá": "Rau sạch hữu cơ",
+    "Rau ăn củ": "Củ quả tươi",
+    "Rau ăn quả": "Rau quả sạch",
+}
+
+DEFAULT_WHOLESALE_PRICE_RANGE = (12000, 30000)
+
+
+def int_money(amount) -> Decimal:
+    """Chuẩn hóa tiền seed thành số nguyên (VND)."""
+    return Decimal(max(0, int(amount)))
+
+
+def pick_realistic_wholesale_price(category_name: str, product_name: str) -> int:
+    """Chọn giá sỉ thực tế, làm tròn theo 1.000đ."""
+    category_prices = PRODUCT_WHOLESALE_PRICE_RANGES.get(category_name, {})
+    low, high = category_prices.get(product_name, DEFAULT_WHOLESALE_PRICE_RANGE)
+    return random.randrange(low, high + 1000, 1000)
+
+
+def pick_retail_price(wholesale_price, *, markup_percent: int | None = None) -> Decimal:
+    """Giá bán lẻ = giá sỉ * markup (110%–150%), luôn là số nguyên."""
+    markup = markup_percent or random.randint(110, 150)
+    return int_money(int(wholesale_price) * markup // 100)
+
 from apps.dealer_products.inventory_expiry import (
     compute_batch_expiry_date,
     compute_batch_production_date,
@@ -17,26 +106,10 @@ from apps.supplier_products.models import CultivationProcess
 
 # (storage_days_min, storage_days_max), nhiệt độ °C
 CATEGORY_STORAGE_PROFILES: dict[str, dict] = {
-    "Rau ăn lá": {"storage_days": (3, 6), "min_temp": 2, "max_temp": 8},
-    "Rau ăn củ": {"storage_days": (7, 14), "min_temp": 4, "max_temp": 10},
-    "Rau ăn quả": {"storage_days": (5, 10), "min_temp": 4, "max_temp": 12},
-    "Rau gia vị & rau thơm": {"storage_days": (5, 9), "min_temp": 2, "max_temp": 8},
-    "Nấm các loại": {"storage_days": (3, 5), "min_temp": 2, "max_temp": 6},
-    "Trái cây nhiệt đới": {"storage_days": (5, 12), "min_temp": 6, "max_temp": 14},
-    "Trái cây có múi": {"storage_days": (10, 21), "min_temp": 4, "max_temp": 12},
-    "Trái cây ôn đới & nhập khẩu": {"storage_days": (7, 14), "min_temp": 2, "max_temp": 8},
-    "Quả mọng & đặc sản": {"storage_days": (3, 7), "min_temp": 2, "max_temp": 8},
-    "Đậu & hạt tươi": {"storage_days": (4, 8), "min_temp": 4, "max_temp": 10},
-    "Gạo & Ngũ cốc": {"storage_days": (180, 365), "min_temp": 15, "max_temp": 30},
-    "Đậu khô & hạt khô": {"storage_days": (120, 270), "min_temp": 15, "max_temp": 28},
-    "Thực phẩm khô": {"storage_days": (90, 180), "min_temp": 15, "max_temp": 30},
-    "Nông sản sấy khô": {"storage_days": (120, 240), "min_temp": 15, "max_temp": 28},
-    "Gia vị": {"storage_days": (180, 365), "min_temp": 15, "max_temp": 30},
-    "Mật ong & sản phẩm từ ong": {"storage_days": (365, 730), "min_temp": 18, "max_temp": 28},
-    "Trứng gia cầm": {"storage_days": (14, 21), "min_temp": 2, "max_temp": 6},
-    "Sữa & sản phẩm từ sữa nông trại": {"storage_days": (5, 14), "min_temp": 2, "max_temp": 6},
-    "Thực phẩm lên men & muối chua": {"storage_days": (30, 90), "min_temp": 4, "max_temp": 12},
-    "Hoa & cây giống nông nghiệp": {"storage_days": (3, 7), "min_temp": 8, "max_temp": 18},
+    "Rau ăn lá": {"storage_days": (3, 7), "min_temp": 0, "max_temp": 5},
+    "Rau ăn củ": {"storage_days": (7, 21), "min_temp": 4, "max_temp": 12},
+    "Rau ăn quả": {"storage_days": (4, 10), "min_temp": 8, "max_temp": 13},
+
 }
 
 DEFAULT_STORAGE_PROFILE = {
@@ -71,10 +144,10 @@ def build_supplier_description(product_master, supplier_name: str, storage_days:
     )
 
 
-def build_dealer_description(supplier_product, retail_price: Decimal) -> str:
+def build_dealer_description(supplier_product, retail_price) -> str:
     return (
         f"{supplier_product.name} — bán lẻ tại cửa hàng. "
-        f"Giá niêm yết {retail_price:,.0f} đ/{supplier_product.unit}. "
+        f"Giá niêm yết {int(retail_price):,} đ/{supplier_product.unit}. "
         f"Hàng nhập trực tiếp từ NCC {supplier_product.supplier.company_name}, "
         f"giao trong ngày khu vực nội thành."
     )
@@ -104,7 +177,7 @@ def create_dealer_inventory_batches(
     *,
     dealer_product,
     supplier_product,
-    retail_price: Decimal,
+    retail_price,
     force_near_expiry: bool = False,
 ) -> list[DealerInventoryBatch]:
     """Tạo 2–3 lô: tươi, sắp hết hạn (tuỳ chọn), và lô cũ còn hàng."""
@@ -117,13 +190,14 @@ def create_dealer_inventory_batches(
     import_fresh = today - timedelta(days=random.randint(1, 5))
     prod_fresh, exp_fresh = _batch_dates_for_fresh_import(sp, import_fresh)
     qty_fresh = random.randint(80, 150)
+    remaining_fresh = random.randint(max(1, qty_fresh // 2), qty_fresh)
     batches.append(
         DealerInventoryBatch.objects.create(
             dealer_product=dealer_product,
             batch_number=f"BATCH-F-{random.randint(1000, 9999)}",
             quantity=qty_fresh,
-            remaining_quantity=random.randint(40, qty_fresh),
-            import_price=sp.wholesale_price,
+            remaining_quantity=remaining_fresh,
+            import_price=int_money(sp.wholesale_price),
             import_date=import_fresh,
             production_date=prod_fresh,
             expiry_date=exp_fresh,
@@ -138,16 +212,17 @@ def create_dealer_inventory_batches(
         prod_near = exp_near - timedelta(days=storage_days)
         import_near = prod_near + timedelta(days=min(2, max(0, storage_days - days_left - 1)))
         qty_near = random.randint(15, 40)
+        remaining_near = random.randint(max(1, qty_near // 3), qty_near)
         manual_price = None
         if random.random() < 0.2:
-            manual_price = (retail_price * Decimal("0.85")).quantize(Decimal("1"))
+            manual_price = int_money(int(retail_price) * 85 // 100)
         batches.append(
             DealerInventoryBatch.objects.create(
                 dealer_product=dealer_product,
                 batch_number=f"BATCH-N-{random.randint(1000, 9999)}",
                 quantity=qty_near,
-                remaining_quantity=random.randint(5, qty_near),
-                import_price=sp.wholesale_price,
+                remaining_quantity=remaining_near,
+                import_price=int_money(sp.wholesale_price),
                 import_date=import_near,
                 production_date=prod_near,
                 expiry_date=exp_near,
@@ -162,13 +237,14 @@ def create_dealer_inventory_batches(
         prod_old, exp_old = _batch_dates_for_fresh_import(sp, import_old)
         if exp_old and exp_old > today + timedelta(days=7):
             qty_old = random.randint(30, 60)
+            remaining_old = random.randint(max(1, qty_old // 3), qty_old)
             batches.append(
                 DealerInventoryBatch.objects.create(
                     dealer_product=dealer_product,
                     batch_number=f"BATCH-O-{random.randint(1000, 9999)}",
                     quantity=qty_old,
-                    remaining_quantity=random.randint(10, qty_old),
-                    import_price=sp.wholesale_price,
+                    remaining_quantity=remaining_old,
+                    import_price=int_money(sp.wholesale_price),
                     import_date=import_old,
                     production_date=prod_old,
                     expiry_date=exp_old,
@@ -232,7 +308,7 @@ def seed_dealer_age_discount_policy(dealer) -> None:
         defaults={
             "scope": AgeDiscountScope.ALL,
             "discount_type": AgeDiscountDiscountType.PERCENT,
-            "discount_value": Decimal("15"),
+            "discount_value": int_money(15),
             "priority": 10,
             "is_active": True,
             "daily_start_time": time(7, 0),

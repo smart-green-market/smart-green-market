@@ -1,5 +1,6 @@
 """Helper Product Master."""
 
+from django.db.models import Q
 from django.utils.text import slugify
 from rest_framework.exceptions import ValidationError
 
@@ -37,16 +38,32 @@ def apply_product_master_list_filters(
     *,
     user,
     category_id_raw=None,
+    search=None,
+    status_param=None,
 ):
     category_id = parse_optional_category_id(category_id_raw)
     if category_id is not None:
         qs = qs.filter(category_id=category_id)
 
-    if getattr(user, "role", None) != AccountRole.ADMIN:
+    if search:
+        search = search.strip()
         qs = qs.filter(
-            status=ProductMasterStatus.ACTIVE,
-            category__status=CategoryStatus.ACTIVE,
+            Q(name__icontains=search)
+            | Q(category__name__icontains=search)
+            | Q(default_unit__icontains=search)
         )
+
+    if getattr(user, "role", None) != AccountRole.ADMIN:
+        if status_param and status_param != ProductMasterStatus.ACTIVE:
+            qs = qs.none()
+        else:
+            qs = qs.filter(
+                status=ProductMasterStatus.ACTIVE,
+                category__status=CategoryStatus.ACTIVE,
+            )
+    else:
+        if status_param:
+            qs = qs.filter(status=status_param)
     return qs
 
 

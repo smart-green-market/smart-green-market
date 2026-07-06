@@ -15,11 +15,12 @@ from apps.dealer_products.models import DealerInventoryBatch, DealerProduct, Dea
 from apps.marketing.models import CustomerInteraction
 from apps.orders.models import Order, OrderItem, OrderStatus
 
+from .seed_product_helpers import int_money
+
 DEFAULT_ORDERS_RANGE = (3, 12)
 DEFAULT_BROWSE_PRODUCTS_RANGE = (8, 25)
 DEFAULT_VIEW_COUNT_RANGE = (5, 30)
 DEFAULT_ADD_CART_RANGE = (2, 12)
-COMPLETED_ORDER_RATIO = 0.90
 
 
 def generate_order_timestamp(*, history_days: int) -> timezone.datetime:
@@ -45,17 +46,15 @@ def generate_order_timestamp(*, history_days: int) -> timezone.datetime:
     )
 
 
-def _pick_order_status() -> str:
-    roll = random.random()
-    if roll < COMPLETED_ORDER_RATIO:
-        return OrderStatus.COMPLETED
-    if roll < COMPLETED_ORDER_RATIO + 0.04:
-        return OrderStatus.CANCELLED
-    if roll < COMPLETED_ORDER_RATIO + 0.07:
-        return OrderStatus.PENDING
-    if roll < COMPLETED_ORDER_RATIO + 0.09:
-        return OrderStatus.CONFIRMED
-    return random.choice([OrderStatus.PROCESSING, OrderStatus.SHIPPING, OrderStatus.DELIVERED])
+def _pick_order_quantity(*, retail_price: Decimal, batch: DealerInventoryBatch, is_large_order: bool) -> int:
+    max_qty = max(1, int(batch.remaining_quantity))
+    if is_large_order:
+        qty = random.randint(2, min(10, max_qty))
+    elif int(retail_price) > 100_000:
+        qty = random.randint(1, min(2, max_qty))
+    else:
+        qty = random.randint(1, min(4, max_qty))
+    return max(1, min(qty, max_qty))
 
 
 def _upsert_interaction(
@@ -153,7 +152,6 @@ def _create_single_order(
     history_days: int,
     batch_map: dict[int, DealerInventoryBatch],
 ) -> tuple[Order | None, set[int]]:
-    status = _pick_order_status()
     created_at = generate_order_timestamp(history_days=history_days)
 
     ranges = [(1, 2), (2, 4), (4, 7), (8, 12)]
@@ -165,50 +163,40 @@ def _create_single_order(
     sampled_prods = random.sample(dealer_products, min(num_items, len(dealer_products)))
     purchased_ids: set[int] = set()
 
-    delivered_at = None
-    completed_at = None
-    cancelled_at = None
-
-    if status == OrderStatus.COMPLETED:
-        delivered_at = created_at + timedelta(hours=random.randint(2, 8))
-        completed_at = delivered_at + timedelta(hours=random.randint(1, 24))
-    elif status == OrderStatus.CANCELLED:
-        cancelled_at = created_at + timedelta(hours=random.randint(1, 48))
-    elif status in {OrderStatus.DELIVERED, OrderStatus.SHIPPING}:
-        delivered_at = created_at + timedelta(hours=random.randint(4, 72))
+    delivered_at = created_at + timedelta(hours=random.randint(2, 8))
+    completed_at = delivered_at + timedelta(hours=random.randint(1, 24))
 
     order = Order.objects.create(
         order_code=f"ORD-{uuid.uuid4().hex[:8].upper()}",
         customer=customer,
         dealer=dealer,
         customer_address=address,
-        status=status,
+        status=OrderStatus.COMPLETED,
         receiver_name=address.receiver_name,
         receiver_phone=address.receiver_phone,
         delivery_address=address.address,
-        delivery_time=delivered_at or (created_at + timedelta(hours=3)),
+        delivery_time=delivered_at,
         note=random.choice(["Giao giờ hành chính", "Giao buổi tối", "Không cần túi nilon", ""]),
         delivered_at=delivered_at,
         completed_at=completed_at,
-        cancelled_at=cancelled_at,
-        cancel_reason="Khách đổi ý" if status == OrderStatus.CANCELLED else "",
+        cancelled_at=None,
+        cancel_reason="",
     )
 
-    total_amount = Decimal("0")
+    total_amount = int_money(0)
     for dp in sampled_prods:
         batch = batch_map.get(dp.id)
-        if not batch:
+        if not batch or batch.remaining_quantity <= 0:
             continue
 
-        if is_large_order:
-            qty = random.randint(5, 15)
-        elif dp.retail_price > Decimal("100000"):
-            qty = random.randint(1, 2)
-        else:
-            qty = random.randint(1, 4)
-
-        subtotal = dp.retail_price * qty
-        total_amount += subtotal
+        unit_price = int_money(dp.retail_price)
+        qty = _pick_order_quantity(
+            retail_price=unit_price,
+            batch=batch,
+            is_large_order=is_large_order,
+        )
+        subtotal = int_money(int(unit_price) * qty)
+        total_amount = int_money(int(total_amount) + int(subtotal))
         purchased_ids.add(dp.id)
 
         OrderItem.objects.create(
@@ -218,8 +206,8 @@ def _create_single_order(
             product_title=dp.title,
             unit=dp.supplier_product.unit,
             quantity=qty,
-            unit_price=dp.retail_price,
-            import_price=batch.import_price,
+            unit_price=unit_price,
+            import_price=int_money(batch.import_price),
             subtotal=subtotal,
         )
 
@@ -229,34 +217,35 @@ def _create_single_order(
             dealer_product=dp,
             view_count=random.randint(2, 12),
             add_cart_count=random.randint(1, 5),
-            purchase_count=qty if status == OrderStatus.COMPLETED else 0,
+            purchase_count=qty,
             last_viewed_at=created_at - timedelta(minutes=random.randint(5, 45)),
             last_added_at=created_at - timedelta(minutes=random.randint(2, 15)),
-            last_purchased_at=created_at if status == OrderStatus.COMPLETED else None,
+            last_purchased_at=created_at,
         )
 
-    if status == OrderStatus.COMPLETED:
-        paid_amount = total_amount
-        debt_amount = Decimal("0")
-    else:
-        paid_amount = Decimal("0")
-        debt_amount = Decimal("0") if status == OrderStatus.CANCELLED else total_amount
+    if purchased_ids:
+        order.subtotal_amount = total_amount
+        order.total_amount = total_amount
+        order.paid_amount = total_amount
+        order.debt_amount = int_money(0)
+        order.discount_amount = int_money(0)
+        order.shipping_fee = int_money(0)
+        order.save(
+            update_fields=[
+                "subtotal_amount",
+                "total_amount",
+                "paid_amount",
+                "debt_amount",
+                "discount_amount",
+                "shipping_fee",
+                "updated_at",
+            ]
+        )
+        Order.objects.filter(pk=order.pk).update(created_at=created_at)
+        return order, purchased_ids
 
-    order.subtotal_amount = total_amount
-    order.total_amount = total_amount
-    order.paid_amount = paid_amount
-    order.debt_amount = debt_amount
-    order.save(
-        update_fields=[
-            "subtotal_amount",
-            "total_amount",
-            "paid_amount",
-            "debt_amount",
-            "updated_at",
-        ]
-    )
-    Order.objects.filter(pk=order.pk).update(created_at=created_at)
-    return order, purchased_ids
+    order.delete()
+    return None, set()
 
 
 def seed_customer_journeys(
@@ -347,14 +336,14 @@ def sync_customer_profile_stats(buyers: list[CustomerProfile]) -> None:
         row = agg_map.get(buyer.id)
         if not row:
             buyer.total_orders = 0
-            buyer.total_spent = Decimal("0")
+            buyer.total_spent = int_money(0)
             buyer.last_order_at = None
             buyer.loyalty_points = CustomerInteraction.objects.filter(customer=buyer).count()
         else:
             buyer.total_orders = row["total_orders"] or 0
-            buyer.total_spent = row["total_spent"] or Decimal("0")
+            buyer.total_spent = int_money(row["total_spent"] or 0)
             buyer.last_order_at = row["last_order_at"]
-            buyer.loyalty_points = int(buyer.total_spent // Decimal("10000")) + buyer.total_orders * 5
+            buyer.loyalty_points = int(buyer.total_spent) // 10000 + buyer.total_orders * 5
         buyer.save(
             update_fields=[
                 "total_orders",
