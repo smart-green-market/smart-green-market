@@ -59,7 +59,7 @@ export default function App() {
                                 <Route path="dat-hang-1" element={<CheckoutPage />} />
                             </Route>
                         </Route>
-                    </Route>    
+                    </Route>
                     <Route path="cua-hang/*" element={<NotFoundPage />} />
 
                     {/* Supplier */}

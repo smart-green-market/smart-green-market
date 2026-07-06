@@ -10,6 +10,9 @@ const dashboardService = {
   getTopProducts: () => {
     return axiosClient.get("/dashboard/dealer/top-products/").then(res => res.data);
   },
+  getPurchaseSummary: () => {
+    return axiosClient.get("/dashboard/dealer/purchase-summary/").then(res => res.data);
+  },
 };
 
 export default dashboardService;
