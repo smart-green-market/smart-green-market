@@ -1,5 +1,6 @@
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AuthProvider } from "./contexts/authProvider";
+import { NotificationRealtimeProvider } from "./contexts/notificationRealtimeProvider";
 //Protected Routes
 import AdminProtectedRoute from "./contexts/adminProtectedRoute";
 import SupplierProtectedRoute from "./contexts/supplierProtectedRoute";
@@ -28,6 +29,7 @@ export default function App() {
     return (
         <BrowserRouter>
             <AuthProvider>
+                <NotificationRealtimeProvider>
                 <Routes>
                     {/* User */}
                     <Route path="/" element={<DealerSlugEntryPage />} />
@@ -59,7 +61,7 @@ export default function App() {
                                 <Route path="dat-hang-1" element={<CheckoutPage />} />
                             </Route>
                         </Route>
-                    </Route>    
+                    </Route>
                     <Route path="cua-hang/*" element={<NotFoundPage />} />
 
                     {/* Supplier */}
@@ -130,6 +132,7 @@ export default function App() {
                     <Route path="dai-ly/dang-ky" element={<RegisterDealerPage />} />
                     <Route path="*" element={<NotFoundPage />} />
                 </Routes>
+                </NotificationRealtimeProvider>
             </AuthProvider>
         </BrowserRouter>
     );

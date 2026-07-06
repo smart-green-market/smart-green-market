@@ -39,3 +39,18 @@ services:
           property: connectionString
       - key: CLOUDINARY_URL
         sync: false
+
+  - type: web
+    name: smart-green-market-web
+    runtime: static
+    plan: free
+    rootDir: frontend/web-site
+    buildCommand: npm install && npm run build
+    staticPublishPath: dist
+    envVars:
+      - key: VITE_API_URL
+        value: https://smart-green-market-api.onrender.com/api
+    routes:
+      - type: rewrite
+        source: /*
+        destination: /index.html
