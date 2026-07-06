@@ -14,6 +14,7 @@ import {
   computeDiscountedUnitPrice,
   formatOrderItemDiscountLabel,
 } from "../../../utils/quantityDiscountUtils";
+import Pagination from "../../common/Pagination";
 
 const PRODUCT_IMAGE_FALLBACK =
   "https://images.unsplash.com/photo-1540420773420-3366772f4999?q=80&w=300&auto=format&fit=crop";
@@ -90,7 +91,23 @@ export default function CreatePurchaseOrder({ onClose, onSuccess }) {
     if (savedDraft && savedDraft.items) {
       const initialCart = {};
       savedDraft.items.forEach((item) => {
-        initialCart[item.supplier_product_id] = item.quantity;
+        initialCart[item.supplier_product_id] = {
+          product: {
+            id: item.supplier_product_id,
+            name: item.name,
+            unit: item.unit || "Kg",
+            price: item.price,
+            basePrice: item.base_price,
+            quantityDiscountTiers: item.discount_type ? [{
+              discount_type: item.discount_type,
+              discount_value: item.discount_value,
+              min_quantity: item.discount_min_quantity
+            }] : [],
+            supplier: item.supplier || { id: item.supplier_id || savedDraft.supplier_id, company_name: savedDraft.supplier_name },
+            image_url: item.product_thumbnail_url || PRODUCT_IMAGE_FALLBACK,
+          },
+          quantity: item.quantity,
+        };
       });
       return initialCart;
     }
@@ -99,11 +116,23 @@ export default function CreatePurchaseOrder({ onClose, onSuccess }) {
 
   // --- STATE PHÂN TRANG ---
   const [currentPage, setCurrentPage] = useState(1);
+  const [totalProductsCount, setTotalProductsCount] = useState(0);
+  const [debouncedSearchQuery, setDebouncedSearchQuery] = useState("");
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      if (debouncedSearchQuery !== searchQuery) {
+        setDebouncedSearchQuery(searchQuery);
+        setCurrentPage(1);
+      }
+    }, 500);
+    return () => clearTimeout(timer);
+  }, [searchQuery, debouncedSearchQuery]);
 
   // Reset trang về 1 khi thay đổi bộ lọc
   useEffect(() => {
     setCurrentPage(1);
-  }, [selectedSupplier, selectedCategory, searchQuery]);
+  }, [selectedSupplier, selectedCategory, debouncedSearchQuery]);
 
   useEffect(() => {
     const fetchMeta = async () => {
@@ -114,8 +143,14 @@ export default function CreatePurchaseOrder({ onClose, onSuccess }) {
           dealerService.getAll().catch(() => []),
         ]);
 
-        setSuppliers(Array.isArray(supplierData) ? supplierData : []);
+        const supplierList = Array.isArray(supplierData) ? supplierData : [];
+        setSuppliers(supplierList);
         setCategories(Array.isArray(categoryData) ? categoryData : []);
+
+        // Mặc định chọn nhà cung cấp đầu tiên nếu có danh sách
+        if (supplierList.length > 0) {
+          setSelectedSupplier(supplierList[0].id);
+        }
 
         if (dealerData?.length > 0 && !savedDraft) {
           const dealer = dealerData[0];
@@ -143,44 +178,46 @@ export default function CreatePurchaseOrder({ onClose, onSuccess }) {
 
   useEffect(() => {
     const fetchProducts = async () => {
+      if (!selectedSupplier) {
+        setProducts([]);
+        setTotalProductsCount(0);
+        setLoading(false);
+        return;
+      }
       setLoading(true);
       try {
-        const productParams = selectedCategory ? { category: selectedCategory } : {};
-        let productList = [];
-
-        if (selectedSupplier) {
-          productList = await supplierService.getSupplierProducts(
-            selectedSupplier,
-            productParams,
-          );
-        } else if (suppliers.length > 0) {
-          const lists = await Promise.all(
-            suppliers.map((s) =>
-              supplierService.getSupplierProducts(s.id, productParams).catch(() => []),
-            ),
-          );
-          productList = lists.flat();
+        const productParams = {
+          page: currentPage,
+          page_size: 9,
+        };
+        if (selectedCategory) {
+          productParams.category = selectedCategory;
         }
-
-        setProducts(productList.map(formatPurchaseProduct));
+        if (debouncedSearchQuery) {
+          productParams.search = debouncedSearchQuery;
+        }
+        const response = await supplierService.getSupplierProducts(
+          selectedSupplier,
+          productParams,
+        );
+        const results = response?.results || (Array.isArray(response) ? response : []);
+        const total = response?.count || results.length;
+        setProducts(results.map(formatPurchaseProduct));
+        setTotalProductsCount(total);
       } catch (err) {
         console.error("Lỗi khi tải sản phẩm:", err);
         toast.error("Không thể tải danh sách sản phẩm.", { position: "top-center", duration: 5000 });
         setProducts([]);
+        setTotalProductsCount(0);
       } finally {
         setLoading(false);
       }
     };
 
-    if (selectedSupplier || suppliers.length > 0) {
-      fetchProducts();
-    } else {
-      setProducts([]);
-      setLoading(false);
-    }
-  }, [selectedSupplier, selectedCategory, suppliers]);
+    fetchProducts();
+  }, [selectedSupplier, selectedCategory, debouncedSearchQuery, currentPage]);
 
- 
+
 
 
   /**
@@ -228,7 +265,10 @@ export default function CreatePurchaseOrder({ onClose, onSuccess }) {
 
     setCart((prev) => ({
       ...prev,
-      [product.id]: (prev[product.id] || 0) + qtyToAdd,
+      [product.id]: {
+        product,
+        quantity: (prev[product.id]?.quantity || 0) + qtyToAdd,
+      },
     }));
 
     toast.success(
@@ -253,42 +293,10 @@ export default function CreatePurchaseOrder({ onClose, onSuccess }) {
     });
   };
 
-  // --- LỌC SẢN PHẨM THEO BỘ LỌC ---
-  const filteredProducts = products.filter((p) => {
-    const selectedSupObj = suppliers.find(s => String(s.id) === String(selectedSupplier));
-    const selectedSupName = selectedSupObj ? (selectedSupObj.company_name || selectedSupObj.name) : "";
-
-    const matchesSupplier =
-      selectedSupplier === "" ||
-      (p.supplier && (
-        String(p.supplier?.id || p.supplier) === String(selectedSupplier) ||
-        String(p.supplier?.company_name || p.supplier?.name || p.supplier) === String(selectedSupplier) ||
-        (selectedSupName && String(p.supplier?.company_name || p.supplier?.name || p.supplier).toLowerCase() === selectedSupName.toLowerCase())
-      ));
-
-    const selectedCatObj = categories.find(c => String(c.id) === String(selectedCategory));
-    const selectedCatName = selectedCatObj ? selectedCatObj.name : "";
-
-    const matchesCategory =
-      selectedCategory === "" ||
-      (p.category && (
-        String(p.category?.id || p.category) === String(selectedCategory) ||
-        String(p.category?.name || p.category) === String(selectedCategory) ||
-        (selectedCatName && String(p.category?.name || p.category).toLowerCase() === selectedCatName.toLowerCase())
-      ));
-
-    const matchesSearch =
-      searchQuery === "" ||
-      p.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      p.code.toLowerCase().includes(searchQuery.toLowerCase());
-    return matchesSupplier && matchesCategory && matchesSearch;
-  });
-
   // --- PHÂN TRANG CHO LƯỚI SẢN PHẨM ---
   const ITEMS_PER_PAGE = 9;
-  const totalPages = Math.ceil(filteredProducts.length / ITEMS_PER_PAGE);
-  const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
-  const paginatedProducts = filteredProducts.slice(startIndex, startIndex + ITEMS_PER_PAGE);
+  const totalPages = Math.ceil(totalProductsCount / ITEMS_PER_PAGE);
+  const paginatedProducts = products;
 
   const getLinePricing = (product, quantity) => {
     const pricing = computeDiscountedUnitPrice(
@@ -307,8 +315,9 @@ export default function CreatePurchaseOrder({ onClose, onSuccess }) {
 
   // --- TÍNH TOÁN CHI TIẾT ĐƠN HÀNG NHÁP ---
   const cartItems = Object.entries(cart)
-    .map(([id, qty]) => {
-      const prod = products.find((p) => String(p.id) === String(id));
+    .map(([id, cartItem]) => {
+      const prod = cartItem.product;
+      const qty = cartItem.quantity;
       if (!prod) return null;
       const line = getLinePricing(prod, qty);
       return {
@@ -385,11 +394,11 @@ export default function CreatePurchaseOrder({ onClose, onSuccess }) {
           if (typeof productId === "string" && productId.startsWith("def-")) {
             productId = productId === "def-1" ? 1 : productId === "def-2" ? 2 : 3;
           }
-           const tier = item.product.appliedTier;
-           const unitPrice = Number(item.product.price);
-           const basePrice = Number(item.product.basePrice ?? item.product.price);
-           const lineDiscount = Number(item.discountAmount || 0);
-           return {
+          const tier = item.product.appliedTier;
+          const unitPrice = Number(item.product.price);
+          const basePrice = Number(item.product.basePrice ?? item.product.price);
+          const lineDiscount = Number(item.discountAmount || 0);
+          return {
             supplier_product_id: Number(productId),
             name: item.product.name,
             unit: item.product.unit || "Kg",
@@ -403,13 +412,13 @@ export default function CreatePurchaseOrder({ onClose, onSuccess }) {
             discount_min_quantity: tier?.min_quantity ?? null,
             discount_label: tier
               ? formatOrderItemDiscountLabel(
-                  {
-                    discount_type: tier.discount_type,
-                    discount_value: tier.discount_value,
-                    discount_min_quantity: tier.min_quantity,
-                  },
-                  item.product.unit,
-                )
+                {
+                  discount_type: tier.discount_type,
+                  discount_value: tier.discount_value,
+                  discount_min_quantity: tier.min_quantity,
+                },
+                item.product.unit,
+              )
               : "",
             has_quantity_discount: lineDiscount > 0,
             line_discount_amount: lineDiscount,
@@ -417,6 +426,7 @@ export default function CreatePurchaseOrder({ onClose, onSuccess }) {
             subtotal: Number(item.subtotal),
             product_thumbnail_url: item.product.image_url,
             note: "",
+            supplier: item.product.supplier,
           };
         }),
         // Gửi các giá trị tài chính dưới dạng raw
@@ -491,9 +501,9 @@ export default function CreatePurchaseOrder({ onClose, onSuccess }) {
           {/* Lưới sản phẩm */}
           {loading ? (
             <div className="flex justify-center items-center py-20">
-                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-emerald-600"></div>
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-emerald-600"></div>
             </div>
-          ) : filteredProducts.length === 0 ? (
+          ) : products.length === 0 ? (
             <div className="text-center py-20 bg-white rounded-2xl border border-neutral-100 text-neutral-400 font-medium">
               Không tìm thấy sản phẩm nào khớp với bộ lọc.
             </div>
@@ -514,39 +524,11 @@ export default function CreatePurchaseOrder({ onClose, onSuccess }) {
               </div>
 
               {/* Phân trang */}
-              {totalPages > 1 && (
-                <div className="mt-8 flex justify-center items-center gap-2">
-                  <button
-                    onClick={() => setCurrentPage((prev) => Math.max(prev - 1, 1))}
-                    disabled={currentPage === 1}
-                    className="px-3 py-1.5 rounded-lg border border-neutral-200 text-xs font-semibold text-neutral-600 hover:bg-neutral-50 disabled:opacity-50 disabled:hover:bg-transparent transition-colors cursor-pointer"
-                  >
-                    Trước
-                  </button>
-
-                  {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
-                    <button
-                      key={page}
-                      onClick={() => setCurrentPage(page)}
-                      className={`w-8 h-8 rounded-lg text-xs font-bold transition-colors cursor-pointer ${
-                        currentPage === page
-                          ? "bg-emerald-800 text-white"
-                          : "border border-neutral-200 text-neutral-600 hover:bg-neutral-50"
-                      }`}
-                    >
-                      {page}
-                    </button>
-                  ))}
-
-                  <button
-                    onClick={() => setCurrentPage((prev) => Math.min(prev + 1, totalPages))}
-                    disabled={currentPage === totalPages}
-                    className="px-3 py-1.5 rounded-lg border border-neutral-200 text-xs font-semibold text-neutral-600 hover:bg-neutral-50 disabled:opacity-50 disabled:hover:bg-transparent transition-colors cursor-pointer"
-                  >
-                    Sau
-                  </button>
-                </div>
-              )}
+              <Pagination
+                currentPage={currentPage}
+                totalPages={totalPages}
+                onPageChange={setCurrentPage}
+              />
             </>
           )}
         </div>

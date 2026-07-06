@@ -66,10 +66,10 @@ export default function Step1({ onNext }) {
       const result = await accountService.create(payload);
 
       console.log("Đăng ký thành công:", result);
-      const loginResult = await authService.login({
-        username: form.username,
-        password: form.password,
-      });
+      // const loginResult = await authService.login({
+      //   username: form.username,
+      //   password: form.password,
+      // });
 
       // Lưu token để Step2, Step3 dùng
       saveAuthTokens({

@@ -1,10 +1,34 @@
 import axiosClient from "./axiosClient";
+import {
+  ADMIN_LIST_PAGE_SIZE,
+  normalizePaginatedResponse,
+  sanitizeAdminListParams,
+} from "../../utils/adminPaginationUtils";
+
+export const PRODUCT_PAGE_SIZE = ADMIN_LIST_PAGE_SIZE;
+
+export const normalizeProductListResponse = normalizePaginatedResponse;
 
 export const productService = {
   // ADMIN
-  getAll: async () => {
-    const res = await axiosClient.get("/supplier-products/");
-    return res.data;
+  getAll: async (params) => {
+    const res = await axiosClient.get("/supplier-products/", {
+      params: sanitizeAdminListParams(params),
+    });
+    if (params?.page != null) {
+      return normalizeProductListResponse(res.data);
+    }
+    return res.data?.results ?? res.data;
+  },
+
+  getList: async (params = {}) => {
+    const res = await axiosClient.get("/supplier-products/", {
+      params: {
+        page_size: PRODUCT_PAGE_SIZE,
+        ...sanitizeAdminListParams(params),
+      },
+    });
+    return normalizeProductListResponse(res.data);
   },
 
   // {
@@ -147,12 +171,18 @@ export const productService = {
     //   }
   },
 
-  delete: (id) => {
-    return axiosClient
-      .delete(`/supplier-products/${id}/`)
-      .then((res) => res.data);
+  /** Xóa sản phẩm NCC — DELETE /supplier-products/{id}/ */
+  deleteProduct: async (id) => {
+    const res = await axiosClient.delete(`/supplier-products/${id}/`);
+    return res.data;
   },
-  //Chặn khi còn phiếu nhập đang xử lý hoặc đại lý đang bán. Admin hoặc NCC sở hữu sản phẩm.
+
+  /** @deprecated dùng deleteProduct */
+  delete: async (id) => {
+    const res = await axiosClient.delete(`/supplier-products/${id}/`);
+    return res.data;
+  },
+  // Chặn khi còn phiếu nhập đang xử lý hoặc đại lý đang bán. Admin hoặc NCC sở hữu sản phẩm.
 };
 
 // Xử lý bug

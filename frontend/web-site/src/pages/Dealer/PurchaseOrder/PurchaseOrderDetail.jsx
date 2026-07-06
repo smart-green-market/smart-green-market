@@ -1,5 +1,5 @@
 import { useNavigate, useParams } from "react-router-dom";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { toast } from "sonner";
 import { XCircle, CheckCircle, RotateCcw } from "lucide-react";
 import { purchaseOrderService } from "../../../services/api/purchaseOrderService";
@@ -14,6 +14,8 @@ import PaymentQrSection from "../../../components/Dealer/PurchaseOrderDetail/Pay
 import PaymentHistory from "../../../components/Dealer/PurchaseOrderDetail/PaymentHistory";
 import OrderStatusBanner from "../../../components/Dealer/PurchaseOrderDetail/OrderStatusBanner";
 import { formatDateTime } from "../../../components/common/formatDateTime";
+import { useOrderRealtimeRefresh } from "../../../hooks/useOrderRealtimeRefresh";
+import { ORDER_REFERENCE_TYPES } from "../../../utils/orderRealtimeUtils";
 
 const mapStatusToFrontend = (status) => {
   const statusMap = {
@@ -47,12 +49,10 @@ export default function DealerPurchaseOrderDetailPage() {
   const [isReturnModalOpen, setIsReturnModalOpen] = useState(false);
   const [isApproveModalOpen, setIsApproveModalOpen] = useState(false);
 
-  // Hàm lấy chi tiết phiếu nhập từ API
-  const fetchOrderDetail = async () => {
-    setLoading(true);
+  const fetchOrderDetail = useCallback(async ({ silent = false } = {}) => {
+    if (!silent) setLoading(true);
     try {
       const data = await purchaseOrderService.getById(id);
-      // Chuẩn hóa cấu trúc dữ liệu từ API
       const mappedOrder = {
         id: data.order_code,
         date: new Date(data.created_at).toLocaleDateString("vi-VN", { day: '2-digit', month: '2-digit', year: 'numeric' }),
@@ -99,6 +99,18 @@ export default function DealerPurchaseOrderDetailPage() {
           product_thumbnail_url: item.product_thumbnail_url,
           review_status: item.review_status,
           rejection_reason: item.rejection_reason,
+          return_status: item.return_status,
+          return_status_label: item.return_status_label,
+          pending_return_quantity: Number(item.pending_return_quantity || 0),
+          returned_quantity: Number(item.returned_quantity || 0),
+          returnable_quantity: Number(item.returnable_quantity ?? item.quantity ?? 0),
+          rejected_returns: (data.returns || [])
+            .filter((ret) => ret.status === "rejected" && (ret.items || []).some((ri) => ri.purchase_order_item_id === item.id))
+            .map((ret) => ({
+              id: ret.id,
+              review_note: ret.review_note || "Không có lý do chi tiết",
+              quantity: (ret.items || []).find((ri) => ri.purchase_order_item_id === item.id)?.quantity || 0,
+            })),
         })),
         notes: data.note ? [data.note] : [],
         rawSubtotal: Number(data.total_amount || 0),
@@ -112,23 +124,27 @@ export default function DealerPurchaseOrderDetailPage() {
       setOrderData(mappedOrder);
     } catch (error) {
       console.error("Lỗi khi tải chi tiết đơn nhập hàng:", error);
-      toast.error("Không thể tải chi tiết đơn hàng.");
+      if (!silent) toast.error("Không thể tải chi tiết đơn hàng.");
     } finally {
-      setLoading(false);
+      if (!silent) setLoading(false);
     }
-  };
+  }, [id]);
 
   useEffect(() => {
-    // Trường hợp lấy thông tin chi tiết đơn hàng có sẵn từ URL ID
     if (id) {
       fetchOrderDetail();
-    }
-    // Trường hợp không hợp lệ, chuyển hướng về danh sách
-    else {
+    } else {
       setLoading(false);
       navigate("/dai-ly/nhap-hang");
     }
-  }, [id, navigate]);
+  }, [id, navigate, fetchOrderDetail]);
+
+  useOrderRealtimeRefresh({
+    referenceTypes: [ORDER_REFERENCE_TYPES.PURCHASE_ORDER],
+    watchOrderId: id,
+    onRefresh: () => fetchOrderDetail({ silent: true }),
+    onDetailRefresh: () => fetchOrderDetail({ silent: true }),
+  });
 
   if (loading) {
     return (
@@ -332,12 +348,12 @@ export default function DealerPurchaseOrderDetailPage() {
       />
 
       {/* 8. Các nút hành động ở cuối trang */}
-      <div className="flex justify-end gap-4 border-t border-neutral-100 pt-6">
+      <div className="flex flex-col sm:flex-row justify-end gap-4 border-t border-neutral-100 pt-6">
         {/* Nút hủy đơn */}
         {canCancel && (
           <button
             onClick={handleRejectOrCancelOrder}
-            className="flex items-center justify-center gap-2 px-6 h-11 border border-red-200 hover:bg-red-50 text-red-600 hover:text-red-700 rounded-xl text-xs font-bold transition-all cursor-pointer min-w-36 active:scale-95"
+            className="flex items-center justify-center gap-2 px-6 h-11 border border-red-200 hover:bg-red-50 text-red-600 hover:text-red-700 rounded-xl text-xs font-bold transition-all cursor-pointer w-full sm:w-auto sm:min-w-36 active:scale-95"
           >
             <XCircle className="w-4 h-4" /> Hủy phiếu nhập
           </button>
@@ -347,7 +363,7 @@ export default function DealerPurchaseOrderDetailPage() {
         {showConfirmDelivery && (
           <button
             onClick={handleConfirmDelivery}
-            className="flex items-center justify-center gap-2 px-6 h-11 bg-emerald-800 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold transition-all shadow-xs cursor-pointer min-w-44 active:scale-95"
+            className="flex items-center justify-center gap-2 px-6 h-11 bg-emerald-800 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold transition-all shadow-xs cursor-pointer w-full sm:w-auto sm:min-w-44 active:scale-95"
           >
             <CheckCircle className="w-4 h-4" /> Xác nhận đã nhận hàng
           </button>
@@ -357,7 +373,7 @@ export default function DealerPurchaseOrderDetailPage() {
         {showApproveAdjustment && (
           <button
             onClick={handleApproveAdjustmentClick}
-            className="flex items-center justify-center gap-2 px-6 h-11 bg-emerald-800 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold transition-all shadow-xs cursor-pointer min-w-44 active:scale-95"
+            className="flex items-center justify-center gap-2 px-6 h-11 bg-emerald-800 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold transition-all shadow-xs cursor-pointer w-full sm:w-auto sm:min-w-44 active:scale-95"
           >
             <CheckCircle className="w-4 h-4" /> Xác nhận thay đổi
           </button>
@@ -366,7 +382,7 @@ export default function DealerPurchaseOrderDetailPage() {
         {showReturnRequest && (
           <button
             onClick={handleRequestReturn}
-            className="flex items-center justify-center gap-2 px-6 h-11 bg-red-600 hover:bg-red-700 text-white rounded-xl text-xs font-bold transition-all shadow-xs cursor-pointer min-w-44 active:scale-95"
+            className="flex items-center justify-center gap-2 px-6 h-11 bg-red-600 hover:bg-red-700 text-white rounded-xl text-xs font-bold transition-all shadow-xs cursor-pointer w-full sm:w-auto sm:min-w-44 active:scale-95"
           >
             <RotateCcw className="w-4 h-4" />
             Yêu cầu trả hàng

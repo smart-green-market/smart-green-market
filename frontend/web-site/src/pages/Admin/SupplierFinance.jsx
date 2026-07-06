@@ -128,7 +128,7 @@ export default function SupplierFinancePage() {
                         Quản lý tài chính nhà cung cấp
                     </h1>
                     <p className="mt-1 text-sm text-neutral-500">
-                        Theo dõi doanh thu, dòng tiền và tỷ lệ chiết khấu/hoa hồng của từng nhà cung cấp.
+                        Theo dõi doanh thu và dòng tiền của từng nhà cung cấp.
                         {overview?.supplierCount ? (
                             <span className="ml-1 font-medium text-emerald-700">
                                 {overview.supplierCount} nhà cung cấp trong hệ thống

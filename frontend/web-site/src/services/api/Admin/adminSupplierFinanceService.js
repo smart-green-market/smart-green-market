@@ -11,7 +11,7 @@ import {
 export const PAGE_SIZE = 5;
 
 /** Bật mock khi backend chưa có API. Đặt false khi đã triển khai endpoint thật. */
-const USE_MOCK = true;
+const USE_MOCK = false;
 
 async function fetchOverviewFromApi(params) {
     const data = await supplierService.getFinanceOverview(params);

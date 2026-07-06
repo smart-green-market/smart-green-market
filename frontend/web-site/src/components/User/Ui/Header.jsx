@@ -65,7 +65,7 @@ export default function Header() {
     );
 
     return (
-        <header className="fixed left-0 right-0 top-0 z-50 border-b border-emerald-900/30 bg-emerald-700 shadow-sm">
+        <header className="z-50 border-b border-emerald-900/30 bg-emerald-700 shadow-sm relative">
             <div className="mx-auto max-w-[1280px] px-4 sm:px-6 lg:px-10">
                 {/* Hàng trên: logo + actions */}
                     <div className="flex h-14 shrink-0 items-center justify-between gap-2 overflow-visible sm:gap-4 md:h-[72px] md:gap-8">

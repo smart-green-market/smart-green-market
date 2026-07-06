@@ -1,5 +1,5 @@
 import DataTable from "react-data-table-component";
-import { tableStyles, paginationVi } from "../../common/tableStyles";
+import { tableStyles } from "../../common/TableStyles";
 import { formatDateTime } from "../../common/formatDateTime";
 
 // ── Status ─────────────────────────────────────────────────────────────
@@ -82,7 +82,7 @@ const buildColumns = (onView) => [
         cell: (row) => {
             const st = STATUS_CONFIG[row.status] ?? STATUS_CONFIG.pending;
             return (
-                <span className={`px-2.5 py-1 rounded-full text-sm font-semibold font-['Geist',sans-serif] uppercase tracking-wide ${st.bg} ${st.text}`}>
+                <span className={`px-2.5 py-1 rounded-full text-xs font-semibold font-['Geist',sans-serif] uppercase tracking-wide ${st.bg} ${st.text}`}>
                     {st.label}
                 </span>
             );
@@ -107,44 +107,14 @@ const buildColumns = (onView) => [
   },
 ];
 
-export default function DocumentTable({ data, search, statusFilter, onView }) {
-    const normalizedSearch = search.trim().toLowerCase();
-
-    const filtered = data.filter((row) => {
-        const documentTypeLabel = getDocumentTypeLabel(row);
-        const companyName = row.supplier?.company_name ?? "";
-
-        const matchName =
-            !normalizedSearch
-            || documentTypeLabel.toLowerCase().includes(normalizedSearch)
-            || companyName.toLowerCase().includes(normalizedSearch);
-
-        const statusGroup = ["approved", "rejected", "pending"];
-        const docTypeGroup = ["business_license", "id_card", "tax_certificate"];
-
-        let matchFilter = true;
-
-        if (statusFilter) {
-            if (statusGroup.includes(statusFilter)) {
-                matchFilter = row.status === statusFilter;
-            } else if (docTypeGroup.includes(statusFilter)) {
-                matchFilter = row.document_type === statusFilter;
-            }
-        }
-
-        return matchName && matchFilter;
-    });
-
+export default function DocumentTable({ data, onView }) {
     const columns = buildColumns(onView);
 
     return (
         <div className="w-full rounded-xl border border-neutral-200 overflow-hidden">
             <DataTable
                 columns={columns}
-                data={filtered}
-                pagination
-                paginationPerPage={10}
-                paginationComponentOptions={paginationVi}
+                data={data}
                 customStyles={tableStyles}
                 noDataComponent={
                     <div className="py-16 text-sm text-neutral-400 font-['Geist',sans-serif]">

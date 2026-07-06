@@ -1,4 +1,5 @@
 import axios from "axios";
+import { API_BASE_URL } from "../../config/apiConfig";
 import { getAccessToken } from "../token/authTokenStorage";
 import {
   clearAuthStorage,
@@ -8,8 +9,7 @@ import {
 } from "../token/refreshTokenManager";
 
 const axiosClient = axios.create({
-  baseURL: "https://smart-green-market-api.onrender.com/api",
-  //baseURL: "http://127.0.0.1:8000/api",
+  baseURL: API_BASE_URL,
   headers: {
     "Content-Type": "application/json",
   },

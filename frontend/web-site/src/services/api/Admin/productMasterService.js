@@ -1,9 +1,31 @@
 import axiosClient from "../axiosClient";
+import {
+  ADMIN_LIST_PAGE_SIZE,
+  normalizePaginatedResponse,
+  sanitizeAdminListParams,
+} from "../../../utils/adminPaginationUtils";
+
+export const PRODUCT_MASTER_PAGE_SIZE = ADMIN_LIST_PAGE_SIZE;
 
 export const productMasterService = {
-  getAll: async () => {
-    const res = await axiosClient.get("/product-masters/");
+  getAll: async (params) => {
+    const res = await axiosClient.get("/product-masters/", {
+      params: sanitizeAdminListParams(params),
+    });
+    if (params?.page != null) {
+      return normalizePaginatedResponse(res.data);
+    }
     return res.data;
+  },
+
+  getList: async (params = {}) => {
+    const res = await axiosClient.get("/product-masters/", {
+      params: {
+        page_size: PRODUCT_MASTER_PAGE_SIZE,
+        ...sanitizeAdminListParams(params),
+      },
+    });
+    return normalizePaginatedResponse(res.data);
   },
 
   // Catalog sản phẩm chuẩn (Product Master).

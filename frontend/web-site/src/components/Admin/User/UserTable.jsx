@@ -1,5 +1,5 @@
 import DataTable from "react-data-table-component";
-import { tableStyles, paginationVi } from "../../common/tableStyles";
+import { tableStyles } from "../../common/TableStyles";
 
 // ── Status config ─────────────────────────────────────────────────────────────
 const STATUS_CONFIG = {
@@ -89,42 +89,12 @@ const buildColumns = (onView) => [
     },
 ];
 
-export default function UserTable({ data, search, statusFilter, onView,}) {
-    const filtered = data.filter((row) => {
-        const keyword = (search ?? "").toLowerCase();
-
-        const matchName =
-            (row.name ?? "")
-                .toLowerCase()
-                .includes(keyword) ||
-
-            (row.address ?? "")
-                .toLowerCase()
-                .includes(keyword) ||
-
-            (row.phone ?? "")
-                .toLowerCase()
-                .includes(keyword) ||
-
-            (row.verify ?? "")
-                .toLowerCase()
-                .includes(keyword);
-        const matchStatus = statusFilter
-            ? row.verify === statusFilter
-            : true;
-
-        return matchName && matchStatus;
-    });
-
+export default function UserTable({ data, onView }) {
     return (
         <div className="w-full rounded-xl border border-neutral-200 overflow-hidden">
             <DataTable
                 columns={buildColumns(onView)}
-                data={filtered}
-                pagination
-                paginationPerPage={6}
-                paginationRowsPerPageOptions={[6, 12, 20]}
-                paginationComponentOptions={paginationVi}
+                data={data}
                 customStyles={tableStyles}
                 noDataComponent={
                     <div className="py-6 text-sm text-neutral-500">

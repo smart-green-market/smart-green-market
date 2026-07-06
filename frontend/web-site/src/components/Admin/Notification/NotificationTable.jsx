@@ -1,5 +1,5 @@
 import DataTable from "react-data-table-component";
-import { tableStyles, paginationVi } from "../../common/tableStyles";
+import { tableStyles } from "../../common/TableStyles";
 import { formatDateTime } from "../../common/formatDateTime";
 import { isNotificationUnread } from "./notificationFormatters";
 
@@ -98,7 +98,7 @@ const buildColumns = (onView) => [
         cell: (row) => {
             const st = isNotificationUnread(row) ? STATUS_CONFIG.unread : STATUS_CONFIG.read;
             return (
-                <span className={`px-2.5 py-1 rounded-full text-sm font-semibold font-['Geist',sans-serif] uppercase tracking-wide ${st.bg} ${st.text}`}>
+                <span className={`px-2.5 py-1 rounded-full text-xs font-semibold font-['Geist',sans-serif] uppercase tracking-wide ${st.bg} ${st.text}`}>
                     {st.label}
                 </span>
             );
@@ -139,50 +139,14 @@ const conditionalRowStyles = [
         },
     },
 ];
-export default function NotificationTable({ data, search, statusFilter, onView }) {
-    const filtered = data.filter((row) => {
-        const notiType = TYPE[row.type]?.label || row.type || "";
-        const notiTypeRef = TYPE_REF[row.referenceType]?.label || row.referenceType || "";
-        const notiTitle = row.title || "";
-
-        // 1. Lọc theo thanh tìm kiếm
-        const matchName = 
-            notiType.toLowerCase().includes(search.toLowerCase()) ||
-            notiTypeRef.toLowerCase().includes(search.toLowerCase()) ||
-            notiTitle.toLowerCase().includes(search.toLowerCase());
-
-        // 2. Logic phân loại bộ lọc nâng cao
-        let matchFilter = true;
-
-        if (statusFilter && statusFilter !== "") {
-            if (statusFilter === "read") {
-                matchFilter = !isNotificationUnread(row);
-            } else if (statusFilter === "unread") {
-                matchFilter = isNotificationUnread(row);
-            } else {
-                // Lọc theo các loại Group Type/Ref cũ của bạn
-                const typeGroup = ["info", "warning", "success", "error"];
-                if (typeGroup.includes(statusFilter)) {
-                    matchFilter = row.type === statusFilter;
-                } else {
-                    matchFilter = row.referenceType === statusFilter;
-                }
-            }
-        }
-        
-        return matchName && matchFilter;
-    });
-
+export default function NotificationTable({ data, onView }) {
     const columns = buildColumns(onView);
 
     return (
         <div className="w-full rounded-xl border border-neutral-200 overflow-hidden">
             <DataTable
                 columns={columns}
-                data={filtered}
-                pagination
-                paginationPerPage={10}
-                paginationComponentOptions={paginationVi}
+                data={data}
                 customStyles={tableStyles}
                 conditionalRowStyles={conditionalRowStyles}
                 noDataComponent={

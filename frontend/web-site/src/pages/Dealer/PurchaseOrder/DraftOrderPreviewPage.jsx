@@ -182,18 +182,18 @@ export default function DraftOrderPreviewPage() {
       </div>
 
       {/* Các nút hành động */}
-      <div className="flex justify-end gap-4 border-t border-neutral-200 mt-8 pt-6">
+      <div className="flex flex-col sm:flex-row justify-end gap-4 border-t border-neutral-200 mt-8 pt-6">
         <button
           onClick={handleCancel}
           disabled={loading}
-          className="flex items-center justify-center gap-2 px-6 h-11 border border-red-200 hover:bg-red-50 text-red-600 hover:text-red-700 rounded-xl text-xs font-bold transition-all cursor-pointer min-w-36 active:scale-95 disabled:opacity-50"
+          className="flex items-center justify-center gap-2 px-6 h-11 border border-red-200 hover:bg-red-50 text-red-600 hover:text-red-700 rounded-xl text-xs font-bold transition-all cursor-pointer w-full sm:w-auto sm:min-w-36 active:scale-95 disabled:opacity-50"
         >
           <XCircle className="w-4 h-4" /> Hủy dự thảo
         </button>
         <button
           onClick={handleConfirmOrder}
           disabled={loading}
-          className="flex items-center justify-center gap-2 px-6 h-11 bg-emerald-800 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold transition-all shadow-xs cursor-pointer min-w-44 active:scale-95 disabled:opacity-50"
+          className="flex items-center justify-center gap-2 px-6 h-11 bg-emerald-800 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold transition-all shadow-xs cursor-pointer w-full sm:w-auto sm:min-w-44 active:scale-95 disabled:opacity-50"
         >
           {loading ? (
              <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>

@@ -1,7 +1,11 @@
 import axiosClient from "./axiosClient";
+import {
+  ADMIN_LIST_PAGE_SIZE,
+  normalizePaginatedResponse,
+} from "../../utils/adminPaginationUtils";
 
+export const NOTIFICATION_ADMIN_PAGE_SIZE = ADMIN_LIST_PAGE_SIZE;
 export const BELL_NOTIFICATION_PAGE_SIZE = 5;
-export const NOTIFICATION_DEFAULT_PAGE_SIZE = 20;
 
 function normalizeNotificationList(data) {
   if (Array.isArray(data)) return data;
@@ -16,7 +20,7 @@ export function parseMyNotificationsResponse(data = {}) {
     results: normalizeNotificationList(data),
     count: Number(data?.count ?? 0),
     page: Number(data?.page ?? 1),
-    pageSize: Number(data?.page_size ?? NOTIFICATION_DEFAULT_PAGE_SIZE),
+    pageSize: Number(data?.page_size ?? NOTIFICATION_ADMIN_PAGE_SIZE),
     hasMore: Boolean(data?.has_more),
     next: data?.next ?? null,
     previous: data?.previous ?? null,
@@ -83,7 +87,17 @@ export const notificationService = {
   // }
 
   getAll: (params) =>
-    notificationService.getMy(params).then((data) => normalizeNotificationList(data)),
+    notificationService
+      .getMy(params)
+      .then((data) => normalizeNotificationList(data)),
+
+  getList: (params = {}) =>
+    notificationService
+      .getMy({
+        page_size: NOTIFICATION_ADMIN_PAGE_SIZE,
+        ...params,
+      })
+      .then(parseMyNotificationsResponse),
 
   /** Chuông thông báo: trang 1, 5 bản ghi mới nhất + unread_count từ BE */
   getBellFeed: () =>

@@ -1,297 +1,155 @@
-import {
-    useCallback,
-    useEffect,
-    useMemo,
-    useState,
-} from "react";
+import { useCallback, useMemo, useState } from "react";
 
 import Toolbar from "../../components/Admin/UI/Toolbar";
 import { AdminInitialLoadGate } from "../../components/Admin/UI/AdminFetchState";
 import AdminFilterStatsCards from "../../components/Admin/UI/AdminFilterStatsCards";
+import AdminListPagination from "../../components/Admin/UI/AdminListPagination";
 import { SUPPLIER_STAT_CARDS } from "../../components/Admin/UI/adminFilterStatsPresets";
-
 import Filter from "../../components/Admin/Suppiler/SuppilerFilter";
-
 import SupplierTable from "../../components/Admin/Suppiler/SuppilerTable";
-
 import SupplierViewModal from "../../components/Admin/Suppiler/SupplierViewModal";
-
 import {
     handleApiError,
     supplierService,
 } from "../../services/api/suppilerService";
-import { buildCountsFromCards } from "../../utils/adminFilterStatsUtils";
+import { useAdminPaginatedList } from "../../hooks/useAdminPaginatedList";
+import {
+    buildCountsFromCards,
+    buildCountsFromStatusMap,
+} from "../../utils/adminFilterStatsUtils";
+import { useDebouncedValue } from "../../hooks/useDebouncedValue";
+
+const formatSupplierRow = (supplier) => ({
+    id: supplier.id,
+    company_name: supplier.company_name,
+    address: supplier.address,
+    phone: supplier.phone,
+    tax_code: supplier.tax_code,
+    description: supplier.description,
+    verification_status: supplier.verification_status,
+    created_at: supplier.created_at,
+    updated_at: supplier.updated_at,
+});
 
 export default function SupplierPage() {
-    // ─────────────────────────────────────────
-    // STATES
-    // ─────────────────────────────────────────
-    const [data, setData] = useState([]);
-
-    const [isFetching, setIsFetching] = useState(true);
-
-    const [loadError, setLoadError] = useState("");
-
-    const [loading, setLoading] =
-        useState(false);
-
-    const [actionLoading, setActionLoading] =
-        useState(false);
-
+    const [actionLoading, setActionLoading] = useState(false);
     const [error, setError] = useState("");
-
     const [search, setSearch] = useState("");
+    const debouncedSearch = useDebouncedValue(search, 350);
+    const [statusFilter, setStatusFilter] = useState("");
+    const [viewRow, setViewRow] = useState(null);
 
-    const [statusFilter, setStatusFilter] =
-        useState("");
+    const {
+        data,
+        countStatus,
+        isFetching,
+        loadError,
+        loading,
+        currentPage,
+        totalPages,
+        pageRange,
+        totalCount,
+        fetchData,
+        refresh,
+        handlePageChange,
+        setCurrentPage,
+    } = useAdminPaginatedList({
+        fetchList: (params) => supplierService.getList(params),
+        mapRows: (rows) => rows.map(formatSupplierRow),
+        buildQuery: () => ({
+            search: debouncedSearch || undefined,
+            status: statusFilter || undefined,
+        }),
+        queryDeps: [debouncedSearch, statusFilter],
+        onFetchError: (err) =>
+            handleApiError(err, "Không thể tải danh sách nhà cung cấp"),
+    });
 
-    const [viewRow, setViewRow] =
-        useState(null);
-
-    // ─────────────────────────────────────────
-    // FETCH ALL
-    // ─────────────────────────────────────────
-    const fetchSuppliers =
-        useCallback(async ({ initial = false } = {}) => {
-            try {
-                if (initial) {
-                    setIsFetching(true);
-                    setLoadError("");
-                } else {
-                    setLoading(true);
-                }
-
-                setError("");
-
-                const response =
-                    await supplierService.getAll();
-
-                const formatted =
-                    response.map((supplier) => ({
-                        id: supplier.id,
-
-                        company_name:
-                            supplier.company_name,
-
-                        address:
-                            supplier.address,
-
-                        phone:
-                            supplier.phone,
-
-                        tax_code:
-                            supplier.tax_code,
-
-                        description:
-                            supplier.description,
-
-                        verification_status:
-                            supplier.verification_status,
-
-                        created_at:
-                            supplier.created_at,
-
-                        updated_at:
-                            supplier.updated_at,
-                    }));
-
-                setData(formatted);
-            } catch (error) {
-                const message = handleApiError(
-                    error,
-                    "Không thể tải danh sách nhà cung cấp"
-                );
-                if (initial) {
-                    setLoadError(message);
-                } else {
-                    setError(message);
-                }
-            } finally {
-                if (initial) {
-                    setIsFetching(false);
-                } else {
-                    setLoading(false);
-                }
-            }
-        }, []);
-
-    // ─────────────────────────────────────────
-    // FETCH DETAIL
-    // ─────────────────────────────────────────
-    const handleViewSupplier =
-        useCallback(async (row) => {
-            try {
-                setLoading(true);
-
-                const detail =
-                    await supplierService.getById(
-                        row.id
-                    );
-
-                const formattedDetail = {
-                    id: detail.id,
-
-                    company_name:
-                        detail.company_name,
-
-                    address:
-                        detail.address,
-
-                    phone:
-                        detail.phone,
-
-                    tax_code:
-                        detail.tax_code,
-
-                    description:
-                        detail.description,
-
-                    verification_status:
-                        detail.verification_status,
-
-                    created_at:
-                        detail.created_at,
-
-                    updated_at:
-                        detail.updated_at,
-
-                    verified_at: detail.verified_at,
-
-                    // ── ACCOUNT
-                    full_name:
-                        detail.account
-                            ?.full_name,
-
-                    email:
-                        detail.account?.email,
-
-                    avatar:
-                        detail.account?.avatar_url,
-                };
-
-                setViewRow(
-                    formattedDetail
-                );
-            } catch (error) {
-                setError(
-                    handleApiError(
-                        error,
-                        "Không thể tải chi tiết nhà cung cấp"
-                    )
-                );
-            } finally {
-                setLoading(false);
-            }
-        }, []);
-
-    // ─────────────────────────────────────────
-    // INITIAL FETCH
-    // ─────────────────────────────────────────
-    useEffect(() => {
-        fetchSuppliers({ initial: true });
-    }, [fetchSuppliers]);
+    const handleViewSupplier = useCallback(async (row) => {
+        try {
+            const detail = await supplierService.getById(row.id);
+            setViewRow({
+                id: detail.id,
+                company_name: detail.company_name,
+                address: detail.address,
+                phone: detail.phone,
+                tax_code: detail.tax_code,
+                description: detail.description,
+                verification_status: detail.verification_status,
+                created_at: detail.created_at,
+                updated_at: detail.updated_at,
+                verified_at: detail.verified_at,
+                full_name: detail.account?.full_name,
+                email: detail.account?.email,
+                avatar: detail.account?.avatar_url,
+            });
+        } catch (err) {
+            setError(
+                handleApiError(err, "Không thể tải chi tiết nhà cung cấp"),
+            );
+        }
+    }, []);
 
     const handleApprove = useCallback(async (supplier) => {
         try {
             setActionLoading(true);
-            setError(""); // Clear lỗi cũ nếu có
-
-            // Gọi API duyệt supplier
-            await supplierService.verify(supplier.id, { verification_status: "approved" });
-
-            // Thông báo thành công và tải lại danh sách
-            fetchSuppliers();
-        } catch (error) {
-            // ─────────────────────────────────────────────────────────
-            // NÂNG CẤP THÔNG BÁO LỖI TẠI ĐÂY
-            // ─────────────────────────────────────────────────────────
+            setError("");
+            await supplierService.verify(supplier.id, {
+                verification_status: "approved",
+            });
+            await refresh();
+        } catch (err) {
             let customMessage = "Không thể duyệt nhà cung cấp";
-
-            if (error.response && error.response.status === 400) {
-                // Ép thông báo ngắn gọn như bạn yêu cầu
+            if (err.response?.status === 400) {
                 customMessage = "Vui lòng duyệt đủ 3 loại giấy tờ";
             } else {
-                customMessage = handleApiError(error, customMessage);
+                customMessage = handleApiError(err, customMessage);
             }
-
-            // Vẫn lưu vào hệ thống chung
             setError(customMessage);
-
-            // Không gọi toast.error ở đây nữa.
-            // ném lỗi ra ngoài để hàm handleConfirm của Modal có thể bắt được và không đóng modal
             throw new Error(customMessage);
-
         } finally {
             setActionLoading(false);
         }
-    }, [fetchSuppliers]);
+    }, [refresh]);
 
-    // ─────────────────────────────────────────
-    // REJECT (TỪ CHỐI NHÀ CUNG CẤP)
-    // ─────────────────────────────────────────
     const handleReject = async (supplier, rejectionReason) => {
-        console.log("Từ chối supplier ID:", supplier?.id);
         try {
             setActionLoading(true);
             setError("");
-
             await supplierService.verify(supplier.id, {
                 verification_status: "rejected",
                 rejection_reason: rejectionReason,
             });
-
             setViewRow(null);
-            await fetchSuppliers();
-        } catch (error) {
-            const msg = handleApiError(error, "Không thể từ chối nhà cung cấp");
+            await refresh();
+        } catch (err) {
+            const msg = handleApiError(err, "Không thể từ chối nhà cung cấp");
             setError(msg);
             throw new Error(msg);
         } finally {
             setActionLoading(false);
         }
     };
-    // ─────────────────────────────────────────
-    // FILTERED DATA
-    // ─────────────────────────────────────────
-    const filteredData = useMemo(() => {
-        return data.filter((item) => {
-            const keyword =
-                search.toLowerCase();
 
-            const matchSearch =
-                item.company_name
-                    ?.toLowerCase()
-                    .includes(keyword) ||
-                item.phone
-                    ?.toLowerCase()
-                    .includes(keyword) ||
-                item.address
-                    ?.toLowerCase()
-                    .includes(keyword);
-
-            const matchStatus =
-                !statusFilter ||
-                item.verification_status === statusFilter;
-
-            return (
-                matchSearch &&
-                matchStatus
-            );
-        });
-    }, [data, search, statusFilter]);
-
-    const supplierStats = useMemo(
-        () => buildCountsFromCards(data, SUPPLIER_STAT_CARDS, {
+    const supplierStats = useMemo(() => {
+        if (countStatus && Object.keys(countStatus).length > 0) {
+            return buildCountsFromStatusMap(countStatus, SUPPLIER_STAT_CARDS);
+        }
+        return buildCountsFromCards(data, SUPPLIER_STAT_CARDS, {
             field: "verification_status",
-        }),
-        [data],
-    );
+        });
+    }, [countStatus, data]);
+
+    const handleFilterChange = (value) => {
+        setStatusFilter(value);
+        setCurrentPage(1);
+    };
 
     return (
         <AdminInitialLoadGate
             isFetching={isFetching}
             loadError={loadError}
-            onRetry={() => fetchSuppliers({ initial: true })}
+            onRetry={() => fetchData({ page: currentPage, initial: true })}
             loadingMessage="Đang tải danh sách nhà cung cấp..."
         >
             <div className="flex flex-col gap-6 px-8 pt-6 pb-10">
@@ -299,8 +157,8 @@ export default function SupplierPage() {
                     counts={supplierStats}
                     cards={SUPPLIER_STAT_CARDS}
                     activeFilter={statusFilter}
-                    onFilterChange={setStatusFilter}
-                    loading={isFetching}
+                    onFilterChange={handleFilterChange}
+                    loading={isFetching || loading}
                 />
 
                 <Toolbar
@@ -310,27 +168,41 @@ export default function SupplierPage() {
                     filter={
                         <Filter
                             value={statusFilter}
-                            onChange={setStatusFilter}
+                            onChange={handleFilterChange}
                         />
                     }
                 />
 
-                {/* ERROR */}
-                {error && (
-                    <div className="px-4 py-3 rounded-xl bg-red-100 text-red-700 text-sm">
+                {error ? (
+                    <div className="rounded-xl bg-red-100 px-4 py-3 text-sm text-red-700">
                         {error}
+                    </div>
+                ) : null}
+
+                {loading && !isFetching ? (
+                    <div className="flex justify-center py-20">
+                        <div className="h-8 w-8 animate-spin rounded-full border-b-2 border-emerald-600" />
+                    </div>
+                ) : data.length > 0 ? (
+                    <div className="flex flex-col gap-4">
+                        <SupplierTable data={data} onView={handleViewSupplier} />
+                        <AdminListPagination
+                            currentPage={currentPage}
+                            totalPages={totalPages}
+                            totalCount={totalCount}
+                            pageRange={pageRange}
+                            onPageChange={handlePageChange}
+                            noun="nhà cung cấp"
+                        />
+                    </div>
+                ) : (
+                    <div className="rounded-2xl border border-dashed border-neutral-200 bg-white px-6 py-16 text-center">
+                        <p className="text-sm font-medium text-neutral-700">
+                            Không tìm thấy nhà cung cấp phù hợp
+                        </p>
                     </div>
                 )}
 
-                {/* TABLE */}
-                <SupplierTable
-                    data={filteredData}
-                    onView={
-                        handleViewSupplier
-                    }
-                />
-
-                {/* MODAL */}
                 <SupplierViewModal
                     isOpen={viewRow !== null}
                     onClose={() => setViewRow(null)}

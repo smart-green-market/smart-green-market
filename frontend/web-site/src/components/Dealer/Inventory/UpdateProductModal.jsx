@@ -189,7 +189,7 @@ export default function UpdateProductModal({ data, onClose, onSave }) {
             <h3 className="text-xs font-extrabold text-neutral-400 uppercase tracking-wider mb-3 flex items-center gap-1.5">
               <span>Tồn kho & Hao hụt</span>
             </h3>
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <label className="text-xs font-bold text-neutral-600 mb-1.5 block">
                   Số lượng hiện tại
@@ -278,7 +278,7 @@ export default function UpdateProductModal({ data, onClose, onSave }) {
               <Tag className="w-3.5 h-3.5 text-emerald-600" />
               <span>Chương trình khuyến mãi</span>
             </h3>
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <label className="text-xs font-bold text-neutral-600 mb-1.5 block">
                   Mức giảm giá (%)

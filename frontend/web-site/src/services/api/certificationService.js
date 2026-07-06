@@ -1,9 +1,33 @@
 import axiosClient from "./axiosClient";
+import {
+  ADMIN_LIST_PAGE_SIZE,
+  normalizePaginatedResponse,
+  sanitizeAdminListParams,
+} from "../../utils/adminPaginationUtils";
+
+export const CERTIFICATION_PAGE_SIZE = ADMIN_LIST_PAGE_SIZE;
 
 export const certificationService = {
   // --- ADMIN + SUPPLIER
-  getAll: () =>
-    axiosClient.get("/certifications/").then((res) => res.data.results),
+  getAll: (params) =>
+    axiosClient
+      .get("/certifications/", { params: sanitizeAdminListParams(params) })
+      .then((res) => {
+        if (params?.page != null) {
+          return normalizePaginatedResponse(res.data);
+        }
+        return res.data.results;
+      }),
+
+  getList: (params = {}) =>
+    axiosClient
+      .get("/certifications/", {
+        params: {
+          page_size: CERTIFICATION_PAGE_SIZE,
+          ...sanitizeAdminListParams(params),
+        },
+      })
+      .then((res) => normalizePaginatedResponse(res.data)),
 
   //   [
   //     {

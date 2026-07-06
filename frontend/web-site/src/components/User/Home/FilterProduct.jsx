@@ -7,7 +7,7 @@ import {
     ChevronRight,
     Loader2,
 } from "lucide-react";
-import { useBuyerCatalog } from "../../../hooks/useBuyerCatalog";
+import { useBuyerCatalogProducts } from "../../../hooks/useBuyerCatalog";
 import { buildUnitFilterOptions, buildSupplierFilterOptions, toCardProduct } from "../../../utils/userProductUtils";
 import FilterProductCard from "./FilterProductCard";
 import CategoryCheckboxDropdown from "./CategoryCheckboxDropdown";
@@ -57,8 +57,6 @@ function parseCategoryParam(value) {
 export default function FilterProduct() {
     const [searchParams, setSearchParams] = useSearchParams();
     const categoryParam = searchParams.get("category") ?? "";
-    const { categories, products, loading, error } = useBuyerCatalog();
-    const catalog = useMemo(() => products.map(toCardProduct), [products]);
 
     const [selectedCategories, setSelectedCategories] = useState(() =>
         parseCategoryParam(categoryParam),
@@ -69,12 +67,51 @@ export default function FilterProduct() {
     const [draftMinPrice, setDraftMinPrice] = useState("");
     const [draftMaxPrice, setDraftMaxPrice] = useState("");
     const [draftMinQuantity, setDraftMinQuantity] = useState("");
+    const [ordering, setOrdering] = useState("-updated_at");
 
     const [appliedMinPrice, setAppliedMinPrice] = useState(null);
     const [appliedMaxPrice, setAppliedMaxPrice] = useState(null);
     const [appliedMinQuantity, setAppliedMinQuantity] = useState(null);
+    const [appliedOrdering, setAppliedOrdering] = useState("-updated_at");
 
     const [page, setPage] = useState(1);
+
+    const apiParams = useMemo(() => {
+        const params = { ordering: appliedOrdering };
+        if (selectedCategories.length === 1) {
+            params.category = selectedCategories[0];
+        }
+        return params;
+    }, [selectedCategories, appliedOrdering]);
+
+    const hasClientOnlyFilters = useMemo(
+        () =>
+            selectedCategories.length > 1 ||
+            selectedUnits.length > 0 ||
+            selectedSuppliers.length > 0 ||
+            stockFilter !== "all" ||
+            appliedMinPrice != null ||
+            appliedMaxPrice != null ||
+            appliedMinQuantity != null,
+        [
+            selectedCategories,
+            selectedUnits,
+            selectedSuppliers,
+            stockFilter,
+            appliedMinPrice,
+            appliedMaxPrice,
+            appliedMinQuantity,
+        ],
+    );
+
+    const { categories, products, pagination, loading, error } =
+        useBuyerCatalogProducts({
+            apiParams,
+            page,
+            pageSize: PAGE_SIZE,
+            fetchAll: hasClientOnlyFilters,
+        });
+    const catalog = useMemo(() => products.map(toCardProduct), [products]);
 
     useEffect(() => {
         setSelectedCategories(parseCategoryParam(categoryParam));
@@ -128,10 +165,13 @@ export default function FilterProduct() {
         setAppliedMinPrice(parseInputPrice(draftMinPrice));
         setAppliedMaxPrice(parseInputPrice(draftMaxPrice));
         setAppliedMinQuantity(parseInputPrice(draftMinQuantity));
+        setAppliedOrdering(ordering);
         setPage(1);
     };
 
     const filteredProducts = useMemo(() => {
+        if (!hasClientOnlyFilters) return catalog;
+
         return catalog.filter((product) => {
             const productCategoryId =
                 product.category_id != null ? String(product.category_id) : "";
@@ -188,12 +228,20 @@ export default function FilterProduct() {
         appliedMinQuantity,
     ]);
 
-    const totalPages = Math.max(1, Math.ceil(filteredProducts.length / PAGE_SIZE));
+    const totalPages = hasClientOnlyFilters
+        ? Math.max(1, Math.ceil(filteredProducts.length / PAGE_SIZE))
+        : pagination.totalPages;
 
     const pageProducts = useMemo(() => {
+        if (!hasClientOnlyFilters) return catalog;
+
         const start = (page - 1) * PAGE_SIZE;
         return filteredProducts.slice(start, start + PAGE_SIZE);
-    }, [filteredProducts, page]);
+    }, [catalog, filteredProducts, hasClientOnlyFilters, page]);
+
+    const resultCount = hasClientOnlyFilters
+        ? filteredProducts.length
+        : pagination.count;
 
     useEffect(() => {
         if (page > totalPages) setPage(totalPages);
@@ -212,9 +260,14 @@ export default function FilterProduct() {
                 </div>
             ) : null}
             <div className="mb-6 flex items-center justify-between">
-            <h2 className="text-2xl font-bold text-emerald-950">
+                <h2 className="text-2xl font-bold text-emerald-950">
                     Danh mục sản phẩm
                 </h2>
+                {!loading && resultCount > 0 ? (
+                    <span className="text-sm text-neutral-500">
+                        {resultCount} sản phẩm
+                    </span>
+                ) : null}
             </div>
             <div className="flex flex-col gap-6 lg:flex-row lg:items-start">
                 
@@ -322,6 +375,23 @@ export default function FilterProduct() {
                                 />
                             </div>
                         </FilterSection>
+
+                        <FilterSection title="Sắp xếp">
+                            <select
+                                value={ordering}
+                                onChange={(e) => setOrdering(e.target.value)}
+                                className="w-full rounded-md border border-stone-200 bg-white px-3 py-2 text-sm outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-200"
+                            >
+                                <option value="-updated_at">Mới cập nhật</option>
+                                <option value="updated_at">Cũ nhất</option>
+                                <option value="price">Giá thấp → cao</option>
+                                <option value="-price">Giá cao → thấp</option>
+                                <option value="name">Tên A → Z</option>
+                                <option value="-name">Tên Z → A</option>
+                                <option value="-stock">Tồn kho nhiều nhất</option>
+                                <option value="stock">Tồn kho ít nhất</option>
+                            </select>
+                        </FilterSection>
                     </div>
 
                     <div className="p-5 pt-2">
@@ -355,13 +425,13 @@ export default function FilterProduct() {
                         </div>
                     )}
 
-                    {filteredProducts.length > 0 && (
+                    {resultCount > 0 && totalPages > 1 ? (
                         <Pagination
                             page={page}
                             totalPages={totalPages}
                             onChange={setPage}
                         />
-                    )}
+                    ) : null}
                 </div>
             </div>
         </section>

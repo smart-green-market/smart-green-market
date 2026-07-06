@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { ShoppingCart, Plus, CheckCircle2, Truck, Printer, Package, XCircle } from "lucide-react";
 import { toast } from "sonner";
 import SupplierFilter from "../../../components/Dealer/Supplier/SupplierFilter";
@@ -9,6 +9,8 @@ import SalesOrderDetailPanel from "../../../components/Dealer/SalesOrder/SalesOr
 import PrintInvoiceModal from "../../../components/Dealer/SalesOrder/PrintInvoiceModal";
 import RejectModal from "../../../components/common/RejectModal";
 import { dealerOrderService } from "../../../services/api/dealerOrderService";
+import { useOrderRealtimeRefresh } from "../../../hooks/useOrderRealtimeRefresh";
+import { ORDER_REFERENCE_TYPES } from "../../../utils/orderRealtimeUtils";
 
 export default function DealerSalesOrderPage() {
     const [searchQuery, setSearchQuery] = useState("");
@@ -63,8 +65,8 @@ export default function DealerSalesOrderPage() {
         return () => clearTimeout(timer);
     }, [searchQuery, debouncedSearchQuery]);
 
-    const fetchOrders = async () => {
-        setIsLoading(true);
+    const fetchOrders = useCallback(async ({ silent = false } = {}) => {
+        if (!silent) setIsLoading(true);
         try {
             const data = await dealerOrderService.getAll({ page: currentPage, page_size: 10, search: debouncedSearchQuery, status: statusFilter });
             const results = data.results || (Array.isArray(data) ? data : []);
@@ -100,13 +102,35 @@ export default function DealerSalesOrderPage() {
         } catch (error) {
             console.error("Lỗi lấy danh sách đơn hàng", error);
         } finally {
-            setIsLoading(false);
+            if (!silent) setIsLoading(false);
         }
-    };
+    }, [currentPage, debouncedSearchQuery, statusFilter]);
 
     useEffect(() => {
         fetchOrders();
-    }, [currentPage, debouncedSearchQuery, statusFilter]);
+    }, [fetchOrders]);
+
+    const refreshDetailPanel = useCallback(async (orderId) => {
+        try {
+            const detail = await dealerOrderService.getById(orderId);
+            setSelectedOrder(prev => {
+                if (!prev || prev.originalData?.id !== orderId) return prev;
+                return {
+                    ...prev,
+                    status: mapStatusToVietnamese(detail.status),
+                    delivery: mapStatusToVietnamese(detail.status),
+                    originalData: detail
+                };
+            });
+        } catch { /* ignore */ }
+    }, []);
+
+    useOrderRealtimeRefresh({
+        referenceTypes: [ORDER_REFERENCE_TYPES.CUSTOMER_ORDER],
+        watchOrderId: selectedOrder?.originalData?.id ?? null,
+        onRefresh: () => fetchOrders({ silent: true }),
+        onDetailRefresh: (parsed) => refreshDetailPanel(parsed.referenceId),
+    });
 
     const filteredOrders = salesOrders; // Nếu backend đã filter thì bỏ qua. Nhưng tạm giữ lại data trả về. (Đã pass search param cho API)
 
@@ -153,18 +177,6 @@ export default function DealerSalesOrderPage() {
         }
     };
 
-    const refreshDetailPanel = async (orderId) => {
-        try {
-            const detail = await dealerOrderService.getById(orderId);
-            setSelectedOrder(prev => ({
-                ...prev,
-                status: mapStatusToVietnamese(detail.status),
-                delivery: mapStatusToVietnamese(detail.status),
-                originalData: detail
-            }));
-        } catch { }
-    };
-
     const handleSingleConfirm = async (order) => {
         try {
             await dealerOrderService.confirmOrder(order.originalData.id);
@@ -200,11 +212,11 @@ export default function DealerSalesOrderPage() {
                     const status = row.status || row.delivery;
                     return status === "Chờ xác nhận" || status === "Đã xác nhận" || status === "Đang chuẩn bị hàng";
                 });
-                
-                const cancelPromises = cancelableRows.map(row => 
+
+                const cancelPromises = cancelableRows.map(row =>
                     dealerOrderService.cancelOrder(row.originalData.id, { reason })
                 );
-                
+
                 await Promise.all(cancelPromises);
                 toast.success(`Đã hủy thành công ${cancelableRows.length} đơn hàng!`);
                 await fetchOrders();
@@ -408,15 +420,15 @@ export default function DealerSalesOrderPage() {
                             });
 
                             return (
-                                <div className="mb-4 p-4 bg-emerald-50 border border-emerald-200 rounded-2xl flex items-center justify-between animate-in fade-in slide-in-from-top-4">
+                                <div className="mb-4 p-4 bg-emerald-50 border border-emerald-200 rounded-2xl flex flex-col md:flex-row justify-between items-start md:items-center gap-4 animate-in fade-in slide-in-from-top-4">
                                     <span className="text-sm font-bold text-emerald-800">
                                         Đã chọn {selectedRows.length} đơn hàng
                                     </span>
-                                    <div className="flex gap-3">
+                                    <div className="flex flex-wrap gap-2.5 w-full md:w-auto">
                                         {hasPendingConfirmation && (
                                             <button
                                                 onClick={handleBulkConfirm}
-                                                className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold transition-all shadow-sm flex items-center gap-2"
+                                                className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold transition-all shadow-sm flex items-center justify-center gap-2 w-full sm:w-auto"
                                             >
                                                 <CheckCircle2 className="w-4 h-4" /> Xác nhận đơn hàng
                                             </button>
@@ -424,7 +436,7 @@ export default function DealerSalesOrderPage() {
                                         {hasConfirmed && (
                                             <button
                                                 onClick={handleBulkStartProcessing}
-                                                className="px-4 py-2 bg-amber-500 hover:bg-amber-600 text-white rounded-xl text-xs font-bold transition-all shadow-sm flex items-center gap-2"
+                                                className="px-4 py-2 bg-amber-500 hover:bg-amber-600 text-white rounded-xl text-xs font-bold transition-all shadow-sm flex items-center justify-center gap-2 w-full sm:w-auto"
                                             >
                                                 <Package className="w-4 h-4" /> Chuẩn bị hàng
                                             </button>
@@ -432,7 +444,7 @@ export default function DealerSalesOrderPage() {
                                         {hasPreparing && (
                                             <button
                                                 onClick={handleBulkDeliver}
-                                                className="px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-xl text-xs font-bold transition-all shadow-sm flex items-center gap-2"
+                                                className="px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-xl text-xs font-bold transition-all shadow-sm flex items-center justify-center gap-2 w-full sm:w-auto"
                                             >
                                                 <Truck className="w-4 h-4" /> Giao hàng
                                             </button>
@@ -440,14 +452,14 @@ export default function DealerSalesOrderPage() {
                                         {hasCancelable && (
                                             <button
                                                 onClick={handleBulkCancelClick}
-                                                className="px-4 py-2 border border-red-200 hover:bg-red-50 text-red-600 rounded-xl text-xs font-bold transition-all shadow-sm flex items-center gap-2 cursor-pointer"
+                                                className="px-4 py-2 border border-red-200 hover:bg-red-50 text-red-600 rounded-xl text-xs font-bold transition-all shadow-sm flex items-center justify-center gap-2 cursor-pointer w-full sm:w-auto"
                                             >
                                                 <XCircle className="w-4 h-4" /> Hủy đơn hàng
                                             </button>
                                         )}
                                         <button
                                             onClick={handleBulkPrint}
-                                            className="px-4 py-2 bg-white border border-neutral-200 hover:bg-neutral-50 text-neutral-700 rounded-xl text-xs font-bold transition-all shadow-sm flex items-center gap-2 cursor-pointer"
+                                            className="px-4 py-2 bg-white border border-neutral-200 hover:bg-neutral-50 text-neutral-700 rounded-xl text-xs font-bold transition-all shadow-sm flex items-center justify-center gap-2 cursor-pointer w-full sm:w-auto"
                                         >
                                             <Printer className="w-4 h-4" /> In hoá đơn ({selectedRows.length})
                                         </button>
@@ -507,12 +519,12 @@ export default function DealerSalesOrderPage() {
                 onClose={() => setIsCancelModalOpen(false)}
                 onConfirm={handleCancelOrderConfirm}
                 title={orderToCancel ? "Hủy đơn hàng" : "Hủy hàng loạt đơn hàng"}
-                message={orderToCancel 
+                message={orderToCancel
                     ? `Bạn có chắc chắn muốn hủy đơn hàng ${orderToCancel.id} không?`
                     : `Bạn có chắc chắn muốn hủy ${selectedRows.filter(row => {
                         const st = row.status || row.delivery;
                         return st === "Chờ xác nhận" || st === "Đã xác nhận" || st === "Đang chuẩn bị hàng";
-                      }).length} đơn hàng đang chọn không?`
+                    }).length} đơn hàng đang chọn không?`
                 }
                 confirmText="Hủy đơn"
                 cancelText="Đóng"

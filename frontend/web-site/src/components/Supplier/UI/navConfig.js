@@ -8,6 +8,7 @@ import {
     Coins,
     Users,
     Settings,
+    Bell,
     Percent,
 } from "lucide-react";
 
@@ -16,15 +17,16 @@ export const NAV_SECTIONS = [
         label: "Tổng quan",
         items: [
             { to: "/nha-cung-cap", label: "Dashboard", icon: LayoutDashboard, end: true },
-            { to: "/nha-cung-cap/phan-tich", label: "Phân tích", icon: LineChart },
+            { to: "/nha-cung-cap/thong-ke-don-hang", label: "Thống kê đơn hàng", icon: LineChart },
+            { to: "/nha-cung-cap/tat-ca-thong-bao", label: "Thông báo", icon: Bell },
         ],
     },
     {
         label: "Kinh doanh",
         items: [
             { to: "/nha-cung-cap/don-hang", label: "Đơn hàng", icon: ClipboardList, dot: true },
+            { to: "/nha-cung-cap/giam-gia", label: "Chính sách giảm giá", icon: Percent },
             { to: "/nha-cung-cap/san-pham", label: "Sản phẩm", icon: Package },
-            { to: "/nha-cung-cap/giam-gia", label: "Giảm giá SL", icon: Percent },
             { to: "/nha-cung-cap/chung-nhan", label: "Chứng nhận", icon: BadgeCheck },
             { to: "/nha-cung-cap/danh-muc", label: "Danh mục", icon: Sprout },
         ],

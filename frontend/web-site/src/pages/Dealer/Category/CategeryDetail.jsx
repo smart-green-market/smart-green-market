@@ -29,7 +29,7 @@ export default function DealerCategoryDetail() {
         setIsLoading(false);
       }
     };
-    
+
     if (id) fetchCategoryDetail();
   }, [id]);
 

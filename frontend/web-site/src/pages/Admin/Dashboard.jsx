@@ -86,9 +86,14 @@ const STAT_CARDS = [
     },
 ];
 
+const VND_FORMATTER = new Intl.NumberFormat("vi-VN", {
+    maximumFractionDigits: 0,
+    minimumFractionDigits: 0,
+});
+
 const formatCurrency = (val) => {
     if (val == null || isNaN(Number(val))) return "0 đ";
-    return new Intl.NumberFormat('vi-VN').format(Number(val)) + ' đ';
+    return `${VND_FORMATTER.format(Math.round(Number(val)))} đ`;
 };
 
 function KPIOverviewCard({ title, value, icon: Icon, colorClass, bgClass, borderClass }) {
@@ -174,28 +179,30 @@ function PendingEntityPanel({ title, description, href, items, emptyText, render
     );
 }
 
-function RevenueHistoryChart({ data }) {
+function RevenueHistoryChart({ data, compact = false }) {
     const [hoveredPoint, setHoveredPoint] = useState(null);
     const [chartType, setChartType] = useState("line"); // "line" | "bar"
 
     const formatCurrencyShort = (val) => {
         if (val == null || isNaN(Number(val))) return "0 đ";
-        const num = Number(val);
+        const num = Math.round(Number(val));
         if (num >= 1000000000) {
-            return (num / 1000000000).toFixed(1) + " tỷ";
+            return `${Math.round(num / 1000000000)} tỷ`;
         }
         if (num >= 1000000) {
-            return (num / 1000000).toFixed(1) + " tr";
+            return `${Math.round(num / 1000000)} tr`;
         }
         if (num >= 1000) {
-            return (num / 1000).toFixed(0) + " k";
+            return `${Math.round(num / 1000)} k`;
         }
-        return num + " đ";
+        return `${VND_FORMATTER.format(num)} đ`;
     };
+
+    const emptyHeight = compact ? "h-[280px]" : "h-[320px]";
 
     if (!data || data.length === 0) {
         return (
-            <div className="flex h-[320px] items-center justify-center rounded-2xl border border-neutral-200 bg-white p-6 shadow-sm">
+            <div className={`flex ${emptyHeight} items-center justify-center rounded-2xl border border-neutral-200 bg-white p-6 shadow-sm`}>
                 <p className="text-sm text-neutral-400">Không có dữ liệu biểu đồ doanh thu</p>
             </div>
         );
@@ -206,7 +213,7 @@ function RevenueHistoryChart({ data }) {
     const paddingTop = 30;
     const paddingBottom = 40;
     const width = 600;
-    const height = 300;
+    const height = compact ? 220 : 300;
 
     const chartWidth = width - paddingLeft - paddingRight;
     const chartHeight = height - paddingTop - paddingBottom;
@@ -227,11 +234,11 @@ function RevenueHistoryChart({ data }) {
     const gridLevels = [0, 0.25, 0.5, 0.75, 1];
 
     return (
-        <div className="rounded-2xl border border-neutral-200 bg-white p-5 shadow-sm flex flex-col font-['Geist',sans-serif]">
-            <div className="mb-4 flex items-center justify-between flex-wrap gap-3">
+        <div className="h-full rounded-2xl border border-neutral-200 bg-white p-4 shadow-sm flex flex-col font-['Geist',sans-serif] sm:p-5">
+            <div className={`flex items-center justify-between flex-wrap gap-3 ${compact ? "mb-3" : "mb-4"}`}>
                 <div>
-                    <h2 className="text-base font-bold text-neutral-900 flex items-center gap-1.5">
-                        <TrendingUp className="h-4 w-4 text-emerald-600" />
+                    <h2 className={`font-bold text-neutral-900 flex items-center gap-1.5 ${compact ? "text-sm" : "text-base"}`}>
+                        <TrendingUp className="h-4 w-4 text-emerald-600 shrink-0" />
                         Doanh thu hệ thống (6 tháng gần nhất)
                     </h2>
                     <p className="text-xs text-neutral-500 mt-0.5">Biểu đồ thể hiện lịch sử doanh thu hàng tháng</p>
@@ -391,7 +398,7 @@ function RevenueHistoryChart({ data }) {
                         }}
                     >
                         <div className="font-bold text-neutral-400 uppercase tracking-wider text-[9px]">Tháng {hoveredPoint.month}</div>
-                        <div className="mt-0.5 text-emerald-400 font-black text-xs">{new Intl.NumberFormat('vi-VN').format(hoveredPoint.revenue)} đ</div>
+                        <div className="mt-0.5 text-emerald-400 font-black text-xs">{formatCurrency(hoveredPoint.revenue)}</div>
                     </div>
                 )}
             </div>
@@ -399,29 +406,47 @@ function RevenueHistoryChart({ data }) {
     );
 }
 
-function LeaderboardPanel({ title, subtitle, icon: Icon, items, nameKey, revenueKey, orderKey }) {
+function LeaderboardPanel({
+    title,
+    subtitle,
+    icon: Icon,
+    items,
+    nameKey,
+    revenueKey,
+    orderKey,
+    compact = false,
+    visibleItems = 3,
+    className = "",
+}) {
     const maxRevenue = useMemo(() => {
         return Math.max(...items.map((item) => Number(item[revenueKey] || 0)), 1);
     }, [items, revenueKey]);
 
+    const listMaxHeight = visibleItems * (compact ? 52 : 56);
+
     return (
-        <section className="rounded-2xl border border-neutral-200 bg-white shadow-sm flex flex-col font-['Geist',sans-serif]">
-            <div className="flex items-center gap-2.5 border-b border-neutral-100 px-5 py-4 shrink-0">
-                <div className="rounded-lg p-2 bg-emerald-50 text-emerald-700">
+        <section className={`rounded-2xl border border-neutral-200 bg-white shadow-sm flex flex-col font-['Geist',sans-serif] min-h-0 ${className}`}>
+            <div className={`flex items-center gap-2.5 border-b border-neutral-100 shrink-0 ${compact ? "px-4 py-3" : "px-5 py-4"}`}>
+                <div className="rounded-lg p-2 bg-emerald-50 text-emerald-700 shrink-0">
                     <Icon className="h-4 w-4" />
                 </div>
-                <div>
-                    <h2 className="text-base font-bold text-neutral-900 leading-tight">{title}</h2>
-                    <p className="text-xs text-neutral-500 mt-0.5">{subtitle}</p>
+                <div className="min-w-0">
+                    <h2 className={`font-bold text-neutral-900 leading-tight truncate ${compact ? "text-sm" : "text-base"}`}>
+                        {title}
+                    </h2>
+                    <p className="text-[11px] text-neutral-500 mt-0.5 line-clamp-1">{subtitle}</p>
                 </div>
             </div>
 
             {items.length === 0 ? (
-                <div className="flex flex-col items-center justify-center gap-2 px-5 py-10 text-center flex-1">
+                <div className="flex flex-col items-center justify-center gap-2 px-4 py-8 text-center flex-1">
                     <p className="text-sm font-medium text-neutral-400">Không có dữ liệu xếp hạng</p>
                 </div>
             ) : (
-                <div className="divide-y divide-neutral-100 overflow-y-auto max-h-[360px] scrollbar-thin scrollbar-thumb-neutral-200 scrollbar-track-transparent">
+                <div
+                    className="divide-y divide-neutral-100 overflow-y-auto overscroll-contain scrollbar-thin scrollbar-thumb-neutral-200 scrollbar-track-transparent"
+                    style={{ maxHeight: `${listMaxHeight}px` }}
+                >
                     {items.map((item, index) => {
                         const revenue = Number(item[revenueKey] || 0);
                         const orders = item[orderKey] || 0;
@@ -435,19 +460,21 @@ function LeaderboardPanel({ title, subtitle, icon: Icon, items, nameKey, revenue
                         else if (rank === 3) rankBg = "bg-orange-100 text-orange-800 font-bold";
 
                         return (
-                            <div key={item.id || index} className="px-5 py-3 flex flex-col gap-1.5 hover:bg-stone-50/50 transition-colors">
-                                <div className="flex items-center justify-between gap-4">
-                                    <div className="flex items-center gap-3 min-w-0">
-                                        {/* Rank badge */}
+                            <div
+                                key={item.id || index}
+                                className={`flex flex-col gap-1.5 hover:bg-stone-50/50 transition-colors ${compact ? "px-4 py-2.5" : "px-5 py-3"}`}
+                            >
+                                <div className="flex items-center justify-between gap-3">
+                                    <div className="flex items-center gap-2.5 min-w-0">
                                         <span className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] shrink-0 ${rankBg}`}>
                                             {rank}
                                         </span>
-                                        <span className="truncate text-sm font-semibold text-neutral-800">
+                                        <span className={`truncate font-semibold text-neutral-800 ${compact ? "text-xs" : "text-sm"}`}>
                                             {item[nameKey]}
                                         </span>
                                     </div>
                                     <div className="text-right shrink-0 flex flex-col">
-                                        <span className="text-sm font-bold text-neutral-900 font-mono">
+                                        <span className={`font-bold text-neutral-900 font-mono ${compact ? "text-xs" : "text-sm"}`}>
                                             {formatCurrency(revenue)}
                                         </span>
                                         <span className="text-[10px] text-neutral-400">
@@ -455,10 +482,9 @@ function LeaderboardPanel({ title, subtitle, icon: Icon, items, nameKey, revenue
                                         </span>
                                     </div>
                                 </div>
-                                {/* Progress bar */}
                                 <div className="w-full bg-stone-100 h-1 rounded-full overflow-hidden">
-                                    <div 
-                                        className="bg-emerald-600 h-full rounded-full transition-all duration-500" 
+                                    <div
+                                        className="bg-emerald-600 h-full rounded-full transition-all duration-500"
                                         style={{ width: `${percentage}%` }}
                                     />
                                 </div>
@@ -693,29 +719,34 @@ export default function AdminDashboardPage() {
                 />
             </div>
 
-            {/* REVENUE HISTORY CHART */}
-            <RevenueHistoryChart data={dashboardChart} />
+            {/* CHART + TOP PARTNERS */}
+            <div className="grid grid-cols-1 gap-6 xl:grid-cols-[minmax(0,1.55fr)_minmax(300px,0.85fr)] xl:items-start">
+                <RevenueHistoryChart data={dashboardChart} compact />
 
-            {/* PARTNER LEADERBOARDS SECTION */}
-            <div className="grid grid-cols-1 gap-6 xl:grid-cols-2">
-                <LeaderboardPanel
-                    title="Top 10 Đại lý doanh thu tốt nhất"
-                    subtitle="Xếp hạng các đại lý có doanh thu hoàn tất cao nhất"
-                    icon={Award}
-                    items={topDealers}
-                    nameKey="store_name"
-                    revenueKey="total_revenue"
-                    orderKey="total_orders"
-                />
-                <LeaderboardPanel
-                    title="Top 10 Nhà cung cấp nổi bật"
-                    subtitle="Xếp hạng các đối tác có doanh thu nhập hàng lớn nhất"
-                    icon={Award}
-                    items={topSuppliers}
-                    nameKey="company_name"
-                    revenueKey="total_revenue"
-                    orderKey="total_orders"
-                />
+                <div className="flex flex-col gap-4 min-w-0">
+                    <LeaderboardPanel
+                        compact
+                        visibleItems={3}
+                        title="Top 10 Đại lý doanh thu tốt nhất"
+                        subtitle="Xếp hạng các đại lý có doanh thu hoàn tất cao nhất"
+                        icon={Award}
+                        items={topDealers}
+                        nameKey="store_name"
+                        revenueKey="total_revenue"
+                        orderKey="total_orders"
+                    />
+                    <LeaderboardPanel
+                        compact
+                        visibleItems={3}
+                        title="Top 10 Nhà cung cấp nổi bật"
+                        subtitle="Xếp hạng các đối tác có doanh thu nhập hàng lớn nhất"
+                        icon={Award}
+                        items={topSuppliers}
+                        nameKey="company_name"
+                        revenueKey="total_revenue"
+                        orderKey="total_orders"
+                    />
+                </div>
             </div>
 
             {/* MODERATION PENDING ITEMS HEADING */}

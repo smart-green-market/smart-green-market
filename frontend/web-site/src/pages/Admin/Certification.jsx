@@ -1,6 +1,5 @@
 import {
     useCallback,
-    useEffect,
     useMemo,
     useState,
 } from "react";
@@ -8,6 +7,7 @@ import {
 import Toolbar from "../../components/Admin/UI/Toolbar";
 import { AdminInitialLoadGate } from "../../components/Admin/UI/AdminFetchState";
 import AdminFilterStatsCards from "../../components/Admin/UI/AdminFilterStatsCards";
+import AdminListPagination from "../../components/Admin/UI/AdminListPagination";
 import { CERTIFICATION_STAT_CARDS } from "../../components/Admin/UI/adminFilterStatsPresets";
 import Filter from "../../components/Admin/Certification/CertificationFilter";
 import CerificationTable from "../../components/Admin/Certification/CertificationTable";
@@ -17,22 +17,39 @@ import {
     certificationService,
     handleApiError,
 } from "../../services/api/certificationService";
-import { buildCountsFromCards } from "../../utils/adminFilterStatsUtils";
+import { useAdminPaginatedList } from "../../hooks/useAdminPaginatedList";
+import { useDebouncedValue } from "../../hooks/useDebouncedValue";
+import {
+    buildCountsFromCards,
+    buildCountsFromStatusMap,
+} from "../../utils/adminFilterStatsUtils";
+
+const formatCertificationRow = (item) => ({
+    id: item.id,
+    code: item.certificate_code,
+    name: item.name,
+    issuedBy: item.issued_by,
+    issueDate: item.issue_date,
+    expiryDate: item.expiry_date,
+    description: item.description,
+    images: item.images || [],
+    status: item.status,
+    verifiedAt: item.verified_at,
+    rejectionReason: item.rejection_reason,
+    createdAt: item.created_at,
+    updatedAt: item.updated_at,
+    supplier: {
+        id: item.supplier?.id,
+        company_name: item.supplier?.company_name,
+        tax_code: item.supplier?.tax_code,
+        phone: item.supplier?.phone,
+        address: item.supplier?.address,
+        account_username: item.supplier?.account_username,
+        account_full_name: item.supplier?.account_full_name,
+    },
+});
 
 export default function CertificationPage() {
-
-    // ── STATES ─────────────────────────────────────────
-    const [data, setData] =
-        useState([]);
-
-    const [isFetching, setIsFetching] =
-        useState(true);
-
-    const [loadError, setLoadError] =
-        useState("");
-
-    const [loading, setLoading] =
-        useState(false);
 
     const [actionLoading, setActionLoading] =
         useState(false);
@@ -42,6 +59,8 @@ export default function CertificationPage() {
 
     const [search, setSearch] =
         useState("");
+    const debouncedSearch =
+        useDebouncedValue(search, 350);
 
     const [
         statusFilter,
@@ -51,111 +70,45 @@ export default function CertificationPage() {
     const [viewRow, setViewRow] =
         useState(null);
 
-    // ── FETCH CERTIFICATIONS ───────────────────────────
-    const fetchCertifications =
-        useCallback(async ({ initial = false } = {}) => {
-            try {
-                if (initial) {
-                    setIsFetching(true);
-                    setLoadError("");
-                } else {
-                    setLoading(true);
-                }
-
-                setError("");
-
-                const response =
-                    await certificationService.getAll();
-
-                const formattedData =
-                    response.map(
-                        (item) => ({
-                            id: item.id,
-
-                            code:
-                                item.certificate_code,
-
-                            name:
-                                item.name,
-
-                            issuedBy:
-                                item.issued_by,
-
-                            issueDate:
-                                item.issue_date,
-
-                            expiryDate:
-                                item.expiry_date,
-
-                            description:
-                                item.description,
-
-                            images: item.images || [],
-
-                            status:
-                                item.status,
-
-                            verifiedAt:
-                                item.verified_at,
-
-                            rejectionReason:
-                                item.rejection_reason,
-
-                            createdAt:
-                                item.created_at,
-
-                            updatedAt:
-                                item.updated_at,
-
-                            supplier: {
-                                id: item.supplier?.id,
-                                company_name:
-                                    item.supplier?.company_name,
-                                tax_code:
-                                    item.supplier?.tax_code,
-                                phone:
-                                    item.supplier?.phone,
-                                address:
-                                    item.supplier?.address,
-                                account_username: item.supplier?.account_username,
-                                account_full_name : item.supplier?.account_full_name,
-                            },
-                        })
-                    );
-
-                setData(formattedData);
-
-            } catch (error) {
-
-                const message =
-                    handleApiError(
-                        error,
-                        "Không thể tải danh sách chứng chỉ"
-                    );
-
-                if (initial) {
-                    setLoadError(message);
-                } else {
-                    setError(message);
-                }
-
-            } finally {
-                if (initial) {
-                    setIsFetching(false);
-                } else {
-                    setLoading(false);
-                }
-            }
-        }, []);
-
-    // ── INITIAL FETCH ──────────────────────────────────
-    useEffect(() => {
-        fetchCertifications({ initial: true });
-    }, [fetchCertifications]);
+    const {
+        data,
+        countStatus,
+        isFetching,
+        loadError,
+        loading,
+        currentPage,
+        totalPages,
+        pageRange,
+        totalCount,
+        fetchData,
+        refresh,
+        handlePageChange,
+        setCurrentPage,
+    } = useAdminPaginatedList({
+        fetchList: (params) => certificationService.getList(params),
+        mapRows: (rows) => rows.map(formatCertificationRow),
+        buildQuery: () => ({
+            search: debouncedSearch || undefined,
+            status: statusFilter || undefined,
+        }),
+        queryDeps: [debouncedSearch, statusFilter],
+        onFetchError: (err) =>
+            handleApiError(err, "Không thể tải danh sách chứng chỉ"),
+    });
 
     const certificationStats = useMemo(
-        () => buildCountsFromCards(data, CERTIFICATION_STAT_CARDS, { field: "status" }),
-        [data],
+        () => {
+            if (countStatus && Object.keys(countStatus).length > 0) {
+                return buildCountsFromStatusMap(
+                    countStatus,
+                    CERTIFICATION_STAT_CARDS,
+                );
+            }
+            return buildCountsFromCards(data, CERTIFICATION_STAT_CARDS, {
+                field: "status",
+            });
+        },
+        [countStatus, data],
     );
 
     // ── APPROVE ────────────────────────────────────────
@@ -175,16 +128,15 @@ export default function CertificationPage() {
 
                 setViewRow(null);
 
-                await fetchCertifications();
+                await refresh();
 
             } catch (error) {
-
-                console.error(
-                    handleApiError(
-                        error,
-                        "Không thể duyệt chứng chỉ"
-                    )
+                const msg = handleApiError(
+                    error,
+                    "Không thể duyệt chứng chỉ"
                 );
+                setError(msg);
+                throw new Error(msg);
 
             } finally {
                 setActionLoading(false);
@@ -207,14 +159,14 @@ export default function CertificationPage() {
                 );
 
                 setViewRow(null);
-                await fetchCertifications();
+                await refresh();
 
             } catch (error) {
                 const msg = handleApiError(
                     error,
                     "Không thể từ chối chứng chỉ"
                 );
-                console.error(msg);
+                setError(msg);
                 throw new Error(msg);
             } finally {
                 setActionLoading(false);
@@ -225,7 +177,12 @@ export default function CertificationPage() {
         <AdminInitialLoadGate
             isFetching={isFetching}
             loadError={loadError}
-            onRetry={() => fetchCertifications({ initial: true })}
+            onRetry={() =>
+                fetchData({
+                    page: currentPage,
+                    initial: true,
+                })
+            }
             loadingMessage="Đang tải danh sách chứng chỉ..."
         >
         <div className="flex flex-col gap-6 px-8 pt-6 pb-10">
@@ -234,8 +191,11 @@ export default function CertificationPage() {
                 counts={certificationStats}
                 cards={CERTIFICATION_STAT_CARDS}
                 activeFilter={statusFilter}
-                onFilterChange={setStatusFilter}
-                loading={isFetching}
+                onFilterChange={(value) => {
+                    setStatusFilter(value);
+                    setCurrentPage(1);
+                }}
+                loading={isFetching || loading}
             />
 
             {/* TOOLBAR */}
@@ -246,7 +206,10 @@ export default function CertificationPage() {
                 filter={
                     <Filter
                         value={statusFilter}
-                        onChange={setStatusFilter}
+                        onChange={(value) => {
+                            setStatusFilter(value);
+                            setCurrentPage(1);
+                        }}
                     />
                 }
             />
@@ -258,16 +221,32 @@ export default function CertificationPage() {
                 </div>
             )}
 
-            {/* TABLE */}
-            <CerificationTable
-                data={data}
-                loading={loading}
-                search={search}
-                statusFilter={statusFilter}
-                onView={(row) =>
-                    setViewRow(row)
-                }
-            />
+            {loading && !isFetching ? (
+                <div className="flex justify-center py-20">
+                    <div className="h-8 w-8 animate-spin rounded-full border-b-2 border-emerald-600" />
+                </div>
+            ) : data.length > 0 ? (
+                <div className="flex flex-col gap-4">
+                    <CerificationTable
+                        data={data}
+                        onView={(row) => setViewRow(row)}
+                    />
+                    <AdminListPagination
+                        currentPage={currentPage}
+                        totalPages={totalPages}
+                        totalCount={totalCount}
+                        pageRange={pageRange}
+                        onPageChange={handlePageChange}
+                        noun="chứng chỉ"
+                    />
+                </div>
+            ) : (
+                <div className="rounded-2xl border border-dashed border-neutral-200 bg-white px-6 py-16 text-center">
+                    <p className="text-sm font-medium text-neutral-700">
+                        Không tìm thấy chứng chỉ phù hợp
+                    </p>
+                </div>
+            )}
             {/* VIEW MODAL */}
             <CertificationViewModal
                 isOpen={

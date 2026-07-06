@@ -1,9 +1,13 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
+import { FileSpreadsheet } from "lucide-react";
 import OrderTable from "../../components/Supplier/Order/OrderTable";
 import OrderStatusStats from "../../components/Supplier/Order/OrderStatusStats";
 import DetailOrderModal from "../../components/Supplier/Order/DetailOrderModal";
 import SupplierPageHeader, { SUPPLIER_PAGE_CLASS } from "../../components/Supplier/UI/SupplierPageHeader";
 import { orderService, parseOrderList } from "../../services/api/orderService";
+import { exportOrdersToExcel } from "../../utils/exportUtils";
+import { useOrderRealtimeRefresh } from "../../hooks/useOrderRealtimeRefresh";
+import { ORDER_REFERENCE_TYPES } from "../../utils/orderRealtimeUtils";
 
 export default function OrderSupplierPage() {
   const [data, setData] = useState([]);
@@ -11,21 +15,37 @@ export default function OrderSupplierPage() {
   const [search, setSearch] = useState("");
   const [detailRow, setDetailRow] = useState(null);
 
-  const fetchOrders = async () => {
+  const fetchOrders = useCallback(async ({ silent = false } = {}) => {
     try {
-      setLoading(true);
+      if (!silent) setLoading(true);
       const response = await orderService.getAll({ page: 1, page_size: 100 });
       setData(parseOrderList(response));
     } catch (error) {
       console.error("Lỗi khi tải danh sách đơn hàng:", error);
     } finally {
-      setLoading(false);
+      if (!silent) setLoading(false);
     }
-  };
+  }, []);
 
   useEffect(() => {
     fetchOrders();
+  }, [fetchOrders]);
+
+  const refreshDetail = useCallback(async (orderId) => {
+    try {
+      const detail = await orderService.getById(orderId);
+      setDetailRow(detail ?? null);
+    } catch (error) {
+      console.error("Lỗi khi tải chi tiết đơn hàng:", error);
+    }
   }, []);
+
+  useOrderRealtimeRefresh({
+    referenceTypes: [ORDER_REFERENCE_TYPES.PURCHASE_ORDER],
+    watchOrderId: detailRow?.id ?? null,
+    onRefresh: () => fetchOrders({ silent: true }),
+    onDetailRefresh: (parsed) => refreshDetail(parsed.referenceId),
+  });
 
   const handleViewOrder = async (row) => {
     setDetailRow(row);
@@ -48,6 +68,13 @@ export default function OrderSupplierPage() {
           placeholder="Tìm theo mã đơn hoặc tên đại lý..."
           className="px-4 py-2 border border-neutral-200 rounded-lg text-sm w-80 outline-none focus:border-emerald-600"
         />
+        <button
+          onClick={() => exportOrdersToExcel(data)}
+          className="flex items-center gap-2 px-4 py-2 text-sm font-semibold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 rounded-lg transition-colors cursor-pointer"
+        >
+          <FileSpreadsheet className="w-4 h-4" />
+          Xuất Excel
+        </button>
       </div>
 
       <OrderTable

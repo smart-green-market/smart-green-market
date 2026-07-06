@@ -8,10 +8,7 @@ import {
     TrendingUp,
     Wallet,
 } from "lucide-react";
-import {
-    formatFinanceCurrency,
-    formatFinancePercent,
-} from "../../../utils/supplierFinanceUtils";
+import { formatFinanceCurrency } from "../../../utils/supplierFinanceUtils";
 
 const STATUS_CONFIG = {
     approved: { label: "ĐANG HOẠT ĐỘNG", className: "bg-green-100 text-green-800" },
@@ -74,6 +71,7 @@ function CashFlowRow({ item, index }) {
 export default function SupplierFinanceCard({ supplier }) {
     const status =
         STATUS_CONFIG[supplier.verificationStatus] ?? STATUS_CONFIG.pending;
+    const netCash = supplier.cashIn - supplier.cashOut;
 
     return (
         <article className="overflow-hidden rounded-2xl border border-neutral-200 bg-white shadow-sm transition-shadow hover:shadow-md">
@@ -128,7 +126,7 @@ export default function SupplierFinanceCard({ supplier }) {
                 </div>
             </div>
 
-            <div className="grid gap-4 px-6 py-5 sm:grid-cols-2 xl:grid-cols-4">
+            <div className="grid gap-4 px-6 py-5 sm:grid-cols-2 xl:grid-cols-3">
                 <MetricTile
                     icon={TrendingUp}
                     label="Dòng tiền vào"
@@ -143,15 +141,9 @@ export default function SupplierFinanceCard({ supplier }) {
                 />
                 <MetricTile
                     icon={Wallet}
-                    label="Doanh thu ròng"
-                    value={formatFinanceCurrency(supplier.netAmount)}
-                    accent="text-emerald-700"
-                />
-                <MetricTile
-                    icon={Receipt}
-                    label="Chiết khấu / Hoa hồng"
-                    value={`${formatFinancePercent(supplier.commissionRate)} • ${formatFinanceCurrency(supplier.commissionAmount)}`}
-                    accent="text-violet-700"
+                    label="Dòng tiền ròng"
+                    value={formatFinanceCurrency(netCash)}
+                    accent={netCash >= 0 ? "text-emerald-700" : "text-red-600"}
                 />
             </div>
 

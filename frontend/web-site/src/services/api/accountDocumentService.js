@@ -1,9 +1,34 @@
 import axiosClient from "./axiosClient";
+import { normalizeListResponse } from "../../utils/adminDashboardUtils";
+import {
+  ADMIN_LIST_PAGE_SIZE,
+  normalizePaginatedResponse,
+  sanitizeAdminListParams,
+} from "../../utils/adminPaginationUtils";
+
+export const DOCUMENT_PAGE_SIZE = ADMIN_LIST_PAGE_SIZE;
 
 export const accountDocumentService = {
   // --- ADMIN + SUPPLIER
-  getAll: () =>
-    axiosClient.get("/account-documents/").then((res) => res.data.results),
+  getAll: (params) =>
+    axiosClient
+      .get("/account-documents/", { params: sanitizeAdminListParams(params) })
+      .then((res) => {
+        if (params?.page != null) {
+          return normalizePaginatedResponse(res.data);
+        }
+        return normalizeListResponse(res.data);
+      }),
+
+  getList: (params = {}) =>
+    axiosClient
+      .get("/account-documents/", {
+        params: {
+          page_size: DOCUMENT_PAGE_SIZE,
+          ...sanitizeAdminListParams(params),
+        },
+      })
+      .then((res) => normalizePaginatedResponse(res.data)),
 
   // [
   //   {

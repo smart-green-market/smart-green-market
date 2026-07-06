@@ -6,10 +6,10 @@ export default function CheckoutAddressRadioCard({
 }) {
     return (
         <label
-            className={`flex cursor-pointer items-start gap-4 rounded-xl px-5 py-5 outline outline-2 transition-colors ${
+            className={`flex cursor-pointer items-center gap-4 rounded-xl px-5 py-4 border-2 transition-colors ${
                 checked
-                    ? "bg-green-50 outline-teal-800"
-                    : "bg-zinc-100 outline-transparent hover:bg-zinc-50"
+                    ? "border-teal-800 bg-teal-50/50"
+                    : "border-transparent bg-gray-50 hover:bg-gray-100"
             } ${disabled ? "opacity-70" : ""}`}
         >
             <input

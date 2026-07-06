@@ -1,0 +1,235 @@
+/*
+ * revenue.css
+ * ─────────────────────────────────────────────────────────────
+ * CSS được tách nguyên vẹn từ supplier_dashboard_v2.html (bản HTML
+ * gốc) để giữ đúng giao diện của trang Doanh thu.
+ *
+ * ⚠️ LƯU Ý QUAN TRỌNG:
+ * Các biến màu (--green8, --blue8, --text1, ...) và một số class
+ * dùng chung (.card, .chip, .pill, .btn-ghost, .btn-primary,
+ * .modal-overlay, .modal, .notif-ico, ...) RẤT CÓ THỂ đã tồn tại
+ * sẵn trong CSS toàn cục của dự án (vì cả dashboard admin/dealer
+ * đều dùng chung 1 design system). Trước khi import file này,
+ * hãy kiểm tra `src/index.css` / `src/App.css`:
+ *   - Nếu các biến :root và class dùng chung ĐÃ CÓ → xoá phần
+ *     ":root" và các class trùng lặp bên dưới để tránh định nghĩa 2 lần.
+ *   - Nếu CHƯA CÓ → giữ nguyên file này, import 1 lần ở
+ *     `RevenuePage.jsx` là đủ cho toàn bộ trang.
+ */
+
+:root {
+  --bg:       #f3f4f6;
+  --surface:  #ffffff;
+  --surface2: #f9fafb;
+  --border:   #e5e7eb;
+  --border2:  #d1d5db;
+  --text1:    #111827;
+  --text2:    #565f6b;
+  --text3:    #80899a;
+  --green9:   #0f3d20;
+  --green8:   #1a5c2a;
+  --green7:   #166534;
+  --green3:   #6ee7b7;
+  --green2:   white;
+  --green1:   #d1fae5;
+  --green0:   #EAF3DE;
+  --amber0:   #FAEEDA;
+  --amber8:   #854F0B;
+  --blue0:    #E6F1FB;
+  --blue8:    #185FA5;
+  --purple0:  #EEEDFE;
+  --purple8:  #534AB7;
+  --red0:     #FCEBEB;
+  --red8:     #A32D2D;
+}
+
+.revenue-page { display: flex; flex-direction: column; gap: 14px; }
+
+/* TOOLBAR */
+.revenue-page .toolbar { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.revenue-page .chip-group { display: flex; gap: 6px; flex-wrap: wrap; }
+.revenue-page .chip {
+  padding: 8px 14px; border-radius: 20px; font-size: 12px; font-weight: 500;
+  color: var(--text2); background: var(--surface); border: 0.5px solid var(--border);
+  cursor: pointer; white-space: nowrap; transition: background .12s;
+}
+.revenue-page .chip:hover { background: var(--surface2); }
+.revenue-page .chip.on { background: var(--green9); color: var(--green1); border-color: var(--green9); }
+
+/* BUTTONS */
+.revenue-page .btn-primary {
+  display: flex; align-items: center; gap: 6px;
+  padding: 0 14px; height: 34px; border-radius: 9px;
+  background: var(--green8); color: #fff;
+  font-size: 12px; font-weight: 500; cursor: pointer;
+  border: none; white-space: nowrap;
+}
+.revenue-page .btn-primary:hover { background: var(--green7); }
+.revenue-page .btn-ghost {
+  display: flex; align-items: center; gap: 6px;
+  padding: 0 14px; height: 34px; border-radius: 9px;
+  background: var(--surface); color: var(--text2);
+  font-size: 12px; font-weight: 500; cursor: pointer;
+  border: 0.5px solid var(--border); white-space: nowrap;
+}
+.revenue-page .btn-ghost:hover { background: var(--surface2); }
+
+/* METRICS */
+.revenue-page .metrics { display: grid; grid-template-columns: repeat(4, minmax(0,1fr)); gap: 10px; }
+.revenue-page .mc {
+  background: var(--surface); border: 0.5px solid var(--border);
+  border-radius: 12px; padding: 14px 16px;
+}
+.revenue-page .mc-top { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
+.revenue-page .mc-icon {
+  width: 32px; height: 32px; border-radius: 8px;
+  display: flex; align-items: center; justify-content: center; font-size: 16px;
+}
+.revenue-page .mc-icon.g { background: var(--green0); color: #3B6D11; }
+.revenue-page .mc-icon.a { background: var(--amber0); color: var(--amber8); }
+.revenue-page .mc-icon.b { background: var(--blue0);  color: var(--blue8);  }
+.revenue-page .mc-icon.p { background: var(--purple0);color: var(--purple8);}
+.revenue-page .mc-icon.r { background: var(--red0);   color: var(--red8);   }
+.revenue-page .mc-val   { font-size: 24px; font-weight: 500; color: var(--text1); line-height: 1; }
+.revenue-page .mc-label { font-size: 11px; color: var(--text3); margin-top: 4px; }
+
+/* TWO COL */
+.revenue-page .two { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+@media (max-width: 900px) {
+  .revenue-page .two { grid-template-columns: 1fr; }
+  .revenue-page .metrics { grid-template-columns: repeat(2, minmax(0,1fr)); }
+}
+
+/* CARD */
+.revenue-page .card { background: var(--surface); border: 0.5px solid var(--border); border-radius: 12px; overflow: hidden; }
+.revenue-page .ch  { display: flex; align-items: center; justify-content: space-between; padding: 12px 16px; border-bottom: 0.5px solid var(--border); }
+.revenue-page .ch-left { display: flex; align-items: center; gap: 8px; }
+.revenue-page .ch-ico { width: 28px; height: 28px; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 14px; }
+.revenue-page .ch-ico.g { background: var(--green0); color: #3B6D11; }
+.revenue-page .ch-ico.a { background: var(--amber0); color: var(--amber8); }
+.revenue-page .ch-ico.b { background: var(--blue0);  color: var(--blue8); }
+.revenue-page .ch-ico.p { background: var(--purple0); color: var(--purple8); }
+.revenue-page .ch-title { font-size: 13px; font-weight: 500; color: var(--text1); }
+.revenue-page .ch-link  { font-size: 11px; color: var(--green8); cursor: pointer; }
+.revenue-page .cb { padding: 0 16px; }
+
+/* PILL */
+.revenue-page .pill { display: inline-flex; align-items: center; padding: 2px 8px; border-radius: 20px; font-size: 10px; font-weight: 500; white-space: nowrap; flex-shrink: 0; }
+.revenue-page .pill.g  { background: var(--green0); color: #3B6D11; }
+.revenue-page .pill.a  { background: var(--amber0); color: var(--amber8); }
+.revenue-page .pill.b  { background: var(--blue0);  color: var(--blue8); }
+.revenue-page .pill.r  { background: var(--red0);   color: var(--red8); }
+.revenue-page .pill.gr { background: #f3f4f6;       color: var(--text2); }
+
+/* PROGRESS BARS (doanh thu theo danh mục) */
+.revenue-page .pr { display: flex; align-items: center; gap: 8px; padding: 8px 0; border-bottom: 0.5px solid var(--border); }
+.revenue-page .pr:last-child { border: none; }
+.revenue-page .pr-name  { font-size: 12px; color: var(--text1); flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.revenue-page .pr-track { flex: 1; height: 4px; background: var(--surface2); border-radius: 2px; overflow: hidden; }
+.revenue-page .pr-fill  { height: 100%; border-radius: 2px; background: var(--green8); }
+.revenue-page .pr-pct   { font-size: 11px; color: var(--text3); width: 28px; text-align: right; flex-shrink: 0; }
+
+/* CHART (SVG) */
+.revenue-page .chart-wrap { padding: 14px 16px 6px; }
+.revenue-page .chart-svg  { width: 100%; height: 200px; display: block; }
+.revenue-page .chart-svg .chart-axis { stroke: var(--border); stroke-width: 1; }
+.revenue-page .chart-svg text.chart-val { font-size: 9px; fill: var(--text2); font-weight: 500; }
+.revenue-page .chart-svg text.chart-lbl { font-size: 9px; fill: var(--text3); }
+
+/* DONUT */
+.revenue-page .donut-wrap    { display: flex; align-items: center; gap: 18px; padding: 8px 16px 18px; flex-wrap: wrap; }
+.revenue-page .donut-legend  { display: flex; flex-direction: column; gap: 9px; flex: 1; min-width: 140px; }
+.revenue-page .legend-row    { display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--text2); }
+.revenue-page .legend-dot    { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+.revenue-page .legend-name   { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.revenue-page .legend-val    { font-weight: 500; color: var(--text1); }
+
+/* PRODUCT / PERIOD LIST TABLE */
+.revenue-page .pl-wrap { overflow-x: auto; }
+.revenue-page .plh, .revenue-page .plr { display: flex; align-items: center; gap: 10px; min-width: 740px; padding: 0 16px; }
+.revenue-page .plh.compact, .revenue-page .plr.compact { min-width: 0; }
+.revenue-page .plh { padding: 10px 16px; font-size: 10px; color: var(--text3); text-transform: uppercase; letter-spacing: .6px; border-bottom: 0.5px solid var(--border); }
+.revenue-page .plr { padding: 10px 16px; border-bottom: 0.5px solid var(--border); transition: background .1s; }
+.revenue-page .plr:last-child { border: none; }
+.revenue-page .plr:hover { background: var(--surface2); }
+.revenue-page .st-period { flex: 1; min-width: 100px; font-size: 12px; font-weight: 500; color: var(--text1); }
+.revenue-page .st-num    { width: 96px; flex-shrink: 0; text-align: right; font-size: 12px; color: var(--text2); }
+.revenue-page .st-num.strong { color: var(--text1); font-weight: 500; }
+.revenue-page .st-growth { width: 84px; flex-shrink: 0; text-align: right; }
+
+/* ────────────────────────────────
+   MODAL: XUẤT BÁO CÁO
+   (dùng chung nếu app đã có Modal — có thể bỏ phần này và
+   render ExportRevenueReportModal bên trong <Modal> sẵn có)
+──────────────────────────────── */
+.revenue-page .modal-overlay {
+  position: fixed; inset: 0; background: rgba(17,24,39,.44);
+  display: flex; align-items: center; justify-content: center;
+  z-index: 100; padding: 20px;
+}
+.revenue-page .modal {
+  background: var(--surface); border-radius: 16px; width: 100%; max-width: 420px;
+  max-height: 86vh; overflow: hidden; display: flex; flex-direction: column;
+  box-shadow: 0 24px 60px rgba(17,24,39,.25);
+}
+.revenue-page .modal-head { display: flex; align-items: flex-start; gap: 12px; padding: 18px 18px 14px; border-bottom: 0.5px solid var(--border); }
+.revenue-page .modal-head-text { flex: 1; min-width: 0; }
+.revenue-page .modal-title { font-size: 14.5px; font-weight: 600; color: var(--text1); line-height: 1.4; }
+.revenue-page .modal-time  { font-size: 11px; color: var(--text3); margin-top: 4px; }
+.revenue-page .modal-close {
+  width: 28px; height: 28px; border-radius: 8px; flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center;
+  color: var(--text3); cursor: pointer; border: none; background: transparent; font-size: 16px;
+}
+.revenue-page .modal-close:hover { background: var(--surface2); color: var(--text1); }
+.revenue-page .modal-body { padding: 16px 18px; overflow-y: auto; font-size: 12.5px; color: var(--text2); line-height: 1.65; }
+.revenue-page .modal-foot { display: flex; gap: 8px; padding: 14px 18px; border-top: 0.5px solid var(--border); }
+.revenue-page .modal-foot .btn-primary, .revenue-page .modal-foot .btn-ghost { flex: 1; justify-content: center; }
+
+.revenue-page .notif-ico {
+  width: 32px; height: 32px; border-radius: 9px; flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center; font-size: 15px;
+}
+.revenue-page .modal-head .notif-ico { width: 42px; height: 42px; border-radius: 12px; font-size: 19px; }
+
+.revenue-page .exp-group { margin-bottom: 16px; }
+.revenue-page .exp-group:last-child { margin-bottom: 0; }
+.revenue-page .exp-label {
+  font-size: 11px; font-weight: 600; color: var(--text3);
+  text-transform: uppercase; letter-spacing: .4px; margin-bottom: 8px;
+}
+.revenue-page .exp-chips { display: flex; gap: 6px; }
+.revenue-page .exp-chips .chip { flex: 1; justify-content: center; }
+.revenue-page .exp-opt {
+  display: flex; align-items: center; gap: 9px;
+  padding: 9px 10px; border: 0.5px solid var(--border); border-radius: 9px;
+  cursor: pointer; margin-bottom: 6px; transition: background .12s, border-color .12s;
+}
+.revenue-page .exp-opt:last-child { margin-bottom: 0; }
+.revenue-page .exp-opt:hover { background: var(--surface2); }
+.revenue-page .exp-opt input { accent-color: var(--green8); width: 15px; height: 15px; flex-shrink: 0; cursor: pointer; }
+.revenue-page .exp-opt span { font-size: 12.5px; color: var(--text1); }
+.revenue-page .exp-fmt { display: flex; gap: 8px; }
+.revenue-page .exp-fmt-opt {
+  flex: 1; display: flex; flex-direction: column; align-items: center; gap: 5px;
+  padding: 12px 8px; border: 0.5px solid var(--border); border-radius: 10px;
+  cursor: pointer; text-align: center; transition: border-color .12s, background .12s;
+}
+.revenue-page .exp-fmt-opt:hover { background: var(--surface2); }
+.revenue-page .exp-fmt-opt.on { border-color: var(--green8); background: var(--green0); }
+.revenue-page .exp-fmt-opt i { font-size: 20px; color: var(--text2); }
+.revenue-page .exp-fmt-opt.on i { color: var(--green8); }
+.revenue-page .exp-fmt-opt span { font-size: 11.5px; color: var(--text1); font-weight: 500; }
+.revenue-page .exp-fmt-opt small { font-size: 10px; color: var(--text3); }
+.revenue-page .exp-hint {
+  font-size: 11px; color: var(--text3); margin-top: 10px;
+  background: var(--surface2); border-radius: 8px; padding: 8px 10px;
+  display: flex; gap: 6px; align-items: flex-start;
+}
+.revenue-page .exp-hint i { font-size: 13px; margin-top: 1px; flex-shrink: 0; }
+
+/* LOADING / EMPTY / ERROR STATE */
+.revenue-page .state-box {
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: 8px; padding: 60px 20px; color: var(--text3); font-size: 13px;
+}

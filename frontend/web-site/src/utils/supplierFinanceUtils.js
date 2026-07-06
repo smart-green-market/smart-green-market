@@ -30,18 +30,6 @@ export function normalizeFinanceOverview(raw) {
     ),
     cashIn: Number(data.total_cash_in ?? data.cash_in ?? data.inflow ?? 0),
     cashOut: Number(data.total_cash_out ?? data.cash_out ?? data.outflow ?? 0),
-    commissionTotal: Number(
-      data.total_commission ??
-        data.commission_amount ??
-        data.total_discount ??
-        0,
-    ),
-    avgCommissionRate: Number(
-      data.average_commission_rate ??
-        data.avg_commission_rate ??
-        data.commission_rate ??
-        0,
-    ),
     supplierCount: Number(
       data.supplier_count ?? data.total_suppliers ?? data.count ?? 0,
     ),
@@ -78,21 +66,6 @@ export function normalizeFinanceSupplier(raw) {
         raw?.total_cash_out ??
         0,
     ),
-    commissionRate: Number(
-      finance?.commission_rate ??
-        raw?.commission_rate ??
-        raw?.discount_rate ??
-        0,
-    ),
-    commissionAmount: Number(
-      finance?.commission_amount ??
-        raw?.commission_amount ??
-        raw?.total_commission ??
-        0,
-    ),
-    netAmount: Number(
-      finance?.net_revenue ?? raw?.net_revenue ?? raw?.net_amount ?? 0,
-    ),
     orderCount: Number(
       finance?.order_count ?? raw?.order_count ?? raw?.total_orders ?? 0,
     ),
@@ -127,7 +100,6 @@ export function buildFinanceOverviewCounts(overview) {
       total_revenue: 0,
       cash_in: 0,
       cash_out: 0,
-      commission: 0,
     };
   }
 
@@ -135,6 +107,5 @@ export function buildFinanceOverviewCounts(overview) {
     total_revenue: toMillionDisplay(overview.totalRevenue),
     cash_in: toMillionDisplay(overview.cashIn),
     cash_out: toMillionDisplay(overview.cashOut),
-    commission: toMillionDisplay(overview.commissionTotal),
   };
 }

@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState, useCallback } from "react";
+import { useSearchParams } from "react-router-dom";
 import { ClipboardList } from "lucide-react";
 
 import OrderStatusFilterTabs from "../../components/User/OrderTracking/OrderStatusFilterTabs";
@@ -16,7 +17,8 @@ import {
   parseBuyerOrderList,
 } from "../../services/api/Buyer/buyerOrder";
 import { useDealerSlug } from "../../hooks/useStorefrontPaths";
-import { useOrderStatusNotifications } from "../../hooks/useOrderStatusNotifications";
+import { useOrderRealtimeRefresh } from "../../hooks/useOrderRealtimeRefresh";
+import { ORDER_REFERENCE_TYPES } from "../../utils/orderRealtimeUtils";
 import { matchesStatusFilter, isActiveTrackingOrder } from "../../utils/orderUtils";
 
 const FILTER_TABS = [
@@ -27,17 +29,18 @@ const FILTER_TABS = [
 
 export default function OrderTrackingPage() {
   const dealerSlug = useDealerSlug();
-  const { markAsSeen } = useOrderStatusNotifications({ enabled: false });
+  const [searchParams] = useSearchParams();
 
   const [orders, setOrders] = useState([]);
-  const [activeFilter, setActiveFilter] = useState("all");
+  const [activeFilter, setActiveFilter] = useState(() => searchParams.get("status") || "all");
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
   const [selectedOrderId, setSelectedOrderId] = useState(null);
+  const [detailRefreshKey, setDetailRefreshKey] = useState(0);
   const [cancelTarget, setCancelTarget] = useState(null);
   const [returnTarget, setReturnTarget] = useState(null);
 
-  const fetchOrders = useCallback(async () => {
+  const fetchOrders = useCallback(async ({ silent = false } = {}) => {
     if (!dealerSlug) {
       setOrders([]);
       setError("Không xác định được cửa hàng. Vui lòng truy cập lại từ liên kết cửa hàng.");
@@ -45,15 +48,20 @@ export default function OrderTrackingPage() {
       return;
     }
 
-    setIsLoading(true);
-    setError(null);
+    if (!silent) {
+      setIsLoading(true);
+      setError(null);
+    }
     try {
       const data = await buyerOrder.getAll(dealerSlug);
       setOrders(parseBuyerOrderList(data));
+      if (!silent) setError(null);
     } catch (err) {
-      setError(handleApiError(err, "Không tải được danh sách đơn hàng. Vui lòng thử lại."));
+      if (!silent) {
+        setError(handleApiError(err, "Không tải được danh sách đơn hàng. Vui lòng thử lại."));
+      }
     } finally {
-      setIsLoading(false);
+      if (!silent) setIsLoading(false);
     }
   }, [dealerSlug]);
 
@@ -61,11 +69,12 @@ export default function OrderTrackingPage() {
     fetchOrders();
   }, [fetchOrders]);
 
-  useEffect(() => {
-    if (!isLoading && !error) {
-      markAsSeen(orders);
-    }
-  }, [orders, isLoading, error, markAsSeen]);
+  useOrderRealtimeRefresh({
+    referenceTypes: [ORDER_REFERENCE_TYPES.CUSTOMER_ORDER],
+    watchOrderId: selectedOrderId,
+    onRefresh: () => fetchOrders({ silent: true }),
+    onDetailRefresh: () => setDetailRefreshKey((key) => key + 1),
+  });
 
   const activeOrders = useMemo(
     () => orders.filter((order) => isActiveTrackingOrder(order.status)),
@@ -157,6 +166,7 @@ export default function OrderTrackingPage() {
       <OrderDetailModal
         dealerSlug={dealerSlug}
         orderId={selectedOrderId}
+        refreshKey={detailRefreshKey}
         isOpen={selectedOrderId != null}
         onClose={handleCloseDetail}
         onOrderUpdated={fetchOrders}
