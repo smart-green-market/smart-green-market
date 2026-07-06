@@ -50,14 +50,14 @@ const buildColumns = (onView) => [
             </span>
         ),
     },
-    {
-        name: "Mùa",
-        selector: (row) => row.season_label,
-        sortable: true,
-        center: true,
-        grow: 1,
-        cell: (row) => <SeasonCell seasons={row.seasons} />,
-    },
+    // {
+    //     name: "Mùa",
+    //     selector: (row) => row.season_label,
+    //     sortable: true,
+    //     center: true,
+    //     grow: 1,
+    //     cell: (row) => <SeasonCell seasons={row.seasons} />,
+    // },
     {
         name: "Đơn vị",
         selector: (row) => row.default_unit,

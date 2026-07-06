@@ -68,13 +68,7 @@ export const CATEGORY_STAT_CARDS = [
     icon: CheckCircle2,
     style: "success",
   }),
-  card({
-    key: "inactive",
-    label: "Khóa",
-    filterValue: "inactive",
-    icon: Lock,
-    style: "muted",
-  }),
+  //card({ key: "inactive", label: "Khóa", filterValue: "inactive", icon: Lock, style: "muted" }),
   card({
     key: "rejected",
     label: "Từ chối",
@@ -129,14 +123,14 @@ export const DEALER_STAT_CARDS = [
     style: "success",
     match: (row) => getDealerDisplayStatus(row) === "active",
   }),
-  card({
-    key: "inactive",
-    label: "Tạm khóa",
-    filterValue: "inactive",
-    icon: Lock,
-    style: "muted",
-    match: (row) => getDealerDisplayStatus(row) === "inactive",
-  }),
+  // card({
+  //     key: "inactive",
+  //     label: "Tạm khóa",
+  //     filterValue: "inactive",
+  //     icon: Lock,
+  //     style: "muted",
+  //     match: (row) => getDealerDisplayStatus(row) === "inactive",
+  // }),
   card({
     key: "rejected",
     label: "Từ chối",
@@ -164,13 +158,7 @@ export const PRODUCT_STAT_CARDS = [
     icon: CheckCircle2,
     style: "success",
   }),
-  card({
-    key: "inactive",
-    label: "Tạm ngưng",
-    filterValue: "inactive",
-    icon: Lock,
-    style: "muted",
-  }),
+  //card({ key: "inactive", label: "Tạm ngưng", filterValue: "inactive", icon: Lock, style: "muted" }),
   card({
     key: "rejected",
     label: "Từ chối",

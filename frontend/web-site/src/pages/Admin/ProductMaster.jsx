@@ -188,25 +188,25 @@ export default function ProductMasterPage() {
                     onAdd={() => setIsCreateOpen(true)}
                     addLabel="Thêm danh mục sản phẩm"
                     searchPlaceholder="Tìm kiếm danh mục sản phẩm..."
-                    secondaryAction={
-                        <Link
-                            to="/quan-tri/mua-he"
-                            className="inline-flex cursor-pointer items-center gap-2 rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-2.5 text-sm font-semibold text-emerald-800 no-underline transition-colors hover:bg-emerald-100 font-['Geist',sans-serif]"
-                        >
-                            <CalendarRange className="h-4 w-4" />
-                            Quản lý mùa
-                        </Link>
-                    }
+                    // secondaryAction={
+                    //     <Link
+                    //         to="/quan-tri/mua-he"
+                    //         className="inline-flex cursor-pointer items-center gap-2 rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-2.5 text-sm font-semibold text-emerald-800 no-underline transition-colors hover:bg-emerald-100 font-['Geist',sans-serif]"
+                    //     >
+                    //         <CalendarRange className="h-4 w-4" />
+                    //         Quản lý mùa
+                    //     </Link>
+                    // }
                     filter={
                         <>
                             <Filter
                                 value={statusFilter}
                                 onChange={setStatusFilter}
                             />
-                            <SeasonFilter
+                            {/* <SeasonFilter
                                 value={seasonFilter}
                                 onChange={setSeasonFilter}
-                            />
+                            /> */}
                         </>
                     }
                 />
