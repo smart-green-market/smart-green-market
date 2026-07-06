@@ -73,7 +73,7 @@ const buildColumns = (onView) => [
             const st =
                 STATUS_CONFIG[row.verification_status] ?? STATUS_CONFIG.pending;
             return (
-                <span className={`px-2.5 py-1 rounded-full text-sm font-semibold font-['Geist',sans-serif] uppercase tracking-wide ${st.bg} ${st.text}`}>
+                <span className={`px-2.5 py-1 rounded-full text-xs font-semibold font-['Geist',sans-serif] uppercase tracking-wide ${st.bg} ${st.text}`}>
                     {st.label}
                 </span>
             );
