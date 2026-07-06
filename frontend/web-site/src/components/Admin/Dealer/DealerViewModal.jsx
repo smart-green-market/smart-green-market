@@ -222,23 +222,22 @@ export default function DealerViewModal({
 
                         {isActive && (
                             <button
-                                disabled={loading}
-                                onClick={() =>
-                                    openConfirm({
-                                        title: "Tạm khóa đại lý",
-                                        message: `Bạn có chắc chắn muốn tạm khóa "${dealer.store_name}" không?`,
-                                        confirmText: "Tạm khóa",
-                                        variant: "warning",
-                                        action: (reason) => onLock(dealer, reason),
-                                    })
-                                }
-                                className="cursor-pointer px-6 py-2.5 bg-orange-500 hover:bg-orange-400 text-white rounded-lg text-sm font-semibold disabled:opacity-50"
-                            >
-                                Tạm khóa
-                            </button>
+                            disabled={loading}
+                            onClick={() =>
+                                openReject({
+                                    title: "Từ chối đại lý",
+                                    message: `Bạn có chắc chắn muốn từ chối "${dealer.store_name}" không?`,
+                                    action: (reason) =>
+                                        onReject(dealer, reason),
+                                })
+                            }
+                            className="cursor-pointer px-6 py-2.5 bg-red-500 hover:bg-red-400 text-white rounded-lg text-sm font-semibold disabled:opacity-50"
+                        >
+                            Từ chối
+                        </button>
                         )}
 
-                        {isInactive && (
+                        {/* {isInactive && (
                             <button
                                 disabled={loading}
                                 onClick={() =>
@@ -254,7 +253,7 @@ export default function DealerViewModal({
                             >
                                 Mở khóa
                             </button>
-                        )}
+                        )} */}
 
                         {/* {isRejected && (
                             <>

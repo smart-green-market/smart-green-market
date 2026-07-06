@@ -5,7 +5,7 @@ export const CATEGORY_FILTER_OPTIONS = [
     { label: "Hệ thống", value: "system" },
     { label: "Đăng ký (riêng)", value: "custom" },
     { label: "Đã duyệt", value: "active" },
-    { label: "Khóa", value: "inactive" },
+    //{ label: "Khóa", value: "inactive" },
     { label: "Từ chối", value: "rejected" },
     { label: "Chờ duyệt", value: "pending" },
 ];

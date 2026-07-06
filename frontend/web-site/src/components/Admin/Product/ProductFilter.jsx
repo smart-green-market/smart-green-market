@@ -3,7 +3,7 @@ import FilterDropdown from "../UI/FilterDropdown";
 const OPTIONS = [
     { label: "Tất cả", value: "" },
     { label: "Đang hoạt động", value: "active" },
-    { label: "Tạm ngưng", value: "inactive" },
+    //{ label: "Tạm ngưng", value: "inactive" },
     { label: "Từ chối", value: "rejected" },
     { label: "Chờ duyệt", value: "pending" },
 ];

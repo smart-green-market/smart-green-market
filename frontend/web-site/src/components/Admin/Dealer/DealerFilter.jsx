@@ -3,7 +3,7 @@ import FilterDropdown from "../UI/FilterDropdown";
 export const DEALER_FILTER_OPTIONS = [
     { label: "Tất cả", value: "" },
     { label: "Đang hoạt động", value: "active" },
-    { label: "Tạm khóa", value: "inactive" },
+    //{ label: "Tạm khóa", value: "inactive" },
     { label: "Từ chối", value: "rejected" },
     { label: "Chờ duyệt", value: "pending" },
 ];
