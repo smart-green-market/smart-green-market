@@ -1,7 +1,6 @@
-"""API ViewSet quản lý chứng nhận chất lượng và ảnh scan."""
-
+from django.db.models import Q
 from django.utils import timezone
-from drf_spectacular.utils import extend_schema, extend_schema_view
+from drf_spectacular.utils import OpenApiParameter, extend_schema, extend_schema_view
 from rest_framework import status, viewsets
 from rest_framework.decorators import action
 from rest_framework.parsers import FormParser, MultiPartParser
@@ -51,6 +50,11 @@ from .serializers import (
             "Hệ thống tự kiểm tra ngày hết hạn khi gọi API."
             + PAGINATION_QUERY_HELP
         ),
+        parameters=[
+            OpenApiParameter("expired", str, description="Admin: lọc chứng nhận hết hạn (true/false)", required=False),
+            OpenApiParameter("search", str, description="Tìm kiếm theo tên chứng nhận, mã, nơi cấp hoặc công ty NCC", required=False),
+            OpenApiParameter("status", str, description="Lọc theo trạng thái (pending, approved, rejected, expired, revoked)", required=False),
+        ],
         responses={
             200: paginated_response_schema(
                 CertificationListSerializer,
@@ -118,6 +122,22 @@ class CertificationViewSet(viewsets.ModelViewSet):
         """Lọc chứng nhận theo quyền và trạng thái hết hạn."""
         mark_expired_certifications()
         qs = self.queryset.filter(deleted_at__isnull=True)
+
+        if self.action == "list":
+            search = self.request.query_params.get("search")
+            if search:
+                search = search.strip()
+                qs = qs.filter(
+                    Q(name__icontains=search)
+                    | Q(certificate_code__icontains=search)
+                    | Q(issued_by__icontains=search)
+                    | Q(supplier__company_name__icontains=search)
+                )
+
+            status_param = self.request.query_params.get("status")
+            if status_param:
+                qs = qs.filter(status=status_param)
+
         if self.request.user.role == "admin":
             if self.request.query_params.get("expired") == "true":
                 return filter_admin_or_supplier_account(

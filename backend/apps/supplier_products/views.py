@@ -1,5 +1,6 @@
 """API ViewSet quản lý sản phẩm, ảnh sản phẩm và quy trình canh tác."""
 
+from django.db.models import Q
 from django.utils import timezone
 from drf_spectacular.utils import OpenApiExample, OpenApiParameter, extend_schema, extend_schema_view
 from rest_framework import status, viewsets
@@ -62,6 +63,8 @@ from .serializer import (
                 required=False,
                 description="Dealer: lọc sản phẩm theo NCC (ID từ GET /api/suppliers/)",
             ),
+            OpenApiParameter("search", str, description="Tìm kiếm theo tên sản phẩm, công ty nhà cung cấp, danh mục, hoặc sản phẩm chuẩn", required=False),
+            OpenApiParameter("status", str, description="Lọc theo trạng thái (pending, active, inactive, rejected)", required=False),
         ],
         responses={
             200: paginated_response_schema(
@@ -208,25 +211,43 @@ class SupplierProductViewSet(viewsets.ModelViewSet):
                         raise ValidationError(
                             {"supplier_id": "supplier_id phải là số nguyên."}
                         ) from exc
-                return filter_supplier_products_for_dealer(
+                qs = filter_supplier_products_for_dealer(
                     self.queryset,
                     supplier_id=supplier_id,
                     ordering=ORDER_UPDATED,
                 )
-            return SupplierProduct.objects.none()
-        qs = filter_admin_or_supplier_account(
-            self.queryset,
-            user,
-            ordering=ORDER_UPDATED,
-            pending_field="status",
-        )
-        if self.action == "list":
-            qs = default_exclude_deleted(
-                qs,
-                self.request,
-                status_field="status",
-                deleted_value=SupplierProductStatus.DELETED,
+            else:
+                qs = SupplierProduct.objects.none()
+        else:
+            qs = filter_admin_or_supplier_account(
+                self.queryset,
+                user,
+                ordering=ORDER_UPDATED,
+                pending_field="status",
             )
+            if self.action == "list":
+                qs = default_exclude_deleted(
+                    qs,
+                    self.request,
+                    status_field="status",
+                    deleted_value=SupplierProductStatus.DELETED,
+                )
+
+        if self.action == "list":
+            search = self.request.query_params.get("search")
+            if search:
+                search = search.strip()
+                qs = qs.filter(
+                    Q(name__icontains=search)
+                    | Q(supplier__company_name__icontains=search)
+                    | Q(category__name__icontains=search)
+                    | Q(product_master__name__icontains=search)
+                )
+
+            status_param = self.request.query_params.get("status")
+            if status_param:
+                qs = qs.filter(status=status_param)
+
         if self._should_annotate_order_demand():
             qs = annotate_supplier_product_order_demand(qs)
         return qs
