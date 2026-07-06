@@ -104,6 +104,13 @@ export default function DealerPurchaseOrderDetailPage() {
           pending_return_quantity: Number(item.pending_return_quantity || 0),
           returned_quantity: Number(item.returned_quantity || 0),
           returnable_quantity: Number(item.returnable_quantity ?? item.quantity ?? 0),
+          rejected_returns: (data.returns || [])
+            .filter((ret) => ret.status === "rejected" && (ret.items || []).some((ri) => ri.purchase_order_item_id === item.id))
+            .map((ret) => ({
+              id: ret.id,
+              review_note: ret.review_note || "Không có lý do chi tiết",
+              quantity: (ret.items || []).find((ri) => ri.purchase_order_item_id === item.id)?.quantity || 0,
+            })),
         })),
         notes: data.note ? [data.note] : [],
         rawSubtotal: Number(data.total_amount || 0),

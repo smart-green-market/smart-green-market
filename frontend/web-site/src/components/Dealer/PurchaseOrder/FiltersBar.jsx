@@ -23,7 +23,6 @@ export default function FiltersBar({
             onChange={(e) => setSelectedSupplier(e.target.value)}
             className="w-full h-11 pl-4 pr-10 border border-neutral-200 rounded-xl text-sm font-medium bg-neutral-50/50 hover:bg-neutral-50 focus:bg-white focus:border-emerald-600 outline-none appearance-none transition-all cursor-pointer"
           >
-            <option value="">Tất cả</option>
             {suppliers.map((s) => (
               <option key={s.id} value={s.id}>
                 {s.company_name}

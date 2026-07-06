@@ -2,6 +2,7 @@ import { useState, useRef } from "react";
 import { Image as ImageIcon, Upload, Star, Trash2 } from "lucide-react";
 import { dealerProductService } from "../../../services/api/dealerProductService";
 import { toast } from "sonner";
+import DeleteConfirmModal from "../../common/DeleteConfirmModal";
 
 export default function ProductGallery({ product, onUpdate }) {
   const [uploading, setUploading] = useState(false);
@@ -44,14 +45,22 @@ export default function ProductGallery({ product, onUpdate }) {
     }
   };
 
-  const handleDeleteImage = async (imageId) => {
-    if (!window.confirm("Bạn có chắc chắn muốn xóa ảnh này?")) return;
+  const [deleteImageId, setDeleteImageId] = useState(null);
+
+  const handleDeleteImage = (imageId) => {
+    setDeleteImageId(imageId);
+  };
+
+  const handleConfirmDelete = async () => {
+    if (!deleteImageId) return;
     try {
-      await dealerProductService.deleteImage(imageId);
+      await dealerProductService.deleteImage(deleteImageId);
       toast.success("Đã xóa ảnh!");
       onUpdate();
     } catch (error) {
       toast.error("Lỗi khi xóa ảnh.");
+    } finally {
+      setDeleteImageId(null);
     }
   };
 
@@ -130,6 +139,13 @@ export default function ProductGallery({ product, onUpdate }) {
       <p className="text-[11px] text-neutral-400 mt-4 text-center">
         Gợi ý: Upload ảnh tỉ lệ 1:1, nền trắng để hiển thị đẹp nhất.
       </p>
+
+      <DeleteConfirmModal
+        isOpen={deleteImageId !== null}
+        onClose={() => setDeleteImageId(null)}
+        onConfirm={handleConfirmDelete}
+        itemType="hình ảnh này"
+      />
     </div>
   );
 }

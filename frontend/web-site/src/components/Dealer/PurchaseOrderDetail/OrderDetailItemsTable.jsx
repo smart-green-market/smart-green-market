@@ -1,9 +1,7 @@
 import React from "react";
 import { FileText, Package } from "lucide-react";
 import {
-  formatOrderItemDiscountLabel,
   getOrderItemBaseUnitPrice,
-  getOrderItemLineDiscount,
   getOrderItemUnitPrice,
   orderItemHasDiscount,
 } from "../../../utils/quantityDiscountUtils";
@@ -40,7 +38,6 @@ export default function OrderDetailItemsTable({ items }) {
               )}
               <th className="py-3.5 px-4 w-28 text-center whitespace-nowrap">Đơn vị</th>
               <th className="py-3.5 px-4 w-44 text-right whitespace-nowrap">Đơn giá</th>
-              <th className="py-3.5 px-4 w-36 text-right whitespace-nowrap">Giảm theo SL</th>
               <th className="py-3.5 px-5 w-40 text-right whitespace-nowrap">Thành tiền</th>
             </tr>
           </thead>
@@ -61,13 +58,14 @@ export default function OrderDetailItemsTable({ items }) {
                   label: item.return_status_label || "Đã trả hết",
                   className: "bg-slate-100 text-slate-700",
                 },
-              }[returnStatus];
+              }[returnStatus] || (item.rejected_returns && item.rejected_returns.length > 0 ? {
+                label: "Từ chối trả hàng",
+                className: "bg-red-100 text-red-800",
+              } : null);
               const unit = item.unit || item.product_unit || "kg";
               const unitPrice = getOrderItemUnitPrice(item);
               const basePrice = getOrderItemBaseUnitPrice(item);
-              const lineDiscount = getOrderItemLineDiscount(item);
               const hasDiscount = orderItemHasDiscount(item);
-              const discountLabel = formatOrderItemDiscountLabel(item, unit);
               const subtotal =
                 item.subtotal != null
                   ? Number(item.subtotal)
@@ -161,20 +159,6 @@ export default function OrderDetailItemsTable({ items }) {
                         </span>
                       )}
                     </td>
-                    <td className={`py-4 px-4 text-right ${isRejected ? "text-red-500" : "text-emerald-700"}`}>
-                      {hasDiscount ? (
-                        <div className="space-y-0.5">
-                          {discountLabel && (
-                            <div className="text-xs font-semibold">{discountLabel}</div>
-                          )}
-                          <div className="text-xs">
-                            -{lineDiscount.toLocaleString("vi-VN")} đ
-                          </div>
-                        </div>
-                      ) : (
-                        <span className="text-neutral-400">—</span>
-                      )}
-                    </td>
                     <td className={`py-4 px-5 text-right font-extrabold ${isRejected ? "text-red-700" : "text-emerald-700"}`}>
                       {subtotal.toLocaleString("vi-VN")} đ
                     </td>
@@ -182,7 +166,7 @@ export default function OrderDetailItemsTable({ items }) {
                   {isRejected && item.rejection_reason && (
                     <tr className="bg-red-50/20">
                       <td />
-                      <td colSpan={showReturnQty ? 8 : 6} className="py-2.5 px-4 text-xs font-medium text-red-500 border-t-0">
+                      <td colSpan={showReturnQty ? 7 : 5} className="py-2.5 px-4 text-xs font-medium text-red-500 border-t-0">
                         <div className="flex items-center gap-1.5 pl-3 border-l-2 border-red-500">
                           <span className="font-bold text-red-700 uppercase tracking-wider text-[10px]">Lý do từ chối:</span>
                           <span className="italic">{item.rejection_reason}</span>
@@ -190,6 +174,17 @@ export default function OrderDetailItemsTable({ items }) {
                       </td>
                     </tr>
                   )}
+                  {item.rejected_returns && item.rejected_returns.map((ret, rIdx) => (
+                    <tr key={`ret-rej-${item.id}-${rIdx}`} className="bg-red-50/10">
+                      <td />
+                      <td colSpan={showReturnQty ? 7 : 5} className="py-2.5 px-4 text-xs font-medium text-red-600 border-t-0">
+                        <div className="flex items-center gap-1.5 pl-3 border-l-2 border-red-500">
+                          <span className="font-bold text-red-700 uppercase tracking-wider text-[10px]">Từ chối trả ({formatQty(ret.quantity)} {unit}):</span>
+                          <span className="italic text-neutral-600">{ret.review_note}</span>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
                 </React.Fragment>
               );
             })}

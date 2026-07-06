@@ -9,7 +9,7 @@ export default function ProductDetailInfo({ product, onUpdate }) {
   const [title, setTitle] = useState(product?.title || "");
   const [description, setDescription] = useState(product?.description || "");
   const [retailPrice, setRetailPrice] = useState(product?.retail_price || "");
-  const [categoryId, setCategoryId] = useState(product?.category_id || "");
+  const [categoryId, setCategoryId] = useState(product?.category_id || product?.category?.id || "");
   const [loading, setLoading] = useState(false);
   const [categories, setCategories] = useState([]);
 
@@ -17,7 +17,7 @@ export default function ProductDetailInfo({ product, onUpdate }) {
     setTitle(product?.title || "");
     setDescription(product?.description || "");
     setRetailPrice(product?.retail_price || "");
-    setCategoryId(product?.category_id || "");
+    setCategoryId(product?.category_id || product?.category?.id || "");
   }, [product]);
 
   useEffect(() => {
@@ -67,7 +67,7 @@ export default function ProductDetailInfo({ product, onUpdate }) {
     setTitle(product?.title || "");
     setDescription(product?.description || "");
     setRetailPrice(product?.retail_price || "");
-    setCategoryId(product?.category_id || "");
+    setCategoryId(product?.category_id || product?.category?.id || "");
     setIsEditing(false);
   };
 
