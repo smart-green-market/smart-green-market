@@ -73,12 +73,14 @@ export default function OrderDetailItemsTable({ items }) {
                             <FileText className={`w-4 h-4 ${isRejected ? "text-red-400" : "text-neutral-400"}`} />
                           )}
                         </div>
-                        <span>{item.name || item.product_name}</span>
-                        {isRejected && (
-                          <span className="ml-2 bg-red-100 text-red-800 text-[10px] px-2 py-0.5 rounded-full font-bold uppercase tracking-wider">
-                            Từ chối
-                          </span>
-                        )}
+                        <div className="min-w-0">
+                          <span className="break-words mr-2">{item.name || item.product_name}</span>
+                          {isRejected && (
+                            <span className="inline-block bg-red-100 text-red-800 text-[10px] px-2 py-0.5 rounded-full font-bold uppercase tracking-wider whitespace-nowrap align-middle">
+                              Từ chối
+                            </span>
+                          )}
+                        </div>
                       </div>
                     </td>
                     <td className={`py-4 px-4 text-center font-extrabold ${isRejected ? "text-red-600" : "text-neutral-700"}`}>

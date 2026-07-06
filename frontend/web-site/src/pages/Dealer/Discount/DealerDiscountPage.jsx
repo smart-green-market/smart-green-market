@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { discountService } from '../../../services/api/discountService';
 import { voucherService } from '../../../services/api/voucherService';
 import { Loader2, Plus, Percent } from 'lucide-react';
@@ -20,7 +21,16 @@ import {
 
 
 export default function DealerDiscountPage() {
-  const [activeTab, setActiveTab] = useState("policy"); // "policy" or "voucher"
+  const [searchParams, setSearchParams] = useSearchParams();
+  const activeTab = searchParams.get("tab") || "policy";
+
+  const setActiveTab = (tab) => {
+    setSearchParams((prev) => {
+      const nextParams = new URLSearchParams(prev);
+      nextParams.set("tab", tab);
+      return nextParams;
+    });
+  };
 
   // Discount policies states
   const [policies, setPolicies] = useState([]);
