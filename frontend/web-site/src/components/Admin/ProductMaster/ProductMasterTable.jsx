@@ -1,5 +1,5 @@
 import DataTable from "react-data-table-component";
-import { tableStyles, paginationVi } from "../../common/TableStyles";
+import { tableStyles } from "../../common/tableStyles";
 import { getSeasonTagClassName } from "./productMasterHelpers";
 
 const STATUS_CONFIG = {
@@ -106,35 +106,13 @@ const buildColumns = (onView) => [
 
 export default function ProductMasterTable({
     data,
-    search,
-    statusFilter,
-    seasonFilter,
     onView,
 }) {
-    const filtered = data.filter((row) => {
-        const keyword = search.toLowerCase();
-        const matchSearch =
-            row.name.toLowerCase().includes(keyword) ||
-            row.category_name.toLowerCase().includes(keyword) ||
-            row.default_unit.toLowerCase().includes(keyword) ||
-            row.season_label.toLowerCase().includes(keyword);
-
-        const matchStatus = !statusFilter || row.status === statusFilter;
-        const matchSeason =
-            !seasonFilter ||
-            (row.season_ids ?? []).includes(String(seasonFilter));
-
-        return matchSearch && matchStatus && matchSeason;
-    });
-
     return (
         <div className="w-full overflow-hidden rounded-xl border border-neutral-200">
             <DataTable
                 columns={buildColumns(onView)}
-                data={filtered}
-                pagination
-                paginationPerPage={10}
-                paginationComponentOptions={paginationVi}
+                data={data}
                 customStyles={tableStyles}
                 noDataComponent={
                     <div className="py-6 text-sm text-neutral-500">

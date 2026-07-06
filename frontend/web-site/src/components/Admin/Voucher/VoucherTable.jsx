@@ -1,8 +1,6 @@
 import DataTable from "react-data-table-component";
-import { tableStyles, paginationVi } from "../../common/TableStyles";
+import { tableStyles } from "../../common/tableStyles";
 import { formatDateTime } from "../../common/formatDateTime";
-
-import { matchesVoucherStatusFilter, isVoucherPending } from "./voucherHelpers";
 
 // ── Status ─────────────────────────────────────────────────────────────
 const STATUS_CONFIG = {
@@ -150,38 +148,14 @@ const buildColumns = (onView) => [
     },
 ];
 
-export default function VoucherTable({ data, search, statusFilter, onView }) {
-    const normalizedSearch = search.trim().toLowerCase();
-
-    const filtered = data.filter((row) => {
-        const code = row.code ?? "";
-        const title = row.title ?? "";
-        const description = row.description ?? "";
-
-        const matchName =
-            !normalizedSearch ||
-            code.toLowerCase().includes(normalizedSearch) ||
-            title.toLowerCase().includes(normalizedSearch) ||
-            description.toLowerCase().includes(normalizedSearch);
-
-        let matchFilter = true;
-        if (statusFilter) {
-            matchFilter = matchesVoucherStatusFilter(row.status, statusFilter);
-        }
-
-        return matchName && matchFilter;
-    });
-
+export default function VoucherTable({ data, onView }) {
     const columns = buildColumns(onView);
 
     return (
         <div className="w-full rounded-xl border border-neutral-200 overflow-hidden bg-white">
             <DataTable
                 columns={columns}
-                data={filtered}
-                pagination
-                paginationPerPage={10}
-                paginationComponentOptions={paginationVi}
+                data={data}
                 customStyles={tableStyles}
                 noDataComponent={
                     <div className="py-16 text-sm text-neutral-400 font-['Geist',sans-serif]">

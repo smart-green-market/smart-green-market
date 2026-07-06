@@ -1,5 +1,5 @@
 import DataTable from "react-data-table-component";
-import { tableStyles, paginationVi } from "../../common/TableStyles";
+import { tableStyles } from "../../common/tableStyles";
 
 const STATUS_CONFIG = {
     active: { label: "HOẠT ĐỘNG", bg: "bg-green-200", text: "text-green-800" },
@@ -64,28 +64,12 @@ const buildColumns = (onView) => [
     },
 ];
 
-export default function SeasonTable({ data, search, statusFilter, onView }) {
-    const filtered = data.filter((row) => {
-        const keyword = search.toLowerCase();
-        const matchSearch =
-            row.name.toLowerCase().includes(keyword) ||
-            row.code.toLowerCase().includes(keyword) ||
-            row.description.toLowerCase().includes(keyword) ||
-            row.month_label.toLowerCase().includes(keyword);
-
-        const matchStatus = !statusFilter || row.status === statusFilter;
-
-        return matchSearch && matchStatus;
-    });
-
+export default function SeasonTable({ data, onView }) {
     return (
         <div className="w-full overflow-hidden rounded-xl border border-neutral-200">
             <DataTable
                 columns={buildColumns(onView)}
-                data={filtered}
-                pagination
-                paginationPerPage={10}
-                paginationComponentOptions={paginationVi}
+                data={data}
                 customStyles={tableStyles}
                 noDataComponent={
                     <div className="py-6 text-sm text-neutral-500">

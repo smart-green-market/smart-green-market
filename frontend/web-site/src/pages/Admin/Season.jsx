@@ -1,7 +1,8 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useState } from "react";
 import { ArrowLeft, CalendarRange } from "lucide-react";
 import { Link } from "react-router-dom";
 import { AdminInitialLoadGate } from "../../components/Admin/UI/AdminFetchState";
+import AdminListPagination from "../../components/Admin/UI/AdminListPagination";
 import Toolbar from "../../components/Admin/UI/Toolbar";
 import SeasonFilter from "../../components/Admin/Season/SeasonFilter";
 import SeasonTable from "../../components/Admin/Season/SeasonTable";
@@ -9,7 +10,6 @@ import SeasonViewModal from "../../components/Admin/Season/SeasonViewModal";
 import SeasonFormModal from "../../components/Admin/Season/SeasonFormModal";
 import {
     buildSeasonPayload,
-    extractSeasonList,
     formatSeasonDetail,
     formatSeasonRow,
     SEASON_STATUS,
@@ -19,64 +19,57 @@ import {
     seasonService,
     handleApiError,
 } from "../../services/api/Admin/seasonService";
+import { useAdminPaginatedList } from "../../hooks/useAdminPaginatedList";
+import { useDebouncedValue } from "../../hooks/useDebouncedValue";
 
 export default function SeasonPage() {
-    const [data, setData] = useState([]);
-    const [isFetching, setIsFetching] = useState(true);
-    const [loadError, setLoadError] = useState("");
-    const [loading, setLoading] = useState(false);
     const [actionLoading, setActionLoading] = useState(false);
+    const [detailLoading, setDetailLoading] = useState(false);
     const [error, setError] = useState("");
     const [search, setSearch] = useState("");
+    const debouncedSearch = useDebouncedValue(search, 350);
     const [statusFilter, setStatusFilter] = useState("");
     const [viewRow, setViewRow] = useState(null);
     const [isCreateOpen, setIsCreateOpen] = useState(false);
 
-    const fetchSeasons = useCallback(async ({ initial = false } = {}) => {
-        try {
-            if (initial) {
-                setIsFetching(true);
-                setLoadError("");
-            } else {
-                setLoading(true);
-            }
-
-            const response = await seasonService.getAll();
-            const list = extractSeasonList(response);
-            setData(list.map(formatSeasonRow));
-        } catch (err) {
-            const message = handleApiError(err, "Không thể tải danh sách mùa");
-
-            if (initial) {
-                setLoadError(message);
-            } else {
-                setError(message);
-            }
-        } finally {
-            if (initial) {
-                setIsFetching(false);
-            } else {
-                setLoading(false);
-            }
-        }
-    }, []);
+    const {
+        data,
+        isFetching,
+        loadError,
+        loading,
+        error: listError,
+        currentPage,
+        totalPages,
+        pageRange,
+        totalCount,
+        fetchData,
+        refresh,
+        handlePageChange,
+        setCurrentPage,
+    } = useAdminPaginatedList({
+        fetchList: (params) => seasonService.getList(params),
+        mapRows: (rows) => rows.map(formatSeasonRow),
+        buildQuery: () => ({
+            search: debouncedSearch || undefined,
+            status: statusFilter || undefined,
+        }),
+        queryDeps: [debouncedSearch, statusFilter],
+        onFetchError: (err) =>
+            handleApiError(err, "Không thể tải danh sách mùa"),
+    });
 
     const handleViewSeason = useCallback(async (row) => {
         try {
-            setLoading(true);
+            setDetailLoading(true);
             setError("");
             const detail = await seasonService.getById(row.id);
             setViewRow(formatSeasonDetail(detail));
         } catch (err) {
             setError(handleApiError(err, "Không thể tải chi tiết mùa"));
         } finally {
-            setLoading(false);
+            setDetailLoading(false);
         }
     }, []);
-
-    useEffect(() => {
-        fetchSeasons({ initial: true });
-    }, [fetchSeasons]);
 
     const handleCreate = async (formData) => {
         try {
@@ -84,7 +77,7 @@ export default function SeasonPage() {
             setError("");
             await seasonService.create(buildSeasonPayload(formData));
             appToast.success("Đã tạo mùa.");
-            await fetchSeasons();
+            await refresh();
         } catch (err) {
             const message = handleApiError(err, "Không thể tạo mùa");
             setError(message);
@@ -112,7 +105,7 @@ export default function SeasonPage() {
             );
             await refreshViewRow(season.id);
             appToast.success("Đã cập nhật mùa.");
-            await fetchSeasons();
+            await refresh();
         } catch (err) {
             const message = handleApiError(err, "Không thể cập nhật mùa");
             throw new Error(message);
@@ -128,7 +121,7 @@ export default function SeasonPage() {
             await seasonService.remove(season.id);
             setViewRow(null);
             appToast.success("Đã xóa mùa.");
-            await fetchSeasons();
+            await refresh();
         } catch (err) {
             const message = handleApiError(err, "Không thể xóa mùa");
             setError(message);
@@ -149,7 +142,7 @@ export default function SeasonPage() {
                     ? "Đã mở khóa mùa."
                     : "Đã khóa mùa.",
             );
-            await fetchSeasons();
+            await refresh();
         } catch (err) {
             const message = handleApiError(err, "Không thể thay đổi trạng thái mùa");
             setError(message);
@@ -163,7 +156,7 @@ export default function SeasonPage() {
         <AdminInitialLoadGate
             isFetching={isFetching}
             loadError={loadError}
-            onRetry={() => fetchSeasons({ initial: true })}
+            onRetry={() => fetchData({ page: currentPage, initial: true })}
             loadingMessage="Đang tải danh sách mùa..."
         >
             <div className="flex flex-col gap-6 px-8 pt-6 pb-10">
@@ -200,24 +193,35 @@ export default function SeasonPage() {
                     filter={
                         <SeasonFilter
                             value={statusFilter}
-                            onChange={setStatusFilter}
+                            onChange={(value) => {
+                                setStatusFilter(value);
+                                setCurrentPage(1);
+                            }}
                         />
                     }
                 />
 
-                {error ? (
+                {error || listError ? (
                     <div className="rounded-xl bg-red-100 px-4 py-3 text-sm text-red-700">
-                        {error}
+                        {error || listError}
                     </div>
                 ) : null}
 
-                <SeasonTable
-                    data={data}
-                    loading={loading}
-                    search={search}
-                    statusFilter={statusFilter}
-                    onView={handleViewSeason}
-                />
+                <div className="flex flex-col gap-4">
+                    <SeasonTable
+                        data={data}
+                        loading={loading}
+                        onView={handleViewSeason}
+                    />
+                    <AdminListPagination
+                        currentPage={currentPage}
+                        totalPages={totalPages}
+                        totalCount={totalCount}
+                        pageRange={pageRange}
+                        onPageChange={handlePageChange}
+                        noun="mùa"
+                    />
+                </div>
 
                 <SeasonFormModal
                     isOpen={isCreateOpen}
@@ -233,7 +237,7 @@ export default function SeasonPage() {
                     onUpdate={handleUpdate}
                     onDelete={handleDelete}
                     onToggleStatus={handleToggleStatus}
-                    loading={actionLoading}
+                    loading={actionLoading || detailLoading}
                 />
             </div>
         </AdminInitialLoadGate>

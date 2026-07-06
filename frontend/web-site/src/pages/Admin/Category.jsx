@@ -1,6 +1,7 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { AdminInitialLoadGate } from "../../components/Admin/UI/AdminFetchState";
 import AdminFilterStatsCards from "../../components/Admin/UI/AdminFilterStatsCards";
+import AdminListPagination from "../../components/Admin/UI/AdminListPagination";
 import { CATEGORY_STAT_CARDS } from "../../components/Admin/UI/adminFilterStatsPresets";
 import Toolbar from "../../components/Admin/UI/Toolbar";
 import Filter from "../../components/Admin/Category/CategoryFilter";
@@ -14,71 +15,54 @@ import {
     formatCategoryRow,
 } from "../../components/Admin/Category/categoryHelpers";
 import { appToast } from "../../components/common/toast";
-import { buildCountsFromCards } from "../../utils/adminFilterStatsUtils";
+import {
+    buildCountsFromCards,
+    buildCountsFromStatusMap,
+} from "../../utils/adminFilterStatsUtils";
 import { categoryService, handleApiError } from "../../services/api/categoryService";
+import { useAdminPaginatedList } from "../../hooks/useAdminPaginatedList";
+import { useDebouncedValue } from "../../hooks/useDebouncedValue";
 
 export default function CategoryPage() {
-    const [data, setData] = useState([]);
-    const [statsData, setStatsData] = useState([]);
-    const [isStatsLoading, setIsStatsLoading] = useState(true);
-    const [isFetching, setIsFetching] = useState(true);
-    const [loadError, setLoadError] = useState("");
-    const [loading, setLoading] = useState(false);
     const [error, setError] = useState("");
     const [search, setSearch] = useState("");
+    const debouncedSearch = useDebouncedValue(search, 350);
     const [statusFilter, setStatusFilter] = useState("");
     const [viewRow, setViewRow] = useState(null);
+    const [detailLoading, setDetailLoading] = useState(false);
     const [actionLoading, setActionLoading] = useState(false);
     const [isCreateOpen, setIsCreateOpen] = useState(false);
 
-    const fetchCategoryStats = useCallback(async () => {
-        try {
-            setIsStatsLoading(true);
-            const response = await categoryService.getAllForAdmin({});
-            setStatsData(response.map(formatCategoryRow));
-        } catch (error) {
-            console.error(handleApiError(error, "Không thể tải thống kê danh mục"));
-        } finally {
-            setIsStatsLoading(false);
-        }
-    }, []);
-
-    const fetchCategories = useCallback(async ({ initial = false } = {}) => {
-        try {
-            if (initial) {
-                setIsFetching(true);
-                setLoadError("");
-            } else {
-                setLoading(true);
-            }
-
-            const response = await categoryService.getAllForAdmin(
-                buildCategoryListParams(statusFilter),
-            );
-            setData(response.map(formatCategoryRow));
-        } catch (error) {
-            const message = handleApiError(
-                error,
-                "Không thể tải danh sách danh mục",
-            );
-
-            if (initial) {
-                setLoadError(message);
-            } else {
-                setError(message);
-            }
-        } finally {
-            if (initial) {
-                setIsFetching(false);
-            } else {
-                setLoading(false);
-            }
-        }
-    }, [statusFilter]);
+    const {
+        data,
+        countStatus,
+        isFetching,
+        loadError,
+        loading,
+        error: listError,
+        currentPage,
+        totalPages,
+        pageRange,
+        totalCount,
+        fetchData,
+        refresh,
+        handlePageChange,
+        setCurrentPage,
+    } = useAdminPaginatedList({
+        fetchList: (params) => categoryService.getList(params),
+        mapRows: (rows) => rows.map(formatCategoryRow),
+        buildQuery: () => ({
+            ...buildCategoryListParams(statusFilter),
+            search: debouncedSearch || undefined,
+        }),
+        queryDeps: [statusFilter, debouncedSearch],
+        onFetchError: (err) =>
+            handleApiError(err, "Không thể tải danh sách danh mục"),
+    });
 
     const handleViewCategory = useCallback(async (row) => {
         try {
-            setLoading(true);
+            setDetailLoading(true);
             const detail = await categoryService.getById(row.id);
             setViewRow(formatCategoryDetail(detail));
         } catch (error) {
@@ -88,26 +72,20 @@ export default function CategoryPage() {
             );
             setError(message);
         } finally {
-            setLoading(false);
+            setDetailLoading(false);
         }
     }, []);
 
-    useEffect(() => {
-        fetchCategories({ initial: true });
-    }, [fetchCategories]);
-
-    useEffect(() => {
-        fetchCategoryStats();
-    }, [fetchCategoryStats]);
-
-    const categoryStats = useMemo(
-        () => buildCountsFromCards(statsData, CATEGORY_STAT_CARDS, { field: "status" }),
-        [statsData],
-    );
+    const categoryStats = useMemo(() => {
+        if (countStatus && Object.keys(countStatus).length > 0) {
+            return buildCountsFromStatusMap(countStatus, CATEGORY_STAT_CARDS);
+        }
+        return buildCountsFromCards(data, CATEGORY_STAT_CARDS, { field: "status" });
+    }, [countStatus, data]);
 
     const refreshCategoryData = useCallback(async () => {
-        await Promise.all([fetchCategories(), fetchCategoryStats()]);
-    }, [fetchCategories, fetchCategoryStats]);
+        await refresh();
+    }, [refresh]);
 
     const handleCreateSystem = async (formData) => {
         try {
@@ -249,15 +227,18 @@ export default function CategoryPage() {
         <AdminInitialLoadGate
             isFetching={isFetching}
             loadError={loadError}
-            onRetry={() => fetchCategories({ initial: true })}
+            onRetry={() => fetchData({ page: currentPage, initial: true })}
             loadingMessage="Đang tải danh sách danh mục..."
         >
             <div className="flex flex-col gap-6 px-8 pt-6 pb-10">
                 <AdminFilterStatsCards
                     counts={categoryStats}
                     activeFilter={statusFilter}
-                    onFilterChange={setStatusFilter}
-                    loading={isStatsLoading}
+                    onFilterChange={(value) => {
+                        setStatusFilter(value);
+                        setCurrentPage(1);
+                    }}
+                    loading={isFetching || loading}
                 />
 
                 <Toolbar
@@ -266,22 +247,38 @@ export default function CategoryPage() {
                     onAdd={() => setIsCreateOpen(true)}
                     addLabel="Thêm danh mục"
                     searchPlaceholder="Tìm kiếm danh mục..."
-                    filter={<Filter value={statusFilter} onChange={setStatusFilter} />}
+                    filter={
+                        <Filter
+                            value={statusFilter}
+                            onChange={(value) => {
+                                setStatusFilter(value);
+                                setCurrentPage(1);
+                            }}
+                        />
+                    }
                 />
 
-                {error ? (
+                {error || listError ? (
                     <div className="rounded-xl bg-red-100 px-4 py-3 text-sm text-red-700">
-                        {error}
+                        {error || listError}
                     </div>
                 ) : null}
 
-                <CategoryTable
-                    data={data}
-                    loading={loading}
-                    search={search}
-                    statusFilter={statusFilter}
-                    onView={handleViewCategory}
-                />
+                <div className="flex flex-col gap-4">
+                    <CategoryTable
+                        data={data}
+                        loading={loading}
+                        onView={handleViewCategory}
+                    />
+                    <AdminListPagination
+                        currentPage={currentPage}
+                        totalPages={totalPages}
+                        totalCount={totalCount}
+                        pageRange={pageRange}
+                        onPageChange={handlePageChange}
+                        noun="danh mục"
+                    />
+                </div>
 
                 <CategoryFormModal
                     isOpen={isCreateOpen}
@@ -299,7 +296,7 @@ export default function CategoryPage() {
                     onUnlock={handleUnlock}
                     onUpdate={handleUpdateSystem}
                     onDelete={handleDeleteSystem}
-                    loading={actionLoading}
+                    loading={actionLoading || detailLoading}
                 />
             </div>
         </AdminInitialLoadGate>

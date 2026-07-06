@@ -1,18 +1,22 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 
 import Toolbar from "../../components/Admin/UI/Toolbar";
 import { AdminInitialLoadGate } from "../../components/Admin/UI/AdminFetchState";
 import AdminFilterStatsCards from "../../components/Admin/UI/AdminFilterStatsCards";
+import AdminListPagination from "../../components/Admin/UI/AdminListPagination";
 import { DEALER_STAT_CARDS } from "../../components/Admin/UI/adminFilterStatsPresets";
-import DealerFilter, {
-    getDealerDisplayStatus,
-} from "../../components/Admin/Dealer/DealerFilter";
+import DealerFilter from "../../components/Admin/Dealer/DealerFilter";
 import DealerTable from "../../components/Admin/Dealer/DealerTable";
 import DealerViewModal from "../../components/Admin/Dealer/DealerViewModal";
 import { getDealerApprovalDocumentError } from "../../components/Admin/Dealer/dealerDocumentHelpers";
 import { appToast } from "../../components/common/toast";
 import { dealerService, handleApiError } from "../../services/api/dealerService";
-import { buildCountsFromCards } from "../../utils/adminFilterStatsUtils";
+import { useAdminPaginatedList } from "../../hooks/useAdminPaginatedList";
+import { useDebouncedValue } from "../../hooks/useDebouncedValue";
+import {
+    buildCountsFromCards,
+    buildCountsFromStatusMap,
+} from "../../utils/adminFilterStatsUtils";
 
 function formatDealerListItem(dealer) {
     return {
@@ -49,43 +53,39 @@ function formatDealerDetail(detail) {
 }
 
 export default function DealerPage() {
-    const [data, setData] = useState([]);
-    const [isFetching, setIsFetching] = useState(true);
-    const [loadError, setLoadError] = useState("");
-    const [loading, setLoading] = useState(false);
     const [actionLoading, setActionLoading] = useState(false);
     const [error, setError] = useState("");
     const [search, setSearch] = useState("");
+    const debouncedSearch = useDebouncedValue(search, 350);
     const [statusFilter, setStatusFilter] = useState("");
     const [viewRow, setViewRow] = useState(null);
 
-    const fetchDealers = useCallback(async ({ initial = false } = {}) => {
-        try {
-            if (initial) {
-                setIsFetching(true);
-                setLoadError("");
-            } else {
-                setLoading(true);
-            }
-            setError("");
-
-            const response = await dealerService.getAll();
-            setData(Array.isArray(response) ? response.map(formatDealerListItem) : []);
-        } catch (err) {
-            const message = handleApiError(err, "Không thể tải danh sách đại lý");
-            if (initial) {
-                setLoadError(message);
-            } else {
-                setError(message);
-            }
-        } finally {
-            if (initial) {
-                setIsFetching(false);
-            } else {
-                setLoading(false);
-            }
-        }
-    }, []);
+    const {
+        data,
+        countStatus,
+        isFetching,
+        loadError,
+        loading,
+        error: listError,
+        currentPage,
+        totalPages,
+        pageRange,
+        totalCount,
+        fetchData,
+        refresh,
+        handlePageChange,
+        setCurrentPage,
+    } = useAdminPaginatedList({
+        fetchList: (params) => dealerService.getList(params),
+        mapRows: (rows) => rows.map(formatDealerListItem),
+        buildQuery: () => ({
+            search: debouncedSearch || undefined,
+            status: statusFilter || undefined,
+        }),
+        queryDeps: [debouncedSearch, statusFilter],
+        onFetchError: (err) =>
+            handleApiError(err, "Không thể tải danh sách đại lý"),
+    });
 
     const handleViewDealer = useCallback(async (row) => {
         try {
@@ -101,33 +101,12 @@ export default function DealerPage() {
         }
     }, []);
 
-    useEffect(() => {
-        fetchDealers({ initial: true });
-    }, [fetchDealers]);
-
-    const filteredData = useMemo(() => {
-        const keyword = search.toLowerCase();
-
-        return data.filter((row) => {
-            const matchKeyword =
-                (row.store_name ?? "").toLowerCase().includes(keyword) ||
-                (row.store_address ?? "").toLowerCase().includes(keyword) ||
-                (row.owner_name ?? "").toLowerCase().includes(keyword) ||
-                (row.phone ?? "").toLowerCase().includes(keyword) ||
-                (row.email ?? "").toLowerCase().includes(keyword);
-
-            const matchStatus = statusFilter
-                ? getDealerDisplayStatus(row) === statusFilter
-                : true;
-
-            return matchKeyword && matchStatus;
-        });
-    }, [data, search, statusFilter]);
-
-    const dealerStats = useMemo(
-        () => buildCountsFromCards(data, DEALER_STAT_CARDS),
-        [data],
-    );
+    const dealerStats = useMemo(() => {
+        if (countStatus && Object.keys(countStatus).length > 0) {
+            return buildCountsFromStatusMap(countStatus, DEALER_STAT_CARDS);
+        }
+        return buildCountsFromCards(data, DEALER_STAT_CARDS);
+    }, [countStatus, data]);
 
     const handleApprove = async (dealer) => {
         try {
@@ -142,7 +121,7 @@ export default function DealerPage() {
 
             await dealerService.verify(dealer.id, { status: "active" });
             setViewRow(null);
-            await fetchDealers();
+            await refresh();
         } catch (err) {
             const msg = handleApiError(err, "Không thể duyệt đại lý");
             if (msg.includes("giấy tờ")) {
@@ -165,7 +144,7 @@ export default function DealerPage() {
                 rejection_reason: rejectionReason,
             });
             setViewRow(null);
-            await fetchDealers();
+            await refresh();
         } catch (err) {
             const msg = handleApiError(err, "Không thể từ chối đại lý");
             console.error(msg);
@@ -183,7 +162,7 @@ export default function DealerPage() {
                 reason: "Tạm khóa bởi admin",
             });
             setViewRow(null);
-            await fetchDealers();
+            await refresh();
         } catch (err) {
             const msg = handleApiError(err, "Không thể khóa đại lý");
             console.error(msg);
@@ -201,7 +180,7 @@ export default function DealerPage() {
                 reason: "Mở khóa bởi admin",
             });
             setViewRow(null);
-            await fetchDealers();
+            await refresh();
         } catch (err) {
             const msg = handleApiError(err, "Không thể mở khóa đại lý");
             console.error(msg);
@@ -211,11 +190,19 @@ export default function DealerPage() {
         }
     };
 
+    const handleFilterChange = useCallback(
+        (value) => {
+            setStatusFilter(value);
+            setCurrentPage(1);
+        },
+        [setCurrentPage],
+    );
+
     return (
         <AdminInitialLoadGate
             isFetching={isFetching}
             loadError={loadError}
-            onRetry={() => fetchDealers({ initial: true })}
+            onRetry={() => fetchData({ page: currentPage, initial: true })}
             loadingMessage="Đang tải danh sách đại lý..."
         >
             <div className="flex flex-col gap-6 px-8 pb-10 pt-6">
@@ -223,8 +210,8 @@ export default function DealerPage() {
                     counts={dealerStats}
                     cards={DEALER_STAT_CARDS}
                     activeFilter={statusFilter}
-                    onFilterChange={setStatusFilter}
-                    loading={isFetching}
+                    onFilterChange={handleFilterChange}
+                    loading={isFetching || loading}
                 />
 
                 <Toolbar
@@ -232,21 +219,42 @@ export default function DealerPage() {
                     onSearch={setSearch}
                     searchPlaceholder="Tìm kiếm đại lý..."
                     filter={
-                        <DealerFilter value={statusFilter} onChange={setStatusFilter} />
+                        <DealerFilter
+                            value={statusFilter}
+                            onChange={handleFilterChange}
+                        />
                     }
                 />
 
-                {error ? (
+                {error || listError ? (
                     <div className="rounded-xl bg-red-100 px-4 py-3 text-sm text-red-700">
-                        {error}
+                        {error || listError}
                     </div>
                 ) : null}
 
-                <DealerTable
-                    data={filteredData}
-                    loading={loading}
-                    onView={handleViewDealer}
-                />
+                {loading && !isFetching ? (
+                    <div className="flex justify-center py-20">
+                        <div className="h-8 w-8 animate-spin rounded-full border-b-2 border-emerald-600" />
+                    </div>
+                ) : data.length > 0 ? (
+                    <div className="flex flex-col gap-4">
+                        <DealerTable data={data} onView={handleViewDealer} />
+                        <AdminListPagination
+                            currentPage={currentPage}
+                            totalPages={totalPages}
+                            totalCount={totalCount}
+                            pageRange={pageRange}
+                            onPageChange={handlePageChange}
+                            noun="đại lý"
+                        />
+                    </div>
+                ) : (
+                    <div className="rounded-2xl border border-dashed border-neutral-200 bg-white px-6 py-16 text-center">
+                        <p className="text-sm font-medium text-neutral-700">
+                            Không tìm thấy đại lý phù hợp
+                        </p>
+                    </div>
+                )}
 
                 <DealerViewModal
                     isOpen={viewRow !== null}
