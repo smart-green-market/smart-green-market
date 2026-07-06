@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo } from "react";
 import { orderService, parseOrderList } from "../../services/api/orderService";
 import { NavLink, Link } from "react-router-dom";
 import {dashBoardSupplierService} from "../../services/api/Supplier/dashBoardService";
+import DetailOrderModal from "../../components/Supplier/Order/DetailOrderModal";
 // ─── HELPERS ──────────────────────────────────────────────────────────────────
 const fmtMoney = (n) => {
   const num = parseFloat(n) || 0;
@@ -109,7 +110,7 @@ function StatusPill({ status }) {
 }
 
 // ─── ORDER ROW ────────────────────────────────────────────────────────────────
-function OrderRow({ order }) {
+function OrderRow({ order, onView }) {
   const code = order.order_code ?? order.id ?? "—";
   const date = fmtDate(order.created_at ?? order.order_date);
   const items = order.items ?? [];
@@ -135,7 +136,7 @@ function OrderRow({ order }) {
       </div>
       <div className="oc-act">
         <div className="p-actions">
-          <button className="p-act" title="Xem chi tiết">
+          <button className="p-act" title="Xem chi tiết" onClick={() => onView(order)}>
             <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" /><circle cx="12" cy="12" r="3" />
             </svg>
@@ -163,6 +164,33 @@ export default function DashboardPage() {
   const [allProducts, setAllProducts] = useState(null); //count toàn bộ sản phẩm đã bán
   const [topProducts, setTopProducts] = useState([]);
   const [totalRevenue, setTotalRevenue] = useState(0);
+  const [selectedOrder, setSelectedOrder] = useState(null);
+
+  const refreshData = () => {
+    orderService
+      .getAll()
+      .then((data) => {
+        const list = parseOrderList(data);
+        setAllOrders(list);
+        setOrders(list.filter((o) => ACTIVE_STATUSES.has(o.status)));
+      })
+      .catch((err) => console.error("Lỗi khi tải lại đơn hàng:", err));
+
+    dashBoardSupplierService.getRevenueChart()
+      .then((data) => {
+        setRevenue(data);
+        setTotalRevenue(data.reduce((sum, d) => sum + (d.revenue || 0), 0));
+      })
+      .catch(console.error);
+
+    dashBoardSupplierService.getTopProducts()
+      .then(setTopProducts)
+      .catch(console.error);
+
+    dashBoardSupplierService.getTotalProducts()
+      .then(setAllProducts)
+      .catch(console.error);
+  };
 
   useEffect(() => {
     const t = setInterval(() => setLiveDate(getLiveDate()), 60_000);
@@ -759,11 +787,18 @@ export default function DashboardPage() {
               <div className="db-empty">Không có đơn hàng nào cần xử lý.</div>
             )}
             {!loading && !error && orders.map((order) => (
-              <OrderRow key={order.id ?? order.order_code} order={order} />
+              <OrderRow key={order.id ?? order.order_code} order={order} onView={setSelectedOrder} />
             ))}
           </div>
         </div>
       </div>
+
+      <DetailOrderModal
+        isOpen={selectedOrder !== null}
+        onClose={() => setSelectedOrder(null)}
+        order={selectedOrder}
+        onUpdate={refreshData}
+      />
     </>
   );
 }

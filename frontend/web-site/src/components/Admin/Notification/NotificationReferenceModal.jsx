@@ -79,7 +79,7 @@ export default function NotificationReferenceModal({
 
     if (loading) {
         return (
-            <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/40 p-4 backdrop-blur-[2px]">
+            <div className="fixed inset-0 z-[210] flex items-center justify-center bg-black/40 p-4 backdrop-blur-[2px]">
                 <div className="rounded-xl bg-white px-6 py-4 text-sm text-neutral-600 shadow-xl">
                     Đang tải chi tiết...
                 </div>
@@ -89,7 +89,7 @@ export default function NotificationReferenceModal({
 
     if (error) {
         return (
-            <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/40 p-4 backdrop-blur-[2px]">
+            <div className="fixed inset-0 z-[210] flex items-center justify-center bg-black/40 p-4 backdrop-blur-[2px]">
                 <div className="w-full max-w-md rounded-xl bg-white p-6 shadow-xl">
                     <h3 className="text-base font-semibold text-zinc-900">
                         Không thể mở chi tiết
@@ -100,9 +100,9 @@ export default function NotificationReferenceModal({
                     </p>
                     <div className="mt-4 flex justify-end">
                         <button
-                            type="button"
-                            onClick={handleClose}
-                            className="cursor-pointer rounded-lg bg-zinc-900 px-4 py-2 text-sm font-semibold text-white"
+                             type="button"
+                             onClick={handleClose}
+                             className="cursor-pointer rounded-lg bg-zinc-900 px-4 py-2 text-sm font-semibold text-white"
                         >
                             Đóng
                         </button>
@@ -122,9 +122,10 @@ export default function NotificationReferenceModal({
         loading: modalLoading,
     };
 
+    let modalContent = null;
     switch (reference.type) {
         case "category":
-            return (
+            modalContent = (
                 <CategoryViewModal
                     {...sharedProps}
                     category={reference.data}
@@ -134,8 +135,9 @@ export default function NotificationReferenceModal({
                     onUnlock={actionHandlers.onUnlock ?? noop}
                 />
             );
+            break;
         case "supplier_product":
-            return (
+            modalContent = (
                 <ProductViewModal
                     {...sharedProps}
                     product={reference.data}
@@ -144,8 +146,9 @@ export default function NotificationReferenceModal({
                     onPause={actionHandlers.onPause ?? noop}
                 />
             );
+            break;
         case "supplier":
-            return (
+            modalContent = (
                 <SupplierViewModal
                     {...sharedProps}
                     supplier={reference.data}
@@ -153,8 +156,9 @@ export default function NotificationReferenceModal({
                     onReject={actionHandlers.onReject ?? noop}
                 />
             );
+            break;
         case "account_document":
-            return (
+            modalContent = (
                 <DocumentViewModal
                     {...sharedProps}
                     document={reference.data}
@@ -162,8 +166,9 @@ export default function NotificationReferenceModal({
                     onReject={actionHandlers.onReject ?? noop}
                 />
             );
+            break;
         case "certification":
-            return (
+            modalContent = (
                 <CertificationViewModal
                     {...sharedProps}
                     certification={reference.data}
@@ -171,7 +176,14 @@ export default function NotificationReferenceModal({
                     onReject={actionHandlers.onReject ?? noop}
                 />
             );
+            break;
         default:
             return null;
     }
+
+    return (
+        <div style={{ position: "fixed", inset: 0, zIndex: 110 }}>
+            {modalContent}
+        </div>
+    );
 }
