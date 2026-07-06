@@ -7,6 +7,7 @@ import CreateCategoryModal from "../../../components/Dealer/Category/CreateCateg
 import UpdateCategoryModal from "../../../components/Dealer/Category/UpdateCategoryModal";
 import { categoryService, handleApiError } from "../../../services/api/categoryService";
 import { toast } from "sonner";
+import DeleteConfirmModal from "../../../components/common/DeleteConfirmModal";
 
 export default function DealerCategoryPage() {
     const navigate = useNavigate();
@@ -21,6 +22,7 @@ export default function DealerCategoryPage() {
     const [currentPage, setCurrentPage] = useState(1);
     const [totalPages, setTotalPages] = useState(1);
     const [hasProductsFilter, setHasProductsFilter] = useState(false);
+    const [deleteCategoryId, setDeleteCategoryId] = useState(null);
 
     useEffect(() => {
         const timer = setTimeout(() => {
@@ -124,17 +126,21 @@ export default function DealerCategoryPage() {
         }
     };
 
-    const handleDeleteCategory = async (id) => {
-        if (!window.confirm("Bạn có chắc chắn muốn xóa danh mục này?")) return;
-        try {
-            await categoryService.delete(id);
-            toast.success("Xóa danh mục thành công!");
+    const handleDeleteCategory = (id) => {
+        setDeleteCategoryId(id);
+    };
 
+    const handleConfirmDelete = async () => {
+        if (!deleteCategoryId) return;
+        try {
+            await categoryService.delete(deleteCategoryId);
+            toast.success("Xóa danh mục thành công!");
             fetchCategories();
         } catch (error) {
             console.log(error);
             toast.error(handleApiError(error, "Không thể xóa danh mục"));
-
+        } finally {
+            setDeleteCategoryId(null);
         }
     };
 
@@ -212,6 +218,14 @@ export default function DealerCategoryPage() {
                     onConfirm={handleUpdateCategory}
                 />
             )}
+
+            {/* Delete Category Modal */}
+            <DeleteConfirmModal
+                isOpen={deleteCategoryId !== null}
+                onClose={() => setDeleteCategoryId(null)}
+                onConfirm={handleConfirmDelete}
+                itemType="danh mục này"
+            />
         </div>
     );
 }

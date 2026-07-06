@@ -200,11 +200,11 @@ export default function DealerSalesOrderPage() {
                     const status = row.status || row.delivery;
                     return status === "Chờ xác nhận" || status === "Đã xác nhận" || status === "Đang chuẩn bị hàng";
                 });
-                
-                const cancelPromises = cancelableRows.map(row => 
+
+                const cancelPromises = cancelableRows.map(row =>
                     dealerOrderService.cancelOrder(row.originalData.id, { reason })
                 );
-                
+
                 await Promise.all(cancelPromises);
                 toast.success(`Đã hủy thành công ${cancelableRows.length} đơn hàng!`);
                 await fetchOrders();
@@ -507,12 +507,12 @@ export default function DealerSalesOrderPage() {
                 onClose={() => setIsCancelModalOpen(false)}
                 onConfirm={handleCancelOrderConfirm}
                 title={orderToCancel ? "Hủy đơn hàng" : "Hủy hàng loạt đơn hàng"}
-                message={orderToCancel 
+                message={orderToCancel
                     ? `Bạn có chắc chắn muốn hủy đơn hàng ${orderToCancel.id} không?`
                     : `Bạn có chắc chắn muốn hủy ${selectedRows.filter(row => {
                         const st = row.status || row.delivery;
                         return st === "Chờ xác nhận" || st === "Đã xác nhận" || st === "Đang chuẩn bị hàng";
-                      }).length} đơn hàng đang chọn không?`
+                    }).length} đơn hàng đang chọn không?`
                 }
                 confirmText="Hủy đơn"
                 cancelText="Đóng"

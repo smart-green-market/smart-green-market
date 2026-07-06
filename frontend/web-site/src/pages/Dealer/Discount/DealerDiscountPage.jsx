@@ -18,6 +18,7 @@ import {
   formatDiscountApiError,
   normalizeIsActive,
 } from '../../../components/Dealer/Discount/discountPolicyUtils';
+import DeleteConfirmModal from '../../../components/common/DeleteConfirmModal';
 
 
 export default function DealerDiscountPage() {
@@ -61,6 +62,10 @@ export default function DealerDiscountPage() {
   const [isVoucherDetailModalOpen, setIsVoucherDetailModalOpen] = useState(false);
   const [isVoucherEditModalOpen, setIsVoucherEditModalOpen] = useState(false);
   const [selectedVoucherId, setSelectedVoucherId] = useState(null);
+
+  // Custom delete confirm states
+  const [deletePolicyId, setDeletePolicyId] = useState(null);
+  const [deleteVoucherId, setDeleteVoucherId] = useState(null);
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -147,29 +152,39 @@ export default function DealerDiscountPage() {
     }
   };
 
-  const handleDelete = async (id) => {
-    if (!window.confirm("Bạn có chắc chắn muốn xóa chính sách giảm giá này không?")) return;
+  const handleDelete = (id) => {
+    setDeletePolicyId(id);
+  };
 
+  const handleConfirmDeletePolicy = async () => {
+    if (!deletePolicyId) return;
     try {
-      await discountService.delete(id);
+      await discountService.delete(deletePolicyId);
       toast.success("Xóa chính sách thành công");
       fetchPolicies();
     } catch (error) {
       console.error("Error deleting policy:", error);
       toast.error("Không thể xóa chính sách. Vui lòng thử lại.");
+    } finally {
+      setDeletePolicyId(null);
     }
   };
 
-  const handleDeleteVoucher = async (id) => {
-    if (!window.confirm("Bạn có chắc chắn muốn xóa voucher này không?")) return;
+  const handleDeleteVoucher = (id) => {
+    setDeleteVoucherId(id);
+  };
 
+  const handleConfirmDeleteVoucher = async () => {
+    if (!deleteVoucherId) return;
     try {
-      await voucherService.delete(id);
+      await voucherService.delete(deleteVoucherId);
       toast.success("Xóa voucher thành công");
       fetchVouchers();
     } catch (error) {
       console.error("Error deleting voucher:", error);
       toast.error("Không thể xóa voucher. Vui lòng thử lại.");
+    } finally {
+      setDeleteVoucherId(null);
     }
   };
 
@@ -347,6 +362,20 @@ export default function DealerDiscountPage() {
         onClose={() => setIsVoucherEditModalOpen(false)}
         onSuccess={fetchVouchers}
         voucherId={selectedVoucherId}
+      />
+
+      <DeleteConfirmModal
+        isOpen={deletePolicyId !== null}
+        onClose={() => setDeletePolicyId(null)}
+        onConfirm={handleConfirmDeletePolicy}
+        itemType="chính sách giảm giá này"
+      />
+
+      <DeleteConfirmModal
+        isOpen={deleteVoucherId !== null}
+        onClose={() => setDeleteVoucherId(null)}
+        onConfirm={handleConfirmDeleteVoucher}
+        itemType="voucher này"
       />
     </div>
   );
