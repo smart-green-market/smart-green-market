@@ -278,6 +278,82 @@ class DealerDashboardViewSet(viewsets.ViewSet):
 
         return Response(results)
 
+    @extend_schema(
+        summary="Thống kê phiếu nhập hàng đầu Dashboard Đại lý",
+        tags=["Dashboard"],
+        description="Lấy thông tin thống kê phiếu nhập hàng đầu Dashboard của đại lý bao gồm: Tổng số phiếu nhập, tổng giá trị nhập, tổng số lượng hàng nhập, số lượng nhà cung cấp, và số lượng phiếu theo các trạng thái (chờ xác nhận, hoàn thành, đã hủy).",
+        responses={
+            200: inline_serializer(
+                name='DealerPurchaseDashboardSummaryResponse',
+                fields={
+                    'total_orders': serializers.IntegerField(help_text="Tổng số phiếu nhập"),
+                    'total_amount': serializers.DecimalField(max_digits=14, decimal_places=2, help_text="Tổng giá trị nhập hàng (các đơn đã hoàn tất/đã giao)"),
+                    'total_quantity': serializers.DecimalField(max_digits=12, decimal_places=2, help_text="Tổng số lượng hàng đã nhập (kg hoặc đơn vị khác)"),
+                    'total_suppliers': serializers.IntegerField(help_text="Số nhà cung cấp đã nhập hàng"),
+                    'pending_orders': serializers.IntegerField(help_text="Phiếu nhập đang chờ xác nhận (NCC hoặc đại lý)"),
+                    'completed_orders': serializers.IntegerField(help_text="Phiếu nhập đã hoàn thành"),
+                    'cancelled_orders': serializers.IntegerField(help_text="Phiếu nhập đã hủy")
+                }
+            ),
+            403: OpenApiResponse(description="User is not a dealer.")
+        }
+    )
+    @action(detail=False, methods=['get'], url_path='purchase-summary')
+    def purchase_summary(self, request):
+        """
+        API: GET /api/dashboard/dealer/purchase-summary/
+        Lấy thông tin thống kê phiếu nhập hàng đầu Dashboard của đại lý.
+        """
+        dealer = self._get_dealer(request)
+        if not dealer:
+            return Response({"detail": "User is not a dealer."}, status=403)
+
+        # Tất cả phiếu nhập của đại lý này
+        purchase_orders = PurchaseOrder.objects.filter(dealer=dealer)
+
+        # 1. Tổng số phiếu nhập
+        total_orders = purchase_orders.count()
+
+        # 2. Tổng giá trị nhập hàng (chỉ tính các đơn đã hoàn tất/đã giao thành công)
+        total_amount = purchase_orders.filter(
+            status__in=[PurchaseOrderStatus.COMPLETED, PurchaseOrderStatus.DELIVERED]
+        ).aggregate(total=Sum('total_amount'))['total'] or 0
+
+        # 3. Tổng số lượng hàng đã nhập (chỉ tính từ các phiếu nhập đã hoàn tất/giao hàng)
+        total_quantity = PurchaseOrderItem.objects.filter(
+            purchase_order__dealer=dealer,
+            purchase_order__status__in=[PurchaseOrderStatus.COMPLETED, PurchaseOrderStatus.DELIVERED]
+        ).aggregate(total=Sum('quantity'))['total'] or 0
+
+        # 4. Số nhà cung cấp đã nhập hàng (NCC có ít nhất 1 đơn đã hoàn tất/giao hàng)
+        total_suppliers = purchase_orders.filter(
+            status__in=[PurchaseOrderStatus.COMPLETED, PurchaseOrderStatus.DELIVERED]
+        ).values('supplier').distinct().count()
+
+        # 5. Phiếu nhập đang chờ xác nhận (Chờ NCC xác nhận hoặc Chờ đại lý xác nhận điều chỉnh)
+        pending_orders = purchase_orders.filter(
+            status__in=[
+                PurchaseOrderStatus.PENDING_SUPPLIER_CONFIRMATION,
+                PurchaseOrderStatus.PENDING_DEALER_CONFIRMATION
+            ]
+        ).count()
+
+        # 6. Phiếu nhập đã hoàn thành
+        completed_orders = purchase_orders.filter(status=PurchaseOrderStatus.COMPLETED).count()
+
+        # 7. Phiếu nhập đã hủy
+        cancelled_orders = purchase_orders.filter(status=PurchaseOrderStatus.CANCELLED).count()
+
+        return Response({
+            "total_orders": total_orders,
+            "total_amount": total_amount,
+            "total_quantity": total_quantity,
+            "total_suppliers": total_suppliers,
+            "pending_orders": pending_orders,
+            "completed_orders": completed_orders,
+            "cancelled_orders": cancelled_orders
+        })
+
 class SupplierDashboardViewSet(viewsets.ViewSet):
     """
     ViewSet cung cấp các API cho Dashboard của Nhà cung cấp (Supplier).

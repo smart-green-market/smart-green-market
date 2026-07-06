@@ -14,7 +14,7 @@ const COLUMN_CONFIG = {
     created_at: { key: "created_at", type: "date" }
 };
 
-export default function RecentOrders({ initialOrders = [], initialParams = {} }) {
+export default function RecentOrders({ initialOrders = [], initialParams = {}, className = "lg:col-span-3" }) {
     const navigate = useNavigate();
     const [orders, setOrders] = useState(initialOrders);
     const [selectedOrders, setSelectedOrders] = useState([]);
@@ -76,7 +76,7 @@ export default function RecentOrders({ initialOrders = [], initialParams = {} })
     const { sortedData, sortColumn, sortDirection, handleSort } = useTableSort(orders, COLUMN_CONFIG);
 
     return (
-        <div className="bg-white border border-emerald-100/50 rounded-2xl p-6 shadow-xs lg:col-span-3">
+        <div className={`bg-white border border-emerald-100/50 rounded-2xl p-6 shadow-xs ${className}`}>
             <div className="flex items-center justify-between mb-6">
                 <div>
                     <h2 className="text-lg font-bold text-emerald-950">Đơn hàng gần nhất</h2>
