@@ -1,12 +1,34 @@
 import axiosClient from "./axiosClient";
 import { accountDocumentService } from "./accountDocumentService";
 import { extractApiError } from "../../utils/extractApiError";
+import {
+  ADMIN_LIST_PAGE_SIZE,
+  normalizePaginatedResponse,
+  sanitizeAdminListParams,
+} from "../../utils/adminPaginationUtils";
+
+export const DEALER_PAGE_SIZE = ADMIN_LIST_PAGE_SIZE;
 
 export const dealerService = {
-  getAll: () =>
+  getAll: (params) =>
     axiosClient
-      .get("/dealers/")
-      .then((res) => res.data.results ?? res.data.result ?? []),
+      .get("/dealers/", { params: sanitizeAdminListParams(params) })
+      .then((res) => {
+        if (params?.page != null) {
+          return normalizePaginatedResponse(res.data);
+        }
+        return res.data.results ?? res.data.result ?? [];
+      }),
+
+  getList: (params = {}) =>
+    axiosClient
+      .get("/dealers/", {
+        params: {
+          page_size: DEALER_PAGE_SIZE,
+          ...sanitizeAdminListParams(params),
+        },
+      })
+      .then((res) => normalizePaginatedResponse(res.data)),
   // "results": [
   //       {
   //         "id": 0,
@@ -43,12 +65,13 @@ export const dealerService = {
       .post("/dealers/", data)
       .then((res) => res.data.data ?? res.data),
 
+  // Lấy thông tin profile của dealer đang đăng nhập
+  getMe: () =>
+    axiosClient.get("/dealers/me/").then((res) => res.data),
+
   //NTD lấy url cửa hàng đại lý
   getStorefrontLink: () =>
     axiosClient.get("/dealers/me/storefront-link/").then((res) => res.data),
-
-  // Lấy thông tin Dealer đang đăng nhập
-  getMe: () => axiosClient.get("/dealers/me/").then((res) => res.data),
 
   update: (id, data) =>
     axiosClient.patch(`/dealers/${id}/`, data).then((res) => res.data),

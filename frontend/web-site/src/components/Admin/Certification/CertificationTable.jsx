@@ -1,5 +1,5 @@
 import DataTable from "react-data-table-component";
-import { tableStyles, paginationVi } from "../../common/tableStyles";
+import { tableStyles } from "../../common/TableStyles";
 import { formatDateTime } from "../../common/formatDateTime";
 
 // ── Status config ─────────────────────────────────────────────────────────────
@@ -93,25 +93,14 @@ const buildColumns = (onView) => [
   },
 ];
 
-export default function CertificationTable({ data, search, statusFilter, onView }) {
-    const filtered = data.filter((row) => {
-        const matchName   = row.name.toLowerCase().includes(search.toLowerCase()) ||
-                            row.supplier?.company_name.toLowerCase().includes(search.toLowerCase());
-        const matchStatus = statusFilter ? row.status === statusFilter : true;
-        
-        return matchName && matchStatus;
-    });
-
+export default function CertificationTable({ data, onView }) {
     const columns = buildColumns(onView);
 
     return (
         <div className="w-full rounded-xl border border-neutral-200 overflow-hidden">
             <DataTable
                 columns={columns}
-                data={filtered}
-                pagination
-                paginationPerPage={10}
-                paginationComponentOptions={paginationVi}
+                data={data}
                 customStyles={tableStyles}
                 noDataComponent={
                     <div className="py-16 text-sm text-neutral-400 font-['Geist',sans-serif]">

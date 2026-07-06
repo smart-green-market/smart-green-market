@@ -8,7 +8,7 @@ import {
   refreshAccessToken,
 } from "../token/refreshTokenManager";
 
- const axiosClient = axios.create({
+const axiosClient = axios.create({
   baseURL: API_BASE_URL,
   headers: {
     "Content-Type": "application/json",

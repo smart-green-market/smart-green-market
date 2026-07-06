@@ -5,12 +5,12 @@ databases:
   - name: smart-green-market-db
     databaseName: smart_green_market
     user: smart_green_market
-    plan: free
+    plan: basic-4gb
 
 services:
   - type: keyvalue
     name: smart-green-market-redis
-    plan: free
+    plan: starter
     ipAllowList: []
     maxmemoryPolicy: allkeys-lru
 
@@ -43,7 +43,6 @@ services:
   - type: web
     name: smart-green-market-web
     runtime: static
-    plan: free
     rootDir: frontend/web-site
     buildCommand: npm install && npm run build
     staticPublishPath: dist

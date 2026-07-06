@@ -1,13 +1,32 @@
 import axiosClient from "./axiosClient";
 import { normalizeListResponse } from "../../utils/adminDashboardUtils";
+import {
+  ADMIN_LIST_PAGE_SIZE,
+  normalizePaginatedResponse,
+  sanitizeAdminListParams,
+} from "../../utils/adminPaginationUtils";
+
+export const CATEGORY_PAGE_SIZE = ADMIN_LIST_PAGE_SIZE;
 
 export const categoryService = {
   // USER
   getAll: (params) =>
-    axiosClient.get("/categories/", { params }).then((res) => {
-      if (params?.page) return res.data;
-      return normalizeListResponse(res.data);
-    }),
+    axiosClient
+      .get("/categories/", { params: sanitizeAdminListParams(params) })
+      .then((res) => {
+        if (params?.page != null) return normalizePaginatedResponse(res.data);
+        return normalizeListResponse(res.data);
+      }),
+
+  getList: (params = {}) =>
+    axiosClient
+      .get("/categories/", {
+        params: {
+          page_size: CATEGORY_PAGE_SIZE,
+          ...sanitizeAdminListParams(params),
+        },
+      })
+      .then((res) => normalizePaginatedResponse(res.data)),
 
   getAllForAdmin: async (filters = {}) => {
     const pageSize = 100;

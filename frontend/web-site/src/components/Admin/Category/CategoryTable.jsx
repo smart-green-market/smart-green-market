@@ -1,5 +1,5 @@
 import DataTable from "react-data-table-component";
-import { tableStyles, paginationVi } from "../../common/tableStyles";
+import { tableStyles } from "../../common/TableStyles";
 import { formatDateTime } from "../../common/formatDateTime";
 
 // ── Status config ─────────────────────────────────────────────────────────────
@@ -103,36 +103,12 @@ const buildColumns = (onView) => [
         ignoreRowClick: true,
     },
 ];
-export default function CategoryTable({ data, search, statusFilter, onView }) {
-    const filtered = data.filter((row) => {
-        
-        const matchName   = row.name.toLowerCase().includes(search.toLowerCase());
-        const statusGroup = ["active", "rejected", "pending", "inactive"];
-        const scopeGroup = ["system", "custom"];
-
-        let matchFilter = true;
-
-        if (statusFilter) {
-            if (statusGroup.includes(statusFilter)) {
-                // Nếu nút được bấm thuộc nhóm Trạng thái
-                matchFilter = row.status === statusFilter;
-            } else if (scopeGroup.includes(statusFilter)) {
-                // Nếu nút được bấm thuộc nhóm Loại danh mục
-                matchFilter = row.scope === statusFilter;
-            }
-        }
-        
-        return matchName && matchFilter;
-    });
-
+export default function CategoryTable({ data, onView }) {
     return (
         <div className="w-full rounded-xl border border-neutral-200 overflow-hidden">
             <DataTable
                 columns={buildColumns(onView)}
-                data={filtered}
-                pagination
-                paginationPerPage={10}
-                paginationComponentOptions={paginationVi}
+                data={data}
                 customStyles={tableStyles}
                 noDataComponent={
                     <div className="py-6 text-sm text-neutral-500">

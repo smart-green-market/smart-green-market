@@ -1,4 +1,11 @@
 import axiosClient from "./axiosClient";
+import {
+  ADMIN_LIST_PAGE_SIZE,
+  normalizePaginatedResponse,
+  sanitizeAdminListParams,
+} from "../../utils/adminPaginationUtils";
+
+export const SUPPLIER_PAGE_SIZE = ADMIN_LIST_PAGE_SIZE;
 
 export const supplierService = {
   // --- SUPPLIER
@@ -26,10 +33,25 @@ export const supplierService = {
   // }
 
   // --- ADMIN
-  getAll: (params) => axiosClient.get("/suppliers/", { params }).then((res) => {
-    if (params && params.page) return res.data;
-    return res.data.results || res.data;
-  }),
+  getAll: (params) =>
+    axiosClient
+      .get("/suppliers/", { params: sanitizeAdminListParams(params) })
+      .then((res) => {
+        if (params?.page != null) {
+          return normalizePaginatedResponse(res.data);
+        }
+        return res.data.results || res.data;
+      }),
+
+  getList: (params = {}) =>
+    axiosClient
+      .get("/suppliers/", {
+        params: {
+          page_size: SUPPLIER_PAGE_SIZE,
+          ...sanitizeAdminListParams(params),
+        },
+      })
+      .then((res) => normalizePaginatedResponse(res.data)),
 
   //[
   //   {
@@ -47,28 +69,12 @@ export const supplierService = {
   // ]
 
   getById: (id) => axiosClient.get(`/suppliers/${id}/`).then((res) => res.data),
+
   getProductById: (id) => axiosClient.get(`/suppliers/${id}/products/`).then((res) => res.data),
 
-  /** Lấy toàn bộ SP của NCC (dealer đặt hàng) — tự phân trang. */
-  getSupplierProducts: async (supplierId, params = {}) => {
-    const allResults = [];
-    let page = 1;
-    let hasMore = true;
-
-    while (hasMore) {
-      const res = await axiosClient.get(`/suppliers/${supplierId}/products/`, {
-        params: { ...params, page, page_size: 100 },
-      });
-      const data = res.data;
-      const batch = Array.isArray(data) ? data : data.results || [];
-      allResults.push(...batch);
-      hasMore = Boolean(data.has_more ?? data.next);
-      page += 1;
-      if (page > 100) break;
-    }
-
-    return allResults;
-  },
+  /** Lấy SP của NCC (dealer đặt hàng) — có phân trang. */
+  getSupplierProducts: (supplierId, params = {}) =>
+    axiosClient.get(`/suppliers/${supplierId}/products/`, { params }).then((res) => res.data),
 
   // {
   //   "id": 0,
@@ -179,7 +185,9 @@ export const supplierService = {
   // --- ADMIN FINANCE
   getFinanceOverview: (params = {}) =>
     axiosClient
-      .get("/suppliers/finance-overview/", { params })
+      .get("/suppliers/finance-overview/", {
+        params: sanitizeAdminListParams(params),
+      })
       .then((res) => res.data),
   // {
   //   "total_system_revenue": "1000000000",
@@ -191,8 +199,10 @@ export const supplierService = {
   // }
 
   getFinanceList: (params = {}) =>
-    axiosClient.get("/suppliers/finance/", { params }).then((res) => res.data),
-  // Phân trang: ?page=1&page_size=5&search=&verification_status=
+    axiosClient
+      .get("/suppliers/finance/", { params: sanitizeAdminListParams(params) })
+      .then((res) => res.data),
+  // Phân trang: ?page=1&page_size=5&search=&status=
   // {
   //   "count": 12,
   //   "next": "...",

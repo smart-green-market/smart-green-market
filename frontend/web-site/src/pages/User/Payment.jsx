@@ -7,7 +7,7 @@ import {
   mockBankingInfo,
   mockOrderItems,
   mockShippingAddress,
-} from "../../components/user/Payment/mockData";
+} from "../../components/User/Payment/mockData";
 
 export default function PaymentPage() {
   const [selectedMethod, setSelectedMethod] = useState("cod");

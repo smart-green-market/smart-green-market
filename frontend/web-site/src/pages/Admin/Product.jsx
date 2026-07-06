@@ -1,16 +1,25 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 
 import Toolbar from "../../components/Admin/UI/Toolbar";
 import { AdminInitialLoadGate } from "../../components/Admin/UI/AdminFetchState";
 import AdminFilterStatsCards from "../../components/Admin/UI/AdminFilterStatsCards";
+import AdminListPagination from "../../components/Admin/UI/AdminListPagination";
 import { PRODUCT_STAT_CARDS } from "../../components/Admin/UI/adminFilterStatsPresets";
 import Filter from "../../components/Admin/Product/ProductFilter";
 import ProductTable from "../../components/Admin/Product/ProductTable";
 import ProductViewModal from "../../components/Admin/Product/ProductViewModal";
 
-import { productService, handleApiError } from "../../services/api/productService";
+import {
+  productService,
+  handleApiError,
+} from "../../services/api/productService";
+import { useAdminPaginatedList } from "../../hooks/useAdminPaginatedList";
+import { useDebouncedValue } from "../../hooks/useDebouncedValue";
 import { appToast } from "../../components/common/toast";
-import { buildCountsFromCards } from "../../utils/adminFilterStatsUtils";
+import {
+  buildCountsFromCards,
+  buildCountsFromStatusMap,
+} from "../../utils/adminFilterStatsUtils";
 
 const formatProduct = (p) => ({
   id: p.id,
@@ -29,83 +38,67 @@ const formatProduct = (p) => ({
   created_at: p.created_at,
   updated_at: p.updated_at,
   images: p.images ?? [],
-  image: p.images?.find((i) => i.is_thumbnail)?.image_url ?? p.images?.[0]?.image_url,
+  image:
+    p.images?.find((i) => i.is_thumbnail)?.image_url ??
+    p.images?.[0]?.image_url,
   supplier: p.supplier,
   supplier_name: p.supplier?.company_name,
   category_name: p.category?.name,
 });
 
-// ── Page ────────────────────────────────────────────────────────────────────────
 export default function ProductPage() {
-  // ─── State ────────────────────────────────────────────────────────────────
-  const [data, setData] = useState([]);
-  const [isFetching, setIsFetching] = useState(true);
-  const [loadError, setLoadError] = useState("");
-  const [loading, setLoading] = useState(false);
   const [actionLoading, setActionLoading] = useState(false);
   const [error, setError] = useState("");
+  const [search, setSearch] = useState("");
+  const debouncedSearch = useDebouncedValue(search, 350);
+  const [statusFilter, setStatusFilter] = useState("");
+  const [viewRow, setViewRow] = useState(null);
   const [modalError, setModalError] = useState("");
 
-  const [search, setSearch] = useState("");
-  const [statusFilter, setStatusFilter] = useState("");
+  const {
+    data,
+    countStatus,
+    isFetching,
+    loadError,
+    loading,
+    error: listError,
+    currentPage,
+    totalPages,
+    pageRange,
+    totalCount,
+    fetchData,
+    refresh,
+    handlePageChange,
+    setCurrentPage,
+  } = useAdminPaginatedList({
+    fetchList: (params) => productService.getList(params),
+    mapRows: (rows) => rows.map(formatProduct),
+    buildQuery: () => ({
+      search: debouncedSearch || undefined,
+      status: statusFilter || undefined,
+    }),
+    queryDeps: [debouncedSearch, statusFilter],
+    onFetchError: (err) =>
+      handleApiError(err, "Không thể tải danh sách sản phẩm"),
+  });
 
-  const [viewRow, setViewRow] = useState(null);
-
-  // ─── Fetch all ────────────────────────────────────────────────────────────
-  const fetchProducts = useCallback(async ({ initial = false } = {}) => {
-    try {
-      if (initial) {
-        setIsFetching(true);
-        setLoadError("");
-      } else {
-        setLoading(true);
-      }
-      setError("");
-      const response = await productService.getAll();
-      const list = Array.isArray(response) ? response : response.results ?? [];
-      setData(list.map(formatProduct));
-    } catch (err) {
-      const message = handleApiError(err, "Không thể tải danh sách sản phẩm");
-      if (initial) {
-        setLoadError(message);
-      } else {
-        setError(message);
-      }
-    } finally {
-      if (initial) {
-        setIsFetching(false);
-      } else {
-        setLoading(false);
-      }
-    }
-  }, []);
-
-  useEffect(() => {
-    fetchProducts({ initial: true });
-  }, [fetchProducts]);
-
-  // ─── Fetch detail (mở modal) ─────────────────────────────────────────────
   const handleViewProduct = useCallback(async (row) => {
     try {
-      setLoading(true);
       setModalError("");
       const detail = await productService.getById(row.id);
       setViewRow(formatProduct(detail));
     } catch (err) {
       setError(handleApiError(err, "Không thể tải chi tiết sản phẩm"));
-    } finally {
-      setLoading(false);
     }
   }, []);
 
-  // ─── Approve (pending → active) ──────────────────────────────────────────
   const handleApprove = useCallback(async (product) => {
     try {
       setActionLoading(true);
       setModalError("");
       await productService.verify(product.id, { status: "active" });
       setViewRow(null);
-      await fetchProducts();
+      await refresh();
     } catch (err) {
       const msg = handleApiError(err, "Không thể duyệt sản phẩm");
       setModalError(msg);
@@ -113,9 +106,8 @@ export default function ProductPage() {
     } finally {
       setActionLoading(false);
     }
-  }, [fetchProducts]);
+  }, [refresh]);
 
-  // ─── Reject (pending → rejected) ─────────────────────────────────────────
   const handleReject = useCallback(async (product, rejectionReason) => {
     try {
       setActionLoading(true);
@@ -125,7 +117,7 @@ export default function ProductPage() {
         rejection_reason: rejectionReason,
       });
       setViewRow(null);
-      await fetchProducts();
+      await refresh();
     } catch (err) {
       const msg = handleApiError(err, "Không thể từ chối sản phẩm");
       setModalError(msg);
@@ -133,25 +125,23 @@ export default function ProductPage() {
     } finally {
       setActionLoading(false);
     }
-  }, [fetchProducts]);
+  }, [refresh]);
 
-  // ─── Pause (active → inactive) ───────────────────────────────────────────
   const handlePause = useCallback(async (product) => {
     try {
       setActionLoading(true);
       setModalError("");
       await productService.verify(product.id, { status: "inactive" });
       setViewRow(null);
-      await fetchProducts();
+      await refresh();
     } catch (err) {
       const msg = handleApiError(err, "Không thể tạm ngưng sản phẩm");
       setModalError(msg);
     } finally {
       setActionLoading(false);
     }
-  }, [fetchProducts]);
+  }, [refresh]);
 
-  // ─── Delete (inactive | rejected only) ───────────────────────────────────
   const handleDelete = useCallback(async (product) => {
     try {
       setActionLoading(true);
@@ -159,11 +149,10 @@ export default function ProductPage() {
       await productService.delete(product.id);
       setViewRow(null);
       appToast.success("Đã xóa sản phẩm.");
-      await fetchProducts();
+      await refresh();
     } catch (err) {
       const message = handleApiError(err, "Không thể xóa sản phẩm");
 
-      // HTTP 409: còn phiếu nhập đang xử lý hoặc đại lý đang bán
       if (
         err?.response?.status === 409 ||
         message.toLowerCase().includes("phiếu nhập") ||
@@ -185,34 +174,27 @@ export default function ProductPage() {
     } finally {
       setActionLoading(false);
     }
-  }, [fetchProducts]);
+  }, [refresh]);
 
-  const filteredData = useMemo(() => {
-    return data.filter((item) => {
-      const keyword = search.toLowerCase();
+  const productStats = useMemo(() => {
+    if (countStatus && Object.keys(countStatus).length > 0) {
+      return buildCountsFromStatusMap(countStatus, PRODUCT_STAT_CARDS);
+    }
+    return buildCountsFromCards(data, PRODUCT_STAT_CARDS, { field: "status" });
+  }, [countStatus, data]);
 
-      const matchSearch =
-        item.name?.toLowerCase().includes(keyword) ||
-        item.category_name?.toLowerCase().includes(keyword) ||
-        item.supplier_name?.toLowerCase().includes(keyword);
+  const handleFilterChange = (value) => {
+    setStatusFilter(value);
+    setCurrentPage(1);
+  };
 
-      const matchStatus = !statusFilter || item.status === statusFilter;
+  const displayError = error || listError;
 
-      return matchSearch && matchStatus;
-    });
-  }, [data, search, statusFilter]);
-
-  const productStats = useMemo(
-    () => buildCountsFromCards(data, PRODUCT_STAT_CARDS, { field: "status" }),
-    [data],
-  );
-
-  // ─── Render ───────────────────────────────────────────────────────────────
   return (
     <AdminInitialLoadGate
       isFetching={isFetching}
       loadError={loadError}
-      onRetry={() => fetchProducts({ initial: true })}
+      onRetry={() => fetchData({ page: currentPage, initial: true })}
       loadingMessage="Đang tải danh sách sản phẩm..."
     >
       <div className="flex flex-col gap-6 px-8 pt-6 pb-10">
@@ -220,35 +202,56 @@ export default function ProductPage() {
           counts={productStats}
           cards={PRODUCT_STAT_CARDS}
           activeFilter={statusFilter}
-          onFilterChange={setStatusFilter}
-          loading={isFetching}
+          onFilterChange={handleFilterChange}
+          loading={isFetching || loading}
         />
 
-        {/* SEARCH */}
         <Toolbar
           search={search}
           onSearch={setSearch}
           searchPlaceholder="Tìm kiếm sản phẩm..."
-          filter={<Filter value={statusFilter} onChange={setStatusFilter} />}
+          filter={<Filter value={statusFilter} onChange={handleFilterChange} />}
         />
 
-        {/* ERROR */}
-        {error && (
-          <div className="px-4 py-3 rounded-xl bg-red-100 text-red-700 text-sm">
-            {error}
+        {displayError ? (
+          <div className="rounded-xl bg-red-100 px-4 py-3 text-sm text-red-700">
+            {displayError}
+          </div>
+        ) : null}
+
+        {loading && !isFetching ? (
+          <div className="flex justify-center py-20">
+            <div className="h-8 w-8 animate-spin rounded-full border-b-2 border-emerald-600" />
+          </div>
+        ) : data.length > 0 ? (
+          <div className="flex flex-col gap-4">
+            <ProductTable data={data} onView={handleViewProduct} />
+            <AdminListPagination
+              currentPage={currentPage}
+              totalPages={totalPages}
+              totalCount={totalCount}
+              pageRange={pageRange}
+              onPageChange={handlePageChange}
+              noun="sản phẩm"
+            />
+          </div>
+        ) : (
+          <div className="rounded-2xl border border-dashed border-neutral-200 bg-white px-6 py-16 text-center">
+            <p className="text-sm font-medium text-neutral-700">
+              Không tìm thấy sản phẩm phù hợp
+            </p>
+            <p className="mt-1 text-xs text-neutral-500">
+              Thử đổi bộ lọc hoặc từ khóa tìm kiếm khác.
+            </p>
           </div>
         )}
 
-        {/* TABLE */}
-        <ProductTable
-          data={filteredData}
-          onView={handleViewProduct}
-        />
-
-        {/* DETAIL MODAL */}
         <ProductViewModal
           isOpen={viewRow !== null}
-          onClose={() => { setViewRow(null); setModalError(""); }}
+          onClose={() => {
+            setViewRow(null);
+            setModalError("");
+          }}
           product={viewRow}
           onApprove={handleApprove}
           onReject={handleReject}

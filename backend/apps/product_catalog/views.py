@@ -26,6 +26,8 @@ from .services import apply_product_master_list_filters
         ),
         parameters=[
             OpenApiParameter(name="category_id", type=int, location=OpenApiParameter.QUERY, required=False),
+            OpenApiParameter("search", str, description="Tìm kiếm theo tên sản phẩm, danh mục hoặc đơn vị mặc định", required=False),
+            OpenApiParameter("status", str, description="Lọc theo trạng thái (active, inactive) - Chỉ khả dụng cho Admin", required=False),
         ],
         responses={
             200: paginated_response_schema(ProductMasterListSerializer, "PaginatedProductMaster"),
@@ -97,6 +99,8 @@ class ProductMasterViewSet(viewsets.ModelViewSet):
             qs,
             user=self.request.user,
             category_id_raw=self.request.query_params.get("category_id"),
+            search=self.request.query_params.get("search"),
+            status_param=self.request.query_params.get("status"),
         )
 
     def list(self, request, *args, **kwargs):

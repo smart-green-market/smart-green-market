@@ -1,8 +1,9 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 
 import Toolbar from "../../components/Admin/UI/Toolbar";
 import { AdminInitialLoadGate } from "../../components/Admin/UI/AdminFetchState";
 import AdminFilterStatsCards from "../../components/Admin/UI/AdminFilterStatsCards";
+import AdminListPagination from "../../components/Admin/UI/AdminListPagination";
 import { DOCUMENT_STAT_CARDS } from "../../components/Admin/UI/adminFilterStatsPresets";
 import Filter from "../../components/Admin/Document/DocumentFilter";
 import DocumentTable from "../../components/Admin/Document/DocumentTable";
@@ -12,21 +13,41 @@ import {
     accountDocumentService,
     handleApiError,
 } from "../../services/api/accountDocumentService";
-import { buildCountsFromCards } from "../../utils/adminFilterStatsUtils";
+import { useAdminPaginatedList } from "../../hooks/useAdminPaginatedList";
+import { useDebouncedValue } from "../../hooks/useDebouncedValue";
+import {
+    buildCountsFromCards,
+    buildCountsFromStatusMap,
+} from "../../utils/adminFilterStatsUtils";
+
+const STATUS_FILTERS = ["pending", "approved", "rejected"];
+const DOCUMENT_TYPE_FILTERS = [
+    "business_license",
+    "id_card",
+    "tax_certificate",
+];
+
+const formatDocumentRow = (document) => ({
+    id: document.id,
+    image: document.file_url,
+    file_url: document.file_url,
+    document_type: document.document_type,
+    status: document.status,
+    verified_at: document.verified_at,
+    createdAt: document.created_at,
+    created_at: document.created_at,
+    supplier: {
+        id: document.account?.id,
+        company_name:
+            document.account?.profile_name
+            || document.account?.full_name
+            || document.account?.username,
+        phone: document.account?.phone,
+    },
+    verified_by: document.verified_by,
+});
 
 export default function DocumentPage() {
-    // ── STATES ─────────────────────────────────────────────
-    const [data, setData] = useState([]);
-
-    const [isFetching, setIsFetching] =
-        useState(true);
-
-    const [loadError, setLoadError] =
-        useState("");
-
-    const [loading, setLoading] =
-        useState(false);
-
     const [actionLoading, setActionLoading] =
         useState(false);
 
@@ -35,6 +56,8 @@ export default function DocumentPage() {
 
     const [search, setSearch] =
         useState("");
+    const debouncedSearch =
+        useDebouncedValue(search, 350);
 
     const [
         statusFilter,
@@ -44,147 +67,73 @@ export default function DocumentPage() {
     const [viewRow, setViewRow] =
         useState(null);
 
-    // ── FETCH ALL DOCUMENTS ─────────────────────────────
-    const fetchDocuments = useCallback(
-        async ({ initial = false } = {}) => {
-            try {
-                if (initial) {
-                    setIsFetching(true);
-                    setLoadError("");
-                } else {
-                    setLoading(true);
-                }
-
-                const response =
-                    await accountDocumentService.getAll();
-
-                // normalize data cho table
-                const formattedData =
-                    response.map(
-                        (document) => ({
-                            id: document.id,
-                            
-                            image:
-                                document.file_url,
-
-                            document_type:
-                                document.document_type,
-
-                            status:
-                                document.status,
-
-                            verified_at:
-                                document.verified_at,
-
-                            createdAt:
-                                document.created_at,
-
-                            supplier: {
-                                id: document.account?.id,
-                                company_name:
-                                    document.account?.profile_name
-                                    || document.account?.full_name
-                                    || document.account?.username,
-                                phone:
-                                    document.account?.phone,
-                            },
-
-                            verified_by:
-                                document.verified_by,
-                        })
-                    );
-
-                setData(formattedData);
-            } catch (error) {
-                const message =
-                    handleApiError(
-                        error,
-                        "Không thể tải danh sách giấy tờ"
-                    );
-
-                if (initial) {
-                    setLoadError(message);
-                } else {
-                    setError(message);
-                }
-            } finally {
-                if (initial) {
-                    setIsFetching(false);
-                } else {
-                    setLoading(false);
-                }
+    const {
+        data,
+        countStatus,
+        isFetching,
+        loadError,
+        loading,
+        currentPage,
+        totalPages,
+        pageRange,
+        totalCount,
+        fetchData,
+        refresh,
+        handlePageChange,
+        setCurrentPage,
+    } = useAdminPaginatedList({
+        fetchList: (params) => accountDocumentService.getList(params),
+        mapRows: (rows) => rows.map(formatDocumentRow),
+        buildQuery: () => {
+            const query = {
+                search: debouncedSearch || undefined,
+            };
+            if (STATUS_FILTERS.includes(statusFilter)) {
+                query.status = statusFilter;
             }
+            if (DOCUMENT_TYPE_FILTERS.includes(statusFilter)) {
+                query.document_type = statusFilter;
+            }
+            return query;
         },
-        []
-    );
+        queryDeps: [debouncedSearch, statusFilter],
+        onFetchError: (err) =>
+            handleApiError(err, "Không thể tải danh sách giấy tờ"),
+    });
 
     // ── FETCH DETAIL DOCUMENT ──────────────────────────
     const handleViewDocument =
         useCallback(async (row) => {
             try {
-                setLoading(true);
-
                 const detail =
                     await accountDocumentService.getById(
                         row.id
                     );
 
                 // normalize data cho modal
-                const formattedDetail = {
-                    id: detail.id,
-
-                    file_url:
-                        detail.file_url,
-
-                    image:
-                        detail.file_url,
-
-                    document_type:
-                        detail.document_type,
-
-                    status:
-                        detail.status,
-
-                    verified_at:
-                        detail.verified_at,
-
-                    created_at:
-                        detail.created_at,
-
-                    supplier: {
-                        id: detail.account?.id,
-                        company_name:
-                            detail.account?.profile_name
-                            || detail.account?.full_name
-                            || detail.account?.username,
-                        phone: detail.account?.phone,
-                    },
-
-                    verified_by:
-                        detail.verified_by,
-                };
-
-                setViewRow(
-                    formattedDetail
-                );
+                setViewRow(formatDocumentRow(detail));
             } catch (error) {
-                handleApiError(
+                const message = handleApiError(
                     error,
                     "Không thể tải chi tiết giấy tờ"
                 );
-            } finally {
-                setLoading(false);
+                setError(message);
             }
         }, []);
 
-    // ── INITIAL FETCH ──────────────────────────────────
-    useEffect(() => {
-        fetchDocuments({ initial: true });
-    }, [fetchDocuments]);
-
     const documentStats = useMemo(
-        () => buildCountsFromCards(data, DOCUMENT_STAT_CARDS, { field: "status" }),
-        [data],
+        () => {
+            if (countStatus && Object.keys(countStatus).length > 0) {
+                return buildCountsFromStatusMap(
+                    countStatus,
+                    DOCUMENT_STAT_CARDS,
+                );
+            }
+            return buildCountsFromCards(data, DOCUMENT_STAT_CARDS, {
+                field: "status",
+            });
+        },
+        [countStatus, data],
     );
 
     // ── APPROVE ────────────────────────────────────────
@@ -201,13 +150,12 @@ export default function DocumentPage() {
 
             setViewRow(null);
 
-            await fetchDocuments();
+            await refresh();
         } catch (error) {
             const msg = handleApiError(
                 error,
                 "Không thể duyệt giấy tờ",
             );
-            console.error(msg);
             throw new Error(msg);
         } finally {
             setActionLoading(false);
@@ -226,13 +174,12 @@ export default function DocumentPage() {
 
             setViewRow(null);
 
-            await fetchDocuments();
+            await refresh();
         } catch (error) {
             const msg = handleApiError(
                 error,
                 "Không thể từ chối giấy tờ"
             );
-            console.error(msg);
             throw new Error(msg);
         } finally {
             setActionLoading(false);
@@ -243,7 +190,12 @@ export default function DocumentPage() {
         <AdminInitialLoadGate
             isFetching={isFetching}
             loadError={loadError}
-            onRetry={() => fetchDocuments({ initial: true })}
+            onRetry={() =>
+                fetchData({
+                    page: currentPage,
+                    initial: true,
+                })
+            }
             loadingMessage="Đang tải danh sách giấy tờ..."
         >
         <div className="flex flex-col gap-6 px-8 pt-6 pb-10">
@@ -252,8 +204,11 @@ export default function DocumentPage() {
                 counts={documentStats}
                 cards={DOCUMENT_STAT_CARDS}
                 activeFilter={statusFilter}
-                onFilterChange={setStatusFilter}
-                loading={isFetching}
+                onFilterChange={(value) => {
+                    setStatusFilter(value);
+                    setCurrentPage(1);
+                }}
+                loading={isFetching || loading}
             />
 
             {/* TOOLBAR */}
@@ -264,7 +219,10 @@ export default function DocumentPage() {
                 filter={
                     <Filter
                         value={statusFilter}
-                        onChange={setStatusFilter}
+                        onChange={(value) => {
+                            setStatusFilter(value);
+                            setCurrentPage(1);
+                        }}
                     />
                 }
             />
@@ -276,18 +234,32 @@ export default function DocumentPage() {
                 </div>
             )}
 
-            {/* TABLE */}
-            <DocumentTable
-                data={data}
-                loading={loading}
-                search={search}
-                statusFilter={
-                    statusFilter
-                }
-                onView={
-                    handleViewDocument
-                }
-            />
+            {loading && !isFetching ? (
+                <div className="flex justify-center py-20">
+                    <div className="h-8 w-8 animate-spin rounded-full border-b-2 border-emerald-600" />
+                </div>
+            ) : data.length > 0 ? (
+                <div className="flex flex-col gap-4">
+                    <DocumentTable
+                        data={data}
+                        onView={handleViewDocument}
+                    />
+                    <AdminListPagination
+                        currentPage={currentPage}
+                        totalPages={totalPages}
+                        totalCount={totalCount}
+                        pageRange={pageRange}
+                        onPageChange={handlePageChange}
+                        noun="giấy tờ"
+                    />
+                </div>
+            ) : (
+                <div className="rounded-2xl border border-dashed border-neutral-200 bg-white px-6 py-16 text-center">
+                    <p className="text-sm font-medium text-neutral-700">
+                        Không tìm thấy giấy tờ phù hợp
+                    </p>
+                </div>
+            )}
 
             {/* VIEW MODAL */}
             <DocumentViewModal

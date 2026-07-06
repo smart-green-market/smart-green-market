@@ -1,11 +1,12 @@
 import {
     useCallback,
-    useEffect,
+    useMemo,
     useState,
 } from "react";
 
 import Toolbar from "../../components/Admin/UI/Toolbar";
 import { AdminInitialLoadGate } from "../../components/Admin/UI/AdminFetchState";
+import AdminListPagination from "../../components/Admin/UI/AdminListPagination";
 import Filter from "../../components/Admin/Notification/NotificationFilter";
 import NotificationTable from "../../components/Admin/Notification/NotificationTable";
 import NotificationViewModal from "../../components/Admin/Notification/NotificationViewModal";
@@ -20,32 +21,25 @@ import {
 } from "../../components/Admin/Notification/notificationFormatters";
 import { useAuth } from "../../contexts/authProvider";
 import { useNotificationWebSocket } from "../../hooks/useNotificationWebSocket";
-import { useNotificationWebSocketHandler } from "../../hooks/useNotificationWebSocketHandler";
+import { useAdminPaginatedList } from "../../hooks/useAdminPaginatedList";
+import { useDebouncedValue } from "../../hooks/useDebouncedValue";
 
 import {
     notificationService,
     handleApiError,
 } from "../../services/api/notificationService";
 
+const NOTIFICATION_TYPE_FILTERS = ["info", "warning", "success", "error"];
+const NOTIFICATION_REFERENCE_FILTERS = ["supplier_document", "certification"];
+
 export default function NotificationPage() {
     const { user } = useAuth();
     const userRole = user?.role ?? "admin";
     const canManageActions = canManageNotificationActions(userRole);
 
-    // ── STATES ─────────────────────────────────────────
-    const [data, setData] =
-        useState([]);
-
-    const [isFetching, setIsFetching] =
-        useState(true);
-
-    const [loadError, setLoadError] =
-        useState("");
-
-    const [loading, setLoading] =
-        useState(false);
-
     const [actionLoading, setActionLoading] =
+        useState(false);
+    const [detailLoading, setDetailLoading] =
         useState(false);
 
     const [error, setError] =
@@ -53,6 +47,7 @@ export default function NotificationPage() {
 
     const [search, setSearch] =
         useState("");
+    const debouncedSearch = useDebouncedValue(search, 350);
 
     const [
         statusFilter,
@@ -62,49 +57,44 @@ export default function NotificationPage() {
     const [viewRow, setViewRow] =
         useState(null);
 
-    // ── FETCH ALL NOTIFICATIONS ───────────────────────
-    const fetchNotifications =
-        useCallback(async ({ initial = false } = {}) => {
-            try {
-                if (initial) {
-                    setIsFetching(true);
-                    setLoadError("");
-                } else {
-                    setLoading(true);
-                }
+    const filterQuery = useMemo(() => {
+        if (!statusFilter) return {};
+        if (statusFilter === "read") return { is_read: true };
+        if (statusFilter === "unread") return { is_read: false };
+        if (NOTIFICATION_TYPE_FILTERS.includes(statusFilter)) {
+            return { type: statusFilter };
+        }
+        if (NOTIFICATION_REFERENCE_FILTERS.includes(statusFilter)) {
+            return { reference_type: statusFilter };
+        }
+        return {};
+    }, [statusFilter]);
 
-                setError("");
-
-                const response =
-                    await notificationService.getAll();
-
-                // normalize data cho table
-                const formattedData = response.map((item) => formatNotificationRow(item));
-
-                setData(formattedData);
-
-            } catch (error) {
-
-                const message =
-                    handleApiError(
-                        error,
-                        "Không thể tải danh sách thông báo"
-                    );
-
-                if (initial) {
-                    setLoadError(message);
-                } else {
-                    setError(message);
-                }
-
-            } finally {
-                if (initial) {
-                    setIsFetching(false);
-                } else {
-                    setLoading(false);
-                }
-            }
-        }, []);
+    const {
+        data,
+        isFetching,
+        loadError,
+        loading,
+        error: listError,
+        currentPage,
+        totalPages,
+        pageRange,
+        totalCount,
+        fetchData,
+        refresh,
+        handlePageChange,
+        setCurrentPage,
+    } = useAdminPaginatedList({
+        fetchList: (params) => notificationService.getList(params),
+        mapRows: (rows) => rows.map((item) => formatNotificationRow(item)),
+        buildQuery: () => ({
+            search: debouncedSearch || undefined,
+            ...filterQuery,
+        }),
+        queryDeps: [debouncedSearch, statusFilter],
+        onFetchError: (err) =>
+            handleApiError(err, "Không thể tải danh sách thông báo"),
+    });
 
     const handleMarkRead = useCallback(async (markReadId, receiptId) => {
         if (markReadId == null) return;
@@ -114,25 +104,18 @@ export default function NotificationPage() {
             const response = await notificationService.mark_read(markReadId);
             const markedState = getMarkedReadState(response);
 
-            setData((prev) =>
-                prev.map((item) =>
-                    matchesNotificationRecord(item, markReadId, receiptId)
-                        ? { ...item, ...markedState }
-                        : item,
-                ),
-            );
-
             setViewRow((prev) =>
                 prev && matchesNotificationRecord(prev, markReadId, receiptId)
                     ? { ...prev, ...markedState }
                     : prev,
             );
+            await refresh();
         } catch (error) {
             console.error(handleApiError(error, "Không thể đánh dấu đã đọc"));
         } finally {
             setActionLoading(false);
         }
-    }, []);
+    }, [refresh]);
 
     // ── BẤM NÚT XEM CHI TIẾT ───────────────────────────
     const handleViewNotification = useCallback(async (row) => {
@@ -147,7 +130,7 @@ export default function NotificationPage() {
 
         if (canFetchNotificationDetail(userRole) && notificationId != null) {
             try {
-                setLoading(true);
+                setDetailLoading(true);
                 const detail = await notificationService.getById(notificationId);
                 setViewRow((prev) => {
                     if (!prev) return null;
@@ -158,32 +141,22 @@ export default function NotificationPage() {
                     handleApiError(error, "Không thể tải chi tiết thông báo, dùng dữ liệu tóm tắt"),
                 );
             } finally {
-                setLoading(false);
+                setDetailLoading(false);
             }
         }
     }, [handleMarkRead, userRole]);
 
-    // ── INITIAL FETCH ─────────────────────────────────
-    useEffect(() => {
-        fetchNotifications({ initial: true });
-    }, [fetchNotifications]);
-
-    const handleWebSocketMessage = useNotificationWebSocketHandler({
-        setNotifications: setData,
-        maxItems: null,
-    });
-
     useNotificationWebSocket({
         enabled: Boolean(user),
-        onMessage: handleWebSocketMessage,
-        onConnect: () => fetchNotifications(),
+        onMessage: () => refresh(),
+        onConnect: () => refresh(),
     });
 
     return (
         <AdminInitialLoadGate
             isFetching={isFetching}
             loadError={loadError}
-            onRetry={() => fetchNotifications({ initial: true })}
+            onRetry={() => fetchData({ page: currentPage, initial: true })}
             loadingMessage="Đang tải danh sách thông báo..."
         >
             <div className="flex flex-col gap-6 px-8 pt-6 pb-10">
@@ -196,28 +169,39 @@ export default function NotificationPage() {
                     filter={
                         <Filter
                             value={statusFilter}
-                            onChange={setStatusFilter}
+                            onChange={(value) => {
+                                setStatusFilter(value);
+                                setCurrentPage(1);
+                            }}
                         />
                     }
                 />
 
                 {/* ERROR */}
-                {error && (
+                {(error || listError) && (
                     <div className="px-4 py-3 rounded-xl bg-red-100 text-red-700 text-sm">
-                        {error}
+                        {error || listError}
                     </div>
                 )}
 
                 {/* TABLE */}
-                <NotificationTable
-                    data={data}
-                    loading={loading}
-                    search={search}
-                    statusFilter={statusFilter}
-                    onView={
-                        handleViewNotification
-                    }
-                />
+                <div className="flex flex-col gap-4">
+                    <NotificationTable
+                        data={data}
+                        loading={loading}
+                        onView={
+                            handleViewNotification
+                        }
+                    />
+                    <AdminListPagination
+                        currentPage={currentPage}
+                        totalPages={totalPages}
+                        totalCount={totalCount}
+                        pageRange={pageRange}
+                        onPageChange={handlePageChange}
+                        noun="thông báo"
+                    />
+                </div>
 
                 {/* VIEW MODAL */}
                 <NotificationViewModal
@@ -229,7 +213,7 @@ export default function NotificationPage() {
                     }
                     notification={viewRow}
                     loading={
-                        actionLoading
+                        actionLoading || detailLoading
                     }
                     canManageActions={canManageActions}
                 />

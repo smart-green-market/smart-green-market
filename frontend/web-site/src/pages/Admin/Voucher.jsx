@@ -1,8 +1,9 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 
 import Toolbar from "../../components/Admin/UI/Toolbar";
 import { AdminInitialLoadGate } from "../../components/Admin/UI/AdminFetchState";
 import AdminFilterStatsCards from "../../components/Admin/UI/AdminFilterStatsCards";
+import AdminListPagination from "../../components/Admin/UI/AdminListPagination";
 import { VOUCHER_STAT_CARDS } from "../../components/Admin/UI/adminFilterStatsPresets";
 import Filter from "../../components/Admin/Voucher/VoucherFilter";
 import VoucherTable from "../../components/Admin/Voucher/VoucherTable";
@@ -12,22 +13,15 @@ import {
     adminVoucherService,
     handleApiError,
 } from "../../services/api/Admin/adminVoucherService";
-import { buildCountsFromCards } from "../../utils/adminFilterStatsUtils";
+import { useAdminPaginatedList } from "../../hooks/useAdminPaginatedList";
+import { useDebouncedValue } from "../../hooks/useDebouncedValue";
+import {
+    buildCountsFromCards,
+    buildCountsFromStatusMap,
+} from "../../utils/adminFilterStatsUtils";
 import { appToast } from "../../components/common/toast";
 
 export default function VoucherPage() {
-    // ── STATES ─────────────────────────────────────────────
-    const [data, setData] = useState([]);
-
-    const [isFetching, setIsFetching] =
-        useState(true);
-
-    const [loadError, setLoadError] =
-        useState("");
-
-    const [loading, setLoading] =
-        useState(false);
-
     const [actionLoading, setActionLoading] =
         useState(false);
 
@@ -36,6 +30,8 @@ export default function VoucherPage() {
 
     const [search, setSearch] =
         useState("");
+    const debouncedSearch =
+        useDebouncedValue(search, 350);
 
     const [
         statusFilter,
@@ -48,49 +44,35 @@ export default function VoucherPage() {
     const [modalError, setModalError] =
         useState("");
 
-    // ── FETCH ALL VOUCHERS ─────────────────────────────
-    const fetchVouchers = useCallback(
-        async ({ initial = false } = {}) => {
-            try {
-                if (initial) {
-                    setIsFetching(true);
-                    setLoadError("");
-                } else {
-                    setLoading(true);
-                }
-
-                const response =
-                    await adminVoucherService.getAll();
-
-                setData(response);
-            } catch (error) {
-                const message =
-                    handleApiError(
-                        error,
-                        "Không thể tải danh sách voucher"
-                    );
-
-                if (initial) {
-                    setLoadError(message);
-                } else {
-                    setError(message);
-                }
-            } finally {
-                if (initial) {
-                    setIsFetching(false);
-                } else {
-                    setLoading(false);
-                }
-            }
-        },
-        []
-    );
+    const {
+        data,
+        countStatus,
+        isFetching,
+        loadError,
+        loading,
+        currentPage,
+        totalPages,
+        pageRange,
+        totalCount,
+        fetchData,
+        refresh,
+        handlePageChange,
+        setCurrentPage,
+    } = useAdminPaginatedList({
+        fetchList: (params) => adminVoucherService.getList(params),
+        buildQuery: () => ({
+            search: debouncedSearch || undefined,
+            status: statusFilter || undefined,
+        }),
+        queryDeps: [debouncedSearch, statusFilter],
+        onFetchError: (err) =>
+            handleApiError(err, "Không thể tải danh sách voucher"),
+    });
 
     // ── FETCH DETAIL VOUCHER ──────────────────────────
     const handleViewVoucher =
         useCallback(async (row) => {
             try {
-                setLoading(true);
                 setModalError("");
 
                 const detail =
@@ -105,19 +87,22 @@ export default function VoucherPage() {
                     "Không thể tải chi tiết voucher"
                 );
                 setError(message);
-            } finally {
-                setLoading(false);
             }
         }, []);
 
-    // ── INITIAL FETCH ──────────────────────────────────
-    useEffect(() => {
-        fetchVouchers({ initial: true });
-    }, [fetchVouchers]);
-
     const voucherStats = useMemo(
-        () => buildCountsFromCards(data, VOUCHER_STAT_CARDS, { field: "status" }),
-        [data],
+        () => {
+            if (countStatus && Object.keys(countStatus).length > 0) {
+                return buildCountsFromStatusMap(
+                    countStatus,
+                    VOUCHER_STAT_CARDS,
+                );
+            }
+            return buildCountsFromCards(data, VOUCHER_STAT_CARDS, {
+                field: "status",
+            });
+        },
+        [countStatus, data],
     );
 
     // ── APPROVE (KÍCH HOẠT) ────────────────────────────────────────
@@ -132,7 +117,7 @@ export default function VoucherPage() {
 
             setViewRow(null);
             appToast.success(`Đã duyệt voucher "${voucher.code}".`);
-            await fetchVouchers();
+            await refresh();
         } catch (error) {
             const msg = handleApiError(
                 error,
@@ -159,7 +144,7 @@ export default function VoucherPage() {
 
             setViewRow(null);
             appToast.success(`Đã từ chối voucher "${voucher.code}".`);
-            await fetchVouchers();
+            await refresh();
         } catch (error) {
             const msg = handleApiError(
                 error,
@@ -181,7 +166,7 @@ export default function VoucherPage() {
 
             setViewRow(null);
             appToast.success(`Đã xóa voucher "${voucher.code}".`);
-            await fetchVouchers();
+            await refresh();
         } catch (error) {
             const msg = handleApiError(
                 error,
@@ -198,7 +183,12 @@ export default function VoucherPage() {
         <AdminInitialLoadGate
             isFetching={isFetching}
             loadError={loadError}
-            onRetry={() => fetchVouchers({ initial: true })}
+            onRetry={() =>
+                fetchData({
+                    page: currentPage,
+                    initial: true,
+                })
+            }
             loadingMessage="Đang tải danh sách voucher..."
         >
         <div className="flex flex-col gap-6 px-8 pt-6 pb-10">
@@ -207,8 +197,11 @@ export default function VoucherPage() {
                 counts={voucherStats}
                 cards={VOUCHER_STAT_CARDS}
                 activeFilter={statusFilter}
-                onFilterChange={setStatusFilter}
-                loading={isFetching}
+                onFilterChange={(value) => {
+                    setStatusFilter(value);
+                    setCurrentPage(1);
+                }}
+                loading={isFetching || loading}
             />
 
             {/* TOOLBAR */}
@@ -219,7 +212,10 @@ export default function VoucherPage() {
                 filter={
                     <Filter
                         value={statusFilter}
-                        onChange={setStatusFilter}
+                        onChange={(value) => {
+                            setStatusFilter(value);
+                            setCurrentPage(1);
+                        }}
                     />
                 }
             />
@@ -231,14 +227,32 @@ export default function VoucherPage() {
                 </div>
             )}
 
-            {/* TABLE */}
-            <VoucherTable
-                data={data}
-                loading={loading}
-                search={search}
-                statusFilter={statusFilter}
-                onView={handleViewVoucher}
-            />
+            {loading && !isFetching ? (
+                <div className="flex justify-center py-20">
+                    <div className="h-8 w-8 animate-spin rounded-full border-b-2 border-emerald-600" />
+                </div>
+            ) : data.length > 0 ? (
+                <div className="flex flex-col gap-4">
+                    <VoucherTable
+                        data={data}
+                        onView={handleViewVoucher}
+                    />
+                    <AdminListPagination
+                        currentPage={currentPage}
+                        totalPages={totalPages}
+                        totalCount={totalCount}
+                        pageRange={pageRange}
+                        onPageChange={handlePageChange}
+                        noun="voucher"
+                    />
+                </div>
+            ) : (
+                <div className="rounded-2xl border border-dashed border-neutral-200 bg-white px-6 py-16 text-center">
+                    <p className="text-sm font-medium text-neutral-700">
+                        Không tìm thấy voucher phù hợp
+                    </p>
+                </div>
+            )}
 
             {/* VIEW MODAL */}
             <VoucherViewModal

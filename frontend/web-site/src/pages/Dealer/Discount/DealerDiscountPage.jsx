@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { discountService } from '../../../services/api/discountService';
 import { voucherService } from '../../../services/api/voucherService';
 import { Loader2, Plus, Percent } from 'lucide-react';
@@ -17,10 +18,20 @@ import {
   formatDiscountApiError,
   normalizeIsActive,
 } from '../../../components/Dealer/Discount/discountPolicyUtils';
+import DeleteConfirmModal from '../../../components/common/DeleteConfirmModal';
 
 
 export default function DealerDiscountPage() {
-  const [activeTab, setActiveTab] = useState("policy"); // "policy" or "voucher"
+  const [searchParams, setSearchParams] = useSearchParams();
+  const activeTab = searchParams.get("tab") || "policy";
+
+  const setActiveTab = (tab) => {
+    setSearchParams((prev) => {
+      const nextParams = new URLSearchParams(prev);
+      nextParams.set("tab", tab);
+      return nextParams;
+    });
+  };
 
   // Discount policies states
   const [policies, setPolicies] = useState([]);
@@ -51,6 +62,10 @@ export default function DealerDiscountPage() {
   const [isVoucherDetailModalOpen, setIsVoucherDetailModalOpen] = useState(false);
   const [isVoucherEditModalOpen, setIsVoucherEditModalOpen] = useState(false);
   const [selectedVoucherId, setSelectedVoucherId] = useState(null);
+
+  // Custom delete confirm states
+  const [deletePolicyId, setDeletePolicyId] = useState(null);
+  const [deleteVoucherId, setDeleteVoucherId] = useState(null);
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -137,35 +152,45 @@ export default function DealerDiscountPage() {
     }
   };
 
-  const handleDelete = async (id) => {
-    if (!window.confirm("Bạn có chắc chắn muốn xóa chính sách giảm giá này không?")) return;
+  const handleDelete = (id) => {
+    setDeletePolicyId(id);
+  };
 
+  const handleConfirmDeletePolicy = async () => {
+    if (!deletePolicyId) return;
     try {
-      await discountService.delete(id);
+      await discountService.delete(deletePolicyId);
       toast.success("Xóa chính sách thành công");
       fetchPolicies();
     } catch (error) {
       console.error("Error deleting policy:", error);
       toast.error("Không thể xóa chính sách. Vui lòng thử lại.");
+    } finally {
+      setDeletePolicyId(null);
     }
   };
 
-  const handleDeleteVoucher = async (id) => {
-    if (!window.confirm("Bạn có chắc chắn muốn xóa voucher này không?")) return;
+  const handleDeleteVoucher = (id) => {
+    setDeleteVoucherId(id);
+  };
 
+  const handleConfirmDeleteVoucher = async () => {
+    if (!deleteVoucherId) return;
     try {
-      await voucherService.delete(id);
+      await voucherService.delete(deleteVoucherId);
       toast.success("Xóa voucher thành công");
       fetchVouchers();
     } catch (error) {
       console.error("Error deleting voucher:", error);
       toast.error("Không thể xóa voucher. Vui lòng thử lại.");
+    } finally {
+      setDeleteVoucherId(null);
     }
   };
 
   return (
     <div className="p-6">
-      <div className="flex justify-between items-center mb-6">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4">
         <div>
           <h1 className="text-2xl font-bold text-gray-800">
             {activeTab === 'policy' ? 'Quản lý chính sách giảm giá' : 'Quản lý Voucher & Khuyến mãi'}
@@ -180,7 +205,7 @@ export default function DealerDiscountPage() {
         {activeTab === 'policy' ? (
           <button
             onClick={() => setIsModalOpen(true)}
-            className="flex items-center gap-2 bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg font-medium transition-colors shadow-sm active:scale-95"
+            className="flex items-center justify-center gap-2 bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg font-medium transition-colors shadow-sm active:scale-95 w-full sm:w-auto"
           >
             <Plus size={18} />
             Tạo chính sách giảm giá
@@ -188,7 +213,7 @@ export default function DealerDiscountPage() {
         ) : (
           <button
             onClick={() => setIsVoucherModalOpen(true)}
-            className="flex items-center gap-2 bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg font-medium transition-colors shadow-sm active:scale-95"
+            className="flex items-center justify-center gap-2 bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg font-medium transition-colors shadow-sm active:scale-95 w-full sm:w-auto"
           >
             <Plus size={18} />
             Tạo Voucher
@@ -337,6 +362,20 @@ export default function DealerDiscountPage() {
         onClose={() => setIsVoucherEditModalOpen(false)}
         onSuccess={fetchVouchers}
         voucherId={selectedVoucherId}
+      />
+
+      <DeleteConfirmModal
+        isOpen={deletePolicyId !== null}
+        onClose={() => setDeletePolicyId(null)}
+        onConfirm={handleConfirmDeletePolicy}
+        itemType="chính sách giảm giá này"
+      />
+
+      <DeleteConfirmModal
+        isOpen={deleteVoucherId !== null}
+        onClose={() => setDeleteVoucherId(null)}
+        onConfirm={handleConfirmDeleteVoucher}
+        itemType="voucher này"
       />
     </div>
   );
