@@ -65,6 +65,10 @@ export const dealerService = {
       .post("/dealers/", data)
       .then((res) => res.data.data ?? res.data),
 
+  // Lấy thông tin profile của dealer đang đăng nhập
+  getMe: () =>
+    axiosClient.get("/dealers/me/").then((res) => res.data),
+
   //NTD lấy url cửa hàng đại lý
   getStorefrontLink: () =>
     axiosClient.get("/dealers/me/storefront-link/").then((res) => res.data),
