@@ -1,4 +1,5 @@
 import { Loader2 } from "lucide-react";
+import { ButtonSpinner } from "../../../UI/SupplierSpinner";
 
 /**
  * Props:
@@ -30,9 +31,9 @@ export default function ModalFooter({ saving, loadingSellingIds, btnColor, onClo
           className={`flex items-center gap-2 px-4 py-2 text-sm font-semibold text-white ${btnColor} rounded-lg transition-colors disabled:opacity-70 min-w-[130px] justify-center`}
         >
           {saving ? (
-            <><Loader2 className="w-4 h-4 animate-spin" />Đang lưu...</>
+            <ButtonSpinner label="Đang lưu..." />
           ) : loadingSellingIds ? (
-            <><Loader2 className="w-4 h-4 animate-spin" />Đang tải...</>
+            <ButtonSpinner label="Đang tải..." />
           ) : (
             "Lưu sản phẩm"
           )}

@@ -217,7 +217,7 @@ export default function CreateQuantityDiscountModal({ isOpen, onClose, onSuccess
                 disabled={isSubmitting}
                 className="px-4 py-2 text-sm bg-emerald-700 text-white rounded-xl disabled:opacity-50"
               >
-                {isSubmitting ? "Đang lưu..." : "Tạo chính sách"}
+                {isSubmitting ? <ButtonSpinner label="Đang lưu..." /> : "Tạo chính sách"}
               </button>
             </div>
           </div>

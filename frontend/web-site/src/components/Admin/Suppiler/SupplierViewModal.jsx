@@ -62,7 +62,7 @@ export default function SupplierViewModal({
     return (
         <>
             {/* OVERLAY */}
-            <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm flex items-center justify-center p-4">
+            <div className="fixed inset-0 z-[150] bg-black/40 backdrop-blur-sm flex items-center justify-center p-4">
                 {/* MODAL */}
                 <div className="w-full max-w-[760px] max-h-[90vh] overflow-hidden rounded-2xl bg-white shadow-2xl border border-neutral-200 flex flex-col">
                     {/* HEADER */}

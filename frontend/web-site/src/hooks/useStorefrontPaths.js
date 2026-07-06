@@ -37,6 +37,7 @@ export function useStorefrontPaths() {
     login: prefix ? `${prefix}/dang-nhap` : "/",
     register: prefix ? `${prefix}/dang-ky` : "/",
     account: prefix ? `${prefix}/tai-khoan` : "/",
+    notifications: prefix ? `${prefix}/tai-khoan/thong-bao` : "/",
     orderStatus: prefix ? `${prefix}/theo-doi-don-hang` : "/",
     policies: prefix ? `${prefix}/chinh-sach` : "/",
     support: prefix ? `${prefix}/ho-tro` : "/",

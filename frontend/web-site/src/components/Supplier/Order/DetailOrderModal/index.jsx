@@ -1,3 +1,4 @@
+import { InlineSpinner } from "../../UI/SupplierSpinner";
 import { useState, useEffect } from "react";
 import {
   X, CheckCheck, Truck, PackageCheck,
@@ -593,7 +594,7 @@ export default function DetailOrderModal({ isOpen, onClose, order: initialOrder,
 
               {loadingDetail && total === 0 ? (
                 <div className="flex items-center justify-center gap-2 px-6 py-10 text-sm text-neutral-400">
-                  <Loader2 className="w-4 h-4 animate-spin" /> Đang tải danh sách sản phẩm...
+                  <InlineSpinner className="mr-2" /> Đang tải danh sách sản phẩm...
                 </div>
               ) : detailError && total === 0 ? (
                 <div className="px-6 py-8 text-center text-sm text-red-500">{detailError}</div>
@@ -646,7 +647,7 @@ export default function DetailOrderModal({ isOpen, onClose, order: initialOrder,
             {needsPaymentVerify && loadingDetail && (
               <div className="bg-white rounded-2xl border border-neutral-200 px-6 py-8 flex items-center justify-center gap-2 text-sm text-neutral-500">
                 <Loader2 size={16} className="animate-spin text-emerald-700" />
-                Đang tải thông tin thanh toán...
+                <InlineSpinner className="mr-2" /> Đang tải thông tin thanh toán...
               </div>
             )}
 
