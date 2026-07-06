@@ -19,11 +19,11 @@ import StorefrontEntryRedirect from "./components/User/StorefrontEntryRedirect";
 //User Pages
 import { HomePage, ProductDetailPage, ProductsPage, CartPage, OrderPage, PaymentPage, OrderStatusPage, UserProfilePage, ChangePasswordPage, OrderHistoryPage, ProductReviewsPage, UserVoucherPage, UserLoginPage, UserRegisterPage, SearchProductPage, DealerSlugEntryPage, CheckoutPage, OrderTrackingPage, PoliciesPage, SupportPage, AboutUsPage } from "./pages/User";
 //Supplier Pages
-import { OrderSupplierPage, ProductSupplierPage, CertificationSupplierPage, RegisterPage, SupplierLoginPage, SupplierInfoPage, CategorySupplierPage, CultivationSupplierPage, DashboardSupplierPage, SupplierNotificationPage, NotFound,OrderStats,RevenuePage } from "./pages/Supplier";
+import { OrderSupplierPage, ProductSupplierPage, CertificationSupplierPage, RegisterPage, SupplierLoginPage, SupplierInfoPage, CategorySupplierPage, CultivationSupplierPage, DashboardSupplierPage, SupplierNotificationPage, NotFound, OrderStats, RevenuePage } from "./pages/Supplier";
 //Admin Pages
 import { AdminLoginPage, AdminDashboardPage, SettingPage, SupplierPage, CategoryPage, ProductPage, ProductMasterPage, SeasonPage, CertificationPage, DocumentPage, NotificationPage, DealerPage, VoucherPage, SupplierFinancePage, } from "./pages/Admin";
 //Dealer Pages
-import { RegisterDealerPage, DealerLoginPage, DealerDashboardPage, DealerInventoryPage, DealerSupplierPage, DealerCategoryPage, DealerSalesOrderPage, DealerPurchaseOrderPage, DealerCreatePurchaseOrderPage, DealerPurchaseOrderDetailPage, DealerDraftOrderPreviewPage, DealerSupplierDetailPage, DealerCategoryDetail, DealerInfoPage, DealerCustomerPage, DealerProductManagementPage, DealerProductDetailPage } from "./pages/Dealer";
+import { DealerDiscountPage, RegisterDealerPage, DealerLoginPage, DealerDashboardPage, DealerInventoryPage, DealerSupplierPage, DealerCategoryPage, DealerSalesOrderPage, DealerPurchaseOrderPage, DealerCreatePurchaseOrderPage, DealerPurchaseOrderDetailPage, DealerDraftOrderPreviewPage, DealerSupplierDetailPage, DealerCategoryDetail, DealerInfoPage, DealerCustomerPage, DealerProductManagementPage, DealerProductDetailPage } from "./pages/Dealer";
 export default function App() {
     return (
         <BrowserRouter>
@@ -59,7 +59,7 @@ export default function App() {
                                 <Route path="dat-hang-1" element={<CheckoutPage />} />
                             </Route>
                         </Route>
-                    </Route>    
+                    </Route>
                     <Route path="cua-hang/*" element={<NotFoundPage />} />
 
                     {/* Supplier */}
@@ -122,6 +122,7 @@ export default function App() {
                             <Route path="khach-hang" element={<DealerCustomerPage />} />
                             <Route path="san-pham" element={<DealerProductManagementPage />} />
                             <Route path="san-pham/:id" element={<DealerProductDetailPage />} />
+                            <Route path="giam-gia" element={<DealerDiscountPage />} />
                         </Route>
                     </Route>
                     <Route path="dai-ly/dang-nhap" element={<DealerLoginPage />} />
