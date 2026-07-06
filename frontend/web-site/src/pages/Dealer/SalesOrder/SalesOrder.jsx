@@ -408,15 +408,15 @@ export default function DealerSalesOrderPage() {
                             });
 
                             return (
-                                <div className="mb-4 p-4 bg-emerald-50 border border-emerald-200 rounded-2xl flex items-center justify-between animate-in fade-in slide-in-from-top-4">
+                                <div className="mb-4 p-4 bg-emerald-50 border border-emerald-200 rounded-2xl flex flex-col md:flex-row justify-between items-start md:items-center gap-4 animate-in fade-in slide-in-from-top-4">
                                     <span className="text-sm font-bold text-emerald-800">
                                         Đã chọn {selectedRows.length} đơn hàng
                                     </span>
-                                    <div className="flex gap-3">
+                                    <div className="flex flex-wrap gap-2.5 w-full md:w-auto">
                                         {hasPendingConfirmation && (
                                             <button
                                                 onClick={handleBulkConfirm}
-                                                className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold transition-all shadow-sm flex items-center gap-2"
+                                                className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold transition-all shadow-sm flex items-center justify-center gap-2 w-full sm:w-auto"
                                             >
                                                 <CheckCircle2 className="w-4 h-4" /> Xác nhận đơn hàng
                                             </button>
@@ -424,7 +424,7 @@ export default function DealerSalesOrderPage() {
                                         {hasConfirmed && (
                                             <button
                                                 onClick={handleBulkStartProcessing}
-                                                className="px-4 py-2 bg-amber-500 hover:bg-amber-600 text-white rounded-xl text-xs font-bold transition-all shadow-sm flex items-center gap-2"
+                                                className="px-4 py-2 bg-amber-500 hover:bg-amber-600 text-white rounded-xl text-xs font-bold transition-all shadow-sm flex items-center justify-center gap-2 w-full sm:w-auto"
                                             >
                                                 <Package className="w-4 h-4" /> Chuẩn bị hàng
                                             </button>
@@ -432,7 +432,7 @@ export default function DealerSalesOrderPage() {
                                         {hasPreparing && (
                                             <button
                                                 onClick={handleBulkDeliver}
-                                                className="px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-xl text-xs font-bold transition-all shadow-sm flex items-center gap-2"
+                                                className="px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-xl text-xs font-bold transition-all shadow-sm flex items-center justify-center gap-2 w-full sm:w-auto"
                                             >
                                                 <Truck className="w-4 h-4" /> Giao hàng
                                             </button>
@@ -440,14 +440,14 @@ export default function DealerSalesOrderPage() {
                                         {hasCancelable && (
                                             <button
                                                 onClick={handleBulkCancelClick}
-                                                className="px-4 py-2 border border-red-200 hover:bg-red-50 text-red-600 rounded-xl text-xs font-bold transition-all shadow-sm flex items-center gap-2 cursor-pointer"
+                                                className="px-4 py-2 border border-red-200 hover:bg-red-50 text-red-600 rounded-xl text-xs font-bold transition-all shadow-sm flex items-center justify-center gap-2 cursor-pointer w-full sm:w-auto"
                                             >
                                                 <XCircle className="w-4 h-4" /> Hủy đơn hàng
                                             </button>
                                         )}
                                         <button
                                             onClick={handleBulkPrint}
-                                            className="px-4 py-2 bg-white border border-neutral-200 hover:bg-neutral-50 text-neutral-700 rounded-xl text-xs font-bold transition-all shadow-sm flex items-center gap-2 cursor-pointer"
+                                            className="px-4 py-2 bg-white border border-neutral-200 hover:bg-neutral-50 text-neutral-700 rounded-xl text-xs font-bold transition-all shadow-sm flex items-center justify-center gap-2 cursor-pointer w-full sm:w-auto"
                                         >
                                             <Printer className="w-4 h-4" /> In hoá đơn ({selectedRows.length})
                                         </button>

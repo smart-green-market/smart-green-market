@@ -1,7 +1,8 @@
 """API quản lý giấy tờ xác minh tài khoản (supplier/dealer)."""
 
+from django.db.models import Q
 from django.utils import timezone
-from drf_spectacular.utils import OpenApiExample, extend_schema, extend_schema_view
+from drf_spectacular.utils import OpenApiExample, OpenApiParameter, extend_schema, extend_schema_view
 from rest_framework import status, viewsets
 from rest_framework.decorators import action
 from rest_framework.parsers import FormParser, MultiPartParser
@@ -85,6 +86,11 @@ def _apply_document_verification(document, reviewer, new_status, rejection_reaso
             "Duyệt giấy tờ: `POST /api/account-documents/{document_id}/verify/`"
             + PAGINATION_QUERY_HELP
         ),
+        parameters=[
+            OpenApiParameter("account_id", int, description="Lọc theo ID tài khoản (Admin)", required=False),
+            OpenApiParameter("search", str, description="Tìm kiếm theo username, email, full_name, phone hoặc loại giấy tờ", required=False),
+            OpenApiParameter("status", str, description="Lọc theo trạng thái (pending, approved, rejected)", required=False),
+        ],
         responses={
             200: paginated_response_schema(
                 AccountDocumentListSerializer,
@@ -163,6 +169,22 @@ class AccountDocumentViewSet(viewsets.ModelViewSet):
 
     def get_queryset(self):
         qs = self.queryset
+
+        search = self.request.query_params.get("search")
+        if search:
+            search = search.strip()
+            qs = qs.filter(
+                Q(account__username__icontains=search)
+                | Q(account__email__icontains=search)
+                | Q(account__full_name__icontains=search)
+                | Q(account__phone__icontains=search)
+                | Q(document_type__icontains=search)
+            )
+
+        status_param = self.request.query_params.get("status")
+        if status_param:
+            qs = qs.filter(status=status_param)
+
         if self.request.user.role == "admin":
             account_id = self.request.query_params.get("account_id")
             if account_id:
