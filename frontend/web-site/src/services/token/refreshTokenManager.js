@@ -1,11 +1,10 @@
 import axios from "axios";
+import { API_BASE_URL } from "../../config/apiConfig";
 import {
     clearAuthStorage,
     getRefreshToken,
     saveAuthTokens,
 } from "./authTokenStorage";
-
-const API_BASE_URL = "https://smart-green-market-api.onrender.com/api";
 
 let isRefreshing = false;
 let refreshQueue = [];

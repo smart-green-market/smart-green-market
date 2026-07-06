@@ -1,4 +1,4 @@
-import axiosClient from "../services/api/axiosClient";
+import { API_BASE_URL } from "../config/apiConfig";
 
 /**
  * Derive notification WebSocket URL from REST API baseURL.
@@ -11,10 +11,7 @@ export function buildNotificationWebSocketUrl(token) {
         return url.toString();
     }
 
-    const apiBase =
-        import.meta.env.VITE_WS_BASE_URL
-        || axiosClient.defaults.baseURL
-        || "http://127.0.0.1:8000/api";
+    const apiBase = import.meta.env.VITE_WS_BASE_URL || API_BASE_URL;
 
     const httpUrl = new URL(apiBase);
     const wsProtocol = httpUrl.protocol === "https:" ? "wss:" : "ws:";
