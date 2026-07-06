@@ -14,6 +14,7 @@ import {
     RevenueChart,
     TopProducts,
     RecentOrders,
+    PurchaseDonutChart,
     formatCurrency,
 } from "../../components/Dealer/Dashboard";
 
@@ -24,6 +25,7 @@ export default function DealerDashboardPage() {
     const [summary, setSummary] = useState(null);
     const [chartData, setChartData] = useState([]);
     const [topProducts, setTopProducts] = useState([]);
+    const [purchaseSummary, setPurchaseSummary] = useState(null);
 
     useEffect(() => {
         const fetchDashboardData = async () => {
@@ -34,15 +36,18 @@ export default function DealerDashboardPage() {
                     summaryData,
                     chartDataRes,
                     topProductsData,
+                    purchaseSummaryData,
                 ] = await Promise.all([
                     dealerService.getMe(),
                     dashboardService.getSummary(),
                     dashboardService.getRevenueChart(),
                     dashboardService.getTopProducts(),
+                    dashboardService.getPurchaseSummary(),
                 ]);
 
                 setDealerProfile(profileData);
                 setSummary(summaryData);
+                setPurchaseSummary(purchaseSummaryData);
 
                 // Format chart data for Tailwind visual (needs day labels like T2, T3...)
                 const formattedChart = chartDataRes.map(item => {
@@ -137,7 +142,12 @@ export default function DealerDashboardPage() {
 
                 <TopProducts topProducts={topProducts} />
 
-                <RecentOrders initialParams={{ ordering: "-created_at", status: "pending", page_size: 5 }} />
+                <RecentOrders
+                    className="lg:col-span-2"
+                    initialParams={{ ordering: "-created_at", status: "pending", page_size: 5 }}
+                />
+
+                <PurchaseDonutChart purchaseSummary={purchaseSummary} />
             </div>
         </div>
     );
