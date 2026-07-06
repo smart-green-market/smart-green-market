@@ -1,10 +1,16 @@
 import React from "react";
 import { FileText, Package } from "lucide-react";
+import {
+  formatOrderItemDiscountLabel,
+  getOrderItemBaseUnitPrice,
+  getOrderItemLineDiscount,
+  getOrderItemUnitPrice,
+  orderItemHasDiscount,
+} from "../../../utils/quantityDiscountUtils";
 
 export default function OrderDetailItemsTable({ items }) {
   return (
     <div className="bg-white rounded-2xl border border-neutral-100 shadow-xs mb-6 overflow-hidden">
-      {/* Tiêu đề bảng */}
       <div className="px-6 py-5 border-b border-neutral-50 flex items-center justify-between">
         <h2 className="font-extrabold text-neutral-900 text-base uppercase tracking-wider flex items-center gap-2">
           <Package className="w-5 h-5 text-emerald-600" />
@@ -15,7 +21,6 @@ export default function OrderDetailItemsTable({ items }) {
         </span>
       </div>
 
-      {/* Nội dung bảng sản phẩm */}
       <div className="overflow-x-auto">
         <table className="w-full border-collapse">
           <thead>
@@ -23,20 +28,32 @@ export default function OrderDetailItemsTable({ items }) {
               <th className="py-3.5 px-5 w-14 text-center whitespace-nowrap">STT</th>
               <th className="py-3.5 px-4 text-left whitespace-nowrap">Sản phẩm</th>
               <th className="py-3.5 px-4 w-24 text-center whitespace-nowrap">SL</th>
-              <th className="py-3.5 px-4 w-28 text-center whitespace-nowrap">Đơn vị tính</th>
-              <th className="py-3.5 px-4 w-36 text-right whitespace-nowrap">Đơn giá (VNĐ)</th>
-              <th className="py-3.5 px-5 w-40 text-right whitespace-nowrap">Thành tiền (VNĐ)</th>
+              <th className="py-3.5 px-4 w-28 text-center whitespace-nowrap">Đơn vị</th>
+              <th className="py-3.5 px-4 w-44 text-right whitespace-nowrap">Đơn giá</th>
+              <th className="py-3.5 px-4 w-36 text-right whitespace-nowrap">Giảm theo SL</th>
+              <th className="py-3.5 px-5 w-40 text-right whitespace-nowrap">Thành tiền</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-neutral-100 text-sm">
             {items.map((item, idx) => {
               const isRejected = item.review_status === "rejected";
+              const unit = item.unit || item.product_unit || "kg";
+              const unitPrice = getOrderItemUnitPrice(item);
+              const basePrice = getOrderItemBaseUnitPrice(item);
+              const lineDiscount = getOrderItemLineDiscount(item);
+              const hasDiscount = orderItemHasDiscount(item);
+              const discountLabel = formatOrderItemDiscountLabel(item, unit);
+              const subtotal =
+                item.subtotal != null
+                  ? Number(item.subtotal)
+                  : Number(item.quantity) * unitPrice;
+
               return (
                 <React.Fragment key={item.id || idx}>
                   <tr
                     className={`transition-colors ${
-                      isRejected 
-                        ? "bg-red-50/40 hover:bg-red-50/60 text-red-600" 
+                      isRejected
+                        ? "bg-red-50/40 hover:bg-red-50/60 text-red-600"
                         : "hover:bg-neutral-50/50"
                     }`}
                   >
@@ -49,21 +66,14 @@ export default function OrderDetailItemsTable({ items }) {
                           {item.product_thumbnail_url ? (
                             <img
                               src={item.product_thumbnail_url}
-                              alt={item.name}
+                              alt={item.name || item.product_name}
                               className="w-full h-full object-cover"
-                              onError={(e) => {
-                                e.target.style.display = 'none';
-                                const placeholder = document.createElement('span');
-                                placeholder.className = `${isRejected ? "text-red-400" : "text-neutral-400"} font-extrabold text-[10px] uppercase`;
-                                placeholder.innerText = item.name ? item.name.substring(0, 2) : 'SP';
-                                e.target.parentNode.appendChild(placeholder);
-                              }}
                             />
                           ) : (
                             <FileText className={`w-4 h-4 ${isRejected ? "text-red-400" : "text-neutral-400"}`} />
                           )}
                         </div>
-                        <span>{item.name}</span>
+                        <span>{item.name || item.product_name}</span>
                         {isRejected && (
                           <span className="ml-2 bg-red-100 text-red-800 text-[10px] px-2 py-0.5 rounded-full font-bold uppercase tracking-wider">
                             Từ chối
@@ -72,24 +82,49 @@ export default function OrderDetailItemsTable({ items }) {
                       </div>
                     </td>
                     <td className={`py-4 px-4 text-center font-extrabold ${isRejected ? "text-red-600" : "text-neutral-700"}`}>
-                      {item.quantity}
+                      {Number(item.quantity).toLocaleString("vi-VN")}
                     </td>
                     <td className={`py-4 px-4 text-center font-medium ${isRejected ? "text-red-500" : "text-neutral-500"} whitespace-nowrap`}>
-                      {item.unit}
+                      {unit}
                     </td>
-                    <td className={`py-4 px-4 text-right font-semibold ${isRejected ? "text-red-600" : "text-neutral-600"}`}>
-                      {item.price.toLocaleString("vi-VN")}
+                    <td className={`py-4 px-4 text-right ${isRejected ? "text-red-600" : ""}`}>
+                      {hasDiscount ? (
+                        <div className="space-y-0.5">
+                          <div className="text-xs text-neutral-400 line-through">
+                            {basePrice.toLocaleString("vi-VN")} đ
+                          </div>
+                          <div className="font-semibold text-emerald-700">
+                            {unitPrice.toLocaleString("vi-VN")} đ
+                          </div>
+                        </div>
+                      ) : (
+                        <span className="font-semibold text-neutral-600">
+                          {unitPrice.toLocaleString("vi-VN")} đ
+                        </span>
+                      )}
+                    </td>
+                    <td className={`py-4 px-4 text-right ${isRejected ? "text-red-500" : "text-emerald-700"}`}>
+                      {hasDiscount ? (
+                        <div className="space-y-0.5">
+                          {discountLabel && (
+                            <div className="text-xs font-semibold">{discountLabel}</div>
+                          )}
+                          <div className="text-xs">
+                            -{lineDiscount.toLocaleString("vi-VN")} đ
+                          </div>
+                        </div>
+                      ) : (
+                        <span className="text-neutral-400">—</span>
+                      )}
                     </td>
                     <td className={`py-4 px-5 text-right font-extrabold ${isRejected ? "text-red-700" : "text-emerald-700"}`}>
-                      {(
-                        item.subtotal || item.quantity * item.price
-                      ).toLocaleString("vi-VN")}
+                      {subtotal.toLocaleString("vi-VN")} đ
                     </td>
                   </tr>
                   {isRejected && item.rejection_reason && (
                     <tr className="bg-red-50/20">
                       <td />
-                      <td colSpan="5" className="py-2.5 px-4 text-xs font-medium text-red-500 border-t-0">
+                      <td colSpan="6" className="py-2.5 px-4 text-xs font-medium text-red-500 border-t-0">
                         <div className="flex items-center gap-1.5 pl-3 border-l-2 border-red-500">
                           <span className="font-bold text-red-700 uppercase tracking-wider text-[10px]">Lý do từ chối:</span>
                           <span className="italic">{item.rejection_reason}</span>

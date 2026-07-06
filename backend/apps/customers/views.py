@@ -122,9 +122,31 @@ class DealerCustomerViewSet(viewsets.ModelViewSet):
 
     def perform_update(self, serializer):
         if self.request.user.role == AccountRole.DEALER:
-            if serializer.instance.user.store_dealer_id != self.request.user.dealer_profile_id:
+            if serializer.instance.user.store_dealer_id != self.request.user.dealer_profile.id:
                 raise PermissionDenied("Không có quyền sửa khách hàng của đại lý khác.")
         serializer.save()
+
+    def update(self, request, *args, **kwargs):
+        partial = kwargs.pop("partial", False)
+        instance = self.get_object()
+        serializer = self.get_serializer(instance, data=request.data, partial=partial)
+        serializer.is_valid(raise_exception=True)
+        self.perform_update(serializer)
+
+        if getattr(instance, "_prefetched_objects_cache", None):
+            instance._prefetched_objects_cache = {}
+
+        instance = self.get_queryset().get(pk=instance.pk)
+        return Response(
+            DealerCustomerListSerializer(
+                instance,
+                context=self.get_serializer_context(),
+            ).data
+        )
+
+    def partial_update(self, request, *args, **kwargs):
+        kwargs["partial"] = True
+        return self.update(request, *args, **kwargs)
 
 
 @extend_schema_view(

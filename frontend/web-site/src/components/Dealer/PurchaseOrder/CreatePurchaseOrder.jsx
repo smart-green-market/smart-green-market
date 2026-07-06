@@ -2,7 +2,6 @@ import { useState, useEffect } from "react";
 import { ArrowLeft } from "lucide-react";
 import { supplierService } from "../../../services/api/suppilerService";
 import { categoryService } from "../../../services/api/categoryService";
-import { productService } from "../../../services/api/productService";
 import { dealerService } from "../../../services/api/dealerService";
 import { toast } from "sonner";
 import FiltersBar from "./FiltersBar";
@@ -11,6 +10,31 @@ import { useLocation } from "react-router-dom";
 // import ProcessStepper from "./ProcessStepper";
 import DraftInvoice from "./DraftInvoice";
 import DeliveryInfoForm from "./DeliveryInfoForm";
+import {
+  computeDiscountedUnitPrice,
+  formatOrderItemDiscountLabel,
+} from "../../../utils/quantityDiscountUtils";
+
+const PRODUCT_IMAGE_FALLBACK =
+  "https://images.unsplash.com/photo-1540420773420-3366772f4999?q=80&w=300&auto=format&fit=crop";
+
+function formatPurchaseProduct(p) {
+  const wholesalePrice = parseFloat(p.wholesale_price) || 0;
+  return {
+    id: p.id,
+    name: p.name,
+    slug: p.slug,
+    unit: p.unit || "kg",
+    code: p.slug ? p.slug.toUpperCase().slice(0, 10) : `PROD-${p.id}`,
+    price: wholesalePrice,
+    basePrice: wholesalePrice,
+    quantityDiscountTiers: p.quantity_discount_tiers || [],
+    dailyProductionCapacity: parseFloat(p.daily_production_capacity) || 0,
+    category: p.category || null,
+    supplier: p.supplier || null,
+    image_url: p.images?.[0]?.image_url || PRODUCT_IMAGE_FALLBACK,
+  };
+}
 
 export default function CreatePurchaseOrder({ onClose, onSuccess }) {
   // --- STATE QUẢN LÝ BỘ LỌC (FILTERS) ---
@@ -82,94 +106,79 @@ export default function CreatePurchaseOrder({ onClose, onSuccess }) {
   }, [selectedSupplier, selectedCategory, searchQuery]);
 
   useEffect(() => {
-    const fetchData = async () => {
-      setLoading(true);
+    const fetchMeta = async () => {
       try {
-        // Gọi API lấy danh sách nhà cung cấp, nếu lỗi trả về mảng rỗng
-        const supplierData = await supplierService.getAll().catch(() => []);
-        setSuppliers(supplierData || []);
+        const [supplierData, categoryData, dealerData] = await Promise.all([
+          supplierService.getAll().catch(() => []),
+          categoryService.getAll({ status: "active" }).catch(() => []),
+          dealerService.getAll().catch(() => []),
+        ]);
 
-        // Gọi API lấy danh sách danh mục, nếu lỗi trả về mảng rỗng
-        const categoryData = await categoryService.getAll({ status: "active" }).catch(() => []);
-        setCategories(categoryData || []);
+        setSuppliers(Array.isArray(supplierData) ? supplierData : []);
+        setCategories(Array.isArray(categoryData) ? categoryData : []);
 
-        // Gọi API lấy danh sách tất cả sản phẩm
-        const productResponse = await productService
-          .getAll()
-          .catch(() => ({ results: [] }));
-        //Kiểm tra danh sách trả về có phải là mảng không
-        const productList = Array.isArray(productResponse)
-          ? productResponse
-          : productResponse?.results || [];
-
-        // Chuẩn hóa cấu trúc sản phẩm lấy từ API
-        const formattedProducts = productList.map((p) => ({
-          id: p.id,
-          name: p.name,
-          slug: p.slug,
-          unit: p.unit || "kg",
-          code: p.slug ? p.slug.toUpperCase().slice(0, 10) : `PROD-${p.id}`,
-          price: p.wholesale_price || Math.floor(Math.random() * 5 + 2) * 10000,
-          stock: p.stock || Math.floor(Math.random() * 800 + 100),
-          category: p.category || { id: 1, name: "Rau củ" },
-          supplier: p.supplier || {
-            id: 1,
-            company_name: "Nhà cung cấp đối tác",
-          },
-          image_url:
-            p.images?.[0]?.image_url ||
-            "https://images.unsplash.com/photo-1540420773420-3366772f4999?q=80&w=300&auto=format&fit=crop",
-        }));
-
-        setProducts(formattedProducts);
-
-        // Dự phòng: Nếu API trả về trống, tự động gán dữ liệu mẫu để giao diện không bị lỗi
-        if (supplierData.length === 0) {
-          setSuppliers([
-            { id: 1, company_name: "Hợp tác xã Rau sạch Đà Lạt" },
-            { id: 2, company_name: "Nông trại Xanh Lâm Đồng" },
-            { id: 3, company_name: "Trại nấm Hữu cơ Minh Đức" },
-          ]);
-        }
-        if (categoryData.length === 0) {
-          setCategories([
-            { id: 1, name: "Rau củ" },
-            { id: 2, name: "Củ quả" },
-            { id: 3, name: "Nấm" },
-          ]);
-        }
-
-        // Gọi API lấy thông tin dealer
-        const dealerData = await dealerService.getAll().catch(() => []);
-        if (dealerData && dealerData.length > 0) {
+        if (dealerData?.length > 0 && !savedDraft) {
           const dealer = dealerData[0];
-          setDeliveryInfo((prev) => {
-            if (!savedDraft) {
-              const dt = new Date();
-              dt.setDate(dt.getDate() + 3);
-              const offset = dt.getTimezoneOffset() * 60000;
-              const deliveryTime = new Date(dt.getTime() - offset).toISOString().slice(0, 16);
+          const dt = new Date();
+          dt.setDate(dt.getDate() + 3);
+          const offset = dt.getTimezoneOffset() * 60000;
+          const deliveryTime = new Date(dt.getTime() - offset).toISOString().slice(0, 16);
 
-              return {
-                receiverName: dealer.account?.full_name || dealer.account?.first_name || prev.receiverName,
-                receiverPhone: dealer.account?.phone || prev.receiverPhone,
-                deliveryAddress: dealer.store_address || prev.deliveryAddress,
-                requestedDeliveryTime: deliveryTime,
-              };
-            }
-            return prev;
-          });
+          setDeliveryInfo((prev) => ({
+            ...prev,
+            receiverName: dealer.account?.full_name || dealer.account?.first_name || prev.receiverName,
+            receiverPhone: dealer.account?.phone || prev.receiverPhone,
+            deliveryAddress: dealer.store_address || prev.deliveryAddress,
+            requestedDeliveryTime: deliveryTime,
+          }));
         }
       } catch (err) {
-        console.error("Lỗi khi tải dữ liệu trang Tạo đơn nhập:", err);
-        toast.error("Không thể tải dữ liệu danh sách sản phẩm.", { position: "top-center", duration: 5000 },);
+        console.error("Lỗi khi tải metadata trang Tạo đơn nhập:", err);
+        toast.error("Không thể tải danh sách nhà cung cấp.", { position: "top-center", duration: 5000 });
+      }
+    };
+
+    fetchMeta();
+  }, [savedDraft]);
+
+  useEffect(() => {
+    const fetchProducts = async () => {
+      setLoading(true);
+      try {
+        const productParams = selectedCategory ? { category: selectedCategory } : {};
+        let productList = [];
+
+        if (selectedSupplier) {
+          productList = await supplierService.getSupplierProducts(
+            selectedSupplier,
+            productParams,
+          );
+        } else if (suppliers.length > 0) {
+          const lists = await Promise.all(
+            suppliers.map((s) =>
+              supplierService.getSupplierProducts(s.id, productParams).catch(() => []),
+            ),
+          );
+          productList = lists.flat();
+        }
+
+        setProducts(productList.map(formatPurchaseProduct));
+      } catch (err) {
+        console.error("Lỗi khi tải sản phẩm:", err);
+        toast.error("Không thể tải danh sách sản phẩm.", { position: "top-center", duration: 5000 });
+        setProducts([]);
       } finally {
         setLoading(false);
       }
     };
 
-    fetchData();
-  }, []);
+    if (selectedSupplier || suppliers.length > 0) {
+      fetchProducts();
+    } else {
+      setProducts([]);
+      setLoading(false);
+    }
+  }, [selectedSupplier, selectedCategory, suppliers]);
 
  
 
@@ -217,23 +226,15 @@ export default function CreatePurchaseOrder({ onClose, onSuccess }) {
     }
 
 
-    // Cảnh báo nếu số lượng muốn nhập vượt quá lượng hàng có sẵn của NCC
-    if (qtyToAdd > product.stock) {
-      toast.error(
-        `Số lượng nhập (${qtyToAdd} ${product.unit}) vượt quá tồn kho của NCC (${product.stock} ${product.unit})!`,
-        { position: "top-center", duration: 4000 },
-      );
-    } else {
-      setCart((prev) => ({
-        ...prev,
-        [product.id]: (prev[product.id] || 0) + qtyToAdd,
-      }));
+    setCart((prev) => ({
+      ...prev,
+      [product.id]: (prev[product.id] || 0) + qtyToAdd,
+    }));
 
-      toast.success(
-        `Đã thêm ${qtyToAdd} ${product.unit} ${product.name} vào phiếu nháp.`,
-        { position: "top-center", duration: 3000 },
-      );
-    }
+    toast.success(
+      `Đã thêm ${qtyToAdd} ${product.unit} ${product.name} vào phiếu nháp.`,
+      { position: "top-center", duration: 3000 },
+    );
     // Reset lại ô số lượng trên card sản phẩm về 0
     setCardQuantities((prev) => ({
       ...prev,
@@ -289,22 +290,46 @@ export default function CreatePurchaseOrder({ onClose, onSuccess }) {
   const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
   const paginatedProducts = filteredProducts.slice(startIndex, startIndex + ITEMS_PER_PAGE);
 
+  const getLinePricing = (product, quantity) => {
+    const pricing = computeDiscountedUnitPrice(
+      product.basePrice ?? product.price,
+      quantity,
+      product.quantityDiscountTiers,
+    );
+    return {
+      unitPrice: pricing.unitPrice,
+      basePrice: pricing.basePrice,
+      discountPerUnit: pricing.discountPerUnit,
+      tier: pricing.tier,
+      subtotal: pricing.unitPrice * quantity,
+    };
+  };
+
   // --- TÍNH TOÁN CHI TIẾT ĐƠN HÀNG NHÁP ---
-  const cartItems = Object.entries(cart) //Object.entries(cart) chuyển cart sang dạng key-value
+  const cartItems = Object.entries(cart)
     .map(([id, qty]) => {
       const prod = products.find((p) => String(p.id) === String(id));
+      if (!prod) return null;
+      const line = getLinePricing(prod, qty);
       return {
-        product: prod,
+        product: {
+          ...prod,
+          price: line.unitPrice,
+          basePrice: line.basePrice,
+          appliedTier: line.tier,
+        },
         quantity: qty,
-        subtotal: prod ? prod.price * qty : 0,
+        subtotal: line.subtotal,
+        discountAmount: line.discountPerUnit * qty,
       };
     })
-    .filter((item) => item.product !== undefined);
+    .filter(Boolean);
 
   //Tổng số lượng sản phẩm
   const totalItemsCount = cartItems.length;
   //Tổng tiền
   const rawSubtotal = cartItems.reduce((acc, curr) => acc + curr.subtotal, 0);
+  const totalDiscount = cartItems.reduce((acc, curr) => acc + (curr.discountAmount || 0), 0);
   const finalTotal = rawSubtotal;
   /**
    * Gửi yêu cầu tạo đơn nhập hàng mới từ danh sách nháp.
@@ -360,18 +385,49 @@ export default function CreatePurchaseOrder({ onClose, onSuccess }) {
           if (typeof productId === "string" && productId.startsWith("def-")) {
             productId = productId === "def-1" ? 1 : productId === "def-2" ? 2 : 3;
           }
+           const tier = item.product.appliedTier;
+           const unitPrice = Number(item.product.price);
+           const basePrice = Number(item.product.basePrice ?? item.product.price);
+           const lineDiscount = Number(item.discountAmount || 0);
            return {
             supplier_product_id: Number(productId),
             name: item.product.name,
             unit: item.product.unit || "Kg",
             quantity: Number(item.quantity),
-            price: Number(item.product.price),
+            price: unitPrice,
+            unit_price: unitPrice,
+            base_price: basePrice,
+            base_unit_price: basePrice,
+            discount_type: tier?.discount_type || "",
+            discount_value: tier?.discount_value ?? null,
+            discount_min_quantity: tier?.min_quantity ?? null,
+            discount_label: tier
+              ? formatOrderItemDiscountLabel(
+                  {
+                    discount_type: tier.discount_type,
+                    discount_value: tier.discount_value,
+                    discount_min_quantity: tier.min_quantity,
+                  },
+                  item.product.unit,
+                )
+              : "",
+            has_quantity_discount: lineDiscount > 0,
+            line_discount_amount: lineDiscount,
+            discount_amount: lineDiscount,
             subtotal: Number(item.subtotal),
             product_thumbnail_url: item.product.image_url,
             note: "",
           };
         }),
         // Gửi các giá trị tài chính dưới dạng raw
+        gross_subtotal: items.reduce(
+          (sum, i) => sum + Number(i.product.basePrice ?? i.product.price) * Number(i.quantity),
+          0,
+        ),
+        total_discount_amount: items.reduce(
+          (sum, i) => sum + Number(i.discountAmount || 0),
+          0,
+        ),
         total_amount: items.reduce((sum, i) => sum + i.subtotal, 0),
       };
     });
@@ -449,6 +505,7 @@ export default function CreatePurchaseOrder({ onClose, onSuccess }) {
                     key={p.id}
                     product={p}
                     inputQty={cardQuantities[p.id] || 0}
+                    previewPricing={getLinePricing(p, cardQuantities[p.id] || 0)}
                     onQtyChange={(val) => handleCardQtyChange(p.id, val)}
                     onQtyAdjust={(delta) => adjustCardQty(p.id, delta)}
                     onAddToCart={() => handleAddToCart(p)}
@@ -510,6 +567,7 @@ export default function CreatePurchaseOrder({ onClose, onSuccess }) {
             cartItems={cartItems}
             totalItemsCount={totalItemsCount}
             rawSubtotal={rawSubtotal}
+            discountAmount={totalDiscount}
             finalTotal={finalTotal}
             orderNote={orderNote}
             onNoteChange={setOrderNote}

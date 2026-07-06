@@ -79,3 +79,47 @@ class CustomerProfileSegmentSerializerTests(TestCase):
 
         self.assertEqual(data["primary_segment"]["code"], "VIP")
         self.assertEqual(data["primary_segment"]["id"], self.vip.id)
+
+    def test_dealer_customer_list_serializer_includes_segments(self):
+        from apps.customers.storefront_serializers import DealerCustomerListSerializer
+        profile = customer_profile_detail_queryset().get(pk=self.profile.pk)
+        data = DealerCustomerListSerializer(profile).data
+
+        self.assertEqual(len(data["segments"]), 2)
+        codes = {item["code"] for item in data["segments"]}
+        self.assertEqual(codes, {"PASSIVE", "VIP"})
+        self.assertEqual(data["primary_segment"]["code"], "VIP")
+
+    def test_dealer_customer_api_returns_segments(self):
+        from rest_framework.test import APIClient
+        client = APIClient()
+
+        # Authenticate as dealer
+        user = Account.objects.get(username="dealer-segment-me")
+        client.force_authenticate(user=user)
+
+        # Test List API
+        response = client.get("/api/dealer-customers/")
+        self.assertEqual(response.status_code, 200)
+        results = response.data["results"]
+        self.assertEqual(len(results), 1)
+        self.assertEqual(len(results[0]["segments"]), 2)
+        self.assertEqual(results[0]["primary_segment"]["code"], "VIP")
+
+        # Test Retrieve API
+        response = client.get(f"/api/dealer-customers/{self.profile.id}/")
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(len(response.data["segments"]), 2)
+        self.assertEqual(response.data["primary_segment"]["code"], "VIP")
+
+        # Test Partial Update API (PATCH)
+        response = client.patch(
+            f"/api/dealer-customers/{self.profile.id}/",
+            {"note": "Updated note"},
+            format="json",
+        )
+        self.assertEqual(response.status_code, 200)
+        # Verify it returns the full object with segments
+        self.assertEqual(response.data["note"], "Updated note")
+        self.assertEqual(len(response.data["segments"]), 2)
+        self.assertEqual(response.data["primary_segment"]["code"], "VIP")

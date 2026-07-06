@@ -1,6 +1,13 @@
 import { useState, useRef, useEffect } from "react";
 import { Pencil, Check, X } from "lucide-react";
 import { fmtPrice } from "../utils";
+import {
+  formatOrderItemDiscountLabel,
+  getOrderItemBaseUnitPrice,
+  getOrderItemLineDiscount,
+  getOrderItemUnitPrice,
+  orderItemHasDiscount,
+} from "../../../../../utils/quantityDiscountUtils";
 
 /* ─── Table header — dùng 1 lần bên ngoài, trên danh sách ─── */
 export function ItemTableHeader({ canEdit }) {
@@ -61,7 +68,12 @@ export default function ItemRow({
 
   // Subtotal tính lại từ draft nếu đang edit
   const displayQty      = editing ? (parseFloat(draft) || 0) : Number(item.quantity);
-  const displaySubtotal = displayQty * Number(item.unit_price);
+  const unitPrice = getOrderItemUnitPrice(item);
+  const baseUnitPrice = getOrderItemBaseUnitPrice(item);
+  const lineDiscount = getOrderItemLineDiscount(item);
+  const hasDiscount = orderItemHasDiscount(item);
+  const discountLabel = formatOrderItemDiscountLabel(item, item.product_unit);
+  const displaySubtotal = displayQty * unitPrice;
 
   const isApproved = item.item_status === "approved";
   const isRejected = item.item_status === "rejected";
@@ -112,9 +124,30 @@ export default function ItemRow({
 
         {/* Đơn giá */}
         <div className="text-right pr-3">
-          <p className="text-sm font-medium text-neutral-700">
-            {fmtPrice(item.unit_price)}/{item.product_unit}
-          </p>
+          {hasDiscount ? (
+            <div className="space-y-0.5">
+              <p className="text-[10px] text-neutral-400 line-through">
+                {fmtPrice(baseUnitPrice)}/{item.product_unit}
+              </p>
+              <p className="text-sm font-semibold text-emerald-700">
+                {fmtPrice(unitPrice)}/{item.product_unit}
+              </p>
+              {discountLabel && (
+                <p className="text-[10px] font-semibold text-emerald-600">
+                  {discountLabel}
+                </p>
+              )}
+              {lineDiscount > 0 && (
+                <p className="text-[10px] text-emerald-600">
+                  Tiết kiệm: -{fmtPrice(lineDiscount)}
+                </p>
+              )}
+            </div>
+          ) : (
+            <p className="text-sm font-medium text-neutral-700">
+              {fmtPrice(unitPrice)}/{item.product_unit}
+            </p>
+          )}
         </div>
 
         {/* Số lượng — có thể edit */}

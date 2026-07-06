@@ -157,9 +157,23 @@ export default function DraftOrderPreviewPage() {
             </div>
             {/* Tổng tiền */}
             <div className="flex justify-end">
-              <div className="bg-emerald-50 text-emerald-900 px-6 py-4 rounded-xl flex items-center gap-4">
-                <span className="font-semibold">Tổng tiền phiếu này:</span>
-                <span className="text-2xl font-bold">{Number(draft.total_amount).toLocaleString("vi-VN")} đ</span>
+              <div className="bg-emerald-50 text-emerald-900 px-6 py-4 rounded-xl flex flex-col items-end gap-1 min-w-[280px]">
+                {Number(draft.total_discount_amount || 0) > 0 && (
+                  <>
+                    <div className="flex justify-between w-full text-sm">
+                      <span className="font-medium text-emerald-800">Tạm tính gốc:</span>
+                      <span>{Number(draft.gross_subtotal || 0).toLocaleString("vi-VN")} đ</span>
+                    </div>
+                    <div className="flex justify-between w-full text-sm text-emerald-700">
+                      <span className="font-medium">Giảm theo số lượng:</span>
+                      <span>-{Number(draft.total_discount_amount).toLocaleString("vi-VN")} đ</span>
+                    </div>
+                  </>
+                )}
+                <div className="flex items-center gap-4 pt-1 border-t border-emerald-100 w-full justify-between">
+                  <span className="font-semibold">Tổng tiền phiếu này:</span>
+                  <span className="text-2xl font-bold">{Number(draft.total_amount).toLocaleString("vi-VN")} đ</span>
+                </div>
               </div>
             </div>
           </div>
