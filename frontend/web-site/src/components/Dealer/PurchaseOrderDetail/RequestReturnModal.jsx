@@ -68,6 +68,8 @@ export default function RequestReturnModal({
     }
   }, [isOpen, orderItems]);
 
+  const hasDetailedReason = returnItems.some((item) => item.checked && item.reason.trim() !== "");
+
   if (!isOpen) return null;
 
   const handleCheckboxChange = (id, checked) => {
@@ -177,12 +179,6 @@ export default function RequestReturnModal({
   };
 
   const handleConfirmSubmit = async () => {
-    const trimmedReason = reason.trim();
-    if (!trimmedReason) {
-      setReasonError("Vui lòng nhập lý do trả hàng.");
-      return;
-    }
-
     const selected = returnItems.filter((item) => item.checked);
     if (selected.length === 0) {
       setItemsError("Vui lòng chọn ít nhất một sản phẩm để trả hàng.");
@@ -204,6 +200,14 @@ export default function RequestReturnModal({
       }
     }
 
+    const trimmedReason = reason.trim();
+    const hasDetailedReason = selected.some((item) => item.reason.trim() !== "");
+
+    if (!trimmedReason && !hasDetailedReason) {
+      setReasonError("Vui lòng nhập lý do trả hàng chung hoặc chi tiết lỗi cho sản phẩm.");
+      return;
+    }
+
     try {
       setInternalLoading(true);
       setReasonError("");
@@ -215,7 +219,16 @@ export default function RequestReturnModal({
         reason: item.reason.trim(),
       }));
 
-      await onConfirm?.(trimmedReason, evidenceFile, payloadItems);
+      let finalReason = trimmedReason;
+      if (!finalReason) {
+        const detailedReasons = selected
+          .filter((item) => item.reason.trim() !== "")
+          .map((item) => `${item.name}: ${item.reason.trim()}`)
+          .join("; ");
+        finalReason = `Trả hàng theo chi tiết sản phẩm (${detailedReasons})`;
+      }
+
+      await onConfirm?.(finalReason, evidenceFile, payloadItems);
       onClose();
     } catch (error) {
       console.error(error);
@@ -388,7 +401,7 @@ export default function RequestReturnModal({
           {/* Reason Input */}
           <div className="space-y-1.5">
             <label htmlFor="return-reason" className="text-xs font-bold text-neutral-500 uppercase tracking-wider">
-              Lý do trả hàng chung <span className="text-red-500">*</span>
+              Lý do trả hàng chung {!hasDetailedReason && <span className="text-red-500">*</span>}
             </label>
             <textarea
               id="return-reason"

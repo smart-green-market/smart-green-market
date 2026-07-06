@@ -82,11 +82,10 @@ export default function OrderDetailItemsTable({ items }) {
               return (
                 <React.Fragment key={item.id || idx}>
                   <tr
-                    className={`transition-colors ${
-                      isRejected
-                        ? "bg-red-50/40 hover:bg-red-50/60 text-red-600"
-                        : "hover:bg-neutral-50/50"
-                    }`}
+                    className={`transition-colors ${isRejected
+                      ? "bg-red-50/40 hover:bg-red-50/60 text-red-600"
+                      : "hover:bg-neutral-50/50"
+                      }`}
                   >
                     <td className={`py-4 px-5 text-center font-bold ${isRejected ? "text-red-500" : "text-neutral-500"}`}>
                       {idx + 1}
