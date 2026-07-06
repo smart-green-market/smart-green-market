@@ -1,5 +1,5 @@
 import DataTable from "react-data-table-component";
-import { tableStyles } from "../../common/tableStyles";
+import { tableStyles } from "../../common/TableStyles";
 import { getSeasonTagClassName } from "./productMasterHelpers";
 
 const STATUS_CONFIG = {

@@ -1,5 +1,5 @@
 import DataTable from "react-data-table-component";
-import { tableStyles } from "../../common/tableStyles";
+import { tableStyles } from "../../common/TableStyles";
 import { formatDateTime } from "../../common/formatDateTime";
 
 // ── Status ─────────────────────────────────────────────────────────────

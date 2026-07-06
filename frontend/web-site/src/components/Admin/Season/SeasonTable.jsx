@@ -1,5 +1,5 @@
 import DataTable from "react-data-table-component";
-import { tableStyles } from "../../common/tableStyles";
+import { tableStyles } from "../../common/TableStyles";
 
 const STATUS_CONFIG = {
     active: { label: "HOẠT ĐỘNG", bg: "bg-green-200", text: "text-green-800" },
