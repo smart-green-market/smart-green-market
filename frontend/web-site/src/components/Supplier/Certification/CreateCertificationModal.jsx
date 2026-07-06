@@ -3,7 +3,7 @@ import {
   X, ShieldCheck, Hash, Building2, CalendarDays, FileText,
   CloudUpload, Trash2, CheckCircle, Loader2, Info, Save, ImageIcon,
 } from "lucide-react";
-import { certificationService } from "../../../services/api/CertificationService";
+import { certificationService } from "../../../services/api/certificationService";
 import {
   parseSupplierApiErrors,
   validateCertificationForm,
