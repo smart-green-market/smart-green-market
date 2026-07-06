@@ -1,0 +1,233 @@
+/*
+  Style cho trang "Thống kê đơn hàng" (Supplier).
+  Trích xuất từ file HTML gốc (supplier_dashboard_v2).
+  Nếu project của bạn đã có sẵn các class .card/.mc/.chip/... dùng chung
+  (ví dụ trong index.css hoặc supplierTableStyles.js) thì có thể BỎ file này
+  để tránh trùng lặp — chỉ giữ lại phần biến màu (:root) nếu chưa có.
+*/
+
+:root {
+  --bg:       #f3f4f6;
+  --surface:  #ffffff;
+  --surface2: #f9fafb;
+  --border:   #e5e7eb;
+  --border2:  #d1d5db;
+  --text1:    #111827;
+  --text2:    #565f6b;
+  --text3:    #80899a;
+  --green9:   #0f3d20;
+  --green8:   #1a5c2a;
+  --green7:   #166534;
+  --green1:   #d1fae5;
+  --green0:   #EAF3DE;
+  --amber0:   #FAEEDA;
+  --amber8:   #854F0B;
+  --blue0:    #E6F1FB;
+  --blue8:    #185FA5;
+  --purple0:  #EEEDFE;
+  --purple8:  #534AB7;
+  --red0:     #FCEBEB;
+  --red8:     #A32D2D;
+}
+
+.page { display: flex; flex-direction: column; gap: 14px; }
+
+/* TOOLBAR */
+.toolbar { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.chip-group { display: flex; gap: 6px; flex-wrap: wrap; }
+.chip {
+  padding: 8px 14px; border-radius: 20px; font-size: 12px; font-weight: 500;
+  color: var(--text2); background: var(--surface); border: 0.5px solid var(--border);
+  cursor: pointer; white-space: nowrap; transition: background .12s;
+}
+.chip:hover { background: var(--surface2); }
+.chip.on    { background: var(--green9); color: var(--green1); border-color: var(--green9); }
+
+.btn-ghost {
+  display: flex; align-items: center; gap: 6px;
+  padding: 0 14px; height: 34px; border-radius: 9px;
+  background: var(--surface); color: var(--text2);
+  font-size: 12px; font-weight: 500; cursor: pointer;
+  border: 0.5px solid var(--border); white-space: nowrap;
+}
+.btn-ghost:hover { background: var(--surface2); }
+
+/* METRICS */
+.metrics { display: grid; grid-template-columns: repeat(4, minmax(0,1fr)); gap: 10px; }
+.mc {
+  background: var(--surface); border: 0.5px solid var(--border);
+  border-radius: 12px; padding: 14px 16px;
+}
+.mc-top { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
+.mc-icon {
+  width: 32px; height: 32px; border-radius: 8px;
+  display: flex; align-items: center; justify-content: center; font-size: 16px;
+}
+.mc-icon.g { background: var(--green0); color: #3B6D11; }
+.mc-icon.a { background: var(--amber0); color: var(--amber8); }
+.mc-icon.b { background: var(--blue0);  color: var(--blue8);  }
+.mc-icon.p { background: var(--purple0);color: var(--purple8);}
+.mc-icon.r { background: var(--red0);   color: var(--red8);   }
+.mc-val   { font-size: 24px; font-weight: 500; color: var(--text1); line-height: 1; }
+.mc-label { font-size: 11px; color: var(--text3); margin-top: 4px; }
+
+/* CARD */
+.card { background: var(--surface); border: 0.5px solid var(--border); border-radius: 12px; overflow: hidden; }
+.ch  { display: flex; align-items: center; justify-content: space-between; padding: 12px 16px; border-bottom: 0.5px solid var(--border); }
+.ch-left { display: flex; align-items: center; gap: 8px; }
+.ch-ico { width: 28px; height: 28px; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 14px; }
+.ch-ico.g { background: var(--green0); color: #3B6D11; }
+.ch-ico.a { background: var(--amber0); color: var(--amber8); }
+.ch-ico.b { background: var(--blue0);  color: var(--blue8); }
+.ch-ico.p { background: var(--purple0);color: var(--purple8); }
+.ch-title { font-size: 13px; font-weight: 500; color: var(--text1); }
+.ch-link  { font-size: 11px; color: var(--green8); cursor: pointer; }
+.cb { padding: 0 16px; }
+
+/* TWO COL */
+.two { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+
+/* PROGRESS ROW (top periods) */
+.pr { display: flex; align-items: center; gap: 8px; padding: 8px 0; border-bottom: 0.5px solid var(--border); }
+.pr:last-child { border: none; }
+.pr-name  { font-size: 12px; color: var(--text1); flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pr-track { flex: 1; height: 4px; background: var(--surface2); border-radius: 2px; overflow: hidden; }
+.pr-fill  { height: 100%; border-radius: 2px; background: var(--green8); }
+.pr-pct   { font-size: 11px; color: var(--text3); width: 28px; text-align: right; flex-shrink: 0; }
+
+/* PILL */
+.pill { display: inline-flex; align-items: center; padding: 2px 8px; border-radius: 20px; font-size: 10px; font-weight: 500; white-space: nowrap; flex-shrink: 0; }
+.pill.g  { background: var(--green0); color: #3B6D11; }
+.pill.a  { background: var(--amber0); color: var(--amber8); }
+.pill.b  { background: var(--blue0);  color: var(--blue8); }
+.pill.r  { background: var(--red0);   color: var(--red8); }
+.pill.gr { background: #f3f4f6;       color: var(--text2); }
+
+/* CHART */
+.chart-wrap { padding: 14px 16px 6px; }
+.chart-svg  { width: 100%; height: 200px; display: block; }
+.chart-svg .chart-axis { stroke: var(--border); stroke-width: 1; }
+.chart-svg text.chart-val { font-size: 9px; fill: var(--text2); font-weight: 500; }
+.chart-svg text.chart-lbl { font-size: 9px; fill: var(--text3); }
+.chart-legend  { display: flex; align-items: center; gap: 12px; }
+.legend-chip   { display: flex; align-items: center; gap: 5px; font-size: 11px; color: var(--text2); }
+.legend-chip i { width: 8px; height: 8px; border-radius: 2px; display: inline-block; }
+
+/* DONUT */
+.donut-wrap    { display: flex; align-items: center; gap: 18px; padding: 8px 16px 18px; flex-wrap: wrap; }
+.donut-legend  { display: flex; flex-direction: column; gap: 9px; flex: 1; min-width: 140px; }
+.legend-row    { display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--text2); }
+.legend-dot    { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+.legend-name   { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.legend-val    { font-weight: 500; color: var(--text1); }
+
+/* TABLE (danh sách thống kê) */
+.pl-wrap { overflow-x: auto; }
+.plh, .plr { display: flex; align-items: center; gap: 10px; min-width: 740px; padding: 0 16px; }
+.plh { padding: 10px 16px; font-size: 10px; color: var(--text3); text-transform: uppercase; letter-spacing: .6px; border-bottom: 0.5px solid var(--border); }
+.plr { padding: 10px 16px; border-bottom: 0.5px solid var(--border); transition: background .1s; }
+.plr:last-child { border: none; }
+.plr:hover { background: var(--surface2); }
+.st-period { flex: 1; min-width: 100px; font-size: 12px; font-weight: 500; color: var(--text1); }
+.st-num    { width: 96px; flex-shrink: 0; text-align: right; font-size: 12px; color: var(--text2); }
+.st-num.strong { color: var(--text1); font-weight: 500; }
+.st-growth { width: 84px; flex-shrink: 0; text-align: right; }
+
+/* RESPONSIVE */
+@media (max-width: 900px) {
+  .metrics { grid-template-columns: repeat(2, minmax(0,1fr)); }
+  .two { grid-template-columns: 1fr; }
+}
+
+/* ── MODAL XUẤT BÁO CÁO ─────────────────────────────────────────────────── */
+.modal-overlay {
+  position: fixed; inset: 0; z-index: 999;
+  background: rgba(0,0,0,.35);
+  display: flex; align-items: center; justify-content: center;
+  padding: 16px;
+  animation: fadeIn .15s ease;
+}
+@keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+
+.modal {
+  background: var(--surface);
+  border-radius: 16px;
+  width: 100%;
+  box-shadow: 0 24px 64px rgba(0,0,0,.18);
+  display: flex; flex-direction: column;
+  animation: slideUp .18s ease;
+  overflow: hidden;
+}
+@keyframes slideUp { from { transform: translateY(12px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+
+.modal-head {
+  display: flex; align-items: center; gap: 12px;
+  padding: 16px 20px;
+  border-bottom: 0.5px solid var(--border);
+}
+.notif-ico {
+  width: 36px; height: 36px; border-radius: 10px; flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center; font-size: 18px;
+}
+.modal-head-text { flex: 1; min-width: 0; }
+.modal-title { font-size: 14px; font-weight: 600; color: var(--text1); }
+.modal-time  { font-size: 11px; color: var(--text3); margin-top: 1px; }
+.modal-close {
+  width: 28px; height: 28px; border-radius: 7px; flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 15px; color: var(--text3); cursor: pointer;
+  background: transparent; border: none;
+  transition: background .1s;
+}
+.modal-close:hover { background: var(--surface2); color: var(--text1); }
+
+.modal-body { padding: 16px 20px; display: flex; flex-direction: column; gap: 16px; }
+
+.exp-group { display: flex; flex-direction: column; gap: 8px; }
+.exp-label { font-size: 11px; font-weight: 600; color: var(--text3); text-transform: uppercase; letter-spacing: .5px; }
+.exp-chips { display: flex; gap: 6px; flex-wrap: wrap; }
+
+.exp-opt {
+  display: flex; align-items: flex-start; gap: 9px;
+  font-size: 12px; color: var(--text2); cursor: pointer;
+  padding: 6px 0;
+}
+.exp-opt input[type="checkbox"] { margin-top: 1px; flex-shrink: 0; accent-color: var(--green8); }
+
+.exp-fmt { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.exp-fmt-opt {
+  display: flex; flex-direction: column; gap: 2px;
+  padding: 10px 14px; border-radius: 10px;
+  border: 1.5px solid var(--border); cursor: pointer;
+  font-size: 12px; color: var(--text2);
+  transition: border-color .12s, background .12s;
+}
+.exp-fmt-opt i { font-size: 16px; color: var(--text3); margin-bottom: 4px; }
+.exp-fmt-opt span { font-weight: 500; color: var(--text1); }
+.exp-fmt-opt small { font-size: 10px; color: var(--text3); }
+.exp-fmt-opt:hover { background: var(--surface2); }
+.exp-fmt-opt.on { border-color: var(--green8); background: var(--green0); }
+.exp-fmt-opt.on i { color: var(--green8); }
+
+.exp-hint {
+  display: flex; align-items: flex-start; gap: 7px;
+  background: var(--blue0); border-radius: 8px; padding: 9px 12px;
+  font-size: 11px; color: var(--blue8);
+}
+.exp-hint i { flex-shrink: 0; font-size: 14px; margin-top: 1px; }
+
+.modal-foot {
+  display: flex; align-items: center; justify-content: flex-end; gap: 8px;
+  padding: 12px 20px;
+  border-top: 0.5px solid var(--border);
+}
+.btn-primary {
+  display: flex; align-items: center; gap: 6px;
+  padding: 0 16px; height: 34px; border-radius: 9px;
+  background: var(--green8); color: #fff;
+  font-size: 12px; font-weight: 500; cursor: pointer;
+  border: none; white-space: nowrap;
+  transition: background .12s;
+}
+.btn-primary:hover { background: var(--green9); }
+

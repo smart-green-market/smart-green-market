@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Package, ShoppingCart, Lock, Clock, Search, Filter, Plus, User } from "lucide-react";
+import { Package, ShoppingCart, Lock, Clock, Search, Filter, Plus, User, FileSpreadsheet } from "lucide-react";
 import ProductTable from "../../components/Supplier/Product/ProductTable";
 import DeleteConfirmModal from "../../components/common/DeleteConfirmModal";
 import ConfirmModal from "../../components/common/ConfirmModal";
@@ -9,6 +9,7 @@ import { productService } from "../../services/api/productService";
 import SupplierPageHeader, { SUPPLIER_PAGE_CLASS } from "../../components/Supplier/UI/SupplierPageHeader";
 import { extractApiError } from "../../utils/extractApiError";
 import ListOrderModal from "../../components/Supplier/Product/ListOrderModal";
+import { exportProductsToExcel } from "../../utils/exportUtils";
 
 const METRIC_TONE = {
   b: "bg-blue-50 text-blue-600",
@@ -143,6 +144,14 @@ export default function ProductSupplierPage() {
           className="px-4 py-2 border border-neutral-200 rounded-lg text-sm w-72 outline-none focus:border-emerald-600"
         />
         <div className="flex items-center justify-end gap-2">
+          <button
+            onClick={() => exportProductsToExcel(data)}
+            className="flex items-center gap-2 px-4 py-2 text-sm font-semibold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 rounded-lg transition-colors cursor-pointer"
+          >
+            <FileSpreadsheet className="w-4 h-4" />
+            Xuất Excel
+          </button>
+
           <button
             onClick={() => { setModalMode("catalog"); setIsModalOpen(true); }}
             className="flex items-center gap-2 px-4 py-2 text-sm font-semibold text-white bg-green-700 hover:bg-green-800 rounded-lg"
