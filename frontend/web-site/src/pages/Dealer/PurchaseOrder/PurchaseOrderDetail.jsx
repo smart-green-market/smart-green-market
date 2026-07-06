@@ -1,5 +1,5 @@
 import { useNavigate, useParams } from "react-router-dom";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { toast } from "sonner";
 import { XCircle, CheckCircle, RotateCcw } from "lucide-react";
 import { purchaseOrderService } from "../../../services/api/purchaseOrderService";
@@ -14,6 +14,8 @@ import PaymentQrSection from "../../../components/Dealer/PurchaseOrderDetail/Pay
 import PaymentHistory from "../../../components/Dealer/PurchaseOrderDetail/PaymentHistory";
 import OrderStatusBanner from "../../../components/Dealer/PurchaseOrderDetail/OrderStatusBanner";
 import { formatDateTime } from "../../../components/common/formatDateTime";
+import { useOrderRealtimeRefresh } from "../../../hooks/useOrderRealtimeRefresh";
+import { ORDER_REFERENCE_TYPES } from "../../../utils/orderRealtimeUtils";
 
 const mapStatusToFrontend = (status) => {
   const statusMap = {
@@ -47,12 +49,10 @@ export default function DealerPurchaseOrderDetailPage() {
   const [isReturnModalOpen, setIsReturnModalOpen] = useState(false);
   const [isApproveModalOpen, setIsApproveModalOpen] = useState(false);
 
-  // Hàm lấy chi tiết phiếu nhập từ API
-  const fetchOrderDetail = async () => {
-    setLoading(true);
+  const fetchOrderDetail = useCallback(async ({ silent = false } = {}) => {
+    if (!silent) setLoading(true);
     try {
       const data = await purchaseOrderService.getById(id);
-      // Chuẩn hóa cấu trúc dữ liệu từ API
       const mappedOrder = {
         id: data.order_code,
         date: new Date(data.created_at).toLocaleDateString("vi-VN", { day: '2-digit', month: '2-digit', year: 'numeric' }),
@@ -124,23 +124,27 @@ export default function DealerPurchaseOrderDetailPage() {
       setOrderData(mappedOrder);
     } catch (error) {
       console.error("Lỗi khi tải chi tiết đơn nhập hàng:", error);
-      toast.error("Không thể tải chi tiết đơn hàng.");
+      if (!silent) toast.error("Không thể tải chi tiết đơn hàng.");
     } finally {
-      setLoading(false);
+      if (!silent) setLoading(false);
     }
-  };
+  }, [id]);
 
   useEffect(() => {
-    // Trường hợp lấy thông tin chi tiết đơn hàng có sẵn từ URL ID
     if (id) {
       fetchOrderDetail();
-    }
-    // Trường hợp không hợp lệ, chuyển hướng về danh sách
-    else {
+    } else {
       setLoading(false);
       navigate("/dai-ly/nhap-hang");
     }
-  }, [id, navigate]);
+  }, [id, navigate, fetchOrderDetail]);
+
+  useOrderRealtimeRefresh({
+    referenceTypes: [ORDER_REFERENCE_TYPES.PURCHASE_ORDER],
+    watchOrderId: id,
+    onRefresh: () => fetchOrderDetail({ silent: true }),
+    onDetailRefresh: () => fetchOrderDetail({ silent: true }),
+  });
 
   if (loading) {
     return (

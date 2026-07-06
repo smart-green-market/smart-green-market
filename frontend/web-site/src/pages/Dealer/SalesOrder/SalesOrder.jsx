@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { ShoppingCart, Plus, CheckCircle2, Truck, Printer, Package, XCircle } from "lucide-react";
 import { toast } from "sonner";
 import SupplierFilter from "../../../components/Dealer/Supplier/SupplierFilter";
@@ -9,6 +9,8 @@ import SalesOrderDetailPanel from "../../../components/Dealer/SalesOrder/SalesOr
 import PrintInvoiceModal from "../../../components/Dealer/SalesOrder/PrintInvoiceModal";
 import RejectModal from "../../../components/common/RejectModal";
 import { dealerOrderService } from "../../../services/api/dealerOrderService";
+import { useOrderRealtimeRefresh } from "../../../hooks/useOrderRealtimeRefresh";
+import { ORDER_REFERENCE_TYPES } from "../../../utils/orderRealtimeUtils";
 
 export default function DealerSalesOrderPage() {
     const [searchQuery, setSearchQuery] = useState("");
@@ -63,8 +65,8 @@ export default function DealerSalesOrderPage() {
         return () => clearTimeout(timer);
     }, [searchQuery, debouncedSearchQuery]);
 
-    const fetchOrders = async () => {
-        setIsLoading(true);
+    const fetchOrders = useCallback(async ({ silent = false } = {}) => {
+        if (!silent) setIsLoading(true);
         try {
             const data = await dealerOrderService.getAll({ page: currentPage, page_size: 10, search: debouncedSearchQuery, status: statusFilter });
             const results = data.results || (Array.isArray(data) ? data : []);
@@ -100,13 +102,35 @@ export default function DealerSalesOrderPage() {
         } catch (error) {
             console.error("Lỗi lấy danh sách đơn hàng", error);
         } finally {
-            setIsLoading(false);
+            if (!silent) setIsLoading(false);
         }
-    };
+    }, [currentPage, debouncedSearchQuery, statusFilter]);
 
     useEffect(() => {
         fetchOrders();
-    }, [currentPage, debouncedSearchQuery, statusFilter]);
+    }, [fetchOrders]);
+
+    const refreshDetailPanel = useCallback(async (orderId) => {
+        try {
+            const detail = await dealerOrderService.getById(orderId);
+            setSelectedOrder(prev => {
+                if (!prev || prev.originalData?.id !== orderId) return prev;
+                return {
+                    ...prev,
+                    status: mapStatusToVietnamese(detail.status),
+                    delivery: mapStatusToVietnamese(detail.status),
+                    originalData: detail
+                };
+            });
+        } catch { /* ignore */ }
+    }, []);
+
+    useOrderRealtimeRefresh({
+        referenceTypes: [ORDER_REFERENCE_TYPES.CUSTOMER_ORDER],
+        watchOrderId: selectedOrder?.originalData?.id ?? null,
+        onRefresh: () => fetchOrders({ silent: true }),
+        onDetailRefresh: (parsed) => refreshDetailPanel(parsed.referenceId),
+    });
 
     const filteredOrders = salesOrders; // Nếu backend đã filter thì bỏ qua. Nhưng tạm giữ lại data trả về. (Đã pass search param cho API)
 
@@ -151,18 +175,6 @@ export default function DealerSalesOrderPage() {
             console.error("Lỗi khi xác nhận đơn hàng đồng loạt", error);
             alert("Có lỗi xảy ra khi xác nhận đơn hàng");
         }
-    };
-
-    const refreshDetailPanel = async (orderId) => {
-        try {
-            const detail = await dealerOrderService.getById(orderId);
-            setSelectedOrder(prev => ({
-                ...prev,
-                status: mapStatusToVietnamese(detail.status),
-                delivery: mapStatusToVietnamese(detail.status),
-                originalData: detail
-            }));
-        } catch { }
     };
 
     const handleSingleConfirm = async (order) => {

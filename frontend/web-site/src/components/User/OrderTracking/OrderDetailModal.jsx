@@ -380,6 +380,7 @@ export default function OrderDetailModal({
   dealerSlug,
   orderId,
   isOpen,
+  refreshKey = 0,
   onClose,
   onOrderUpdated,
   onCancelOrder,
@@ -393,18 +394,22 @@ export default function OrderDetailModal({
   // =======================================================================
   // 🔌 FETCH API — LẤY CHI TIẾT ĐƠN HÀNG
   // =======================================================================
-  const fetchDetail = useCallback(async () => {
+  const fetchDetail = useCallback(async ({ silent = false } = {}) => {
     if (!orderId || !dealerSlug) return;
-    setLoading(true);
-    setError(null);
-    setOrder(null);
+    if (!silent) {
+      setLoading(true);
+      setError(null);
+      setOrder(null);
+    }
     try {
       const data = await buyerOrder.getById(dealerSlug, orderId);
       setOrder(parseBuyerOrderDetail(data));
     } catch (err) {
-      setError(handleApiError(err, "Không tải được chi tiết đơn hàng."));
+      if (!silent) {
+        setError(handleApiError(err, "Không tải được chi tiết đơn hàng."));
+      }
     } finally {
-      setLoading(false);
+      if (!silent) setLoading(false);
     }
   }, [dealerSlug, orderId]);
 
@@ -417,6 +422,12 @@ export default function OrderDetailModal({
       setError(null);
     }
   }, [isOpen, orderId, fetchDetail]);
+
+  useEffect(() => {
+    if (isOpen && orderId && refreshKey > 0) {
+      fetchDetail({ silent: true });
+    }
+  }, [refreshKey, isOpen, orderId, fetchDetail]);
 
   const handleConfirmDelivery = useCallback(async () => {
     if (!order?.id || !dealerSlug) return;

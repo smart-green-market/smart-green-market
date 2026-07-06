@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { ClipboardList, Plus } from "lucide-react";
 import SupplierFilter from "../../../components/Dealer/Supplier/SupplierFilter";
 import PurchaseOrderList from "../../../components/Dealer/PurchaseOrder/PurchaseOrderList";
@@ -6,6 +6,8 @@ import PurchaseOrderStatsCard from "../../../components/Dealer/PurchaseOrder/Pur
 import { purchaseOrderService } from "../../../services/api/purchaseOrderService";
 import Pagination from "../../../components/common/Pagination";
 import { useNavigate, useLocation } from "react-router-dom";
+import { useOrderRealtimeRefresh } from "../../../hooks/useOrderRealtimeRefresh";
+import { ORDER_REFERENCE_TYPES } from "../../../utils/orderRealtimeUtils";
 
 const mapStatusToFrontend = (status) => {
     const statusMap = {
@@ -86,68 +88,69 @@ export default function DealerPurchaseOrderPage() {
         return () => clearTimeout(timer);
     }, [searchQuery, debouncedSearchQuery]);
 
-    //  Gọi API mỗi khi trang hoặc trạng thái route thay đổi
-    useEffect(() => {
-        const fetchOrders = async () => {
-            setLoading(true);
-            try {
-                const params = {
-                    page: currentPage,
-                    page_size: page_size,
-                };
-                if (debouncedSearchQuery) params.search = debouncedSearchQuery;
-                if (statusFilter) params.status = statusFilter;
+    const fetchOrders = useCallback(async ({ silent = false } = {}) => {
+        if (!silent) setLoading(true);
+        try {
+            const params = {
+                page: currentPage,
+                page_size: page_size,
+            };
+            if (debouncedSearchQuery) params.search = debouncedSearchQuery;
+            if (statusFilter) params.status = statusFilter;
 
-                const response = await purchaseOrderService.getAll(params);
+            const response = await purchaseOrderService.getAll(params);
 
-                const results = response?.results || [];
-                const mappedList = results.map((item) => ({
-                    rawId: item.id,
-                    id: item.order_code,
-                    supplier: item.supplier_name,
-                    date: new Date(item.created_at).toLocaleDateString("vi-VN", { day: '2-digit', month: '2-digit', year: 'numeric' }),
-                    items: "Xem chi tiết đơn hàng",
-                    amount: `${Number(item.total_amount).toLocaleString("vi-VN")} đ`,
-                    status: mapStatusToFrontend(item.status),
-                    rawStatus: item.status,
-                    deliveryDate: (item.confirmed_delivery_time || item.requested_delivery_time)
-                        ? new Date(item.confirmed_delivery_time || item.requested_delivery_time).toLocaleDateString("vi-VN", { day: '2-digit', month: '2-digit', year: 'numeric' })
-                        : "Chưa xác định",
-                }));
-                //Check đơn mới đã tồn tại chưa để thêm lên đầu
-                let list = [...mappedList];
-                if (location.state?.newOrder) {
-                    const newO = location.state.newOrder;
-                    if (!list.some(o => o.id === newO.id)) {
-                        list = [newO, ...list];
-                    }
+            const results = response?.results || [];
+            const mappedList = results.map((item) => ({
+                rawId: item.id,
+                id: item.order_code,
+                supplier: item.supplier_name,
+                date: new Date(item.created_at).toLocaleDateString("vi-VN", { day: '2-digit', month: '2-digit', year: 'numeric' }),
+                items: "Xem chi tiết đơn hàng",
+                amount: `${Number(item.total_amount).toLocaleString("vi-VN")} đ`,
+                status: mapStatusToFrontend(item.status),
+                rawStatus: item.status,
+                deliveryDate: (item.confirmed_delivery_time || item.requested_delivery_time)
+                    ? new Date(item.confirmed_delivery_time || item.requested_delivery_time).toLocaleDateString("vi-VN", { day: '2-digit', month: '2-digit', year: 'numeric' })
+                    : "Chưa xác định",
+            }));
+            let list = [...mappedList];
+            if (location.state?.newOrder) {
+                const newO = location.state.newOrder;
+                if (!list.some(o => o.id === newO.id)) {
+                    list = [newO, ...list];
                 }
-                setPurchaseOrders(list);
-                // Cập nhật count_status từ API
-                if (response?.count_status) {
-                    setCountStatus(response.count_status);
-                } else {
-                    setCountStatus(null);
-                }
-                //Tính toán để phân trang
-                const count = response?.count || 0;
-                const pageSize = response?.page_size || page_size;
-                setTotalPages(Math.max(1, Math.ceil(count / pageSize)));
-
-                // Cập nhật tổng số đơn cho "Tất cả"
-                if (statusFilter === "") {
-                    setTotalCount(count);
-                } else if (response?.count_status) {
-                    setTotalCount(Object.values(response.count_status).reduce((sum, val) => sum + (val || 0), 0));
-                }
-            } catch (error) {
-                console.error("Lỗi khi tải đơn nhập hàng:", error);
-            } finally {
-                setLoading(false);
             }
-        };
-        fetchOrders();
+            setPurchaseOrders(list);
+            if (response?.count_status) {
+                setCountStatus(response.count_status);
+            } else {
+                setCountStatus(null);
+            }
+            const count = response?.count || 0;
+            const pageSize = response?.page_size || page_size;
+            setTotalPages(Math.max(1, Math.ceil(count / pageSize)));
+
+            if (statusFilter === "") {
+                setTotalCount(count);
+            } else if (response?.count_status) {
+                setTotalCount(Object.values(response.count_status).reduce((sum, val) => sum + (val || 0), 0));
+            }
+        } catch (error) {
+            console.error("Lỗi khi tải đơn nhập hàng:", error);
+        } finally {
+            if (!silent) setLoading(false);
+        }
     }, [currentPage, location.state, debouncedSearchQuery, statusFilter]);
+
+    useEffect(() => {
+        fetchOrders();
+    }, [fetchOrders]);
+
+    useOrderRealtimeRefresh({
+        referenceTypes: [ORDER_REFERENCE_TYPES.PURCHASE_ORDER],
+        onRefresh: () => fetchOrders({ silent: true }),
+    });
 
     // Tìm kiếm và lọc theo trạng thái
     const filteredData = purchaseOrders; // Backend đã xử lý filter, ở đây không filter thêm để tránh lỗi phân trang
