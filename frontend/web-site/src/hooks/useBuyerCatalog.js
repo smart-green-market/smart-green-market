@@ -22,7 +22,7 @@ async function loadCatalog(slug) {
 
   const [categories, productRows] = await Promise.all([
     buyerCatalogService.getCategory(slug),
-    buyerCatalogService.getProduct(slug),
+    buyerCatalogService.getAllProducts(slug, { ordering: "-updated_at" }),
   ]);
 
   const products = (productRows ?? []).map(formatBuyerProduct);
@@ -77,6 +77,123 @@ export function useBuyerCatalog() {
   }, [slug]);
 
   return { slug, categories, products, loading, error };
+}
+
+export function useBuyerCatalogProducts({
+  apiParams = {},
+  page = 1,
+  pageSize = 8,
+  fetchAll = false,
+} = {}) {
+  const slug = useDealerSlug();
+  const [categories, setCategories] = useState([]);
+  const [products, setProducts] = useState([]);
+  const [pagination, setPagination] = useState({
+    count: 0,
+    page: 1,
+    pageSize,
+    totalPages: 1,
+    hasMore: false,
+  });
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+  const paramsKey = JSON.stringify(apiParams);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    if (!slug) {
+      setCategories([]);
+      setProducts([]);
+      setPagination({
+        count: 0,
+        page: 1,
+        pageSize,
+        totalPages: 1,
+        hasMore: false,
+      });
+      setError(
+        "Chưa xác định cửa hàng. Vui lòng truy cập qua link cửa hàng đại lý.",
+      );
+      setLoading(false);
+      return;
+    }
+
+    setLoading(true);
+    setError("");
+
+    const categoriesPromise = buyerCatalogService.getCategory(slug);
+    const productsPromise = fetchAll
+      ? buyerCatalogService.getAllProducts(slug, apiParams)
+      : buyerCatalogService
+          .getProducts(slug, {
+            ...apiParams,
+            page,
+            page_size: pageSize,
+          })
+          .then((data) => ({
+            rows: data?.results ?? [],
+            count: Number(data?.count ?? 0),
+            page: Number(data?.page ?? page),
+            pageSize: Number(data?.page_size ?? pageSize),
+            hasMore: Boolean(data?.has_more),
+          }));
+
+    Promise.all([categoriesPromise, productsPromise])
+      .then(([cats, productPayload]) => {
+        if (cancelled) return;
+
+        setCategories(cats ?? []);
+
+        if (fetchAll) {
+          const rows = Array.isArray(productPayload) ? productPayload : [];
+          setProducts(rows.map(formatBuyerProduct));
+          setPagination({
+            count: rows.length,
+            page: 1,
+            pageSize,
+            totalPages: Math.max(1, Math.ceil(rows.length / pageSize)),
+            hasMore: false,
+          });
+          return;
+        }
+
+        const {
+          rows,
+          count,
+          page: currentPage,
+          pageSize: currentPageSize,
+          hasMore,
+        } = productPayload;
+        const safeCount = Number.isFinite(count) ? count : rows.length;
+        const safePageSize = currentPageSize || pageSize;
+
+        setProducts((rows ?? []).map(formatBuyerProduct));
+        setPagination({
+          count: safeCount,
+          page: currentPage || page,
+          pageSize: safePageSize,
+          totalPages: Math.max(1, Math.ceil(safeCount / safePageSize)),
+          hasMore,
+        });
+      })
+      .catch((err) => {
+        if (!cancelled) {
+          setError(
+            handleCatalogApiError(err, "Không thể tải danh sách sản phẩm"),
+          );
+        }
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [slug, paramsKey, page, pageSize, fetchAll]);
+
+  return { slug, categories, products, pagination, loading, error };
 }
 
 export function useBuyerProductSearch({

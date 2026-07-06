@@ -1,31 +1,35 @@
 import random
 import uuid
-from decimal import Decimal
 from datetime import timedelta
 from django.utils import timezone
 from django.core.management.base import BaseCommand
 from django.contrib.auth.hashers import make_password
 from faker import Faker
 
-from apps.accounts.models import Account, AccountRole, AccountStatus, AccountDocument, AccountDocumentType, AccountDocumentStatus
+from apps.accounts.models import Account, AccountRole, AccountStatus
 from apps.categories.models import Category, CategoryStatus, CategoryScope
 from apps.suppliers.models import Supplier, SupplierVerificationStatus
 from apps.dealers.models import DealerProfile, DealerProfileStatus
 from apps.customers.models import CustomerProfile, CustomerAddress
-from apps.supplier_products.models import SupplierProduct, SupplierProductStatus, SupplierProductImage, CultivationProcess
-from apps.dealer_products.models import DealerProduct, DealerProductStatus, DealerInventoryBatch
-from apps.purchase_orders.models import PurchaseOrder, PurchaseOrderItem, PurchaseOrderStatus
+from apps.supplier_products.models import SupplierProduct, SupplierProductStatus
+from apps.dealer_products.models import DealerInventoryBatch
 from apps.orders.models import Order
 from apps.product_catalog.models import ProductMaster
 
 from .seed_customer_journeys import seed_customer_journeys
 from .seed_product_helpers import (
+    DEALER_CUSTOM_CATEGORY_LABELS,
+    SEED_CATEGORY_NAMES,
+    SEED_PRODUCT_MASTERS,
     build_dealer_description,
     build_supplier_description,
     create_cultivation_processes,
     create_dealer_inventory_batches,
     get_storage_profile,
+    int_money,
     link_product_certifications,
+    pick_realistic_wholesale_price,
+    pick_retail_price,
     pick_storage_days,
     seed_dealer_age_discount_policy,
     seed_supplier_certifications,
@@ -84,6 +88,7 @@ class Command(BaseCommand):
             DealerSupplierProductInteraction.objects.all().delete()
             Order.objects.all().delete()
             from apps.purchase_orders.models import (
+                PurchaseOrder,
                 PurchaseOrderPayment,
                 PurchaseOrderReturn,
                 PurchaseOrderReturnItem,
@@ -100,6 +105,9 @@ class Command(BaseCommand):
 
             AgeDiscountPolicy.objects.all().delete()
             from apps.certifications.models import Certification
+            from apps.accounts.models import AccountDocument
+            from apps.dealer_products.models import DealerProduct
+            from apps.supplier_products.models import CultivationProcess, SupplierProductImage
 
             Certification.objects.all().delete()
             DealerProduct.objects.all().delete()
@@ -158,9 +166,6 @@ class Command(BaseCommand):
         self.stdout.write('Creating Dealer Products and Inventory...')
         self._create_dealer_products(self.dealers, self.supplier_products)
 
-        self.stdout.write('Creating Purchase Orders...')
-        self._create_purchase_orders(self.dealers, self.supplier_products)
-
         self.stdout.write('Creating customer orders & product interactions...')
         journey_stats = seed_customer_journeys(buyers=self.buyers, history_days=history_days)
         self.stdout.write(
@@ -213,22 +218,9 @@ class Command(BaseCommand):
         )
 
     def _create_categories(self):
-        names = [
-    'Rau ăn lá',
-    'Rau ăn củ',
-    'Rau ăn quả',
-    'Rau gia vị & rau thơm',
-    'Nấm các loại',
-    'Trái cây nhiệt đới',
-    'Trái cây có múi',
-    'Trái cây ôn đới & nhập khẩu',
-    'Quả mọng & đặc sản',
-    'Đậu & hạt tươi',
- 
-]
         categories = []
-        for name in names:
-            cat, created = Category.objects.get_or_create(
+        for name in SEED_CATEGORY_NAMES:
+            cat, _ = Category.objects.get_or_create(
                 name=name,
                 defaults={
                     'description': f'Danh mục {name}',
@@ -355,7 +347,7 @@ class Command(BaseCommand):
             profile = CustomerProfile.objects.create(
                 user=acc,
                 total_orders=0,
-                total_spent=Decimal("0"),
+                total_spent=int_money(0),
                 loyalty_points=0,
                 last_order_at=None,
                 note="",
@@ -371,70 +363,13 @@ class Command(BaseCommand):
         return buyers
 
     def _create_product_masters(self, categories):
-        # pyrefly: ignore [missing-import]
         from apps.product_catalog.models import ProductMasterStatus
-        master_data = {
-    'Rau ăn lá': [
-        'Rau cải ngọt', 'Rau muống', 'Cải thìa', 'Cải bó xôi', 'Mồng tơi',
-        'Rau dền', 'Xà lách', 'Cải xoăn kale', 'Rau ngót', 'Cải cúc',
-        'Rau lang', 'Rau đay', 'Cải bẹ xanh', 'Xà lách xoong', 'Rau chân vịt'
-    ],
-    'Rau ăn củ': [
-        'Khoai tây', 'Cà rốt Đà Lạt', 'Củ cải trắng', 'Su hào', 'Khoai lang mật',
-        'Củ dền', 'Củ sắn (củ đậu)', 'Gừng', 'Nghệ tươi', 'Khoai môn',
-        'Khoai mỡ', 'Củ niễng', 'Khoai sọ', 'Riềng', 'Sả củ'
-    ],
-    'Rau ăn quả': [
-        'Cà chua Đà Lạt', 'Bí đỏ', 'Bí xanh', 'Bầu', 'Mướp hương',
-        'Khổ qua', 'Dưa leo', 'Ớt chuông', 'Cà tím', 'Đậu cô ve',
-        'Mướp đắng rừng', 'Bí ngòi', 'Cà pháo', 'Đậu rồng', 'Su su'
-    ],
-    'Rau gia vị & rau thơm': [
-        'Hành lá', 'Ngò rí', 'Húng quế', 'Tía tô', 'Rau răm',
-        'Húng lủi', 'Diếp cá', 'Kinh giới', 'Ngò gai', 'Lá lốt',
-        'Thì là', 'Húng chanh', 'Sả lá', 'Rau mùi tàu', 'Lá chanh'
-    ],
-    'Nấm các loại': [
-        'Nấm rơm', 'Nấm bào ngư', 'Nấm kim châm', 'Nấm hương tươi', 'Nấm đùi gà',
-        'Nấm linh chi', 'Nấm mèo tươi', 'Nấm sò trắng', 'Nấm đông cô tươi', 'Nấm tuyết',
-        'Nấm mỡ', 'Nấm hải sản', 'Nấm trứng gà', 'Nấm chân dài', 'Nấm bụng dê'
-    ],
-    'Trái cây nhiệt đới': [
-        'Xoài Cát Chu', 'Chuối già Nam Mỹ', 'Dứa Đồng Giao', 'Đu đủ chín', 'Mít Thái',
-        'Sầu riêng Ri6', 'Thanh long ruột đỏ', 'Mãng cầu xiêm', 'Dừa xiêm', 'Ổi Đông Dư',
-        'Chuối sứ', 'Xoài keo', 'Mãng cầu ta', 'Đu đủ xanh', 'Mít ướt'
-    ],
-    'Trái cây có múi': [
-        'Cam sành', 'Quýt đường', 'Bưởi da xanh', 'Chanh không hạt', 'Cam Vinh',
-        'Bưởi năm roi', 'Quýt hồng', 'Chanh dây', 'Cam xoàn', 'Tắc (quất)',
-        'Bưởi diễn', 'Cam canh', 'Quýt đường Lai Vung', 'Chanh giấy', 'Cam sành Hà Giang'
-    ],
-    'Trái cây ôn đới & nhập khẩu': [
-        'Táo Phan Rang', 'Lê Hàn Quốc', 'Nho xanh Ninh Thuận', 'Kiwi vàng', 'Dưa lưới',
-        'Táo Envy', 'Nho đen không hạt', 'Lê Nam Phi', 'Cherry nhập khẩu', 'Việt quất',
-        'Mâm xôi đỏ', 'Táo Fuji', 'Lựu đỏ', 'Hồng giòn', 'Mận hậu'
-    ],
-    'Quả mọng & đặc sản': [
-        'Vải thiều Lục Ngạn', 'Nhãn lồng Hưng Yên', 'Chôm chôm', 'Măng cụt', 'Dâu tây Đà Lạt',
-        'Bòn bon', 'Roi đỏ', 'Sapoche (hồng xiêm)', 'Khế ngọt', 'Vú sữa Lò Rèn',
-        'Dưa hấu Long An', 'Bơ sáp Đắk Lắk', 'Quả na', 'Trái dừa sáp', 'Quả dứa mật'
-    ],
-    'Đậu & hạt tươi': [
-        'Đậu cô ve', 'Đậu bắp', 'Đậu Hà Lan', 'Măng tây', 'Đậu rồng tươi',
-        'Bắp non', 'Bắp ngọt trái', 'Đậu phộng tươi', 'Đậu nành tươi (edamame)', 'Hạt sen tươi',
-        'Củ năng', 'Bông cải trắng', 'Súp lơ xanh', 'Atiso tươi', 'Bông bí'
-    ],
 
-   
-    
-}
-        
         product_masters = []
         for cat in categories:
-            names = master_data.get(cat.name, [])
-            for name in names:
+            for name in SEED_PRODUCT_MASTERS.get(cat.name, []):
                 slug = self.fake.slug(name)
-                pm, created = ProductMaster.objects.get_or_create(
+                pm, _ = ProductMaster.objects.get_or_create(
                     category=cat,
                     slug=slug,
                     defaults={
@@ -470,6 +405,8 @@ class Command(BaseCommand):
                 slug = f'{self.fake.slug()}-{uuid.uuid4().hex[:6]}'
                 storage_profile = get_storage_profile(pm.category.name)
                 storage_days = pick_storage_days(storage_profile)
+                master_name = pm.name
+                wholesale = pick_realistic_wholesale_price(pm.category.name, master_name)
 
                 prod = SupplierProduct.objects.create(
                     supplier=supplier,
@@ -478,12 +415,12 @@ class Command(BaseCommand):
                     name=name,
                     slug=slug,
                     unit=unit,
-                    wholesale_price=Decimal(self.fake.random_int(10000, 500000)),
-                    daily_production_capacity=Decimal(self.fake.random_int(10, 1000)),
+                    wholesale_price=int_money(wholesale),
+                    daily_production_capacity=int_money(random.randint(10, 1000)),
                     description=build_supplier_description(pm, supplier.company_name, storage_days),
                     storage_duration_days=storage_days,
-                    min_storage_temp=Decimal(str(storage_profile["min_temp"])),
-                    max_storage_temp=Decimal(str(storage_profile["max_temp"])),
+                    min_storage_temp=int_money(storage_profile["min_temp"]),
+                    max_storage_temp=int_money(storage_profile["max_temp"]),
                     status=SupplierProductStatus.ACTIVE,
                     verified_by=self.admin_account,
                     verified_at=timezone.now()
@@ -504,22 +441,14 @@ class Command(BaseCommand):
         Điều này đảm bảo: category (gốc hoặc custom) -> vẫn truy ngược được
         về đúng nhánh category hệ thống ban đầu, tránh gán random gây sai lệch.
         """
+        from apps.dealer_products.models import DealerProduct, DealerProductStatus
         from apps.marketing.models import DealerSupplierProductInteraction
-
-        # Map: tên category hệ thống -> tên category custom muốn tạo cho dealer
-        custom_category_map = {
-            'Rau ăn lá': 'Rau sạch hữu cơ',
-            'Trái cây nhiệt đới': 'Trái cây đặc sản',
-            'Gia vị': 'Gia vị cao cấp',
-        }
 
         for dealer in dealers:
             seed_dealer_age_discount_policy(dealer)
 
-            # Tạo custom category cho dealer, map theo từng category hệ thống cụ thể
-            # key: id của category hệ thống gốc -> value: Category custom tương ứng
             system_to_custom = {}
-            for sys_cat_name, custom_label in custom_category_map.items():
+            for sys_cat_name, custom_label in DEALER_CUSTOM_CATEGORY_LABELS.items():
                 sys_cat = next((c for c in self.categories if c.name == sys_cat_name), None)
                 if not sys_cat:
                     continue
@@ -536,12 +465,14 @@ class Command(BaseCommand):
                 )
                 system_to_custom[sys_cat.id] = custom_cat
 
-            num_prods = random.randint(30, 60)
-            selected_supp_prods = random.sample(supplier_products, min(num_prods, len(supplier_products)))
+            pool_size = len(supplier_products)
+            min_dealer_prods = min(20, pool_size)
+            max_dealer_prods = min(45, pool_size)
+            num_prods = random.randint(min_dealer_prods, max_dealer_prods)
+            selected_supp_prods = random.sample(supplier_products, num_prods)
 
             for idx, sp in enumerate(selected_supp_prods):
-                retail_price = sp.wholesale_price * Decimal(random.uniform(1.1, 1.5))
-                retail_price = retail_price.quantize(Decimal('1.00'))
+                retail_price = pick_retail_price(sp.wholesale_price)
 
                 dp_category = system_to_custom.get(sp.category_id, sp.category)
 
@@ -574,41 +505,3 @@ class Command(BaseCommand):
                         'last_purchased_at': timezone.now() - timedelta(days=random.randint(1, 20))
                     }
                 )
-
-    def _create_purchase_orders(self, dealers, supplier_products):
-        for dealer in dealers:
-            num_pos = random.randint(20, 50)
-            for _ in range(num_pos):
-                sp = random.choice(supplier_products)
-                supplier = sp.supplier
-                total_amount = Decimal(0)
-                po = PurchaseOrder.objects.create(
-                    order_code=f'PO-{uuid.uuid4().hex[:8].upper()}',
-                    supplier=supplier,
-                    dealer=dealer,
-                    status=random.choice(PurchaseOrderStatus.choices)[0],
-                    delivery_address=dealer.store_address,
-                    requested_delivery_time=timezone.now() + timedelta(days=random.randint(1, 7)),
-                    receiver_name=dealer.account.full_name,
-                    receiver_phone=dealer.account.phone,
-                )
-                
-                num_items = random.randint(2, 6)
-                for _ in range(num_items):
-                    item_sp = random.choice([p for p in supplier_products if p.supplier == supplier])
-                    qty = Decimal(random.randint(50, 200))
-                    price = item_sp.wholesale_price
-                    subtotal = qty * price
-                    total_amount += subtotal
-                    PurchaseOrderItem.objects.create(
-                        purchase_order=po,
-                        supplier_product=item_sp,
-                        quantity=qty,
-                        original_quantity=qty,
-                        unit_price=price,
-                        subtotal=subtotal
-                    )
-                
-                po.total_amount = total_amount
-                po.debt_amount = total_amount
-                po.save()

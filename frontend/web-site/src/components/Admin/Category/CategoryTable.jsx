@@ -1,5 +1,5 @@
 import DataTable from "react-data-table-component";
-import { tableStyles, paginationVi } from "../../common/tableStyles";
+import { tableStyles, paginationVi } from "../../common/TableStyles";
 import { formatDateTime } from "../../common/formatDateTime";
 
 // ── Status config ─────────────────────────────────────────────────────────────
@@ -79,7 +79,7 @@ const buildColumns = (onView) => [
         cell: (row) => {
             const st = STATUS_CONFIG[row.status] ?? STATUS_CONFIG.pending;
             return (
-                <span className={`px-2.5 py-1 rounded-full font-bold text-sm font-semibold font-['Geist',sans-serif] uppercase tracking-wide ${st.bg} ${st.text}`}>
+                <span className={`px-2.5 py-1 rounded-full font-bold text-xs font-semibold font-['Geist',sans-serif] uppercase tracking-wide ${st.bg} ${st.text}`}>
                     {st.label}
                 </span>
             );

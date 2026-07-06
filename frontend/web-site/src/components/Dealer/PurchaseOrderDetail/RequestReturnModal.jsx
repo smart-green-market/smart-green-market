@@ -34,20 +34,36 @@ export default function RequestReturnModal({
     } else if (orderItems) {
       const returnableItems = orderItems.filter((item) => {
         const status = item.review_status || item.item_status;
-        return status === "approved" && Number(item.quantity || 0) > 0;
+        const returnStatus = item.return_status || "none";
+        const returnableQty = Number(
+          item.returnable_quantity ?? item.quantity ?? 0
+        );
+        return (
+          status === "approved" &&
+          returnableQty > 0 &&
+          returnStatus !== "return_requested" &&
+          returnStatus !== "fully_returned"
+        );
       });
       setReturnItems(
-        returnableItems.map((item) => ({
+        returnableItems.map((item) => {
+          const originalQty = Number(item.quantity || 0);
+          const returnedQty = Number(item.returned_quantity || 0);
+          const maxQty = Number(item.returnable_quantity ?? item.quantity ?? 0);
+          return {
           id: item.id,
           name: item.name,
           unit: item.unit || "Kg",
           product_thumbnail_url: item.product_thumbnail_url,
           price: item.price,
-          maxQuantity: item.quantity,
+          originalQuantity: originalQty,
+          returnedQuantity: returnedQty,
+          maxQuantity: maxQty,
           quantity: "",
           reason: "",
           checked: false,
-        }))
+        };
+        })
       );
     }
   }, [isOpen, orderItems]);
@@ -151,6 +167,17 @@ export default function RequestReturnModal({
     }
   };
 
+  const handleReturnAll = () => {
+    setItemsError("");
+    setReturnItems((prev) =>
+      prev.map((item) => ({
+        ...item,
+        checked: true,
+        quantity: String(item.maxQuantity),
+      }))
+    );
+  };
+
   const handleConfirmSubmit = async () => {
     const selected = returnItems.filter((item) => item.checked);
     if (selected.length === 0) {
@@ -167,7 +194,7 @@ export default function RequestReturnModal({
       }
       if (q > item.maxQuantity) {
         setItemsError(
-          `Số lượng trả hàng cho "${item.name}" không được vượt quá số lượng đã giao (${item.maxQuantity} ${item.unit}).`
+          `Số lượng trả hàng cho "${item.name}" không được vượt quá số lượng còn lại (${item.maxQuantity} ${item.unit}).`
         );
         return;
       }
@@ -242,9 +269,21 @@ export default function RequestReturnModal({
 
           {/* Product List Section */}
           <div className="space-y-1.5">
-            <label className="text-xs font-bold text-neutral-500 uppercase tracking-wider block">
-              Sản phẩm yêu cầu trả <span className="text-red-500">*</span>
-            </label>
+            <div className="flex items-center justify-between gap-2">
+              <label className="text-xs font-bold text-neutral-500 uppercase tracking-wider block">
+                Sản phẩm yêu cầu trả <span className="text-red-500">*</span>
+              </label>
+              {returnItems.length > 0 && (
+                <button
+                  type="button"
+                  onClick={handleReturnAll}
+                  disabled={loading}
+                  className="text-[10px] font-bold uppercase tracking-wider text-emerald-700 hover:text-emerald-800 disabled:opacity-50"
+                >
+                  Trả hết tất cả
+                </button>
+              )}
+            </div>
             
             {itemsError && (
               <div className="p-3 text-xs font-semibold text-red-700 bg-red-50 border border-red-100 rounded-xl">
@@ -306,7 +345,13 @@ export default function RequestReturnModal({
                           {item.name}
                         </label>
                         <p className="text-[10px] text-neutral-500 font-semibold mt-0.5">
-                          Đã nhận: <span className="text-neutral-700">{item.maxQuantity} {item.unit}</span> | Đơn giá: {item.price.toLocaleString("vi-VN")}đ
+                          Nhận: <span className="text-neutral-700">{item.originalQuantity} {item.unit}</span>
+                          {" | "}
+                          Đã trả: <span className="text-orange-700">{item.returnedQuantity} {item.unit}</span>
+                          {" | "}
+                          Còn lại: <span className="text-emerald-700">{item.maxQuantity} {item.unit}</span>
+                          {" | "}
+                          Đơn giá: {item.price.toLocaleString("vi-VN")}đ
                         </p>
                       </div>
 

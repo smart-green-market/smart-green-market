@@ -5,12 +5,12 @@ databases:
   - name: smart-green-market-db
     databaseName: smart_green_market
     user: smart_green_market
-    plan: free
+    plan: basic-4gb
 
 services:
   - type: keyvalue
     name: smart-green-market-redis
-    plan: free
+    plan: starter
     ipAllowList: []
     maxmemoryPolicy: allkeys-lru
 
@@ -39,3 +39,17 @@ services:
           property: connectionString
       - key: CLOUDINARY_URL
         sync: false
+
+  - type: web
+    name: smart-green-market-web
+    runtime: static
+    rootDir: frontend/web-site
+    buildCommand: npm install && npm run build
+    staticPublishPath: dist
+    envVars:
+      - key: VITE_API_URL
+        value: https://smart-green-market-api.onrender.com/api
+    routes:
+      - type: rewrite
+        source: /*
+        destination: /index.html

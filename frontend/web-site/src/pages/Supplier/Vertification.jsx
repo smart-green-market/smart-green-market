@@ -3,7 +3,7 @@ import { Award, CheckCircle2, AlertTriangle, Ban } from "lucide-react";
 import CertificationTable from "../../components/Supplier/Certification/CertificationTable";
 import DeleteConfirmModal from "../../components/common/DeleteConfirmModal";
 import CreateCertificationModal from "../../components/Supplier/Certification/CreateCertificationModal";
-import { certificationService } from "../../services/api/CertificationService";
+import { certificationService } from "../../services/api/certificationService";
 import DetailCertificationModal from "../../components/Supplier/Certification/DetailCertificationModal";
 import SupplierPageHeader, { SUPPLIER_PAGE_CLASS } from "../../components/Supplier/UI/SupplierPageHeader";
 import { getValidityBucket } from "../../components/Supplier/Certification/certificationStatus";

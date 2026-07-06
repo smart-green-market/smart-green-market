@@ -1,11 +1,11 @@
 import axios from "axios";
+import { API_BASE_URL } from "../../config/apiConfig";
 import {
     clearAuthStorage,
     getRefreshToken,
     saveAuthTokens,
 } from "./authTokenStorage";
-
-const API_BASE_URL = "https://smart-green-market-api.onrender.com/api";
+import { reconnectNotificationWebSocket } from "../notificationWebSocketManager";
 
 let isRefreshing = false;
 let refreshQueue = [];
@@ -66,6 +66,8 @@ export async function refreshAccessToken() {
             access: data.access,
             refresh: data.refresh,
         });
+
+        reconnectNotificationWebSocket();
 
         resolveQueue(null, data);
         return data;
