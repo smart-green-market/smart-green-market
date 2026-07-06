@@ -1,5 +1,9 @@
 import ExcelJS from "exceljs";
-import { orderService } from "../services/api/orderService";
+import {
+  orderService,
+  extractOrderItems,
+  normalizeOrderItem,
+} from "../services/api/orderService";
 
 /**
  * Hàm hỗ trợ tự động căn chỉnh độ rộng cột và định dạng viền cho ô
@@ -196,7 +200,7 @@ export const exportOrdersToExcel = async (orders) => {
     return;
   }
 
-  // Đang tải dữ liệu chi tiết
+  try {
   const workbook = new ExcelJS.Workbook();
   const worksheet = workbook.addWorksheet("Đơn hàng");
 
@@ -407,4 +411,8 @@ export const exportOrdersToExcel = async (orders) => {
   formatWorksheet(worksheet, 5);
 
   await saveExcelFile(workbook, `Danh_Sach_Don_Hang_${new Date().toISOString().slice(0, 10)}.xlsx`);
+  } catch (error) {
+    console.error("Lỗi khi xuất Excel đơn hàng:", error);
+    alert("Không thể xuất file Excel. Vui lòng thử lại sau.");
+  }
 };
