@@ -8,7 +8,7 @@ from django.db import connection, transaction
 from tensorflow.keras.preprocessing.sequence import skipgrams
 
 from apps.orders.models import OrderItem
-
+from apps.dealer_products.models import DealerProduct
 class RelatedProductRecommendationService:
     """
     MÔ HÌNH AI SỐ 2: GỢI Ý SẢN PHẨM MUA KÈM (ITEM2VEC)
@@ -53,8 +53,8 @@ class RelatedProductRecommendationService:
             if order_id and product_id:
                 order_sequences[order_id].append(str(product_id))
 
-        sentences = [seq for seq in order_sequences.values() if len(seq) > 1]
-        unique_items = list(set([item for seq in sentences for item in seq]))
+        sentences = [sorted(list(set(seq))) for seq in order_sequences.values() if len(set(seq)) > 1]
+        unique_items = sorted(list(set([item for seq in sentences for item in seq])))
         
         return sentences, unique_items
 
@@ -106,8 +106,10 @@ class RelatedProductRecommendationService:
             try:
                 # Lấy ma trận trọng số cũ và mới
                 old_target_weights = old_model.get_layer("target_emb").get_weights()[0]
+                old_context_weights = old_model.get_layer("context_emb").get_weights()[0]
+
                 new_target_weights = model.get_layer("target_emb").get_weights()[0]
-                
+                new_context_weights = model.get_layer("context_emb").get_weights()[0]
                 # Ánh xạ lại trọng số cho những sản phẩm đã tồn tại trong model cũ
                 for old_str_idx, product_id in old_vocab.items():
                     old_idx = int(old_str_idx)
@@ -117,9 +119,10 @@ class RelatedProductRecommendationService:
                         # Đảm bảo index hợp lệ
                         if old_idx < len(old_target_weights) and new_idx < len(new_target_weights):
                             new_target_weights[new_idx] = old_target_weights[old_idx]
-                
+                            new_context_weights[new_idx] = old_context_weights[old_idx]
                 # Cập nhật trọng số vào model mới
                 model.get_layer("target_emb").set_weights([new_target_weights])
+                model.get_layer("context_emb").set_weights([new_context_weights])
                 print("Đã tải và kế thừa thành công trọng số từ mô hình cũ (Học nối tiếp).")
             except Exception as e:
                 print(f"Cảnh báo: Không thể nạp trọng số cũ, mô hình sẽ học lại từ đầu. Lỗi: {e}")
@@ -160,7 +163,7 @@ class RelatedProductRecommendationService:
         return None
     
     def _export_to_db(self, embeddings, idx2item):
-        from django.utils import timezone # Import để lấy thời gian đúng múi giờ cấu hình
+        from django.utils import timezone 
         
         norms_all = np.linalg.norm(embeddings, axis=1)
         norms_all[norms_all == 0] = 1e-10 
@@ -169,27 +172,36 @@ class RelatedProductRecommendationService:
         current_time = timezone.now()
 
         idx2item_clean = {int(k): v for k, v in idx2item.items()}
+        product_to_dealer = dict(DealerProduct.objects.values_list('id', 'dealer_profile_id'))
 
         # Thực hiện toàn bộ tiến trình trong một Transaction để đảm bảo tính toàn vẹn dữ liệu
         with transaction.atomic(), connection.cursor() as cursor:
             for idx, product_id in idx2item_clean.items():
-                target_vector = embeddings[idx]
+                target_pid = int(product_id)
                 
+                target_dealer_id = product_to_dealer.get(target_pid)
+                if not target_dealer_id:
+                    continue
+                target_vector = embeddings[idx]
+
                 dot_products = np.dot(embeddings, target_vector)
                 norm_target = np.linalg.norm(target_vector)
                 similarities = dot_products / (norms_all * norm_target)
                 
-                best_indices = similarities.argsort()[-(self.top_k + 1):][::-1]
-                
+                best_indices = similarities.argsort()[::-1]
+
                 recommendations = []
                 for best_idx in best_indices:
                     best_idx_int = int(best_idx)
                     
-                    # Bỏ qua index 0 (padding) và chính sản phẩm đang xét
                     if best_idx_int != 0 and best_idx_int != idx:
                         if best_idx_int in idx2item_clean:
-                            recommendations.append(int(idx2item_clean[best_idx_int]))
+                            candidate_pid = int(idx2item_clean[best_idx_int])
+                            candidate_dealer_id = product_to_dealer.get(candidate_pid)
                             
+                            if candidate_dealer_id == target_dealer_id:
+                                recommendations.append(candidate_pid)
+
                     if len(recommendations) == self.top_k:
                         break
                 
@@ -201,7 +213,7 @@ class RelatedProductRecommendationService:
                     SET related_product_ids = %s, updated_at = %s
                     WHERE dealer_product_id = %s
                     """, 
-                    [recommendations, current_time, int(product_id)]
+                    [recommendations, current_time, target_pid]
                 )
                 
                 # Bước 2: Kiểm tra số dòng bị ảnh hưởng. 
