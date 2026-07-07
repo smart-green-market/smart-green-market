@@ -348,6 +348,11 @@ class _AccountTab extends StatelessWidget {
                 label: 'Lịch sử đơn hàng',
                 onTap: () => Get.toNamed(AppRoutes.orderHistory(slug)),
               ),
+              _MenuTile(
+                icon: Icons.inventory_2_outlined,
+                label: 'Yêu cầu đặt trước',
+                onTap: () => Get.toNamed(AppRoutes.preorders(slug)),
+              ),
             ]),
             const SizedBox(height: 14),
             _MenuGroup(children: [

@@ -53,6 +53,8 @@ class OrderStatusUtils {
     'confirmed',
     'processing',
     'preparing',
+    'waiting_stock',
+    'delivery_reschedule_proposed',
   };
 
   static bool isActiveTracking(String? status) {
@@ -65,7 +67,14 @@ class OrderStatusUtils {
     return terminalStatuses.contains(status) || returnStatuses.contains(status);
   }
 
-  static bool canCancel(String? status) => status == 'pending';
+  static bool canCancel(String? status) =>
+      status == 'pending' || status == 'waiting_stock';
+
+  static bool canAcceptDeliveryReschedule(String? status) =>
+      status == 'delivery_reschedule_proposed';
+
+  static bool canRejectDeliveryReschedule(String? status) =>
+      status == 'delivery_reschedule_proposed';
 
   static bool canConfirmReceived(String? status) =>
       status == 'shipping' || status == 'delivered';
@@ -86,6 +95,8 @@ class OrderStatusUtils {
       'return_approved' => 'Đã duyệt trả hàng',
       'return_rejected' => 'Từ chối trả hàng',
       'returned' => 'Đã trả hàng',
+      'waiting_stock' => 'Chờ hàng về kho',
+      'delivery_reschedule_proposed' => 'Chờ xác nhận đổi ngày giao',
       _ => status ?? '—',
     };
   }
@@ -95,7 +106,8 @@ class OrderStatusUtils {
     return switch (status) {
       'completed' || 'delivered' => 'success',
       'cancelled' || 'return_rejected' => 'error',
-      'pending' || 'return_requested' => 'warning',
+      'pending' || 'return_requested' || 'waiting_stock' => 'warning',
+      'delivery_reschedule_proposed' => 'warning',
       'shipping' || 'confirmed' || 'processing' || 'preparing' => 'info',
       _ => 'neutral',
     };

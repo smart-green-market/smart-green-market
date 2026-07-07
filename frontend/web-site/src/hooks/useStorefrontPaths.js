@@ -39,6 +39,7 @@ export function useStorefrontPaths() {
     account: prefix ? `${prefix}/tai-khoan` : "/",
     notifications: prefix ? `${prefix}/tai-khoan/thong-bao` : "/",
     orderStatus: prefix ? `${prefix}/theo-doi-don-hang` : "/",
+    preorders: prefix ? `${prefix}/tai-khoan/dat-truoc` : "/",
     policies: prefix ? `${prefix}/chinh-sach` : "/",
     support: prefix ? `${prefix}/ho-tro` : "/",
     about: prefix ? `${prefix}/ve-chung-toi` : "/",

@@ -8,6 +8,7 @@ export { default as DealerCreatePurchaseOrderPage } from "./PurchaseOrder/Create
 export { default as DealerPurchaseOrderDetailPage } from "./PurchaseOrder/PurchaseOrderDetail";
 export { default as DealerDraftOrderPreviewPage } from "./PurchaseOrder/DraftOrderPreviewPage";
 export { default as DealerSalesOrderPage } from "./SalesOrder/SalesOrder";
+export { default as DealerPreOrderPage } from "./PreOrder/DealerPreOrderPage";
 export { default as DealerSupplierDetailPage } from "./Suppiler/SupplierDetail";
 export { default as DealerCategoryDetail } from "./Category/CategeryDetail";
 export { default as RegisterDealerPage } from "./Register/RegisterDealerPage";

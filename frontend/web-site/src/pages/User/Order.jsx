@@ -7,6 +7,7 @@ import OrderDeliverySection from "../../components/User/Order/OrderDeliverySecti
 import OrderVoucherSection from "../../components/User/Order/OrderVoucherSection";
 import OrderNoteSection from "../../components/User/Order/OrderNoteSection";
 import OrderConfirmModal from "../../components/User/Order/OrderConfirmModal";
+import StockShortfallModal from "../../components/User/Order/StockShortfallModal";
 import PaymentSummaryCard from "../../components/User/Order/PaymentSummaryCard";
 import AddressFormModal from "../../components/User/Profile/AddressFormModal";
 import { appToast } from "../../components/common/toast";
@@ -17,6 +18,10 @@ import {
     buyerOrder,
     handleApiError as handleOrderApiError,
 } from "../../services/api/Buyer/buyerOrder";
+import {
+    buyerPreorder,
+    handleApiError as handlePreorderApiError,
+} from "../../services/api/Buyer/buyerPreorder";
 import {
     buyerVoucherService,
     handleApiError as handleVoucherApiError,
@@ -33,6 +38,13 @@ import {
     parseDeliverySlots,
     parseVoucherApplyResult,
 } from "../../utils/buyerOrderUtils";
+import {
+    buildPreOrderPayload,
+    isCheckoutSplitEmpty,
+    mergeStockWithCheckoutItems,
+    parseCheckStockResults,
+    splitCheckoutByChoices,
+} from "../../utils/buyerPreorderUtils";
 
 export default function OrderPage() {
     const navigate = useNavigate();
@@ -75,6 +87,10 @@ export default function OrderPage() {
     const [pageError, setPageError] = useState("");
     const [addressModalOpen, setAddressModalOpen] = useState(false);
     const [confirmOpen, setConfirmOpen] = useState(false);
+    const [stockModalOpen, setStockModalOpen] = useState(false);
+    const [stockChecking, setStockChecking] = useState(false);
+    const [mergedStockItems, setMergedStockItems] = useState([]);
+    const [pendingStockChoices, setPendingStockChoices] = useState(null);
 
     const subtotal = useMemo(
         () =>
@@ -316,9 +332,143 @@ export default function OrderPage() {
         isDeliverySlotAvailable(deliveryDates, selectedDate, selectedSlot) &&
         !submitting;
 
-    const handleOpenConfirm = () => {
-        if (!canSubmit) return;
+    const handleOpenConfirm = async () => {
+        if (!canSubmit || !paths.slug) return;
+
+        setStockChecking(true);
+        setPageError("");
+
+        try {
+            const stockResponse = await buyerPreorder.checkStock(
+                paths.slug,
+                checkoutItems.map((item) => ({
+                    dealer_product_id: item.id,
+                    quantity: item.quantity,
+                })),
+            );
+            const stockResults = parseCheckStockResults(stockResponse);
+            const merged = mergeStockWithCheckoutItems(checkoutItems, stockResults);
+            const hasShortfall = merged.some((row) => row.needsChoice);
+
+            if (hasShortfall) {
+                setMergedStockItems(merged);
+                setStockModalOpen(true);
+                return;
+            }
+
+            setConfirmOpen(true);
+        } catch (err) {
+            const message = handlePreorderApiError(
+                err,
+                "Không thể kiểm tra tồn kho. Vui lòng thử lại.",
+            );
+            setPageError(message);
+            appToast.warning(message);
+        } finally {
+            setStockChecking(false);
+        }
+    };
+
+    const handleStockChoicesConfirm = (choices) => {
+        const split = splitCheckoutByChoices(mergedStockItems, choices);
+        if (isCheckoutSplitEmpty(split)) {
+            appToast.warning("Không còn sản phẩm nào để đặt hàng.");
+            return;
+        }
+        setPendingStockChoices(choices);
+        setStockModalOpen(false);
         setConfirmOpen(true);
+    };
+
+    const submitCheckout = async () => {
+        const split =
+            pendingStockChoices != null
+                ? splitCheckoutByChoices(mergedStockItems, pendingStockChoices)
+                : {
+                      orderItems: checkoutItems.map((item) => ({
+                          id: item.id,
+                          quantity: item.quantity,
+                      })),
+                      preorderItems: [],
+                      removedProductIds: [],
+                  };
+
+        if (isCheckoutSplitEmpty(split)) {
+            throw new Error("Không còn sản phẩm nào để đặt hàng.");
+        }
+
+        const sharedPayload = {
+            customerAddressId: selectedAddressId,
+            deliveryDate: selectedDate,
+            deliverySlot: selectedSlot,
+            note,
+        };
+        const activeVoucherCode = appliedVoucher?.code ?? voucherCode;
+
+        let createdOrder = null;
+        let createdPreOrder = null;
+
+        if (split.orderItems.length > 0) {
+            const orderPayload = buildCreateOrderPayload({
+                items: split.orderItems,
+                ...sharedPayload,
+                ...(activeVoucherCode ? { voucherCode: activeVoucherCode } : {}),
+            });
+            createdOrder = await buyerOrder.create(paths.slug, orderPayload);
+        }
+
+        if (split.preorderItems.length > 0) {
+            const preorderPayload = buildPreOrderPayload({
+                items: split.preorderItems,
+                ...sharedPayload,
+            });
+            createdPreOrder = await buyerPreorder.create(paths.slug, preorderPayload);
+        }
+
+        const purchasedIds = [
+            ...split.orderItems.map((item) => item.id),
+            ...split.preorderItems.map((item) => item.id),
+        ];
+
+        purchasedIds.forEach((productId) => {
+            const inCart = cartItems.some(
+                (cartItem) => String(cartItem.id) === String(productId),
+            );
+            if (inCart) removeItem(productId);
+        });
+
+        split.removedProductIds.forEach((productId) => {
+            const inCart = cartItems.some(
+                (cartItem) => String(cartItem.id) === String(productId),
+            );
+            if (inCart) removeItem(productId);
+        });
+
+        setConfirmOpen(false);
+        setStockModalOpen(false);
+        setPendingStockChoices(null);
+        setMergedStockItems([]);
+
+        if (createdOrder && createdPreOrder) {
+            appToast.success("Đã tạo đơn hàng và yêu cầu đặt trước");
+        } else if (createdPreOrder) {
+            appToast.success("Đã gửi yêu cầu đặt trước");
+        } else {
+            appToast.success("Đặt hàng thành công");
+        }
+
+        navigate(
+            createdOrder ? paths.orderStatus : paths.preorders,
+            {
+                replace: true,
+                state: {
+                    newOrderId: createdOrder?.id,
+                    orderCode: createdOrder?.order_code,
+                    newPreOrderId: createdPreOrder?.id,
+                    preOrderCode: createdPreOrder?.request_code,
+                },
+            },
+        );
     };
 
     const handlePlaceOrder = async () => {
@@ -328,30 +478,7 @@ export default function OrderPage() {
         setPageError("");
 
         try {
-            const payload = buildCreateOrderPayload({
-                items: checkoutItems,
-                customerAddressId: selectedAddressId,
-                deliveryDate: selectedDate,
-                deliverySlot: selectedSlot,
-                note,
-                voucherCode: appliedVoucher?.code ?? voucherCode,
-            });
-
-            const order = await buyerOrder.create(paths.slug, payload);
-
-            checkoutItems.forEach((item) => {
-                const inCart = cartItems.some(
-                    (cartItem) => String(cartItem.id) === String(item.id),
-                );
-                if (inCart) removeItem(item.id);
-            });
-
-            setConfirmOpen(false);
-            appToast.success("Đặt hàng thành công");
-            navigate(paths.orderStatus, {
-                replace: true,
-                state: { newOrderId: order?.id, orderCode: order?.order_code },
-            });
+            await submitCheckout();
         } catch (err) {
             const message = handleOrderApiError(err, "Đặt hàng không thành công");
             setPageError(message);
@@ -475,12 +602,22 @@ export default function OrderPage() {
                         subtotal={subtotal}
                         shippingFee={CHECKOUT_SHIPPING_FEE}
                         discount={discount}
-                        submitting={submitting}
-                        disabled={!canSubmit}
+                        submitting={submitting || stockChecking}
+                        disabled={!canSubmit || stockChecking}
                         onPay={handleOpenConfirm}
                     />
                 </div>
             </div>
+
+            <StockShortfallModal
+                open={stockModalOpen}
+                mergedItems={mergedStockItems}
+                submitting={submitting}
+                onClose={() => {
+                    if (!submitting) setStockModalOpen(false);
+                }}
+                onConfirm={handleStockChoicesConfirm}
+            />
 
             <OrderConfirmModal
                 open={confirmOpen}

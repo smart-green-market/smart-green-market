@@ -60,6 +60,11 @@ export function parseBuyerOrderSummary(raw) {
     delivery_date: raw.delivery_date ?? "",
     delivery_slot: raw.delivery_slot ?? "",
     delivery_slot_name: raw.delivery_slot_name ?? "",
+    proposed_delivery_time: raw.proposed_delivery_time ?? null,
+    proposed_delivery_date: raw.proposed_delivery_date ?? "",
+    proposed_delivery_slot: raw.proposed_delivery_slot ?? "",
+    proposed_delivery_slot_name: raw.proposed_delivery_slot_name ?? "",
+    reschedule_reason: raw.reschedule_reason ?? "",
     created_at: raw.created_at ?? null,
     updated_at: raw.updated_at ?? null,
     delivered_at: raw.delivered_at ?? null,
@@ -258,6 +263,16 @@ export const buyerOrder = {
   cancel: (dealer_slug, id, data) =>
     axiosClient
       .post(`/storefronts/${dealer_slug}/orders/${id}/cancel/`, data)
+      .then((res) => res.data),
+
+  acceptDeliveryReschedule: (dealer_slug, id) =>
+    axiosClient
+      .post(`/storefronts/${dealer_slug}/orders/${id}/accept-delivery-reschedule/`)
+      .then((res) => res.data),
+
+  rejectDeliveryReschedule: (dealer_slug, id, data) =>
+    axiosClient
+      .post(`/storefronts/${dealer_slug}/orders/${id}/reject-delivery-reschedule/`, data)
       .then((res) => res.data),
 
   //schema

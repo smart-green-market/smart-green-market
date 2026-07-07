@@ -16,6 +16,7 @@ export default function ConfirmModal({
     errorMessage,
     showToast = true,
     loading: externalLoading = false,
+    confirmDisabled = false,
 }) {
     const [internalLoading, setInternalLoading] = useState(false);
     const loading = externalLoading || internalLoading;
@@ -89,8 +90,8 @@ export default function ConfirmModal({
                     <button
                         type="button"
                         onClick={handleConfirm}
-                        disabled={loading}
-                        className={`flex-1 cursor-pointer rounded-xl px-4 py-2.5 font-medium text-white transition-all focus:outline-none focus:ring-4 disabled:opacity-50 ${style.confirmBtnClass}`}
+                        disabled={loading || confirmDisabled}
+                        className={`flex-1 cursor-pointer rounded-xl px-4 py-2.5 font-medium text-white transition-all focus:outline-none focus:ring-4 disabled:opacity-50 disabled:cursor-not-allowed ${style.confirmBtnClass}`}
                     >
                         {loading ? "Đang xử lý..." : confirmText}
                     </button>

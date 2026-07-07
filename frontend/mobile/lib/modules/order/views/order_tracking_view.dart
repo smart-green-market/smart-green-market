@@ -145,6 +145,13 @@ class _OrderTrackingViewState extends State<OrderTrackingView> {
                           await controller.cancelOrder(order, 'Buyer hủy đơn');
                         } else if (action == 'confirm') {
                           await controller.confirmReceived(order);
+                        } else if (action == 'accept_reschedule') {
+                          await controller.acceptDeliveryReschedule(order);
+                        } else if (action == 'reject_reschedule') {
+                          final reason = await _askRejectReason(context);
+                          if (reason != null && reason.trim().isNotEmpty) {
+                            await controller.rejectDeliveryReschedule(order, reason.trim());
+                          }
                         }
                         await realtime.markAsSeen(controller.orders.toList());
                       },
@@ -170,6 +177,28 @@ class _OrderTrackingViewState extends State<OrderTrackingView> {
           fontWeight: FontWeight.w600,
         ),
         onSelected: (_) => controller.filter.value = key,
+      ),
+    );
+  }
+
+  Future<String?> _askRejectReason(BuildContext context) async {
+    final textController = TextEditingController();
+    return showDialog<String>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Lý do từ chối'),
+        content: TextField(
+          controller: textController,
+          decoration: const InputDecoration(hintText: 'Nhập lý do (sẽ hủy đơn)'),
+          maxLines: 3,
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Huỷ')),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(context, textController.text),
+            child: const Text('Xác nhận'),
+          ),
+        ],
       ),
     );
   }
@@ -338,9 +367,22 @@ class _OrderCard extends StatelessWidget {
               style: AppTextStyles.captionMuted,
             ),
           ],
+          if (OrderStatusUtils.canAcceptDeliveryReschedule(order.status)) ...[
+            const SizedBox(height: 6),
+            Text(
+              'Đề xuất giao: ${order.proposedDeliveryDate} ${order.proposedDeliverySlotName}',
+              style: AppTextStyles.caption.copyWith(color: AppColors.warning),
+            ),
+            if (order.rescheduleReason.isNotEmpty)
+              Text(
+                'Lý do: ${order.rescheduleReason}',
+                style: AppTextStyles.captionMuted,
+              ),
+          ],
           if (OrderStatusUtils.canCancel(order.status) ||
               OrderStatusUtils.canConfirmReceived(order.status) ||
-              OrderStatusUtils.canReturn(order.status)) ...[
+              OrderStatusUtils.canReturn(order.status) ||
+              OrderStatusUtils.canAcceptDeliveryReschedule(order.status)) ...[
             const SizedBox(height: 10),
             Wrap(
               spacing: 8,
@@ -363,6 +405,18 @@ class _OrderCard extends StatelessWidget {
                     onPressed: () => onAction('return'),
                     child: const Text('Yêu cầu trả hàng'),
                   ),
+                if (OrderStatusUtils.canAcceptDeliveryReschedule(order.status)) ...[
+                  OutlinedButton(
+                    style: OutlinedButton.styleFrom(minimumSize: const Size(0, 38)),
+                    onPressed: () => onAction('reject_reschedule'),
+                    child: const Text('Từ chối'),
+                  ),
+                  ElevatedButton(
+                    style: ElevatedButton.styleFrom(minimumSize: const Size(0, 38)),
+                    onPressed: () => onAction('accept_reschedule'),
+                    child: const Text('Đồng ý ngày mới'),
+                  ),
+                ],
               ],
             ),
           ],

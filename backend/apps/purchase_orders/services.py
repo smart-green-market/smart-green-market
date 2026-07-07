@@ -1066,6 +1066,9 @@ def _import_dealer_inventory(order, user):
             reason=f"Nhập từ phiếu {order.order_code}",
             created_by=user,
         )
+        from apps.orders.waiting_stock_services import try_allocate_waiting_orders
+
+        try_allocate_waiting_orders(dealer_product_id=dealer_product.id, user=user)
 
 
 def get_payment_qr(order, payment_type: str):
