@@ -1,20 +1,8 @@
 /*
  * revenue.css
  * ─────────────────────────────────────────────────────────────
- * CSS được tách nguyên vẹn từ supplier_dashboard_v2.html (bản HTML
- * gốc) để giữ đúng giao diện của trang Doanh thu.
- *
- * ⚠️ LƯU Ý QUAN TRỌNG:
- * Các biến màu (--green8, --blue8, --text1, ...) và một số class
- * dùng chung (.card, .chip, .pill, .btn-ghost, .btn-primary,
- * .modal-overlay, .modal, .notif-ico, ...) RẤT CÓ THỂ đã tồn tại
- * sẵn trong CSS toàn cục của dự án (vì cả dashboard admin/dealer
- * đều dùng chung 1 design system). Trước khi import file này,
- * hãy kiểm tra `src/index.css` / `src/App.css`:
- *   - Nếu các biến :root và class dùng chung ĐÃ CÓ → xoá phần
- *     ":root" và các class trùng lặp bên dưới để tránh định nghĩa 2 lần.
- *   - Nếu CHƯA CÓ → giữ nguyên file này, import 1 lần ở
- *     `RevenuePage.jsx` là đủ cho toàn bộ trang.
+ * Styles cho trang Thống kê Doanh thu (Supplier) — redesign.
+ * 3 phần: Bộ lọc | KPI Cards (2 cụm) | Biểu đồ Recharts.
  */
 
 :root {
@@ -43,125 +31,363 @@
   --red8:     #A32D2D;
 }
 
-.revenue-page { display: flex; flex-direction: column; gap: 14px; }
-
-/* TOOLBAR */
-.revenue-page .toolbar { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
-.revenue-page .chip-group { display: flex; gap: 6px; flex-wrap: wrap; }
-.revenue-page .chip {
-  padding: 8px 14px; border-radius: 20px; font-size: 12px; font-weight: 500;
-  color: var(--text2); background: var(--surface); border: 0.5px solid var(--border);
-  cursor: pointer; white-space: nowrap; transition: background .12s;
-}
-.revenue-page .chip:hover { background: var(--surface2); }
-.revenue-page .chip.on { background: var(--green9); color: var(--green1); border-color: var(--green9); }
-
-/* BUTTONS */
-.revenue-page .btn-primary {
-  display: flex; align-items: center; gap: 6px;
-  padding: 0 14px; height: 34px; border-radius: 9px;
-  background: var(--green8); color: #fff;
-  font-size: 12px; font-weight: 500; cursor: pointer;
-  border: none; white-space: nowrap;
-}
-.revenue-page .btn-primary:hover { background: var(--green7); }
-.revenue-page .btn-ghost {
-  display: flex; align-items: center; gap: 6px;
-  padding: 0 14px; height: 34px; border-radius: 9px;
-  background: var(--surface); color: var(--text2);
-  font-size: 12px; font-weight: 500; cursor: pointer;
-  border: 0.5px solid var(--border); white-space: nowrap;
-}
-.revenue-page .btn-ghost:hover { background: var(--surface2); }
-
-/* METRICS */
-.revenue-page .metrics { display: grid; grid-template-columns: repeat(4, minmax(0,1fr)); gap: 10px; }
-.revenue-page .mc {
-  background: var(--surface); border: 0.5px solid var(--border);
-  border-radius: 12px; padding: 14px 16px;
-}
-.revenue-page .mc-top { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
-.revenue-page .mc-icon {
-  width: 32px; height: 32px; border-radius: 8px;
-  display: flex; align-items: center; justify-content: center; font-size: 16px;
-}
-.revenue-page .mc-icon.g { background: var(--green0); color: #3B6D11; }
-.revenue-page .mc-icon.a { background: var(--amber0); color: var(--amber8); }
-.revenue-page .mc-icon.b { background: var(--blue0);  color: var(--blue8);  }
-.revenue-page .mc-icon.p { background: var(--purple0);color: var(--purple8);}
-.revenue-page .mc-icon.r { background: var(--red0);   color: var(--red8);   }
-.revenue-page .mc-val   { font-size: 24px; font-weight: 500; color: var(--text1); line-height: 1; }
-.revenue-page .mc-label { font-size: 11px; color: var(--text3); margin-top: 4px; }
-
-/* TWO COL */
-.revenue-page .two { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
-@media (max-width: 900px) {
-  .revenue-page .two { grid-template-columns: 1fr; }
-  .revenue-page .metrics { grid-template-columns: repeat(2, minmax(0,1fr)); }
+.revenue-page {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
 }
 
-/* CARD */
-.revenue-page .card { background: var(--surface); border: 0.5px solid var(--border); border-radius: 12px; overflow: hidden; }
-.revenue-page .ch  { display: flex; align-items: center; justify-content: space-between; padding: 12px 16px; border-bottom: 0.5px solid var(--border); }
-.revenue-page .ch-left { display: flex; align-items: center; gap: 8px; }
-.revenue-page .ch-ico { width: 28px; height: 28px; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 14px; }
-.revenue-page .ch-ico.g { background: var(--green0); color: #3B6D11; }
-.revenue-page .ch-ico.a { background: var(--amber0); color: var(--amber8); }
-.revenue-page .ch-ico.b { background: var(--blue0);  color: var(--blue8); }
-.revenue-page .ch-ico.p { background: var(--purple0); color: var(--purple8); }
-.revenue-page .ch-title { font-size: 13px; font-weight: 500; color: var(--text1); }
-.revenue-page .ch-link  { font-size: 11px; color: var(--green8); cursor: pointer; }
-.revenue-page .cb { padding: 0 16px; }
+/* ══════════════════════════════════════════════════════════════
+   PHẦN 1: BỘ LỌC — TOOLBAR
+   ══════════════════════════════════════════════════════════════ */
 
-/* PILL */
-.revenue-page .pill { display: inline-flex; align-items: center; padding: 2px 8px; border-radius: 20px; font-size: 10px; font-weight: 500; white-space: nowrap; flex-shrink: 0; }
-.revenue-page .pill.g  { background: var(--green0); color: #3B6D11; }
-.revenue-page .pill.a  { background: var(--amber0); color: var(--amber8); }
-.revenue-page .pill.b  { background: var(--blue0);  color: var(--blue8); }
-.revenue-page .pill.r  { background: var(--red0);   color: var(--red8); }
-.revenue-page .pill.gr { background: #f3f4f6;       color: var(--text2); }
+.rev-toolbar {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  background: var(--surface);
+  border: 0.5px solid var(--border);
+  border-radius: 12px;
+  padding: 16px 18px;
+}
 
-/* PROGRESS BARS (doanh thu theo danh mục) */
-.revenue-page .pr { display: flex; align-items: center; gap: 8px; padding: 8px 0; border-bottom: 0.5px solid var(--border); }
-.revenue-page .pr:last-child { border: none; }
-.revenue-page .pr-name  { font-size: 12px; color: var(--text1); flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.revenue-page .pr-track { flex: 1; height: 4px; background: var(--surface2); border-radius: 2px; overflow: hidden; }
-.revenue-page .pr-fill  { height: 100%; border-radius: 2px; background: var(--green8); }
-.revenue-page .pr-pct   { font-size: 11px; color: var(--text3); width: 28px; text-align: right; flex-shrink: 0; }
+.rev-toolbar-filters {
+  display: flex;
+  align-items: flex-end;
+  gap: 12px;
+  flex-wrap: wrap;
+}
 
-/* CHART (SVG) */
-.revenue-page .chart-wrap { padding: 14px 16px 6px; }
-.revenue-page .chart-svg  { width: 100%; height: 200px; display: block; }
-.revenue-page .chart-svg .chart-axis { stroke: var(--border); stroke-width: 1; }
-.revenue-page .chart-svg text.chart-val { font-size: 9px; fill: var(--text2); font-weight: 500; }
-.revenue-page .chart-svg text.chart-lbl { font-size: 9px; fill: var(--text3); }
+.rev-filter-group {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
 
-/* DONUT */
-.revenue-page .donut-wrap    { display: flex; align-items: center; gap: 18px; padding: 8px 16px 18px; flex-wrap: wrap; }
-.revenue-page .donut-legend  { display: flex; flex-direction: column; gap: 9px; flex: 1; min-width: 140px; }
-.revenue-page .legend-row    { display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--text2); }
-.revenue-page .legend-dot    { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
-.revenue-page .legend-name   { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.revenue-page .legend-val    { font-weight: 500; color: var(--text1); }
+.rev-filter-label {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text3);
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+}
 
-/* PRODUCT / PERIOD LIST TABLE */
-.revenue-page .pl-wrap { overflow-x: auto; }
-.revenue-page .plh, .revenue-page .plr { display: flex; align-items: center; gap: 10px; min-width: 740px; padding: 0 16px; }
-.revenue-page .plh.compact, .revenue-page .plr.compact { min-width: 0; }
-.revenue-page .plh { padding: 10px 16px; font-size: 10px; color: var(--text3); text-transform: uppercase; letter-spacing: .6px; border-bottom: 0.5px solid var(--border); }
-.revenue-page .plr { padding: 10px 16px; border-bottom: 0.5px solid var(--border); transition: background .1s; }
-.revenue-page .plr:last-child { border: none; }
-.revenue-page .plr:hover { background: var(--surface2); }
-.revenue-page .st-period { flex: 1; min-width: 100px; font-size: 12px; font-weight: 500; color: var(--text1); }
-.revenue-page .st-num    { width: 96px; flex-shrink: 0; text-align: right; font-size: 12px; color: var(--text2); }
-.revenue-page .st-num.strong { color: var(--text1); font-weight: 500; }
-.revenue-page .st-growth { width: 84px; flex-shrink: 0; text-align: right; }
+.rev-date-input,
+.rev-select {
+  height: 36px;
+  padding: 0 10px;
+  border: 0.5px solid var(--border);
+  border-radius: 8px;
+  font-size: 12.5px;
+  font-weight: 500;
+  color: var(--text1);
+  background: var(--surface);
+  outline: none;
+  transition: border-color 0.15s, box-shadow 0.15s;
+  min-width: 140px;
+}
 
-/* ────────────────────────────────
-   MODAL: XUẤT BÁO CÁO
-   (dùng chung nếu app đã có Modal — có thể bỏ phần này và
-   render ExportRevenueReportModal bên trong <Modal> sẵn có)
-──────────────────────────────── */
+.rev-date-input:focus,
+.rev-select:focus {
+  border-color: var(--green8);
+  box-shadow: 0 0 0 2px rgba(26, 92, 42, 0.10);
+}
+
+.rev-select {
+  cursor: pointer;
+  min-width: 130px;
+  appearance: none;
+  -webkit-appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg width='10' height='6' viewBox='0 0 10 6' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M1 1L5 5L9 1' stroke='%2380899a' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 10px center;
+  padding-right: 28px;
+}
+
+.rev-btn-apply {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  height: 36px;
+  padding: 0 16px;
+  border-radius: 8px;
+  background: var(--green8);
+  color: #fff;
+  font-size: 12.5px;
+  font-weight: 600;
+  border: none;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background 0.12s, transform 0.1s;
+}
+.rev-btn-apply:hover { background: var(--green7); }
+.rev-btn-apply:active { transform: scale(0.97); }
+
+.rev-btn-export {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  height: 36px;
+  padding: 0 14px;
+  border-radius: 8px;
+  background: var(--surface);
+  color: var(--text2);
+  font-size: 12px;
+  font-weight: 500;
+  border: 0.5px solid var(--border);
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background 0.12s;
+}
+.rev-btn-export:hover { background: var(--surface2); }
+
+/* ══════════════════════════════════════════════════════════════
+   PHẦN 2: KPI CARDS — 2 CỤM ĐỘC LẬP
+   ══════════════════════════════════════════════════════════════ */
+
+.rev-kpi-wrapper {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+}
+
+.rev-kpi-section {
+  background: var(--surface);
+  border: 0.5px solid var(--border);
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+.rev-kpi-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 16px;
+  border-bottom: 0.5px solid var(--border);
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text1);
+}
+
+.rev-kpi-header i {
+  font-size: 16px;
+  color: var(--text3);
+}
+
+.rev-kpi-cards {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 0;
+}
+
+.rev-kpi-card {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 16px;
+  border-right: 0.5px solid var(--border);
+  transition: background 0.12s;
+}
+.rev-kpi-card:last-child { border-right: none; }
+.rev-kpi-card:hover { background: var(--surface2); }
+
+/* Highlight cards (Net values) */
+.rev-kpi-card.highlight-blue {
+  background: var(--blue0);
+}
+.rev-kpi-card.highlight-blue:hover {
+  background: #d6e8f6;
+}
+.rev-kpi-card.highlight-purple {
+  background: var(--purple0);
+}
+.rev-kpi-card.highlight-purple:hover {
+  background: #dddcfc;
+}
+
+.rev-kpi-icon {
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 17px;
+  flex-shrink: 0;
+}
+.rev-kpi-icon.g { background: var(--green0); color: #3B6D11; }
+.rev-kpi-icon.r { background: var(--red0);   color: var(--red8); }
+.rev-kpi-icon.b { background: var(--blue0);  color: var(--blue8); }
+.rev-kpi-icon.a { background: var(--amber0); color: var(--amber8); }
+.rev-kpi-icon.p { background: var(--purple0); color: var(--purple8); }
+
+.rev-kpi-info {
+  min-width: 0;
+}
+
+.rev-kpi-val {
+  font-size: 20px;
+  font-weight: 600;
+  color: var(--text1);
+  line-height: 1.2;
+}
+
+.rev-kpi-label {
+  font-size: 11px;
+  color: var(--text3);
+  margin-top: 2px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* ══════════════════════════════════════════════════════════════
+   PHẦN 3: BIỂU ĐỒ (RECHARTS)
+   ══════════════════════════════════════════════════════════════ */
+
+.rev-chart-card {
+  background: var(--surface);
+  border: 0.5px solid var(--border);
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+.rev-chart-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 16px;
+  border-bottom: 0.5px solid var(--border);
+}
+
+.rev-chart-header-left {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.rev-chart-icon {
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;
+  background: var(--green0);
+  color: #3B6D11;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+}
+
+.rev-chart-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text1);
+}
+
+.rev-chart-subtitle {
+  font-size: 11px;
+  color: var(--green8);
+  font-weight: 500;
+}
+
+.rev-chart-body {
+  padding: 16px 12px 8px;
+}
+
+.rev-chart-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 60px 20px;
+  color: var(--text3);
+  font-size: 13px;
+}
+.rev-chart-empty i {
+  font-size: 28px;
+  opacity: 0.5;
+}
+
+/* Recharts Tooltip */
+.rev-chart-tooltip {
+  background: var(--surface);
+  border: 0.5px solid var(--border);
+  border-radius: 10px;
+  padding: 10px 14px;
+  box-shadow: 0 8px 24px rgba(17, 24, 39, 0.12);
+  min-width: 160px;
+}
+
+.rev-chart-tooltip-label {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text3);
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+  margin-bottom: 6px;
+  padding-bottom: 6px;
+  border-bottom: 0.5px solid var(--border);
+}
+
+.rev-chart-tooltip-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 0;
+  font-size: 12px;
+}
+
+.rev-chart-tooltip-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.rev-chart-tooltip-name {
+  flex: 1;
+  color: var(--text2);
+}
+
+.rev-chart-tooltip-value {
+  font-weight: 600;
+  color: var(--text1);
+}
+
+/* ══════════════════════════════════════════════════════════════
+   STATES: LOADING / ERROR / EMPTY
+   ══════════════════════════════════════════════════════════════ */
+
+.revenue-page .state-box {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 60px 20px;
+  color: var(--text3);
+  font-size: 13px;
+  background: var(--surface);
+  border: 0.5px solid var(--border);
+  border-radius: 12px;
+}
+
+/* Spinner animation */
+@keyframes rev-spin {
+  from { transform: rotate(0deg); }
+  to   { transform: rotate(360deg); }
+}
+.rev-spin {
+  animation: rev-spin 1s linear infinite;
+}
+
+/* ══════════════════════════════════════════════════════════════
+   MODAL: XUẤT BÁO CÁO (giữ lại từ code cũ, scoped)
+   ══════════════════════════════════════════════════════════════ */
+
 .revenue-page .modal-overlay {
   position: fixed; inset: 0; background: rgba(17,24,39,.44);
   display: flex; align-items: center; justify-content: center;
@@ -184,7 +410,8 @@
 .revenue-page .modal-close:hover { background: var(--surface2); color: var(--text1); }
 .revenue-page .modal-body { padding: 16px 18px; overflow-y: auto; font-size: 12.5px; color: var(--text2); line-height: 1.65; }
 .revenue-page .modal-foot { display: flex; gap: 8px; padding: 14px 18px; border-top: 0.5px solid var(--border); }
-.revenue-page .modal-foot .btn-primary, .revenue-page .modal-foot .btn-ghost { flex: 1; justify-content: center; }
+.revenue-page .modal-foot .rev-btn-apply,
+.revenue-page .modal-foot .rev-btn-export { flex: 1; justify-content: center; }
 
 .revenue-page .notif-ico {
   width: 32px; height: 32px; border-radius: 9px; flex-shrink: 0;
@@ -199,7 +426,12 @@
   text-transform: uppercase; letter-spacing: .4px; margin-bottom: 8px;
 }
 .revenue-page .exp-chips { display: flex; gap: 6px; }
-.revenue-page .exp-chips .chip { flex: 1; justify-content: center; }
+.revenue-page .chip {
+  padding: 8px 14px; border-radius: 20px; font-size: 12px; font-weight: 500;
+  color: var(--text2); background: var(--surface); border: 0.5px solid var(--border);
+  cursor: pointer; white-space: nowrap;
+}
+.revenue-page .chip.on { background: var(--green9); color: var(--green1); border-color: var(--green9); }
 .revenue-page .exp-opt {
   display: flex; align-items: center; gap: 9px;
   padding: 9px 10px; border: 0.5px solid var(--border); border-radius: 9px;
@@ -228,8 +460,47 @@
 }
 .revenue-page .exp-hint i { font-size: 13px; margin-top: 1px; flex-shrink: 0; }
 
-/* LOADING / EMPTY / ERROR STATE */
-.revenue-page .state-box {
-  display: flex; flex-direction: column; align-items: center; justify-content: center;
-  gap: 8px; padding: 60px 20px; color: var(--text3); font-size: 13px;
+/* ══════════════════════════════════════════════════════════════
+   RESPONSIVE
+   ══════════════════════════════════════════════════════════════ */
+
+@media (max-width: 1024px) {
+  .rev-kpi-wrapper {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 768px) {
+  .rev-toolbar {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .rev-toolbar-filters {
+    flex-direction: column;
+  }
+  .rev-filter-group {
+    width: 100%;
+  }
+  .rev-date-input,
+  .rev-select {
+    width: 100%;
+  }
+  .rev-btn-apply {
+    width: 100%;
+    justify-content: center;
+  }
+  .rev-btn-export {
+    width: 100%;
+    justify-content: center;
+  }
+  .rev-kpi-cards {
+    grid-template-columns: 1fr;
+  }
+  .rev-kpi-card {
+    border-right: none;
+    border-bottom: 0.5px solid var(--border);
+  }
+  .rev-kpi-card:last-child {
+    border-bottom: none;
+  }
 }

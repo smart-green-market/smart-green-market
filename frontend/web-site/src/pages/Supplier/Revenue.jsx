@@ -1,74 +1,92 @@
-import { useState } from 'react';
-import { PageSpinner } from '../../components/Supplier/UI/SupplierSpinner';
+import { useState, useCallback } from 'react';
 import useRevenueStats from '../../hooks/useRevenueStats';
+import { getFirstDayOfMonth, getToday } from '../../components/Supplier/Revenue/revenueHelpers';
 
 import RevenueToolbar from '../../components/Supplier/Revenue/RevenueToolbar';
 import RevenueMetrics from '../../components/Supplier/Revenue/RevenueMetrics';
-import RevenueTimeChart from '../../components/Supplier/Revenue/RevenueTimeChart';
-import RevenueStatusBreakdown from '../../components/Supplier/Revenue/RevenueStatusBreakdown';
-import RevenueByCategory from '../../components/Supplier/Revenue/RevenueByCategory';
-import RevenueTopProducts from '../../components/Supplier/Revenue/RevenueTopProducts';
-import RevenuePeriodTable from '../../components/Supplier/Revenue/RevenuePeriodTable';
+import RevenueChart from '../../components/Supplier/Revenue/RevenueChart';
 import ExportRevenueReportModal from '../../components/Supplier/Revenue/ExportRevenueReportModal';
 
 import '../../components/Supplier/Revenue/revenue.css';
 
 /**
  * Trang "Doanh thu" (Supplier).
- * Tách ra từ supplier_dashboard_v2.html — giữ nguyên giao diện,
- * chuyển phần render bằng innerHTML/vanilla JS sang component React
- * và thay dữ liệu mẫu bằng API thật qua useRevenueStats.
+ * Layout 3 phần:
+ *  ① Bộ lọc (Date Range + Group By + nút Thống kê)
+ *  ② KPI Cards — 2 cụm: Dòng Tiền & Doanh Thu
+ *  ③ Biểu đồ cột ghép — Dòng Tiền Ròng vs Doanh Thu Thuần
  */
-export default function RevenuePage(){
-  const [period, setPeriod] = useState('day'); // 'day' | 'month' | 'year'
+export default function RevenuePage() {
+  // ── Filter state (controlled inputs) ──
+  const [startDate, setStartDate] = useState(getFirstDayOfMonth());
+  const [endDate, setEndDate] = useState(getToday());
+  const [groupBy, setGroupBy] = useState('day');
+
+  // ── Applied filters (only change when "Thống kê" is clicked) ──
+  const [appliedFilters, setAppliedFilters] = useState({
+    startDate: getFirstDayOfMonth(),
+    endDate: getToday(),
+    groupBy: 'day',
+  });
+
   const [exportOpen, setExportOpen] = useState(false);
 
-  const { data: revenueStats, loading, error, refetch } = useRevenueStats(period);
+  // ── Data fetch ──
+  const { data: revenueStats, loading, error, refetch } = useRevenueStats(appliedFilters);
+
+  const handleApplyFilter = useCallback(() => {
+    setAppliedFilters({ startDate, endDate, groupBy });
+  }, [startDate, endDate, groupBy]);
 
   return (
     <div className="revenue-page">
+      {/* ── Phần 1: Bộ lọc ── */}
       <RevenueToolbar
-        period={period}
-        onChangePeriod={setPeriod}
+        startDate={startDate}
+        endDate={endDate}
+        groupBy={groupBy}
+        onStartDateChange={setStartDate}
+        onEndDateChange={setEndDate}
+        onGroupByChange={setGroupBy}
+        onApplyFilter={handleApplyFilter}
         onOpenExport={() => setExportOpen(true)}
       />
 
+      {/* ── Loading state ── */}
       {loading && (
-        <PageSpinner />
+        <div className="state-box">
+          <i className="ti ti-loader-2 rev-spin" style={{ fontSize: 22 }} />
+          Đang tải dữ liệu doanh thu...
+        </div>
+
       )}
 
+      {/* ── Error state ── */}
       {!loading && error && (
         <div className="state-box">
           <i className="ti ti-alert-circle" style={{ fontSize: 22, color: 'var(--red8)' }} />
           Không tải được dữ liệu doanh thu.
-          <button className="btn-ghost" onClick={refetch}>
+          <button className="rev-btn-export" onClick={refetch}>
             <i className="ti ti-refresh" />
             Thử lại
           </button>
         </div>
       )}
 
+      {/* ── Data loaded ── */}
       {!loading && !error && revenueStats && (
         <>
+          {/* ── Phần 2: KPI Cards ── */}
           <RevenueMetrics revenueStats={revenueStats} />
 
-          <div className="two">
-            <RevenueTimeChart period={period} revenueStats={revenueStats} />
-            <RevenueStatusBreakdown revenueStats={revenueStats} />
-          </div>
-
-          <div className="two">
-            <RevenueByCategory revenueStats={revenueStats} />
-            <RevenueTopProducts period={period} revenueStats={revenueStats} />
-          </div>
-
-          <RevenuePeriodTable revenueStats={revenueStats} />
+          {/* ── Phần 3: Biểu đồ ── */}
+          <RevenueChart chartData={revenueStats.chartData} />
         </>
       )}
 
+      {/* ── Modal xuất báo cáo ── */}
       <ExportRevenueReportModal
         open={exportOpen}
-        period={period}
         revenueStats={revenueStats}
         onClose={() => setExportOpen(false)}
       />

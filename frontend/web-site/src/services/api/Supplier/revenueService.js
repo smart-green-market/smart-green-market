@@ -1,25 +1,28 @@
-import { orderService, parseOrderList } from './../orderService';
+import { orderService, parseOrderList, extractOrderItems } from './../orderService';
 import { dashBoardSupplierService } from './dashBoardService';
 
 /**
- * revenueService – tổng hợp dữ liệu doanh thu từ các API có sẵn.
+ * revenueService – tổng hợp dữ liệu doanh thu & dòng tiền từ API đơn hàng.
  *
- * period:
- *   'day'   → 30 ngày gần nhất, nhãn "dd/MM"
- *   'month' → 12 tháng gần nhất, nhãn "T{MM}"
- *   'year'  → toàn bộ lịch sử, nhãn "{YYYY}"
+ * Params:
+ *   startDate : 'YYYY-MM-DD' — ngày bắt đầu
+ *   endDate   : 'YYYY-MM-DD' — ngày kết thúc
+ *   groupBy   : 'day' | 'month' | 'year'
  *
- * Tất cả revenue[] đơn vị triệu đồng.
+ * Trả về 2 cụm chỉ số:
+ *   ① Dòng tiền  — totalCashIn, totalRefund, netCashFlow
+ *   ② Doanh thu  — grossRevenue, returnedAmount, netRevenue
+ *   + chartData[]  cho biểu đồ cột ghép (Grouped Bar Chart)
  */
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
-/** Trả về key ISO dùng để group và sort đúng thứ tự thời gian */
-function groupKey(date, period) {
+/** Trả về key ISO dùng để group theo thời gian */
+function groupKey(date, groupBy) {
   const d = new Date(date);
-  if (period === 'year')
+  if (groupBy === 'year')
     return `${d.getFullYear()}`;
-  if (period === 'month')
+  if (groupBy === 'month')
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
   // day → yyyy-MM-dd
   return (
@@ -29,156 +32,185 @@ function groupKey(date, period) {
   );
 }
 
-/** Chuyển ISO key thành nhãn đẹp hiển thị */
-function keyToLabel(key, period) {
-  if (period === 'year') return key;               // "2025"
-  if (period === 'month') {
-    const [, mm] = key.split('-');
-    return `T${parseInt(mm, 10)}`;                // "T6"
+/** Chuyển ISO key thành nhãn hiển thị */
+function keyToLabel(key, groupBy) {
+  if (groupBy === 'year') return key;
+  if (groupBy === 'month') {
+    const [yy, mm] = key.split('-');
+    return `T${parseInt(mm, 10)}/${yy}`;
   }
   // day: yyyy-MM-dd → dd/MM
   const [, mm, dd] = key.split('-');
-  return `${parseInt(dd, 10)}/${parseInt(mm, 10)}`; // "6/7"
+  return `${parseInt(dd, 10)}/${parseInt(mm, 10)}`;
 }
 
-/** Chỉ lấy đơn hàng trong khoảng thời gian của period */
-function isInPeriodWindow(dateStr, period) {
+/** Lọc đơn hàng trong khoảng startDate → endDate */
+function isInDateRange(dateStr, startDate, endDate) {
   const d = new Date(dateStr);
   if (isNaN(d)) return false;
-  const now = new Date();
 
-  if (period === 'day') {
-    // 30 ngày gần nhất
-    const cutoff = new Date(now);
-    cutoff.setDate(cutoff.getDate() - 30);
-    return d >= cutoff;
+  // So sánh theo ngày (bỏ qua giờ)
+  const orderDate = d.toISOString().slice(0, 10);
+  return orderDate >= startDate && orderDate <= endDate;
+}
+
+/** Tính tổng tiền đã thanh toán (verified/approved) từ payments[] */
+function sumVerifiedPayments(payments) {
+  if (!Array.isArray(payments) || payments.length === 0) return 0;
+  return payments
+    .filter(p => p.status === 'verified' || p.status === 'approved' || p.status === 'completed')
+    .reduce((sum, p) => sum + (Number(p.amount) || 0), 0);
+}
+
+/** Tính tổng tiền hoàn trả từ returns / return_summary */
+function sumRefundAmount(order) {
+  // Ưu tiên return_summary nếu có
+  if (order.return_summary?.approved_refund_total) {
+    return Number(order.return_summary.approved_refund_total) || 0;
   }
-  if (period === 'month') {
-    // 12 tháng gần nhất (tính từ đầu tháng cách đây 11 tháng)
-    const cutoff = new Date(now.getFullYear(), now.getMonth() - 11, 1);
-    return d >= cutoff;
-  }
-  // year: toàn bộ lịch sử
-  return true;
+
+  // Fallback: duyệt từng return request
+  const returns = order.returns ?? order.return_requests ?? [];
+  if (!Array.isArray(returns)) return 0;
+
+  return returns
+    .filter(r => r.approved === true || r.status === 'approved' || r.status === 'returned')
+    .reduce((sum, r) => {
+      // Nếu return có refund_amount
+      if (r.refund_amount) return sum + (Number(r.refund_amount) || 0);
+      // Fallback: tính từ items
+      const items = r.items ?? [];
+      const itemTotal = items.reduce((s, item) => {
+        const qty = Number(item.quantity ?? 0);
+        const price = Number(item.unit_price ?? 0);
+        return s + (qty * price);
+      }, 0);
+      return sum + itemTotal;
+    }, 0);
 }
 
 // ── Service ───────────────────────────────────────────────────────────────────
 
 export const revenueService = {
   /**
-   * @param {'day'|'month'|'year'} period
+   * @param {{ startDate: string, endDate: string, groupBy: 'day'|'month'|'year' }} params
    * @param {AbortSignal} [signal]
    */
-  getRevenueStats: async (period = 'day', signal) => {
+  getRevenueStats: async ({ startDate, endDate, groupBy = 'day' }, signal) => {
     // 1. Lấy danh sách đơn hàng
     const rawData = await orderService.getAll();
-    const orders  = parseOrderList(rawData);
+    const orders = parseOrderList(rawData);
 
-    // 2. Lấy top products & biểu đồ doanh thu dashboard
-    const topProductsRaw = await dashBoardSupplierService.getTopProducts().catch(() => []);
-    const revenueChart   = await dashBoardSupplierService.getRevenueChart().catch(() => []);
-
-    // 3. Tổng hợp theo period (chỉ tính đơn trong cửa sổ thời gian phù hợp)
-    const statsMap = {};
-    const statusMap = {
-      pending: 0, confirmed: 0, processing: 0, shipping: 0,
-      completed: 0, cancelled: 0, rejected: 0,
-      pending_supplier_confirmation: 0,
-    };
-
-    orders.forEach(order => {
+    // 2. Lọc đơn hàng theo khoảng thời gian
+    const filteredOrders = orders.filter(order => {
       const date = order.created_at || order.order_date;
-      if (!date) return;
-      if (!isInPeriodWindow(date, period)) return; // ← lọc đúng kỳ
+      if (!date) return false;
+      return isInDateRange(date, startDate, endDate);
+    });
 
-      const key = groupKey(date, period);
-      if (!statsMap[key]) statsMap[key] = { sold: 0, cancelled: 0, revenue: 0 };
+    // 3. Tính toán tổng quan (KPI)
+    let totalCashIn = 0;       // Tổng tiền vào (từ payments đã xác nhận)
+    let totalRefund = 0;       // Tổng tiền hoàn (từ returns đã duyệt)
+    let grossRevenue = 0;      // Doanh thu gộp (total_amount các đơn không hủy)
+    let returnedAmount = 0;    // Hàng bị trả lại (giá trị)
+    let totalOrders = 0;       // Tổng số đơn
 
+    // Dữ liệu group theo thời gian
+    const timeMap = {};
+
+    filteredOrders.forEach(order => {
+      const date = order.created_at || order.order_date;
+      const key = groupKey(date, groupBy);
       const st = order.status || 'pending';
-      statusMap[st] = (statusMap[st] || 0) + 1;
+      const orderAmount = Number(order.total_amount || order.total || order.amount || 0);
 
-      if (st === 'cancelled' || st === 'rejected') {
-        statsMap[key].cancelled += 1;
-      } else {
-        statsMap[key].sold += 1;
-        statsMap[key].revenue +=
-          Number(order.total_amount || order.total || order.amount || 0) / 1_000_000;
+      // Khởi tạo entry nếu chưa có
+      if (!timeMap[key]) {
+        timeMap[key] = {
+          cashIn: 0,
+          refund: 0,
+          gross: 0,
+          returned: 0,
+          orderCount: 0,
+        };
       }
+
+      // Bỏ qua đơn hủy/từ chối cho doanh thu
+      if (st === 'cancelled' || st === 'rejected') {
+        return;
+      }
+
+      totalOrders++;
+      timeMap[key].orderCount++;
+
+      // ── CỤM DÒNG TIỀN ──
+      // Tiền vào: từ payments đã verified, hoặc fallback là total_amount của đơn hoàn thành
+      const payments = order.payments ?? [];
+      let cashIn = sumVerifiedPayments(payments);
+      if (cashIn === 0 && (st === 'completed' || st === 'shipping' || st === 'processing')) {
+        // Fallback: nếu không có payments[], coi total_amount là tiền đã nhận
+        cashIn = orderAmount;
+      }
+      totalCashIn += cashIn;
+      timeMap[key].cashIn += cashIn;
+
+      // Tiền hoàn: từ returns đã duyệt
+      const refund = sumRefundAmount(order);
+      totalRefund += refund;
+      timeMap[key].refund += refund;
+
+      // ── CỤM DOANH THU ──
+      // Doanh thu gộp: total_amount (bất kể trạng thái, miễn không hủy)
+      grossRevenue += orderAmount;
+      timeMap[key].gross += orderAmount;
+
+      // Hàng bị trả lại: giá trị đã trả hàng thành công
+      const retAmt = sumRefundAmount(order);
+      returnedAmount += retAmt;
+      timeMap[key].returned += retAmt;
     });
 
-    // 4. Xây dựng mảng labels / data, sort tăng dần theo thời gian
-    const labels          = [];
-    const revenue         = [];
-    const orders_sold     = [];
-    const orders_cancelled = [];
+    const netCashFlow = totalCashIn - totalRefund;
+    const netRevenue = grossRevenue - returnedAmount;
 
-    if (period === 'month' && revenueChart.length > 0) {
-      // Ưu tiên dùng doanh thu từ dashboard (backend đã tính chính xác)
-      // Lấy tối đa 12 tháng gần nhất, sort tăng dần
-      const chartSorted = [...revenueChart]
-        .sort((a, b) => (a.month || '').localeCompare(b.month || ''))
-        .slice(-12);
+    // 4. Xây dựng chartData cho biểu đồ (sort theo thời gian)
+    const chartData = Object.keys(timeMap)
+      .sort()
+      .map(key => ({
+        label: keyToLabel(key, groupBy),
+        key,
+        netCashFlow: Math.round(((timeMap[key].cashIn - timeMap[key].refund) / 1_000_000) * 10) / 10,
+        netRevenue: Math.round(((timeMap[key].gross - timeMap[key].returned) / 1_000_000) * 10) / 10,
+        cashIn: Math.round((timeMap[key].cashIn / 1_000_000) * 10) / 10,
+        refund: Math.round((timeMap[key].refund / 1_000_000) * 10) / 10,
+        grossRevenue: Math.round((timeMap[key].gross / 1_000_000) * 10) / 10,
+        returnedAmount: Math.round((timeMap[key].returned / 1_000_000) * 10) / 10,
+        orderCount: timeMap[key].orderCount,
+      }));
 
-      chartSorted.forEach(d => {
-        const key = d.month;                        // "2026-06"
-        const lbl = keyToLabel(key, 'month');       // "T6"
-        labels.push(lbl);
-        revenue.push(Math.round(((d.revenue || 0) / 1_000_000) * 10) / 10);
-        orders_sold.push(statsMap[key]?.sold || 0);
-        orders_cancelled.push(statsMap[key]?.cancelled || 0);
-      });
-    } else {
-      // day / year: dùng dữ liệu từ orders
-      Object.keys(statsMap)
-        .sort()                                     // sort ISO key → đúng thứ tự thời gian
-        .forEach(key => {
-          labels.push(keyToLabel(key, period));
-          revenue.push(Math.round(statsMap[key].revenue * 10) / 10);
-          orders_sold.push(statsMap[key].sold);
-          orders_cancelled.push(statsMap[key].cancelled);
-        });
-    }
-
-    // 5. Breakdown trạng thái đơn hàng (toàn bộ, không lọc theo period)
-    const status_breakdown = [
-      { label: 'Hoàn thành', value: statusMap.completed || 0,                                                   color_key: 'green8'  },
-      { label: 'Đang giao',  value: statusMap.shipping  || 0,                                                   color_key: 'blue8'   },
-      { label: 'Chờ duyệt',  value: (statusMap.pending || 0) + (statusMap.pending_supplier_confirmation || 0),  color_key: 'amber8'  },
-      { label: 'Đã hủy',     value: (statusMap.cancelled || 0) + (statusMap.rejected || 0),                     color_key: 'red8'    },
-      { label: 'Đang xử lý', value: (statusMap.processing || 0) + (statusMap.confirmed || 0),                   color_key: 'purple8' },
-    ].filter(item => item.value > 0);
-
-    // 6. Doanh thu theo danh mục (tỷ trọng %)
-    const catMap = {};
-    topProductsRaw.forEach(p => {
-      const cat = p.category || 'Khác';
-      catMap[cat] = (catMap[cat] || 0) + (p.revenue || 0);
-    });
-    const totalCatRevenue = Object.values(catMap).reduce((a, b) => a + b, 0) || 1;
-    const COLORS = ['green8', 'blue8', 'amber8', 'purple8', 'red8'];
-    const by_category = Object.keys(catMap).map((k, i) => ({
-      label:     k,
-      value:     Math.round((catMap[k] / totalCatRevenue) * 1000) / 10, // % tỷ trọng
-      color_key: COLORS[i % COLORS.length],
-    }));
-
-    // 7. Top sản phẩm
-    const top_products = topProductsRaw.slice(0, 5).map(p => ({
-      name:    p.name,
-      qty:     p.quantity || p.total_sold || 0,
-      revenue: p.revenue  || 0,
-    }));
-
+    // 5. Trả kết quả
     return {
       data: {
-        period,
-        labels,
-        revenue,
-        orders_sold,
-        orders_cancelled,
-        status_breakdown,
-        by_category,
-        top_products,
+        // Filters
+        startDate,
+        endDate,
+        groupBy,
+
+        // KPI - Dòng Tiền (VNĐ)
+        totalCashIn,
+        totalRefund,
+        netCashFlow,
+
+        // KPI - Doanh Thu (VNĐ)
+        grossRevenue,
+        returnedAmount,
+        netRevenue,
+
+        // Tổng đơn hàng
+        totalOrders,
+
+        // Chart data (đơn vị triệu đồng)
+        chartData,
       },
     };
   },
