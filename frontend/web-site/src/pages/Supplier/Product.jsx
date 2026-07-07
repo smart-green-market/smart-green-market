@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Package, ShoppingCart, Lock, Clock, Search, Filter, Plus, User, FileSpreadsheet } from "lucide-react";
 import ProductTable from "../../components/Supplier/Product/ProductTable";
 import DeleteConfirmModal from "../../components/common/DeleteConfirmModal";
@@ -32,6 +32,10 @@ function MetricCard({ icon: Icon, value, label, tone }) {
 
 export default function ProductSupplierPage() {
   const [data, setData] = useState([]);
+  const [allProducts, setAllProducts] = useState([]); // stats & filters
+  const [loading, setLoading] = useState(false);
+  const [page, setPage] = useState(1);
+  const [totalCount, setTotalCount] = useState(0);
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
   const [categoryFilter, setCategoryFilter] = useState("");
@@ -49,43 +53,80 @@ export default function ProductSupplierPage() {
   const [ordersRow, setOrdersRow] = useState(null);
 
   /* ── Fetch ── */
-  const fetchProducts = async () => {
+  const fetchStatsAndCategories = async () => {
     try {
       const response = await productService.getAll();
       const productList = Array.isArray(response) ? response : (response?.results || []);
-      setData(productList);
+      setAllProducts(productList);
 
-      // Trích danh mục unique từ data để dùng cho filter
+      // Trích danh mục unique từ allProducts
       const catMap = {};
       productList.forEach((p) => {
         if (p.category?.id) catMap[p.category.id] = p.category.name;
       });
       setCategories(Object.entries(catMap).map(([id, name]) => ({ id, name })));
     } catch (error) {
-      console.error("Lỗi khi tải danh sách sản phẩm:", error);
+      console.error("Lỗi khi tải thống kê sản phẩm:", error);
     }
   };
 
-  useEffect(() => { fetchProducts(); }, []);
+  const fetchTableProducts = useCallback(async (pageNum = 1) => {
+    try {
+      setLoading(true);
+      const response = await productService.getAll({
+        page: pageNum,
+        page_size: 10,
+        search: search,
+        status: statusFilter,
+        category_id: categoryFilter,
+        category: categoryFilter
+      });
+
+      const productList = response?.results ?? [];
+      const count = response?.count ?? 0;
+
+      setData(productList);
+      setTotalCount(count);
+      setPage(pageNum);
+    } catch (error) {
+      console.error("Lỗi khi tải danh sách sản phẩm:", error);
+    } finally {
+      setLoading(false);
+    }
+  }, [search, statusFilter, categoryFilter]);
+
+  const fetchProducts = () => {
+    fetchStatsAndCategories();
+    fetchTableProducts(1);
+  };
+
+  useEffect(() => {
+    fetchStatsAndCategories();
+  }, []);
+
+  useEffect(() => {
+    fetchTableProducts(1);
+  }, [fetchTableProducts]);
 
   /* ── Thống kê ── */
   const stats = {
-    total: data.length,
-    active: data.filter((r) => r.status === "active").length,
-    inactive: data.filter((r) => r.status === "inactive").length,
-    pending: data.filter((r) => r.status === "pending").length,
+    total: allProducts.length,
+    active: allProducts.filter((r) => r.status === "active").length,
+    inactive: allProducts.filter((r) => r.status === "inactive").length,
+    pending: allProducts.filter((r) => r.status === "pending").length,
   };
 
   /* ── Delete ── */
   const handleDelete = async () => {
     if (!deleteRow) return;
     await productService.deleteProduct(deleteRow.id);
-    setData((prev) => prev.filter((row) => row.id !== deleteRow.id));
+    fetchProducts();
   };
 
   /* ── Khóa / mở khóa ── */
   const applySellingStatus = (row, updated) => {
     setData((prev) => prev.map((item) => (item.id === row.id ? { ...item, ...updated } : item)));
+    setAllProducts((prev) => prev.map((item) => (item.id === row.id ? { ...item, ...updated } : item)));
     setDetailRow((prev) => (prev?.id === row.id ? { ...prev, ...updated } : prev));
   };
 
@@ -218,6 +259,10 @@ export default function ProductSupplierPage() {
         onUnlockSelling={(row) => setToggleTarget({ row, action: "unlock" })}
         togglingId={togglingId}
         onListOrders={(row) => setOrdersRow(row)}
+        loading={loading}
+        page={page}
+        totalCount={totalCount}
+        onChangePage={(newPage) => fetchTableProducts(newPage)}
       />
 
       {/* ── Modals ── */}
