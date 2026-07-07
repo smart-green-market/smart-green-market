@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useState } from "react";
 
 import Toolbar from "../../components/Admin/UI/Toolbar";
 import { AdminInitialLoadGate } from "../../components/Admin/UI/AdminFetchState";
@@ -14,11 +14,11 @@ import {
     handleApiError,
 } from "../../services/api/accountDocumentService";
 import { useAdminPaginatedList } from "../../hooks/useAdminPaginatedList";
-import { useDebouncedValue } from "../../hooks/useDebouncedValue";
 import {
-    buildCountsFromCards,
-    buildCountsFromStatusMap,
-} from "../../utils/adminFilterStatsUtils";
+    useAdminFilterStats,
+    useAdminStatsLoading,
+} from "../../hooks/useAdminFilterStats";
+import { useDebouncedValue } from "../../hooks/useDebouncedValue";
 
 const STATUS_FILTERS = ["pending", "approved", "rejected"];
 const DOCUMENT_TYPE_FILTERS = [
@@ -121,20 +121,12 @@ export default function DocumentPage() {
             }
         }, []);
 
-    const documentStats = useMemo(
-        () => {
-            if (countStatus && Object.keys(countStatus).length > 0) {
-                return buildCountsFromStatusMap(
-                    countStatus,
-                    DOCUMENT_STAT_CARDS,
-                );
-            }
-            return buildCountsFromCards(data, DOCUMENT_STAT_CARDS, {
-                field: "status",
-            });
-        },
-        [countStatus, data],
-    );
+    const documentStats = useAdminFilterStats({
+        countStatus,
+        data,
+        cards: DOCUMENT_STAT_CARDS,
+    });
+    const statsLoading = useAdminStatsLoading(isFetching, countStatus);
 
     // ── APPROVE ────────────────────────────────────────
     const handleApprove = async (
@@ -208,7 +200,7 @@ export default function DocumentPage() {
                     setStatusFilter(value);
                     setCurrentPage(1);
                 }}
-                loading={isFetching || loading}
+                loading={statsLoading}
             />
 
             {/* TOOLBAR */}

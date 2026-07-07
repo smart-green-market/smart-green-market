@@ -28,10 +28,42 @@ export function buildCountsFromCards(
   }, {});
 }
 
+const STATUS_COUNT_KEY_ALIASES = {
+  approved: ["approved", "active"],
+  active: ["active", "approved"],
+};
+
+function readCountValue(countStatus, key) {
+  const candidates = STATUS_COUNT_KEY_ALIASES[key] ?? [key];
+
+  for (const candidate of candidates) {
+    if (countStatus?.[candidate] != null) {
+      return Number(countStatus[candidate]);
+    }
+  }
+
+  return null;
+}
+
+function resolveStatusCount(countStatus, card) {
+  const keys = card.countStatusKeys ?? [
+    card.countStatusKey ?? card.filterValue ?? card.key,
+  ];
+
+  return keys.reduce((total, key) => {
+    const value = readCountValue(countStatus, key);
+    return value == null ? total : total + value;
+  }, 0);
+}
+
+export function hasAdminCountStatus(countStatus) {
+  if (!countStatus || typeof countStatus !== "object") return false;
+  return Object.keys(countStatus).length > 0;
+}
+
 export function buildCountsFromStatusMap(countStatus = {}, cards = []) {
   return cards.reduce((counts, card) => {
-    const value = card.filterValue ?? card.key;
-    counts[card.key] = Number(countStatus?.[value] ?? 0);
+    counts[card.key] = resolveStatusCount(countStatus, card);
     return counts;
   }, {});
 }

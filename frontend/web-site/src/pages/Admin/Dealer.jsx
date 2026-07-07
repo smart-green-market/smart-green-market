@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useState } from "react";
 
 import Toolbar from "../../components/Admin/UI/Toolbar";
 import { AdminInitialLoadGate } from "../../components/Admin/UI/AdminFetchState";
@@ -12,11 +12,11 @@ import { getDealerApprovalDocumentError } from "../../components/Admin/Dealer/de
 import { appToast } from "../../components/common/toast";
 import { dealerService, handleApiError } from "../../services/api/dealerService";
 import { useAdminPaginatedList } from "../../hooks/useAdminPaginatedList";
-import { useDebouncedValue } from "../../hooks/useDebouncedValue";
 import {
-    buildCountsFromCards,
-    buildCountsFromStatusMap,
-} from "../../utils/adminFilterStatsUtils";
+    useAdminFilterStats,
+    useAdminStatsLoading,
+} from "../../hooks/useAdminFilterStats";
+import { useDebouncedValue } from "../../hooks/useDebouncedValue";
 
 function formatDealerListItem(dealer) {
     return {
@@ -101,12 +101,12 @@ export default function DealerPage() {
         }
     }, []);
 
-    const dealerStats = useMemo(() => {
-        if (countStatus && Object.keys(countStatus).length > 0) {
-            return buildCountsFromStatusMap(countStatus, DEALER_STAT_CARDS);
-        }
-        return buildCountsFromCards(data, DEALER_STAT_CARDS);
-    }, [countStatus, data]);
+    const dealerStats = useAdminFilterStats({
+        countStatus,
+        data,
+        cards: DEALER_STAT_CARDS,
+    });
+    const statsLoading = useAdminStatsLoading(isFetching, countStatus);
 
     const handleApprove = async (dealer) => {
         try {
@@ -211,7 +211,7 @@ export default function DealerPage() {
                     cards={DEALER_STAT_CARDS}
                     activeFilter={statusFilter}
                     onFilterChange={handleFilterChange}
-                    loading={isFetching || loading}
+                    loading={statsLoading}
                 />
 
                 <Toolbar

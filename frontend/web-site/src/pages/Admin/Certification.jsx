@@ -1,6 +1,5 @@
 import {
     useCallback,
-    useMemo,
     useState,
 } from "react";
 
@@ -18,11 +17,11 @@ import {
     handleApiError,
 } from "../../services/api/certificationService";
 import { useAdminPaginatedList } from "../../hooks/useAdminPaginatedList";
-import { useDebouncedValue } from "../../hooks/useDebouncedValue";
 import {
-    buildCountsFromCards,
-    buildCountsFromStatusMap,
-} from "../../utils/adminFilterStatsUtils";
+    useAdminFilterStats,
+    useAdminStatsLoading,
+} from "../../hooks/useAdminFilterStats";
+import { useDebouncedValue } from "../../hooks/useDebouncedValue";
 
 const formatCertificationRow = (item) => ({
     id: item.id,
@@ -96,20 +95,12 @@ export default function CertificationPage() {
             handleApiError(err, "Không thể tải danh sách chứng chỉ"),
     });
 
-    const certificationStats = useMemo(
-        () => {
-            if (countStatus && Object.keys(countStatus).length > 0) {
-                return buildCountsFromStatusMap(
-                    countStatus,
-                    CERTIFICATION_STAT_CARDS,
-                );
-            }
-            return buildCountsFromCards(data, CERTIFICATION_STAT_CARDS, {
-                field: "status",
-            });
-        },
-        [countStatus, data],
-    );
+    const certificationStats = useAdminFilterStats({
+        countStatus,
+        data,
+        cards: CERTIFICATION_STAT_CARDS,
+    });
+    const statsLoading = useAdminStatsLoading(isFetching, countStatus);
 
     // ── APPROVE ────────────────────────────────────────
     const handleApprove =
@@ -195,7 +186,7 @@ export default function CertificationPage() {
                     setStatusFilter(value);
                     setCurrentPage(1);
                 }}
-                loading={isFetching || loading}
+                loading={statsLoading}
             />
 
             {/* TOOLBAR */}
