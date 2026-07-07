@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useState } from "react";
 
 import Toolbar from "../../components/Admin/UI/Toolbar";
 import { AdminInitialLoadGate } from "../../components/Admin/UI/AdminFetchState";
@@ -14,12 +14,12 @@ import {
   handleApiError,
 } from "../../services/api/productService";
 import { useAdminPaginatedList } from "../../hooks/useAdminPaginatedList";
+import {
+  useAdminFilterStats,
+  useAdminStatsLoading,
+} from "../../hooks/useAdminFilterStats";
 import { useDebouncedValue } from "../../hooks/useDebouncedValue";
 import { appToast } from "../../components/common/toast";
-import {
-  buildCountsFromCards,
-  buildCountsFromStatusMap,
-} from "../../utils/adminFilterStatsUtils";
 
 const formatProduct = (p) => ({
   id: p.id,
@@ -176,12 +176,12 @@ export default function ProductPage() {
     }
   }, [refresh]);
 
-  const productStats = useMemo(() => {
-    if (countStatus && Object.keys(countStatus).length > 0) {
-      return buildCountsFromStatusMap(countStatus, PRODUCT_STAT_CARDS);
-    }
-    return buildCountsFromCards(data, PRODUCT_STAT_CARDS, { field: "status" });
-  }, [countStatus, data]);
+  const productStats = useAdminFilterStats({
+    countStatus,
+    data,
+    cards: PRODUCT_STAT_CARDS,
+  });
+  const statsLoading = useAdminStatsLoading(isFetching, countStatus);
 
   const handleFilterChange = (value) => {
     setStatusFilter(value);
@@ -203,7 +203,7 @@ export default function ProductPage() {
           cards={PRODUCT_STAT_CARDS}
           activeFilter={statusFilter}
           onFilterChange={handleFilterChange}
-          loading={isFetching || loading}
+          loading={statsLoading}
         />
 
         <Toolbar

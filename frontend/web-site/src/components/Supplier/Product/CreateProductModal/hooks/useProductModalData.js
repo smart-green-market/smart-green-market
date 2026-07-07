@@ -114,7 +114,9 @@ export function useProductModalData({
   useEffect(() => {
     const targetId = isPersonal ? systemCategoryId : categoryId;
 
-    if (!isOpen || !targetId || sellingMasterIds === null) {
+    // In personal mode, we need systemCategoryId to fetch reference products.
+    // In catalog mode, we can fetch all products if categoryId is empty (i.e. targetId is empty).
+    if (!isOpen || (isPersonal && !targetId) || sellingMasterIds === null) {
       setProducts([]);
       return;
     }

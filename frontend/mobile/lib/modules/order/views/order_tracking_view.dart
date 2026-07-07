@@ -145,6 +145,13 @@ class _OrderTrackingViewState extends State<OrderTrackingView> {
                           await controller.cancelOrder(order, 'Buyer hủy đơn');
                         } else if (action == 'confirm') {
                           await controller.confirmReceived(order);
+                        } else if (action == 'accept_reschedule') {
+                          await controller.acceptDeliveryReschedule(order);
+                        } else if (action == 'reject_reschedule') {
+                          final reason = await _askRejectReason(context);
+                          if (reason != null && reason.trim().isNotEmpty) {
+                            await controller.rejectDeliveryReschedule(order, reason.trim());
+                          }
                         }
                         await realtime.markAsSeen(controller.orders.toList());
                       },
@@ -173,15 +180,64 @@ class _OrderTrackingViewState extends State<OrderTrackingView> {
       ),
     );
   }
+
+  Future<String?> _askRejectReason(BuildContext context) async {
+    final textController = TextEditingController();
+    return showDialog<String>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Lý do từ chối'),
+        content: TextField(
+          controller: textController,
+          decoration: const InputDecoration(hintText: 'Nhập lý do (sẽ hủy đơn)'),
+          maxLines: 3,
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Huỷ')),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(context, textController.text),
+            child: const Text('Xác nhận'),
+          ),
+        ],
+      ),
+    );
+  }
 }
 
-class OrderHistoryView extends StatelessWidget {
+class OrderHistoryView extends StatefulWidget {
   const OrderHistoryView({super.key});
 
   @override
-  Widget build(BuildContext context) {
-    final controller = Get.put(OrderHistoryController(Get.find(), Get.find()));
+  State<OrderHistoryView> createState() => _OrderHistoryViewState();
+}
 
+class _OrderHistoryViewState extends State<OrderHistoryView> {
+  late final OrderHistoryController controller;
+  Worker? _ordersChangedWorker;
+
+  @override
+  void initState() {
+    super.initState();
+    controller = Get.put(OrderHistoryController(Get.find(), Get.find()));
+
+    // Realtime: đơn chuyển sang lịch sử (hủy/hoàn tất) hoặc trạng thái trả
+    // hàng thay đổi (đại lý duyệt/từ chối) sẽ tự làm mới danh sách.
+    final realtime = Get.find<OrderStatusRealtimeController>();
+    _ordersChangedWorker = ever(realtime.ordersChanged, (changed) {
+      if (changed == true) {
+        controller.loadOrders();
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _ordersChangedWorker?.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppHeaderBar(
@@ -311,9 +367,22 @@ class _OrderCard extends StatelessWidget {
               style: AppTextStyles.captionMuted,
             ),
           ],
+          if (OrderStatusUtils.canAcceptDeliveryReschedule(order.status)) ...[
+            const SizedBox(height: 6),
+            Text(
+              'Đề xuất giao: ${order.proposedDeliveryDate} ${order.proposedDeliverySlotName}',
+              style: AppTextStyles.caption.copyWith(color: AppColors.warning),
+            ),
+            if (order.rescheduleReason.isNotEmpty)
+              Text(
+                'Lý do: ${order.rescheduleReason}',
+                style: AppTextStyles.captionMuted,
+              ),
+          ],
           if (OrderStatusUtils.canCancel(order.status) ||
               OrderStatusUtils.canConfirmReceived(order.status) ||
-              OrderStatusUtils.canReturn(order.status)) ...[
+              OrderStatusUtils.canReturn(order.status) ||
+              OrderStatusUtils.canAcceptDeliveryReschedule(order.status)) ...[
             const SizedBox(height: 10),
             Wrap(
               spacing: 8,
@@ -336,6 +405,18 @@ class _OrderCard extends StatelessWidget {
                     onPressed: () => onAction('return'),
                     child: const Text('Yêu cầu trả hàng'),
                   ),
+                if (OrderStatusUtils.canAcceptDeliveryReschedule(order.status)) ...[
+                  OutlinedButton(
+                    style: OutlinedButton.styleFrom(minimumSize: const Size(0, 38)),
+                    onPressed: () => onAction('reject_reschedule'),
+                    child: const Text('Từ chối'),
+                  ),
+                  ElevatedButton(
+                    style: ElevatedButton.styleFrom(minimumSize: const Size(0, 38)),
+                    onPressed: () => onAction('accept_reschedule'),
+                    child: const Text('Đồng ý ngày mới'),
+                  ),
+                ],
               ],
             ),
           ],

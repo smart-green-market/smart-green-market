@@ -1,8 +1,12 @@
+import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:smart_green_market/app/routes/app_routes.dart';
 import 'package:smart_green_market/core/constants/app_constants.dart';
+import 'package:smart_green_market/core/utils/preorder_utils.dart';
 import 'package:smart_green_market/core/utils/voucher_utils.dart';
 import 'package:smart_green_market/data/models/buyer_models.dart';
 import 'package:smart_green_market/data/repositories/buyer_repository.dart';
+import 'package:smart_green_market/modules/checkout/views/stock_shortfall_sheet.dart';
 import 'package:smart_green_market/shared/controllers/cart_controller.dart';
 import 'package:smart_green_market/shared/controllers/storefront_controller.dart';
 import 'package:smart_green_market/shared/widgets/app_snackbar.dart';
@@ -16,6 +20,7 @@ class CheckoutController extends GetxController {
 
   final isLoading = false.obs;
   final submitting = false.obs;
+  final stockChecking = false.obs;
   final applyingVoucher = false.obs;
   final addresses = <AddressModel>[].obs;
   final deliveryDates = <DeliveryDateModel>[].obs;
@@ -168,14 +173,17 @@ class CheckoutController extends GetxController {
     }
   }
 
-  Future<void> submitOrder() async {
+  Future<void> prepareCheckout() async {
     final slug = _storefront.currentSlug;
-    final addressId = selectedAddressId.value;
     if (checkoutItems.isEmpty) {
       AppSnackbar.error('Không có sản phẩm để đặt');
       return;
     }
-    if (addressId == null) {
+    if (checkoutItems.any((item) => item.isOutOfStock)) {
+      AppSnackbar.error('Có sản phẩm hết hàng — vui lòng xóa khỏi giỏ');
+      return;
+    }
+    if (selectedAddressId.value == null) {
       AppSnackbar.error('Vui lòng chọn địa chỉ giao hàng');
       return;
     }
@@ -184,32 +192,126 @@ class CheckoutController extends GetxController {
       return;
     }
 
-    submitting.value = true;
+    stockChecking.value = true;
     try {
-      final order = await _repository.createOrder(slug, {
-        'items': checkoutItems
+      final stockResults = await _repository.checkStock(
+        slug,
+        checkoutItems
             .map((item) => {'dealer_product_id': item.id, 'quantity': item.quantity})
             .toList(),
+      );
+      final merged = PreorderUtils.mergeStockWithCheckoutItems(checkoutItems, stockResults);
+      final hasShortfall = merged.any((row) => row.needsChoice);
+
+      if (hasShortfall) {
+        await Get.bottomSheet(
+          StockShortfallSheet(
+            mergedItems: merged,
+            submitting: submitting.value,
+            onConfirm: (choices) async {
+              Get.back();
+              await _submitCheckout(merged, choices);
+            },
+          ),
+          isScrollControlled: true,
+          backgroundColor: Colors.white,
+          shape: const RoundedRectangleBorder(
+            borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+          ),
+        );
+        return;
+      }
+
+      await _submitCheckout(merged, null);
+    } catch (e) {
+      AppSnackbar.error(_repository.readError(e));
+    } finally {
+      stockChecking.value = false;
+    }
+  }
+
+  Future<void> _submitCheckout(
+    List<MergedCheckoutStockItem> mergedItems,
+    Map<int, String>? choices,
+  ) async {
+    final slug = _storefront.currentSlug;
+    final addressId = selectedAddressId.value;
+    if (addressId == null) return;
+
+    final split = choices == null
+        ? CheckoutSplitResult(
+            orderItems: checkoutItems
+                .map((item) => {'dealer_product_id': item.id, 'quantity': item.quantity})
+                .toList(),
+            preorderItems: const [],
+            removedProductIds: const [],
+          )
+        : PreorderUtils.splitCheckoutByChoices(mergedItems, choices);
+
+    if (split.isEmpty) {
+      AppSnackbar.info('Không còn sản phẩm nào để đặt hàng');
+      return;
+    }
+
+    submitting.value = true;
+    try {
+      final sharedPayload = {
         'customer_address_id': addressId,
         'delivery_date': selectedDate.value,
         'delivery_slot': selectedSlot.value,
         if (note.value.trim().isNotEmpty) 'note': note.value.trim(),
-        if (appliedVoucher.value?.voucherCode.isNotEmpty == true)
-          'voucher_code': appliedVoucher.value!.voucherCode,
-      });
+      };
+      final voucher = appliedVoucher.value?.voucherCode;
 
-      await _cart.removeOrderedItems(checkoutItems.map((e) => e.id).toList());
-      AppSnackbar.success('Đặt hàng thành công');
-      Get.offAllNamed(
-        '/store/$slug/orders/tracking',
-        arguments: {'newOrderId': order.id, 'orderCode': order.orderCode},
-      );
+      OrderModel? createdOrder;
+      PreOrderModel? createdPreOrder;
+
+      if (split.orderItems.isNotEmpty) {
+        createdOrder = await _repository.createOrder(slug, {
+          ...sharedPayload,
+          'items': split.orderItems,
+          if (voucher != null && voucher.isNotEmpty) 'voucher_code': voucher,
+        });
+      }
+
+      if (split.preorderItems.isNotEmpty) {
+        createdPreOrder = await _repository.createPreOrder(slug, {
+          ...sharedPayload,
+          'items': split.preorderItems,
+        });
+      }
+
+      final purchasedIds = [
+        ...split.orderItems.map((item) => item['dealer_product_id'] as int),
+        ...split.preorderItems.map((item) => item['dealer_product_id'] as int),
+        ...split.removedProductIds,
+      ];
+      await _cart.removeOrderedItems(purchasedIds);
+
+      if (createdOrder != null && createdPreOrder != null) {
+        AppSnackbar.success('Đã tạo đơn hàng và yêu cầu đặt trước');
+      } else if (createdPreOrder != null) {
+        AppSnackbar.success('Đã gửi yêu cầu đặt trước');
+      } else {
+        AppSnackbar.success('Đặt hàng thành công');
+      }
+
+      if (createdOrder != null) {
+        Get.offAllNamed(
+          AppRoutes.orderTracking(slug),
+          arguments: {'newOrderId': createdOrder.id, 'orderCode': createdOrder.orderCode},
+        );
+      } else {
+        Get.offAllNamed(AppRoutes.preorders(slug));
+      }
     } catch (e) {
       AppSnackbar.error(_repository.readError(e));
     } finally {
       submitting.value = false;
     }
   }
+
+  Future<void> submitOrder() => prepareCheckout();
 
   Future<AddressModel?> createAddress({
     required String receiverName,

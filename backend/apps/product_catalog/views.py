@@ -7,8 +7,9 @@ from rest_framework.response import Response
 from common.openapi import PAGINATION_QUERY_HELP, paginated_response_schema
 from common.pagination import LoadMorePagination
 from common.permission import IsAdmin, IsActive
+from common.status_counts import build_count_status, filter_by_status_param
 
-from .models import ProductMaster
+from .models import ProductMaster, ProductMasterStatus
 from .serializers import ProductMasterListSerializer, ProductMasterWriteSerializer
 from .services import apply_product_master_list_filters
 
@@ -103,11 +104,29 @@ class ProductMasterViewSet(viewsets.ModelViewSet):
             status_param=self.request.query_params.get("status"),
         )
 
+    def _product_master_list_base_queryset(self, request):
+        return apply_product_master_list_filters(
+            self.filter_queryset(super().get_queryset()),
+            user=request.user,
+            category_id_raw=request.query_params.get("category_id"),
+            search=request.query_params.get("search"),
+            status_param=None,
+        )
+
     def list(self, request, *args, **kwargs):
+        base_qs = self._product_master_list_base_queryset(request)
+        count_status = build_count_status(
+            base_qs, field="status", choices=ProductMasterStatus
+        )
+        qs = apply_product_master_list_filters(
+            base_qs,
+            user=request.user,
+            status_param=request.query_params.get("status"),
+        )
         paginator = self.pagination_class()
-        page = paginator.paginate_queryset(self.filter_queryset(self.get_queryset()), request, view=self)
+        page = paginator.paginate_queryset(qs, request, view=self)
         data = ProductMasterListSerializer(page, many=True).data
-        return paginator.get_paginated_response(data)
+        return paginator.get_paginated_response(data, count_status=count_status)
 
     def _response_with_detail(self, instance, *, status=200):
         instance = ProductMaster.objects.select_related("category").get(pk=instance.pk)

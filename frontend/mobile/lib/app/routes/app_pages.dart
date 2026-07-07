@@ -12,6 +12,7 @@ import 'package:smart_green_market/modules/main/bindings/main_binding.dart';
 import 'package:smart_green_market/modules/main/views/main_view.dart';
 import 'package:smart_green_market/modules/notification/views/notification_view.dart';
 import 'package:smart_green_market/modules/order/views/order_tracking_view.dart';
+import 'package:smart_green_market/modules/preorder/views/preorder_view.dart';
 import 'package:smart_green_market/modules/product/bindings/product_detail_binding.dart';
 import 'package:smart_green_market/modules/product/views/product_detail_view.dart';
 import 'package:smart_green_market/modules/product/views/product_list_view.dart';
@@ -63,6 +64,11 @@ class AppPages {
     GetPage(
       name: '/store/:slug/orders/history',
       page: () => const OrderHistoryView(),
+      middlewares: [AuthMiddleware()],
+    ),
+    GetPage(
+      name: '/store/:slug/preorders',
+      page: () => const PreOrderView(),
       middlewares: [AuthMiddleware()],
     ),
     GetPage(

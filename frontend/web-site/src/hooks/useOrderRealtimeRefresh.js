@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef } from "react";
 import { useNotificationRealtimeEvent } from "./useNotificationRealtimeEvent";
+import { subscribeNotificationWebSocket } from "../services/notificationWebSocketManager";
 import { parseOrderNotification } from "../utils/orderRealtimeUtils";
 
 /**
@@ -60,6 +61,22 @@ export function useOrderRealtimeRefresh({
     );
 
     useNotificationRealtimeEvent(handleNotification, { enabled });
+
+    // WS reconnect (Render sleep) → refetch để bắt đơn/thống kê bị miss khi offline
+    useEffect(() => {
+        if (!enabled) return undefined;
+
+        return subscribeNotificationWebSocket({
+            onConnect: () => {
+                if (debounceTimerRef.current != null) {
+                    window.clearTimeout(debounceTimerRef.current);
+                }
+                debounceTimerRef.current = window.setTimeout(() => {
+                    onRefreshRef.current?.();
+                }, debounceMs);
+            },
+        });
+    }, [enabled, debounceMs]);
 
     useEffect(() => () => {
         if (debounceTimerRef.current != null) {

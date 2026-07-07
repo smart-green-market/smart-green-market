@@ -1,6 +1,6 @@
 import { X, Package, CheckCircle2, Truck, CreditCard, User, Calendar, MapPin, Receipt, ArrowRight, Printer, Phone, XCircle } from "lucide-react";
 
-export default function ({ order, onClose, onPrint, onConfirm, onStartProcessing, onShipOrder, onCancel, onApproveReturn, onRejectReturn }) {
+export default function ({ order, onClose, onPrint, onConfirm, onStartProcessing, onShipOrder, onCancel, onProposeReschedule, onApproveReturn, onRejectReturn }) {
   if (!order) return null;
 
   // Status visual mapping
@@ -13,6 +13,8 @@ export default function ({ order, onClose, onPrint, onConfirm, onStartProcessing
       case "Đã giao": return "bg-emerald-50 text-emerald-700 border-emerald-200/50";
       case "Đã hủy": return "bg-red-50 text-red-700 border-red-200/50";
       case "Yêu cầu trả hàng": return "bg-pink-50 text-pink-700 border-pink-200/50";
+      case "Chờ hàng về kho": return "bg-orange-50 text-orange-700 border-orange-200/50";
+      case "Chờ xác nhận đổi ngày giao": return "bg-amber-50 text-amber-700 border-amber-200/50";
       case "Đã trả hàng":
       case "returned": return "bg-red-50 text-red-700 border-red-200/50";
       default: return "bg-neutral-50 text-neutral-600 border-neutral-200/50";
@@ -280,7 +282,16 @@ export default function ({ order, onClose, onPrint, onConfirm, onStartProcessing
           </button>
         )}
 
-        {(order.status === "Chờ xác nhận" || order.status === "Đã xác nhận" || order.status === "Đang chuẩn bị hàng") && (
+        {order.status === "Chờ hàng về kho" && (
+          <button
+            onClick={() => onProposeReschedule && onProposeReschedule(order)}
+            className="w-full py-3.5 rounded-xl bg-amber-500 hover:bg-amber-600 text-white font-bold text-sm shadow-md transition-all flex justify-center items-center gap-2 cursor-pointer"
+          >
+            <Calendar className="w-5 h-5" /> Đề xuất đổi ngày giao
+          </button>
+        )}
+
+        {(order.status === "Chờ xác nhận" || order.status === "Đã xác nhận" || order.status === "Đang chuẩn bị hàng" || order.status === "Chờ hàng về kho") && (
           <button
             onClick={() => onCancel && onCancel(order)}
             className="w-full py-3 rounded-xl border border-red-200 hover:bg-red-50 text-red-600 font-bold text-sm transition-all cursor-pointer flex items-center justify-center gap-2"

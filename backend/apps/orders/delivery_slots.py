@@ -14,6 +14,15 @@ VN_TZ = ZoneInfo("Asia/Ho_Chi_Minh")
 
 INVALID_DELIVERY_SLOT_MSG = "Khung giờ giao hàng không còn khả dụng."
 
+# Default khi chưa load SystemSettings (tests / docs).
+MAX_BOOKING_DAYS = 2
+
+# YC đặt trước: cửa sổ ngày giao dài hơn checkout (chờ hàng về kho).
+MAX_PREORDER_BOOKING_DAYS = 120
+INVALID_PREORDER_DELIVERY_SLOT_MSG = (
+    f"Ngày giao phải từ hôm nay đến tối đa {MAX_PREORDER_BOOKING_DAYS} ngày."
+)
+
 
 @dataclass(frozen=True)
 class DeliverySlotDef:
@@ -119,6 +128,97 @@ def resolve_delivery_time(delivery_date: date, slot_id: str, *, now=None) -> dat
             }
         )
     return slot_start_datetime(delivery_date, SLOT_BY_ID[slot_id])
+
+
+def _preorder_booking_window(now=None):
+    """Cửa sổ ngày giao cho YC đặt trước — không áp lead time / cutoff checkout."""
+    today = _now_vn(now).date()
+    return today, today + timedelta(days=MAX_PREORDER_BOOKING_DAYS - 1)
+
+
+def is_preorder_slot_valid(delivery_date: date, slot_id: str, *, now=None) -> bool:
+    """Slot hợp lệ cho đặt trước: đúng khung giờ, trong cửa sổ, chưa qua."""
+    slot = SLOT_BY_ID.get(slot_id)
+    if slot is None:
+        return False
+
+    now_aware = now or timezone.now()
+    earliest_date, latest_date = _preorder_booking_window(now_aware)
+    if delivery_date < earliest_date or delivery_date > latest_date:
+        return False
+
+    slot_start = slot_start_datetime(delivery_date, slot)
+    return slot_start > now_aware
+
+
+def resolve_preorder_delivery_time(
+    delivery_date: date, slot_id: str, *, now=None
+) -> datetime:
+    """Trả delivery_time cho YC đặt trước — cửa sổ ngày rộng hơn checkout."""
+    if slot_id not in SLOT_BY_ID:
+        raise ValidationError(
+            {
+                "delivery_slot": ErrorDetail(
+                    "Khung giờ không hợp lệ.",
+                    code="invalid_delivery_slot",
+                )
+            }
+        )
+    if not is_preorder_slot_valid(delivery_date, slot_id, now=now):
+        raise ValidationError(
+            {
+                "delivery_slot": ErrorDetail(
+                    INVALID_PREORDER_DELIVERY_SLOT_MSG,
+                    code="invalid_delivery_slot",
+                )
+            }
+        )
+    return slot_start_datetime(delivery_date, SLOT_BY_ID[slot_id])
+
+
+def validate_preorder_delivery_datetime(delivery_time: datetime, *, now=None) -> None:
+    """Validate delivery_time cho luồng đặt trước."""
+    if timezone.is_naive(delivery_time):
+        raise ValidationError(
+            {
+                "delivery_time": ErrorDetail(
+                    INVALID_PREORDER_DELIVERY_SLOT_MSG,
+                    code="invalid_delivery_slot",
+                )
+            }
+        )
+
+    dt_vn = delivery_time.astimezone(VN_TZ)
+    delivery_date = dt_vn.date()
+    slot_time = dt_vn.time().replace(second=0, microsecond=0)
+
+    matched = None
+    for slot in DELIVERY_SLOT_DEFINITIONS:
+        if slot.start == slot_time:
+            matched = slot
+            break
+
+    if matched is None or not is_preorder_slot_valid(
+        delivery_date, matched.id, now=now
+    ):
+        raise ValidationError(
+            {
+                "delivery_time": ErrorDetail(
+                    INVALID_PREORDER_DELIVERY_SLOT_MSG,
+                    code="invalid_delivery_slot",
+                )
+            }
+        )
+
+
+def get_preorder_delivery_date_bounds(*, now=None) -> dict:
+    """Min/max date (ISO) cho FE dealer/buyer chọn ngày giao đặt trước."""
+    earliest_date, latest_date = _preorder_booking_window(now)
+    return {
+        "min_date": earliest_date.isoformat(),
+        "max_date": latest_date.isoformat(),
+        "max_preorder_booking_days": MAX_PREORDER_BOOKING_DAYS,
+    }
 
 
 def validate_delivery_datetime(delivery_time: datetime, *, now=None) -> None:

@@ -1,3 +1,4 @@
+import { PageSpinner } from "../UI/SupplierSpinner";
 // NotificationTable.jsx
 // Trang / khối "danh sách thông báo" đầy đủ: ô tìm kiếm + chip lọc + card danh sách.
 // Đây là phần tương ứng với #page-notifications trong file HTML gốc.
@@ -60,7 +61,7 @@ export default function NotificationTable({
 
         <div>
           {loading ? (
-            <div className="empty-row">Đang tải thông báo...</div>
+            <div className="empty-row"><PageSpinner /></div>
           ) : (
             notifications.map((n) => (
               <NotificationItem key={n.id} notification={n} variant="list" onClick={onItemClick} />

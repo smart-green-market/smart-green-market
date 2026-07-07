@@ -3,7 +3,6 @@ import Header from "../components/User/Ui/Header";
 import Footer from "../components/User/Ui/Footer";
 import ScrollToTopButton from "../components/User/Ui/ScrollToTopButton";
 import ScrollToTopOnNavigate from "../components/User/Ui/ScrollToTopOnNavigate";
-import AppToaster from "../components/common/AppToaster";
 import { CartProvider } from "../contexts/cartProvider";
 
 export default function UserLayout() {
@@ -17,7 +16,6 @@ export default function UserLayout() {
                 </main>
                 <Footer />
                 <ScrollToTopButton />
-                <AppToaster />
             </div>
         </CartProvider>
     );

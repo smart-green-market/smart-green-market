@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import { ButtonSpinner } from "../UI/SupplierSpinner";
 import { X, Plus, Trash2, Tag } from "lucide-react";
 import { toast } from "sonner";
 import { categoryService } from "../../../services/api/categoryService";
@@ -217,7 +218,7 @@ export default function CreateQuantityDiscountModal({ isOpen, onClose, onSuccess
                 disabled={isSubmitting}
                 className="px-4 py-2 text-sm bg-emerald-700 text-white rounded-xl disabled:opacity-50"
               >
-                {isSubmitting ? "Đang lưu..." : "Tạo chính sách"}
+                {isSubmitting ? <ButtonSpinner label="Đang lưu..." /> : "Tạo chính sách"}
               </button>
             </div>
           </div>

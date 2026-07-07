@@ -156,7 +156,18 @@ export default function CreateProductModal({ isOpen, onClose, onSuccess, mode = 
     setError(null);
     const newErrors = {};
 
-    if (!form.category) newErrors.category = "Vui lòng chọn danh mục.";
+    let currentCategory = form.category;
+    if (!currentCategory && selectedProductId) {
+      const picked = products.find((p) => String(p.id) === selectedProductId);
+      if (picked && picked.category) {
+        const catId = picked.category.id ?? picked.category;
+        if (catId) {
+          currentCategory = String(catId);
+        }
+      }
+    }
+
+    if (!currentCategory) newErrors.category = "Vui lòng chọn danh mục.";
     if (!isPersonal && !selectedProductId)
       newErrors.product_master = "Vui lòng chọn sản phẩm từ danh mục.";
     if (isPersonal && !form.name.trim())
@@ -169,22 +180,25 @@ export default function CreateProductModal({ isOpen, onClose, onSuccess, mode = 
     if (!form.daily_production_capacity || isNaN(capacity) || capacity <= 0)
       newErrors.daily_production_capacity = "Năng suất phải là số dương lớn hơn 0.";
 
-    const allErrs = { ...validateProductForm(form), ...newErrors };
+    const formToValidate = { ...form, category: currentCategory };
+    const allErrs = { ...validateProductForm(formToValidate), ...newErrors };
     if (Object.keys(allErrs).length) {
       setFieldErrors(allErrs);
       setError(errorsToSummary(allErrs) || "Vui lòng kiểm tra lại các trường bắt buộc.");
       return;
     }
 
-    handleSubmit();
+    handleSubmit(currentCategory);
   };
 
   // ── Submit ───────────────────────────────────────────────────
-  const handleSubmit = async () => {
+  const handleSubmit = async (resolvedCategory) => {
     setError(null);
 
+    const categoryVal = resolvedCategory || form.category;
+
     // Guard (second validation pass)
-    if (!form.category) { setError("Vui lòng chọn danh mục."); return; }
+    if (!categoryVal) { setError("Vui lòng chọn danh mục."); return; }
     if (!isPersonal && !selectedProductId) { setError("Vui lòng chọn sản phẩm từ danh mục."); return; }
     if (isPersonal && !form.name.trim()) { setError("Vui lòng nhập tên sản phẩm."); return; }
 
@@ -208,7 +222,8 @@ export default function CreateProductModal({ isOpen, onClose, onSuccess, mode = 
         inlineErrors.max_storage_temp = "Nhiệt độ tối đa phải lớn hơn hoặc bằng nhiệt độ tối thiểu.";
     }
 
-    const allErrs = { ...validateProductForm(form), ...inlineErrors };
+    const formToValidate = { ...form, category: categoryVal };
+    const allErrs = { ...validateProductForm(formToValidate), ...inlineErrors };
     if (Object.keys(allErrs).length) {
       setFieldErrors(allErrs);
       setError(errorsToSummary(allErrs) || "Vui lòng kiểm tra lại các trường có lỗi.");
@@ -220,7 +235,7 @@ export default function CreateProductModal({ isOpen, onClose, onSuccess, mode = 
 
     try {
       const payload = {
-        category:                   parseInt(form.category, 10),
+        category:                   parseInt(categoryVal, 10),
         unit:                       form.unit,
         wholesale_price:            form.wholesale_price,
         daily_production_capacity:  form.daily_production_capacity,

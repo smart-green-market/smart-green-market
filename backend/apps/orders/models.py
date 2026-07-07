@@ -21,6 +21,11 @@ class OrderStatus(models.TextChoices):
     RETURN_REJECTED = "return_rejected", "Từ chối trả hàng"
     RETURNED = "returned", "Đã trả hàng"
     CANCELLED = "cancelled", "Đã hủy"
+    WAITING_STOCK = "waiting_stock", "Chờ hàng về kho"
+    DELIVERY_RESCHEDULE_PROPOSED = (
+        "delivery_reschedule_proposed",
+        "Chờ xác nhận đổi ngày giao",
+    )
 
 
 class CustomerPaymentMethod(models.TextChoices):
@@ -88,7 +93,7 @@ class Order(models.Model):
     )
 
     status = models.CharField(
-        max_length=20,
+        max_length=32,
         choices=OrderStatus.choices,
         default=OrderStatus.PENDING,
     )
@@ -97,6 +102,15 @@ class Order(models.Model):
     receiver_phone = models.CharField(max_length=20)
     delivery_address = models.TextField()
     delivery_time = models.DateTimeField()
+    proposed_delivery_time = models.DateTimeField(
+        null=True,
+        blank=True,
+        help_text="Ngày giao đại lý đề xuất khi trễ hàng (waiting_stock)",
+    )
+    reschedule_reason = models.TextField(
+        blank=True,
+        help_text="Lý do đại lý đề xuất đổi ngày giao",
+    )
     note = models.TextField(blank=True)
 
     subtotal_amount = models.DecimalField(max_digits=14, decimal_places=2, default=0)
@@ -155,6 +169,9 @@ class OrderItem(models.Model):
         "dealer_products.DealerInventoryBatch",
         on_delete=models.PROTECT,
         related_name="order_items",
+        null=True,
+        blank=True,
+        help_text="Null khi đơn waiting_stock chưa được phân bổ lô",
     )
 
     product_title = models.CharField(max_length=255)
@@ -188,8 +205,8 @@ class OrderStatusHistory(models.Model):
         on_delete=models.CASCADE,
         related_name="status_histories",
     )
-    old_status = models.CharField(max_length=20, blank=True)
-    new_status = models.CharField(max_length=20)
+    old_status = models.CharField(max_length=32, blank=True)
+    new_status = models.CharField(max_length=32)
     note = models.TextField(blank=True)
     changed_by = models.ForeignKey(
         settings.AUTH_USER_MODEL,
@@ -335,3 +352,106 @@ class OrderReturnItem(models.Model):
 
     def __str__(self):
         return f"{self.order_return} - {self.order_item_id}"
+
+
+class PreOrderRequestStatus(models.TextChoices):
+    """Trạng thái yêu cầu đặt trước (chưa thành Order)."""
+
+    SUBMITTED = "submitted", "Đã gửi — chờ đại lý"
+    CUSTOMER_CONFIRMATION_PENDING = (
+        "customer_confirmation_pending",
+        "Chờ khách xác nhận",
+    )
+    REJECTED_BY_DEALER = "rejected_by_dealer", "Đại lý từ chối"
+    REJECTED_BY_CUSTOMER = "rejected_by_customer", "Khách từ chối"
+    CONVERTED = "converted", "Đã chuyển thành đơn"
+    CANCELLED = "cancelled", "Đã hủy"
+
+
+class PreOrderRequest(models.Model):
+    """YC đặt trước khi customer đặt vượt tồn — chưa trừ kho."""
+
+    request_code = models.CharField(max_length=50, unique=True)
+    customer = models.ForeignKey(
+        "customers.CustomerProfile",
+        on_delete=models.PROTECT,
+        related_name="preorder_requests",
+    )
+    dealer = models.ForeignKey(
+        "dealers.DealerProfile",
+        on_delete=models.PROTECT,
+        related_name="preorder_requests",
+    )
+    customer_address = models.ForeignKey(
+        "customers.CustomerAddress",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="preorder_requests",
+    )
+    status = models.CharField(
+        max_length=32,
+        choices=PreOrderRequestStatus.choices,
+        default=PreOrderRequestStatus.SUBMITTED,
+    )
+
+    receiver_name = models.CharField(max_length=255)
+    receiver_phone = models.CharField(max_length=20)
+    delivery_address = models.TextField()
+    requested_delivery_time = models.DateTimeField()
+    confirmed_delivery_time = models.DateTimeField(null=True, blank=True)
+    proposed_delivery_time = models.DateTimeField(null=True, blank=True)
+    note = models.TextField(blank=True)
+    dealer_note = models.TextField(blank=True)
+    reject_reason = models.TextField(blank=True)
+
+    converted_order = models.ForeignKey(
+        Order,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="source_preorder_requests",
+    )
+    converted_at = models.DateTimeField(null=True, blank=True)
+
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = "preorder_requests"
+        ordering = ["-created_at", "-id"]
+        indexes = [
+            models.Index(fields=["dealer", "status"]),
+            models.Index(fields=["customer", "-created_at"]),
+        ]
+
+    def __str__(self):
+        return self.request_code
+
+
+class PreOrderRequestItem(models.Model):
+    """Dòng SP trong YC đặt trước."""
+
+    preorder_request = models.ForeignKey(
+        PreOrderRequest,
+        on_delete=models.CASCADE,
+        related_name="items",
+    )
+    dealer_product = models.ForeignKey(
+        "dealer_products.DealerProduct",
+        on_delete=models.PROTECT,
+        related_name="preorder_request_items",
+    )
+    product_title = models.CharField(max_length=255)
+    unit = models.CharField(max_length=50, blank=True)
+    requested_quantity = models.PositiveIntegerField()
+    available_at_submit = models.PositiveIntegerField(default=0)
+    confirmed_quantity = models.PositiveIntegerField(null=True, blank=True)
+    proposed_quantity = models.PositiveIntegerField(null=True, blank=True)
+
+    class Meta:
+        db_table = "preorder_request_items"
+        ordering = ["id"]
+
+    def __str__(self):
+        return f"{self.preorder_request.request_code} - {self.product_title}"

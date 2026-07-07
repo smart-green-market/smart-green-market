@@ -218,6 +218,26 @@ class OrderDeliveryInfoMixin:
         info = self._delivery_slot_info(obj)
         return info["delivery_slot_name"] if info else None
 
+    def _proposed_delivery_slot_info(self, obj):
+        cached = getattr(obj, "_proposed_delivery_slot_info_cache", None)
+        if cached is not None:
+            return cached
+        info = parse_delivery_slot(obj.proposed_delivery_time)
+        obj._proposed_delivery_slot_info_cache = info
+        return info
+
+    def get_proposed_delivery_date(self, obj):
+        info = self._proposed_delivery_slot_info(obj)
+        return info["delivery_date"] if info else None
+
+    def get_proposed_delivery_slot(self, obj):
+        info = self._proposed_delivery_slot_info(obj)
+        return info["delivery_slot"] if info else None
+
+    def get_proposed_delivery_slot_name(self, obj):
+        info = self._proposed_delivery_slot_info(obj)
+        return info["delivery_slot_name"] if info else None
+
 
 class OrderListSerializer(
     OrderDeliveryInfoMixin,
@@ -286,6 +306,9 @@ class OrderDetailSerializer(
     delivery_date = serializers.SerializerMethodField(read_only=True)
     delivery_slot = serializers.SerializerMethodField(read_only=True)
     delivery_slot_name = serializers.SerializerMethodField(read_only=True)
+    proposed_delivery_date = serializers.SerializerMethodField(read_only=True)
+    proposed_delivery_slot = serializers.SerializerMethodField(read_only=True)
+    proposed_delivery_slot_name = serializers.SerializerMethodField(read_only=True)
     items = OrderItemReadSerializer(many=True, read_only=True)
     payments = CustomerPaymentReadSerializer(many=True, read_only=True)
     status_histories = OrderStatusHistorySerializer(many=True, read_only=True)
@@ -308,6 +331,11 @@ class OrderDetailSerializer(
             "delivery_date",
             "delivery_slot",
             "delivery_slot_name",
+            "proposed_delivery_time",
+            "proposed_delivery_date",
+            "proposed_delivery_slot",
+            "proposed_delivery_slot_name",
+            "reschedule_reason",
             "note",
             "shipping_address",
             "subtotal_amount",
@@ -452,6 +480,25 @@ class OrderCreateSerializer(serializers.Serializer):
             voucher_code=validated_data.get("voucher_code", ""),
             user=request.user,
         )
+
+
+class ProposeDeliveryRescheduleSerializer(serializers.Serializer):
+    proposed_delivery_date = serializers.DateField()
+    proposed_delivery_slot = schema_choice_field(
+        choices=[("morning", "Sáng"), ("afternoon", "Chiều")],
+    )
+    reason = serializers.CharField()
+
+    def validate(self, attrs):
+        attrs["proposed_delivery_time"] = resolve_delivery_time(
+            attrs["proposed_delivery_date"],
+            attrs["proposed_delivery_slot"],
+        )
+        reason = attrs.get("reason", "").strip()
+        if not reason:
+            raise serializers.ValidationError({"reason": "Vui lòng nhập lý do đổi ngày giao."})
+        attrs["reason"] = reason
+        return attrs
 
 
 class NoteSerializer(serializers.Serializer):

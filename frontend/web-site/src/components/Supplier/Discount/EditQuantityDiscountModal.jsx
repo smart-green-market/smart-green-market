@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import { ButtonSpinner } from "../UI/SupplierSpinner";
 import { X, Tag } from "lucide-react";
 import { toast } from "sonner";
 import { categoryService } from "../../../services/api/categoryService";
@@ -70,7 +71,7 @@ export default function EditQuantityDiscountModal({ isOpen, policyId, onClose, o
         </div>
 
         {isLoading || !formData ? (
-          <div className="p-12 text-center text-neutral-400">Đang tải...</div>
+          <PageSpinner />
         ) : (
           <form onSubmit={handleSubmit} className="flex flex-col min-h-0 overflow-hidden">
             <div className="flex-1 overflow-y-auto p-6 space-y-4">
@@ -139,7 +140,7 @@ export default function EditQuantityDiscountModal({ isOpen, policyId, onClose, o
               <div className="flex gap-2">
                 <button type="button" onClick={onClose} className="px-4 py-2 text-sm border rounded-xl">Hủy</button>
                 <button type="submit" disabled={isSubmitting} className="px-4 py-2 text-sm bg-emerald-700 text-white rounded-xl disabled:opacity-50">
-                  {isSubmitting ? "Đang lưu..." : "Lưu thay đổi"}
+                  {isSubmitting ? <ButtonSpinner label="Đang lưu..." /> : "Lưu thay đổi"}
                 </button>
               </div>
             </div>

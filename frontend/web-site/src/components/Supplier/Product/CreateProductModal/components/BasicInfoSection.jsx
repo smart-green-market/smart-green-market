@@ -72,9 +72,9 @@ export default function BasicInfoSection({
           disabled={saving}
         >
           <option value="">
-            {categories.length === 0
-              ? (isPersonal ? "Bạn chưa có danh mục cá nhân nào" : "Đang tải danh mục...")
-              : "— Chọn danh mục —"}
+            {isPersonal
+              ? (categories.length === 0 ? "Bạn chưa có danh mục cá nhân nào" : "— Chọn danh mục —")
+              : "Tất cả danh mục"}
           </option>
           {categories.map((c) => (
             <option key={c.id} value={String(c.id)}>
@@ -113,12 +113,14 @@ export default function BasicInfoSection({
                   }
                 }}
                 className={`${selectClsMode} ${fieldErrors.product_master ? "!border-red-400 !bg-red-50" : ""}`}
-                disabled={saving || !form.category || products.length === 0}
+                disabled={saving || products.length === 0}
               >
-                {!form.category ? (
-                  <option value="">— Chọn danh mục trước —</option>
-                ) : products.length === 0 ? (
-                  <option value="">Tất cả sản phẩm trong danh mục này đã được niêm yết</option>
+                {products.length === 0 ? (
+                  <option value="">
+                    {form.category
+                      ? "Tất cả sản phẩm trong danh mục này đã được niêm yết"
+                      : "Không có sản phẩm nào khả dụng"}
+                  </option>
                 ) : (
                   products.map((p) => (
                     <option key={p.id} value={String(p.id)}>{p.name}</option>

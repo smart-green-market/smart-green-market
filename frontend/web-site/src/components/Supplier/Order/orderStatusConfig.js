@@ -2,23 +2,23 @@
 export const SUPPLIER_ORDER_STATUS = {
   pending_supplier_confirmation: { label: "Chờ xác nhận", tone: "a" },
   rejected: { label: "Từ chối", tone: "r" },
-  pending_dealer_confirmation: { label: "Chờ đại lý xác nhận điều chỉnh", tone: "a" },
+  pending_dealer_confirmation: { label: "Chờ ĐL xác nhận", tone: "a" },
   confirmed: { label: "Đã xác nhận", tone: "b" },
-  deposit_pending_verification: { label: "Chờ xác nhận tiền cọc", tone: "a" },
-  deposit_paid: { label: "Đã thanh toán cọc", tone: "b" },
-  processing: { label: "Đang chuẩn bị hàng", tone: "b" },
+  deposit_pending_verification: { label: "Chờ XN tiền cọc", tone: "a" },
+  deposit_paid: { label: "Đã TT cọc", tone: "b" },
+  processing: { label: "Đang chuẩn bị", tone: "b" },
   shipping: { label: "Đang giao hàng", tone: "a" },
   delivered: { label: "Đã giao hàng", tone: "g" },
-  final_payment_pending_verification: { label: "Chờ xác nhận thanh toán cuối", tone: "a" },
-  return_requested: { label: "Yêu cầu trả hàng", tone: "a" },
-  return_approved: { label: "Đã duyệt trả hàng", tone: "g" },
-  return_rejected: { label: "Từ chối trả hàng", tone: "r" },
+  final_payment_pending_verification: { label: "Chờ XN TT cuối", tone: "a" },
+  return_requested: { label: "YC trả hàng", tone: "a" },
+  return_approved: { label: "Duyệt trả hàng", tone: "g" },
+  return_rejected: { label: "Từ chối trả", tone: "r" },
   returned: { label: "Đã trả hàng", tone: "p" },
   completed: { label: "Hoàn tất", tone: "g" },
   cancelled: { label: "Đã hủy", tone: "gr" },
   // alias cũ (nếu BE/FE còn sót)
-  return_request: { label: "Yêu cầu trả hàng", tone: "a" },
-  return_pending_review: { label: "Yêu cầu trả hàng", tone: "a" },
+  return_request: { label: "YC trả hàng", tone: "a" },
+  return_pending_review: { label: "YC trả hàng", tone: "a" },
 };
 
 export const SUPPLIER_ORDER_STATUS_FILTERS = [

@@ -91,6 +91,16 @@ export const ORDER_STATUS_CFG = {
     bg: "bg-violet-100",
     text: "text-violet-700",
   },
+  waiting_stock: {
+    label: "Chờ hàng về kho",
+    bg: "bg-orange-100",
+    text: "text-orange-700",
+  },
+  delivery_reschedule_proposed: {
+    label: "Chờ xác nhận đổi ngày giao",
+    bg: "bg-amber-100",
+    text: "text-amber-700",
+  },
 };
 
 /** Các trạng thái thuộc luồng trả hàng */
@@ -221,6 +231,8 @@ export const PROCESSING_STATUSES = [
   "confirmed",
   "processing",
   "preparing",
+  "waiting_stock",
+  "delivery_reschedule_proposed",
 ];
 
 export const STATUS_FILTER_MAP = {
@@ -238,6 +250,10 @@ export function matchesStatusFilter(orderStatus, filterKey) {
 
 export function canCancelBuyerOrder(status) {
   return status === "pending";
+}
+
+export function canRespondToDeliveryReschedule(status) {
+  return status === "delivery_reschedule_proposed";
 }
 
 export function canReturnBuyerOrder(status) {

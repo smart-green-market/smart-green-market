@@ -17,6 +17,7 @@ import {
   formatPaymentMethod,
   canCancelBuyerOrder,
   canReturnBuyerOrder,
+  canRespondToDeliveryReschedule,
 } from "../../../utils/orderUtils";
 
 /**
@@ -286,8 +287,43 @@ const ModalActionFooter = ({
   onComplete,
   onCancelOrder,
   onReturnOrder,
+  onAcceptReschedule,
+  onRejectReschedule,
 }) => {
   if (!order) return null;
+
+  if (canRespondToDeliveryReschedule(order.status)) {
+    return (
+      <div className="bg-white px-6 py-4 border-t border-gray-200 flex-shrink-0 space-y-2">
+        {order.reschedule_reason ? (
+          <p className="text-xs text-amber-700">
+            Lý do đại lý: {order.reschedule_reason}
+          </p>
+        ) : null}
+        {order.proposed_delivery_time ? (
+          <p className="text-xs text-neutral-600">
+            Ngày giao đề xuất: {formatDateTime(order.proposed_delivery_time)}
+          </p>
+        ) : null}
+        <button
+          type="button"
+          disabled={actionLoading}
+          onClick={onAcceptReschedule}
+          className="hover:scale-105 cursor-pointer w-full flex items-center justify-center gap-2 rounded-xl bg-emerald-700 px-4 py-3 text-[14px] font-medium text-white"
+        >
+          {actionLoading ? "Đang xử lý..." : "Đồng ý ngày giao mới"}
+        </button>
+        <button
+          type="button"
+          disabled={actionLoading}
+          onClick={onRejectReschedule}
+          className="hover:scale-105 cursor-pointer w-full flex items-center justify-center gap-2 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-[14px] font-medium text-red-600"
+        >
+          Từ chối và hủy đơn
+        </button>
+      </div>
+    );
+  }
 
   if (canCancelBuyerOrder(order.status)) {
     return (
@@ -446,6 +482,41 @@ export default function OrderDetailModal({
     }
   }, [order?.id, dealerSlug, fetchDetail, onOrderUpdated]);
 
+  const handleAcceptReschedule = useCallback(async () => {
+    if (!order?.id || !dealerSlug) return;
+    setActionLoading(true);
+    try {
+      await buyerOrder.acceptDeliveryReschedule(dealerSlug, order.id);
+      toast.success("Đã đồng ý ngày giao mới");
+      await fetchDetail();
+      onOrderUpdated?.();
+    } catch (err) {
+      toast.error(handleApiError(err, "Không thể xác nhận ngày giao mới."));
+    } finally {
+      setActionLoading(false);
+    }
+  }, [order?.id, dealerSlug, fetchDetail, onOrderUpdated]);
+
+  const handleRejectReschedule = useCallback(async () => {
+    if (!order?.id || !dealerSlug) return;
+    const reason = window.prompt("Nhập lý do từ chối (sẽ hủy đơn):");
+    if (!reason?.trim()) return;
+
+    setActionLoading(true);
+    try {
+      await buyerOrder.rejectDeliveryReschedule(dealerSlug, order.id, {
+        reason: reason.trim(),
+      });
+      toast.success("Đã từ chối và hủy đơn hàng");
+      await fetchDetail();
+      onOrderUpdated?.();
+    } catch (err) {
+      toast.error(handleApiError(err, "Không thể từ chối đề xuất."));
+    } finally {
+      setActionLoading(false);
+    }
+  }, [order?.id, dealerSlug, fetchDetail, onOrderUpdated]);
+
   const handleComplete = useCallback(async () => {
     if (!order?.id || !dealerSlug) return;
     if (!window.confirm("Bạn xác nhận hoàn thành đơn hàng này?")) return;
@@ -580,6 +651,8 @@ export default function OrderDetailModal({
             onComplete={handleComplete}
             onCancelOrder={onCancelOrder}
             onReturnOrder={onReturnOrder}
+            onAcceptReschedule={handleAcceptReschedule}
+            onRejectReschedule={handleRejectReschedule}
           />
         )}
       </div>

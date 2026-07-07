@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo } from "react";
+import { ButtonSpinner } from "../UI/SupplierSpinner";
 import { X } from "lucide-react";
 import { Overlay, ModalBox, Field, inputCls } from "./CreateCultivationModal";
 import { farmingProcessService } from "../../../services/api/cultivationService";
@@ -228,7 +229,7 @@ export default function EditCultivationModal({ isOpen, onClose, process, onSucce
             disabled={loading || !isDirty || productsLoading}
             className="px-5 py-2 bg-emerald-800 text-white text-sm font-semibold rounded-lg hover:bg-emerald-700 disabled:opacity-50 transition-colors"
           >
-            {loading ? "Đang lưu..." : "Cập nhật"}
+            {loading ? <ButtonSpinner label="Đang lưu..." /> : "Cập nhật"}
           </button>
         </div>
       </ModalBox>

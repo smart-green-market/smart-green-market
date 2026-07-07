@@ -1,3 +1,4 @@
+import { InlineSpinner, ButtonSpinner } from "../../components/Supplier/UI/SupplierSpinner";
 import { useEffect, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { supplierService } from "../../services/api/suppilerService";
@@ -398,7 +399,7 @@ function ModalWrap({ title, onClose, isSaving, onSave, isDirty, children }) {
               display: "flex", alignItems: "center", justifyContent: "center", gap: 6,
             }}
           >
-            {isSaving ? (<><SpinIcon />Đang lưu...</>) : "Lưu thay đổi"}
+            {isSaving ? <ButtonSpinner label="Đang lưu..." /> : "Lưu thay đổi"}
           </button>
         </div>
       </div>
@@ -941,7 +942,7 @@ function DocumentsCard({ documents, isLoading, error }) {
           title="Hồ sơ tài liệu"
           right={
             <span style={{ fontSize: 11, color: T.text3 }}>
-              {isLoading ? "Đang tải..." : `${documents.length} tài liệu`}
+              {isLoading ? <InlineSpinner size={14} className="mr-2" /> : `${documents.length} tài liệu`}
             </span>
           }
         />

@@ -137,6 +137,75 @@ class BuyerApiProvider {
     );
   }
 
+  Future<List<StockCheckResult>> checkStock(
+    String slug,
+    List<Map<String, dynamic>> items,
+  ) async {
+    final res = await _dio.post<dynamic>(
+      '/storefronts/$slug/check-stock/',
+      data: {'items': items},
+    );
+    final data = res.data;
+    if (data is! List) return [];
+    return data
+        .whereType<Map>()
+        .map((e) => StockCheckResult.fromJson(Map<String, dynamic>.from(e)))
+        .toList();
+  }
+
+  Future<List<PreOrderModel>> getPreOrders(String slug) async {
+    final res = await _dio.get<Map<String, dynamic>>('/storefronts/$slug/preorder-requests/');
+    final results = res.data?['results'];
+    if (results is! List) return [];
+    return results
+        .whereType<Map>()
+        .map((e) => PreOrderModel.fromJson(Map<String, dynamic>.from(e)))
+        .toList();
+  }
+
+  Future<PreOrderModel> getPreOrderById(String slug, int id) async {
+    final res = await _dio.get<Map<String, dynamic>>('/storefronts/$slug/preorder-requests/$id/');
+    return PreOrderModel.fromJson(res.data ?? {});
+  }
+
+  Future<PreOrderModel> createPreOrder(String slug, Map<String, dynamic> body) async {
+    final res = await _dio.post<Map<String, dynamic>>(
+      '/storefronts/$slug/preorder-requests/',
+      data: body,
+    );
+    return PreOrderModel.fromJson(res.data ?? {});
+  }
+
+  Future<OrderModel> acceptPreOrder(String slug, int id) async {
+    final res = await _dio.post<Map<String, dynamic>>(
+      '/storefronts/$slug/preorder-requests/$id/accept/',
+    );
+    return OrderModel.fromJson(res.data ?? {});
+  }
+
+  Future<PreOrderModel> rejectPreOrder(String slug, int id, String reason) async {
+    final res = await _dio.post<Map<String, dynamic>>(
+      '/storefronts/$slug/preorder-requests/$id/reject/',
+      data: {'reason': reason},
+    );
+    return PreOrderModel.fromJson(res.data ?? {});
+  }
+
+  Future<OrderModel> acceptDeliveryReschedule(String slug, int id) async {
+    final res = await _dio.post<Map<String, dynamic>>(
+      '/storefronts/$slug/orders/$id/accept-delivery-reschedule/',
+    );
+    return OrderModel.fromJson(res.data ?? {});
+  }
+
+  Future<OrderModel> rejectDeliveryReschedule(String slug, int id, String reason) async {
+    final res = await _dio.post<Map<String, dynamic>>(
+      '/storefronts/$slug/orders/$id/reject-delivery-reschedule/',
+      data: {'reason': reason},
+    );
+    return OrderModel.fromJson(res.data ?? {});
+  }
+
   Future<List<DeliveryDateModel>> getDeliverySlots(String slug) async {
     final res = await _dio.get<Map<String, dynamic>>('/storefronts/$slug/delivery-slots/');
     final dates = res.data?['dates'];

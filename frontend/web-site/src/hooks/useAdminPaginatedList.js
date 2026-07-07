@@ -54,7 +54,9 @@ export function useAdminPaginatedList({
 
       setData(mapRowsRef.current(listData.results ?? []));
       setTotalCount(listData.count ?? 0);
-      setCountStatus(listData.countStatus ?? null);
+      if (listData.countStatus != null) {
+        setCountStatus(listData.countStatus);
+      }
     } catch (err) {
       const message = onFetchErrorRef.current?.(err) ?? "Không thể tải dữ liệu";
 
@@ -71,6 +73,10 @@ export function useAdminPaginatedList({
       }
     }
   }, []);
+
+  useEffect(() => {
+    setCountStatus(null);
+  }, [queryKey]);
 
   useEffect(() => {
     const queryChanged =

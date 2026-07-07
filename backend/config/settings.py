@@ -13,6 +13,7 @@ https://docs.djangoproject.com/en/6.0/ref/settings/
 from pathlib import Path
 from datetime import timedelta
 import os
+import sys
 
 from django.core.exceptions import ImproperlyConfigured
 from dotenv import load_dotenv
@@ -535,7 +536,8 @@ if not DEBUG:
     
 ASGI_APPLICATION = "config.asgi.application"
 
-_redis_url = (os.environ.get("REDIS_URL") or "").strip()
+_is_test_run = "test" in sys.argv or "pytest" in sys.modules
+_redis_url = "" if _is_test_run else (os.environ.get("REDIS_URL") or "").strip()
 if _redis_url:
     CHANNEL_LAYERS = {
         "default": {

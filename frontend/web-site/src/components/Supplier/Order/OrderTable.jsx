@@ -1,3 +1,4 @@
+import { InlineSpinner } from "../UI/SupplierSpinner";
 import { useState, useMemo, useEffect, useRef } from "react";
 import { Eye, ChevronDown, ArrowUp, ArrowDown, ArrowUpDown } from "lucide-react";
 import { extractOrderItems, normalizeOrderItem, orderService, getSuccessfullyReturnedItemIds, orderMayHaveReturnHistory } from "../../../services/api/orderService";
@@ -428,7 +429,7 @@ export default function OrderTable({ data, search, loading, onView }) {
                     {itemsLoaded ? (
                       <OrderItemsCell row={row} />
                     ) : (
-                      <span style={{ color: "#80899a" }}>Đang tải...</span>
+                      <InlineSpinner />
                     )}
                   </div>
                   <div

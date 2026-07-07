@@ -149,31 +149,22 @@ class PromotionViewSet(viewsets.ModelViewSet):
             )
         )
 
-    def _apply_filters(self, qs, request):
+    def _apply_search_filters(self, qs, request):
         from django.db.models import Q
-        from common.status_counts import filter_by_status_param
 
-        # 1. Search filter
         search = request.query_params.get("search")
         if search:
             search = search.strip()
             qs = qs.filter(
-                Q(title__icontains=search) |
-                Q(code__icontains=search) |
-                Q(description__icontains=search)
+                Q(title__icontains=search)
+                | Q(code__icontains=search)
+                | Q(description__icontains=search)
             )
 
-        # 2. Status filter
-        status = request.query_params.get("status")
-        if status:
-            qs = filter_by_status_param(qs, status, field="status")
-
-        # 3. Dealer filter (mainly for Admin)
         dealer_id = request.query_params.get("dealer_id")
         if dealer_id:
             qs = qs.filter(dealer_id=dealer_id)
 
-        # 4. Discount type filter
         discount_type = request.query_params.get("discount_type")
         if discount_type:
             qs = qs.filter(discount_type=discount_type)
@@ -181,11 +172,14 @@ class PromotionViewSet(viewsets.ModelViewSet):
         return qs
 
     def list(self, request, *args, **kwargs):
-        qs = self.get_queryset()
-        qs = self._apply_filters(qs, request)
+        qs = self._apply_search_filters(self.get_queryset(), request)
 
-        from common.status_counts import build_count_status
+        from common.status_counts import build_count_status, filter_by_status_param
+
         count_status = build_count_status(qs, field="status", choices=PromotionStatus)
+        qs = filter_by_status_param(
+            qs, request.query_params.get("status"), field="status"
+        )
 
         from common.pagination import LoadMorePagination
         paginator = LoadMorePagination()

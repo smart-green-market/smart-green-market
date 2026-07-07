@@ -28,6 +28,7 @@ const MENU_GROUPS = [
       { label: "Kho hàng", icon: Package, to: "/dai-ly/kho-hang" },
       { label: "Nhập hàng", icon: ClipboardList, to: "/dai-ly/nhap-hang" },
       { label: "Bán hàng", icon: ShoppingCart, to: "/dai-ly/ban-hang" },
+      { label: "Đặt trước", icon: ClipboardList, to: "/dai-ly/dat-truoc" },
       { label: "Giảm giá", icon: Percent, to: "/dai-ly/giam-gia" },
     ],
   },

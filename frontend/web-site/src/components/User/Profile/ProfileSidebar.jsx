@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { KeyRound, Loader2, LogOut, ScrollText, Star, Ticket, UserCircle2 } from "lucide-react";
+import { Bell, ClipboardList, KeyRound, Loader2, LogOut, ScrollText, Star, Ticket, UserCircle2 } from "lucide-react";
 import { NavLink } from "react-router-dom";
 import { useAuth } from "../../../contexts/authProvider";
 import { useStorefrontPaths } from "../../../hooks/useStorefrontPaths";
@@ -29,6 +29,12 @@ export default function ProfileSidebar() {
       icon: ScrollText,
     },
     {
+      key: "preorders",
+      label: "Yêu cầu đặt trước",
+      to: paths.preorders,
+      icon: ClipboardList,
+    },
+    {
       key: "reviews",
       label: "Đánh giá sản phẩm",
       to: `${paths.account}/danh-gia-san-pham`,
@@ -39,6 +45,12 @@ export default function ProfileSidebar() {
       label: "Kho Voucher",
       to: `${paths.account}/vouchers`,
       icon: Ticket,
+    },
+    {
+      key: "notifications",
+      label: "Thông báo",
+      to: paths.notifications,
+      icon: Bell,
     },
   ];
 

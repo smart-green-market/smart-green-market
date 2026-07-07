@@ -5,6 +5,7 @@ import {
   Clock,
   FileCheck,
   Lock,
+  Percent,
   XCircle,
 } from "lucide-react";
 
@@ -245,9 +246,28 @@ export const VOUCHER_STAT_CARDS = [
     key: "pending",
     label: "Đăng ký",
     filterValue: "pending",
+    countStatusKeys: ["pending", "draft"],
     icon: Clock,
     style: "warning",
     match: (row) => row.status === "pending" || row.status === "draft",
+  }),
+];
+
+/** Catalog sản phẩm chuẩn — status: active | inactive */
+export const PRODUCT_MASTER_STAT_CARDS = [
+  card({
+    key: "active",
+    label: "Đang hoạt động",
+    filterValue: "active",
+    icon: CheckCircle2,
+    style: "success",
+  }),
+  card({
+    key: "inactive",
+    label: "Tạm ngưng",
+    filterValue: "inactive",
+    icon: Lock,
+    style: "muted",
   }),
 ];
 
@@ -273,5 +293,12 @@ export const SUPPLIER_FINANCE_STAT_CARDS = [
     filterValue: "",
     icon: ArrowUpRight,
     style: "warning",
+  }),
+  card({
+    key: "commission",
+    label: "Tổng chiết khấu (triệu ₫)",
+    filterValue: "",
+    icon: Percent,
+    style: "danger",
   }),
 ];

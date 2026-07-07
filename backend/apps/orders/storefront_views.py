@@ -16,6 +16,7 @@ from common.openapi import PAGINATION_QUERY_HELP, paginated_response_schema
 from common.pagination import paginate_queryset
 
 from . import services
+from . import delivery_reschedule_services
 from .models import Order
 from .delivery_slots import get_available_delivery_slots
 from .serializers import (
@@ -223,6 +224,61 @@ class StorefrontOrderCancelView(APIView):
             request.user,
             reason=serializer.validated_data["reason"],
             actor="buyer",
+        )
+        return Response(_detail_response(order, request))
+
+
+class StorefrontOrderAcceptDeliveryRescheduleView(APIView):
+    """Buyer đồng ý đổi ngày giao đại lý đề xuất."""
+
+    permission_classes = [IsStorefrontCustomer]
+
+    @extend_schema(
+        tags=["Storefront Orders"],
+        operation_id="storefront_orders_accept_delivery_reschedule",
+        summary="Đồng ý đổi ngày giao",
+        description="Áp dụng khi đơn ở trạng thái `delivery_reschedule_proposed`.",
+        responses={200: OrderDetailSerializer},
+    )
+    def post(self, request, dealer_slug, pk):
+        dealer = _get_dealer_or_404(dealer_slug)
+        try:
+            order = _buyer_orders_qs(request, dealer).get(pk=pk)
+        except Order.DoesNotExist as exc:
+            raise NotFound("Đơn hàng không tồn tại.") from exc
+
+        order = delivery_reschedule_services.customer_accept_delivery_reschedule(
+            order,
+            request.user,
+        )
+        return Response(_detail_response(order, request))
+
+
+class StorefrontOrderRejectDeliveryRescheduleView(APIView):
+    """Buyer từ chối đổi ngày giao → hủy đơn."""
+
+    permission_classes = [IsStorefrontCustomer]
+
+    @extend_schema(
+        tags=["Storefront Orders"],
+        operation_id="storefront_orders_reject_delivery_reschedule",
+        summary="Từ chối đổi ngày giao",
+        request=CancelOrderSerializer,
+        responses={200: OrderDetailSerializer},
+    )
+    def post(self, request, dealer_slug, pk):
+        dealer = _get_dealer_or_404(dealer_slug)
+        try:
+            order = _buyer_orders_qs(request, dealer).get(pk=pk)
+        except Order.DoesNotExist as exc:
+            raise NotFound("Đơn hàng không tồn tại.") from exc
+
+        serializer = CancelOrderSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        order = delivery_reschedule_services.customer_reject_delivery_reschedule(
+            order,
+            request.user,
+            reason=serializer.validated_data["reason"],
         )
         return Response(_detail_response(order, request))
 

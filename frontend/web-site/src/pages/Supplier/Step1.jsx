@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { ButtonSpinner } from "../../components/Supplier/UI/SupplierSpinner";
 import { Link } from "react-router-dom";
 import { accountService } from "../../services/api/accountService";
 import { authService } from "../../services/api/authAdminService";
@@ -168,7 +169,7 @@ export default function Step1({ onNext }) {
             : "bg-[#006c49] hover:bg-[#005038] hover:-translate-y-0.5"
           }`}
       >
-        {loading ? "Đang đăng ký..." : "Tiếp tục"}
+        {loading ? <ButtonSpinner label="Đang đăng ký..." /> : "Tiếp tục"}
       </button>
 
       <br />

@@ -16,8 +16,9 @@ from common.verify_openapi import (
     CERT_VERIFY_REJECT,
     VERIFY_REJECT_HELP,
 )
-from common.pagination import paginate_queryset
+from common.pagination import LoadMorePagination, paginate_queryset
 from common.permission import IsAdmin, IsActive
+from common.status_counts import build_count_status, filter_by_status_param
 from common.querysets import ORDER_IMAGE, ORDER_NEWEST, filter_admin_or_supplier_account
 from .models import Certification, CertificationAuditAction, CertificationImage, CertificationStatus
 from .openapi import (
@@ -118,25 +119,45 @@ class CertificationViewSet(viewsets.ModelViewSet):
             return [IsAdmin()]
         return [IsActive()]
 
+    def _apply_certification_list_filters(self, qs, request, *, apply_status=True):
+        search = request.query_params.get("search")
+        if search:
+            search = search.strip()
+            qs = qs.filter(
+                Q(name__icontains=search)
+                | Q(certificate_code__icontains=search)
+                | Q(issued_by__icontains=search)
+                | Q(supplier__company_name__icontains=search)
+            )
+        if apply_status:
+            qs = filter_by_status_param(
+                qs, request.query_params.get("status"), field="status"
+            )
+        return qs
+
+    def list(self, request, *args, **kwargs):
+        base_qs = self._apply_certification_list_filters(
+            self.filter_queryset(self.get_queryset()),
+            request,
+            apply_status=False,
+        )
+        count_status = build_count_status(
+            base_qs, field="status", choices=CertificationStatus
+        )
+        qs = filter_by_status_param(
+            base_qs, request.query_params.get("status"), field="status"
+        )
+        paginator = LoadMorePagination()
+        page = paginator.paginate_queryset(qs, request, view=self)
+        serializer = self.get_serializer(page, many=True)
+        return paginator.get_paginated_response(
+            serializer.data, count_status=count_status
+        )
+
     def get_queryset(self):
         """Lọc chứng nhận theo quyền và trạng thái hết hạn."""
         mark_expired_certifications()
         qs = self.queryset.filter(deleted_at__isnull=True)
-
-        if self.action == "list":
-            search = self.request.query_params.get("search")
-            if search:
-                search = search.strip()
-                qs = qs.filter(
-                    Q(name__icontains=search)
-                    | Q(certificate_code__icontains=search)
-                    | Q(issued_by__icontains=search)
-                    | Q(supplier__company_name__icontains=search)
-                )
-
-            status_param = self.request.query_params.get("status")
-            if status_param:
-                qs = qs.filter(status=status_param)
 
         if self.request.user.role == "admin":
             if self.request.query_params.get("expired") == "true":

@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { ButtonSpinner } from "../../../UI/SupplierSpinner";
 import { Ban } from "lucide-react";
 import Overlay from "../shared/Overlay";
 
@@ -55,7 +56,7 @@ export default function RejectPaymentModal({ title, loading, onClose, onReject }
             disabled={loading}
             className="flex-1 py-2.5 rounded-xl bg-red-600 text-white text-sm font-bold hover:bg-red-700 disabled:opacity-60"
           >
-            {loading ? "Đang xử lý..." : "Xác nhận từ chối"}
+            {loading ? <ButtonSpinner label="Đang xử lý..." /> : "Xác nhận từ chối"}
           </button>
         </div>
       </div>

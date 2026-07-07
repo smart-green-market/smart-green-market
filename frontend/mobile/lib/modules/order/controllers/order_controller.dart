@@ -66,6 +66,26 @@ class OrderTrackingController extends GetxController {
       AppSnackbar.error(_repository.readError(e));
     }
   }
+
+  Future<void> acceptDeliveryReschedule(OrderModel order) async {
+    try {
+      await _repository.acceptDeliveryReschedule(_storefront.currentSlug, order.id);
+      AppSnackbar.success('Đã đồng ý ngày giao mới');
+      await loadOrders();
+    } catch (e) {
+      AppSnackbar.error(_repository.readError(e));
+    }
+  }
+
+  Future<void> rejectDeliveryReschedule(OrderModel order, String reason) async {
+    try {
+      await _repository.rejectDeliveryReschedule(_storefront.currentSlug, order.id, reason);
+      AppSnackbar.success('Đã từ chối và hủy đơn hàng');
+      await loadOrders();
+    } catch (e) {
+      AppSnackbar.error(_repository.readError(e));
+    }
+  }
 }
 
 class OrderHistoryController extends GetxController {

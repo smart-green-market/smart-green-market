@@ -29,8 +29,9 @@ from common.verify_openapi import (
     DEALER_VERIFY_REJECT,
     VERIFY_REJECT_HELP,
 )
-from common.pagination import paginate_queryset
+from common.pagination import LoadMorePagination, paginate_queryset
 from common.permission import IsActive, IsAdmin, IsAdminOrDealer, IsDealer
+from common.status_counts import build_count_status, filter_by_status_param
 from common.querysets import ORDER_DOCUMENT, ORDER_NEWEST, _apply_order, filter_admin_or_dealer_account
 
 from .models import DealerProfile, DealerProfileStatus
@@ -198,21 +199,41 @@ class DealerProfileViewSet(viewsets.ModelViewSet):
             pending_values=DealerProfileStatus.PENDING,
         )
 
-        if self.action == "list":
-            search = self.request.query_params.get("search")
-            status = self.request.query_params.get("status")
-
-            if search:
-                qs = qs.filter(
-                    Q(store_name__icontains=search)
-                    | Q(account__email__icontains=search)
-                    | Q(account__phone__icontains=search)
-                )
-
-            if status:
-                qs = qs.filter(status=status)
-
         return qs
+
+    def _apply_dealer_list_filters(self, qs, request, *, apply_status=True):
+        search = request.query_params.get("search")
+        if search:
+            search = search.strip()
+            qs = qs.filter(
+                Q(store_name__icontains=search)
+                | Q(account__email__icontains=search)
+                | Q(account__phone__icontains=search)
+            )
+        if apply_status:
+            qs = filter_by_status_param(
+                qs, request.query_params.get("status"), field="status"
+            )
+        return qs
+
+    def list(self, request, *args, **kwargs):
+        base_qs = self._apply_dealer_list_filters(
+            self.filter_queryset(self.get_queryset()),
+            request,
+            apply_status=False,
+        )
+        count_status = build_count_status(
+            base_qs, field="status", choices=DealerProfileStatus
+        )
+        qs = filter_by_status_param(
+            base_qs, request.query_params.get("status"), field="status"
+        )
+        paginator = LoadMorePagination()
+        page = paginator.paginate_queryset(qs, request, view=self)
+        serializer = self.get_serializer(page, many=True)
+        return paginator.get_paginated_response(
+            serializer.data, count_status=count_status
+        )
 
     def perform_create(self, serializer):
         dealer = serializer.save()

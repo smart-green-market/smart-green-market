@@ -72,7 +72,7 @@ export default function CertificationViewModal({
     return (
         <>
             {/* Overlay */}
-            <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-[2px] flex items-center justify-center p-4">
+            <div className="fixed inset-0 z-[150] bg-black/40 backdrop-blur-[2px] flex items-center justify-center p-4">
 
                 {/* Modal */}
                 <div className="w-full max-w-[896px] max-h-[90vh] bg-white rounded-lg shadow-xl border border-neutral-200 overflow-hidden flex flex-col">

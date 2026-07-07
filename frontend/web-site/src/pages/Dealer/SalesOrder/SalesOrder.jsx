@@ -8,6 +8,7 @@ import CreateSalesOrderModal from "../../../components/Dealer/SalesOrder/CreateS
 import SalesOrderDetailPanel from "../../../components/Dealer/SalesOrder/SalesOrderDetailPanel";
 import PrintInvoiceModal from "../../../components/Dealer/SalesOrder/PrintInvoiceModal";
 import RejectModal from "../../../components/common/RejectModal";
+import ProposeDeliveryRescheduleModal from "../../../components/Dealer/SalesOrder/ProposeDeliveryRescheduleModal";
 import { dealerOrderService } from "../../../services/api/dealerOrderService";
 import { useOrderRealtimeRefresh } from "../../../hooks/useOrderRealtimeRefresh";
 import { ORDER_REFERENCE_TYPES } from "../../../utils/orderRealtimeUtils";
@@ -26,6 +27,9 @@ export default function DealerSalesOrderPage() {
     // Cancel modal state
     const [isCancelModalOpen, setIsCancelModalOpen] = useState(false);
     const [orderToCancel, setOrderToCancel] = useState(null);
+    const [rescheduleModalOpen, setRescheduleModalOpen] = useState(false);
+    const [orderToReschedule, setOrderToReschedule] = useState(null);
+    const [rescheduleSubmitting, setRescheduleSubmitting] = useState(false);
 
     // Return review modal states
     const [isReturnRejectModalOpen, setIsReturnRejectModalOpen] = useState(false);
@@ -49,9 +53,11 @@ export default function DealerSalesOrderPage() {
             case "delivered": return "Đã giao";
             case "completed": return "Hoàn tất";
             case "cancelled": return "Đã hủy";
-            case "return_requested": return "Yêu cầu trả hàng";
-            case "returned": return "Đã trả hàng";
-            default: return status || "Chờ xác nhận";
+      case "return_requested": return "Yêu cầu trả hàng";
+      case "returned": return "Đã trả hàng";
+      case "waiting_stock": return "Chờ hàng về kho";
+      case "delivery_reschedule_proposed": return "Chờ xác nhận đổi ngày giao";
+      default: return status || "Chờ xác nhận";
         }
     };
 
@@ -139,6 +145,8 @@ export default function DealerSalesOrderPage() {
         { label: "Chờ xác nhận", value: "pending", colorClass: "text-sky-700" },
         { label: "Đã xác nhận", value: "confirmed", colorClass: "text-indigo-700" },
         { label: "Đang chuẩn bị", value: "processing", colorClass: "text-amber-700" },
+        { label: "Chờ hàng về kho", value: "waiting_stock", colorClass: "text-orange-700" },
+        { label: "Chờ xác nhận đổi ngày giao", value: "delivery_reschedule_proposed", colorClass: "text-violet-700" },
         { label: "Đang giao", value: "shipping", colorClass: "text-blue-700" },
         { label: "Đã giao", value: "delivered", colorClass: "text-emerald-700" },
         { label: "Yêu cầu trả hàng", value: "return_requested", colorClass: "text-rose-700" },
@@ -191,6 +199,32 @@ export default function DealerSalesOrderPage() {
     const handleCancelClick = (order) => {
         setOrderToCancel(order);
         setIsCancelModalOpen(true);
+    };
+
+    const handleProposeRescheduleClick = (order) => {
+        setOrderToReschedule(order);
+        setRescheduleModalOpen(true);
+    };
+
+    const handleProposeRescheduleSubmit = async (payload) => {
+        if (!orderToReschedule?.originalData?.id) return;
+        setRescheduleSubmitting(true);
+        try {
+            await dealerOrderService.proposeDeliveryReschedule(
+                orderToReschedule.originalData.id,
+                payload,
+            );
+            toast.success("Đã gửi đề xuất đổi ngày giao");
+            setRescheduleModalOpen(false);
+            setOrderToReschedule(null);
+            await fetchOrders();
+            await refreshDetailPanel(orderToReschedule.originalData.id);
+        } catch (error) {
+            toast.error(error?.response?.data?.detail || "Không thể gửi đề xuất đổi ngày giao");
+            throw error;
+        } finally {
+            setRescheduleSubmitting(false);
+        }
     };
 
     const handleBulkCancelClick = () => {
@@ -496,6 +530,7 @@ export default function DealerSalesOrderPage() {
                             onStartProcessing={handleStartProcessing}
                             onShipOrder={handleShipOrder}
                             onCancel={handleCancelClick}
+                            onProposeReschedule={handleProposeRescheduleClick}
                             onApproveReturn={handleApproveReturn}
                             onRejectReturn={handleRejectReturnClick}
                         />
@@ -512,6 +547,18 @@ export default function DealerSalesOrderPage() {
                 isOpen={isPrintModalOpen}
                 orders={ordersToPrint}
                 onClose={() => setIsPrintModalOpen(false)}
+            />
+
+            <ProposeDeliveryRescheduleModal
+                open={rescheduleModalOpen}
+                submitting={rescheduleSubmitting}
+                onClose={() => {
+                    if (!rescheduleSubmitting) {
+                        setRescheduleModalOpen(false);
+                        setOrderToReschedule(null);
+                    }
+                }}
+                onSubmit={handleProposeRescheduleSubmit}
             />
 
             <RejectModal
