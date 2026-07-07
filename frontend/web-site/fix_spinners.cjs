@@ -47,7 +47,7 @@ files.forEach(file => {
   if (!content.includes(`import { ${spinnerName} }`) && !content.includes(`import {${spinnerName}}`)) {
     // Add import after the first import or at top
     if (content.startsWith('import')) {
-      content = content.replace(/(import.*?;?\n)/, `$1${importStatement}`);
+      content = content.replace(/(import.*?;?\r?\n)/, `$1${importStatement}`);
     } else {
       content = importStatement + content;
     }
