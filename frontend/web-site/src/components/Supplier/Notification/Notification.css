@@ -137,7 +137,7 @@
 .modal-overlay {
   position: fixed; inset: 0; background: rgba(17,24,39,.44);
   display: flex; align-items: center; justify-content: center;
-  z-index: 100; opacity: 0; visibility: hidden; transition: opacity .15s, visibility .15s;
+  z-index: -100; opacity: 0; visibility: hidden; transition: opacity .15s, visibility .15s;
   padding: 20px;
 }
 .modal-overlay.open { opacity: 1; visibility: visible; }

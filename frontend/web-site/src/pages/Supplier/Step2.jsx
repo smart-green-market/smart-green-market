@@ -1,4 +1,5 @@
 import React, { useState,useEffect } from "react";
+import { ButtonSpinner } from "../../components/Supplier/UI/SupplierSpinner";
 import { supplierService } from "../../services/api/suppilerService";
 import { bankService } from "../../services/api/bankService";
 import { extractSupplierApiMessage } from "../../utils/supplierValidation";
@@ -226,7 +227,7 @@ export default function Step2({ onNext, onBack }) {
               : "bg-[#006c49] hover:bg-[#005038]"
           }`}
         >
-          {loading ? "Đang xử lý..." : "Tiếp tục"}
+          {loading ? <ButtonSpinner label="Đang xử lý..." /> : "Tiếp tục"}
         </button>
       </div>
     </div>

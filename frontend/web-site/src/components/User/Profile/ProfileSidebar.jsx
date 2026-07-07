@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { KeyRound, Loader2, LogOut, ScrollText, Star, Ticket, UserCircle2 } from "lucide-react";
+import { Bell, KeyRound, Loader2, LogOut, ScrollText, Star, Ticket, UserCircle2 } from "lucide-react";
 import { NavLink } from "react-router-dom";
 import { useAuth } from "../../../contexts/authProvider";
 import { useStorefrontPaths } from "../../../hooks/useStorefrontPaths";
@@ -39,6 +39,12 @@ export default function ProfileSidebar() {
       label: "Kho Voucher",
       to: `${paths.account}/vouchers`,
       icon: Ticket,
+    },
+    {
+      key: "notifications",
+      label: "Thông báo",
+      to: paths.notifications,
+      icon: Bell,
     },
   ];
 

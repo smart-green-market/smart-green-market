@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import useOrderStats from '../../hooks/useOrderStats';
+import { PageSpinner } from '../../components/Supplier/UI/SupplierSpinner';
 import {
   OrderStatsToolbar,
   OrderStatsMetrics,
@@ -24,7 +25,7 @@ export default function OrderStats() {
   const summary = computeOrderStatsSummary(data);
 
   if (loading && !data) {
-    return <div className="page">Đang tải dữ liệu thống kê...</div>;
+    return <div className="page"><PageSpinner /></div>;
   }
 
   if (error && !data) {

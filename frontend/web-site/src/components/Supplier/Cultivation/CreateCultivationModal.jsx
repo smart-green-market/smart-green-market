@@ -209,7 +209,7 @@ export default function CreateCultivationModal({ isOpen, onClose, onSuccess, pro
             disabled={loading || productsLoading || products.length === 0}
             className="px-5 py-2 bg-emerald-800 text-white text-sm font-semibold rounded-lg hover:bg-emerald-700 disabled:opacity-60 transition-colors"
           >
-            {loading ? "Đang lưu..." : "Lưu quy trình"}
+            {loading ? <ButtonSpinner label="Đang lưu..." /> : "Lưu quy trình"}
           </button>
         </div>
       </ModalBox>

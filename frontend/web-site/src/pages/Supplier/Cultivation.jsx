@@ -7,6 +7,7 @@ import DeleteConfirmModal from "../../components/common/DeleteConfirmModal";
 import SupplierPageHeader, { SUPPLIER_PAGE_CLASS } from "../../components/Supplier/UI/SupplierPageHeader";
 import { farmingProcessService } from "../../services/api/cultivationService";
 import { parseCultivationList } from "../../components/Supplier/Cultivation/cultivationUtils";
+import { PageSpinner } from "../../components/Supplier/UI/SupplierSpinner";
 
 export default function CultivationSupplierPage() {
   const [data, setData] = useState([]);
@@ -72,7 +73,7 @@ export default function CultivationSupplierPage() {
       <ProductFilterChips value={productFilter} onChange={setProductFilter} data={data} />
 
       {loading ? (
-        <div className="text-center text-neutral-400 py-16 text-sm">Đang tải dữ liệu...</div>
+        <PageSpinner />
       ) : (
         <CultivationTable
           data={data}

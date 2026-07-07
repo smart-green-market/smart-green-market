@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState } from "react";
+import { ButtonSpinner } from "../../components/Supplier/UI/SupplierSpinner";
 import { supplierDocumentService } from "../../services/api/supplierDocumentService";
 import { extractSupplierApiMessage } from "../../utils/supplierValidation";
 
@@ -125,7 +126,7 @@ export default function Step3({ onNext, onBack }) {
               : "bg-[#006c49] hover:bg-[#005038] hover:-translate-y-0.5"
             }`}
         >
-          {loading ? "Đang tải lên..." : "Hoàn tất đăng ký ✓"}
+          {loading ? <ButtonSpinner label="Đang tải lên..." /> : "Hoàn tất đăng ký ✓"}
         </button>
       </div>
 

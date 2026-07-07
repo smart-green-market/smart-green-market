@@ -272,7 +272,7 @@ export default function ListOrderModal({ isOpen, onClose, product }) {
           {loading ? (
             <div className="flex flex-col items-center justify-center py-14 gap-3 text-zinc-400">
               <Loader2 className="w-6 h-6 animate-spin text-green-600" />
-              <span className="text-sm">Đang tải đơn hàng...</span>
+              <PageSpinner />
               <span className="text-xs text-zinc-300">Quá trình này có thể mất vài giây</span>
             </div>
           ) : activeOrders.length === 0 ? (
