@@ -594,7 +594,7 @@ export default function DetailOrderModal({ isOpen, onClose, order: initialOrder,
 
               {loadingDetail && total === 0 ? (
                 <div className="flex items-center justify-center gap-2 px-6 py-10 text-sm text-neutral-400">
-                  <InlineSpinner className="mr-2" /> Đang tải danh sách sản phẩm...
+                  <InlineSpinner className="mr-2" /> 
                 </div>
               ) : detailError && total === 0 ? (
                 <div className="px-6 py-8 text-center text-sm text-red-500">{detailError}</div>
