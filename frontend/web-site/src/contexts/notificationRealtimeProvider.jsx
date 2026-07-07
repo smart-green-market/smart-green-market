@@ -1,8 +1,12 @@
 import { useEffect, useRef } from "react";
-import { toast } from "sonner";
 import { useAuth } from "./authProvider";
+import {
+    NOTIFICATION_REALTIME_EVENT,
+    resolveNotificationId,
+    showRealtimeNotificationToast,
+} from "../utils/realtimeNotificationUtils";
 
-export const NOTIFICATION_REALTIME_EVENT = "sgm:notification:new";
+export { NOTIFICATION_REALTIME_EVENT };
 
 /**
  * Hiển thị toast khi có thông báo mới (CustomEvent từ useNotificationWebSocketHandler).
@@ -22,16 +26,13 @@ export function NotificationRealtimeProvider({ children }) {
             const item = event.detail;
             if (!item || typeof item !== "object") return;
 
-            const notificationId = item.id ?? item.notification_id;
+            const notificationId = resolveNotificationId(item);
             if (notificationId != null) {
                 if (shownIdsRef.current.has(notificationId)) return;
                 shownIdsRef.current.add(notificationId);
             }
 
-            toast.info(item.title || "Thông báo mới", {
-                description: item.content ?? item.message,
-                duration: 5000,
-            });
+            showRealtimeNotificationToast(item);
         };
 
         window.addEventListener(NOTIFICATION_REALTIME_EVENT, handleEvent);
