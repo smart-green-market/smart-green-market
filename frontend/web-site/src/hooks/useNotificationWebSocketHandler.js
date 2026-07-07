@@ -6,6 +6,7 @@ import {
     parseNotificationWebSocketMessage,
     sortNotificationsByCreatedDesc,
 } from "../components/Admin/Notification/notificationFormatters";
+import { NOTIFICATION_REALTIME_EVENT } from "../contexts/notificationRealtimeProvider";
 
 /**
  * Xử lý message WS notification — dùng chung cho Bell và trang danh sách.
@@ -50,6 +51,10 @@ export function useNotificationWebSocketHandler({
                 if (isNotificationUnread(incoming)) {
                     setUnreadCount?.((prev) => prev + 1);
                 }
+
+                window.dispatchEvent(
+                    new CustomEvent(NOTIFICATION_REALTIME_EVENT, { detail: incoming }),
+                );
 
                 onNewNotification?.(incoming, formatted);
             }

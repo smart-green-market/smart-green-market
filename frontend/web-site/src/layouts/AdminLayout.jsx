@@ -1,7 +1,6 @@
 import { useState } from "react";
 import { Outlet } from "react-router-dom";
 import { Menu } from "lucide-react";
-import AppToaster from "../components/common/AppToaster";
 import SideBar from "../components/Admin/UI/SideBar";
 import AdminLogo from "../components/Admin/UI/AdminLogo";
 import NotificationBell from "../components/common/NotificationBell";
@@ -48,8 +47,6 @@ export default function AdminLayout() {
             >
                 <Outlet />
             </main>
-
-            <AppToaster />
         </div>
     );
 }

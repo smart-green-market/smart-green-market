@@ -1,6 +1,7 @@
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AuthProvider } from "./contexts/authProvider";
 import { NotificationRealtimeProvider } from "./contexts/notificationRealtimeProvider";
+import AppToaster from "./components/common/AppToaster";
 //Protected Routes
 import AdminProtectedRoute from "./contexts/adminProtectedRoute";
 import SupplierProtectedRoute from "./contexts/supplierProtectedRoute";
@@ -29,6 +30,7 @@ export default function App() {
     return (
         <BrowserRouter>
             <AuthProvider>
+                <AppToaster />
                 <NotificationRealtimeProvider>
                 <Routes>
                     {/* User */}

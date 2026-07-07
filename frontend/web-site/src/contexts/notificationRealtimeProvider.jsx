@@ -1,18 +1,12 @@
 import { useEffect, useRef } from "react";
 import { toast } from "sonner";
 import { useAuth } from "./authProvider";
-import { getAccessToken } from "../services/token/authTokenStorage";
-import {
-    reconnectNotificationWebSocket,
-    subscribeNotificationWebSocket,
-} from "../services/notificationWebSocketManager";
-import { parseNotificationWebSocketMessage } from "../components/Admin/Notification/notificationFormatters";
 
 export const NOTIFICATION_REALTIME_EVENT = "sgm:notification:new";
 
 /**
- * Giữ 1 kết nối WebSocket thông báo toàn cục + toast khi có thông báo mới.
- * Dùng chung cho Admin, Supplier, Dealer, Buyer.
+ * Hiển thị toast khi có thông báo mới (CustomEvent từ useNotificationWebSocketHandler).
+ * Chuông + refresh đơn hàng dùng chung handler WS — tránh 2 luồng WS tách rời.
  */
 export function NotificationRealtimeProvider({ children }) {
     const { user } = useAuth();
@@ -24,31 +18,26 @@ export function NotificationRealtimeProvider({ children }) {
             return undefined;
         }
 
-        const token = getAccessToken();
-        if (!token) return undefined;
+        const handleEvent = (event) => {
+            const item = event.detail;
+            if (!item || typeof item !== "object") return;
 
-        return subscribeNotificationWebSocket({
-            onMessage: (data) => {
-                const message = parseNotificationWebSocketMessage(data);
-                if (message?.kind !== "new") return;
+            const notificationId = item.id ?? item.notification_id;
+            if (notificationId != null) {
+                if (shownIdsRef.current.has(notificationId)) return;
+                shownIdsRef.current.add(notificationId);
+            }
 
-                const item = message.item;
-                const notificationId = item?.id;
-                if (notificationId != null) {
-                    if (shownIdsRef.current.has(notificationId)) return;
-                    shownIdsRef.current.add(notificationId);
-                }
+            toast.info(item.title || "Thông báo mới", {
+                description: item.content ?? item.message,
+                duration: 5000,
+            });
+        };
 
-                toast.info(item?.title || "Thông báo mới", {
-                    description: item?.content,
-                    duration: 5000,
-                });
-
-                window.dispatchEvent(
-                    new CustomEvent(NOTIFICATION_REALTIME_EVENT, { detail: item }),
-                );
-            },
-        });
+        window.addEventListener(NOTIFICATION_REALTIME_EVENT, handleEvent);
+        return () => {
+            window.removeEventListener(NOTIFICATION_REALTIME_EVENT, handleEvent);
+        };
     }, [user?.id]);
 
     return children;

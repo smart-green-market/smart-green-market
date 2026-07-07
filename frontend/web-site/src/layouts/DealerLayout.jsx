@@ -4,7 +4,6 @@ import { Menu } from "lucide-react";
 import SideBar from "../components/Dealer/UI/SideBar";
 import Logo from "../components/Dealer/UI/Logo";
 import DealerNotificationBell from "../components/common/DealerNotificationBell";
-import AppToaster from "../components/common/AppToaster";
 import { dealerService } from "../services/api/dealerService";
 
 export default function DealerLayout() {
@@ -91,8 +90,6 @@ export default function DealerLayout() {
                 }`}>
                 <Outlet key={location.pathname + (location.state?.refresh ? `-${location.state.refresh}` : "")} />
             </main>
-
-            <AppToaster />
         </div>
     );
 }
