@@ -12,8 +12,9 @@ export const normalizeProductListResponse = normalizePaginatedResponse;
 export const productService = {
   // ADMIN
   getAll: async (params) => {
+    const queryParams = { page_size: 100, ...params };
     const res = await axiosClient.get("/supplier-products/", {
-      params: sanitizeAdminListParams(params),
+      params: sanitizeAdminListParams(queryParams),
     });
     if (params?.page != null) {
       return normalizeProductListResponse(res.data);

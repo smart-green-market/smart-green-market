@@ -24,7 +24,7 @@ export const NAV_SECTIONS = [
     {
         label: "Kinh doanh",
         items: [
-            { to: "/nha-cung-cap/don-hang", label: "Đơn hàng", icon: ClipboardList, dot: true },
+            { to: "/nha-cung-cap/don-hang", label: "Đơn hàng", icon: ClipboardList },
             { to: "/nha-cung-cap/giam-gia", label: "Chính sách giảm giá", icon: Percent },
             { to: "/nha-cung-cap/san-pham", label: "Sản phẩm", icon: Package },
             { to: "/nha-cung-cap/chung-nhan", label: "Chứng nhận", icon: BadgeCheck },

@@ -55,7 +55,7 @@ export default function RevenuePage() {
       {/* ── Loading state ── */}
       {loading && (
         <div className="state-box">
-          <i className="ti ti-loader-2 rev-spin" style={{ fontSize: 22 }} />
+          {/* <i className="ti ti-loader-2 rev-spin" style={{ fontSize: 22 }} /> */}
           Đang tải dữ liệu doanh thu...
         </div>
 

@@ -2,8 +2,10 @@ import axiosClient from "./axiosClient";
 
 export const purchaseOrderService = {
   // Lấy danh sách phiếu nhập hàng (có hỗ trợ bộ lọc phân trang, tìm kiếm, trạng thái)
-  getAll: (params) =>
-    axiosClient.get("/purchase-orders/", { params }).then((res) => res.data),
+  getAll: (params = {}) => {
+    const queryParams = { page_size: 100, ...params };
+    return axiosClient.get("/purchase-orders/", { params: queryParams }).then((res) => res.data);
+  },
 
   // Lấy thông tin chi tiết một phiếu nhập hàng theo id
   getById: (id) =>

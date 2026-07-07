@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo } from "react";
+import { InlineSpinner } from "../UI/SupplierSpinner";
 import { canLockProduct, canUnlockProduct } from "./productSellingUtils";
 import { Eye, Lock, Unlock, Trash2, Award, ArrowUp, ArrowDown, ArrowUpDown,ClipboardList } from "lucide-react";
 
@@ -15,7 +16,7 @@ const fmtPrice = (val) => {
   return new Intl.NumberFormat("vi-VN").format(val) + "đ";
 };
 
-const PAGE_SIZE = 8;
+const PAGE_SIZE = 10;
 const SORT_ACCESSORS = {
   name: (row) => row.name ?? "",
   pending_order_quantity: (row) =>
@@ -66,17 +67,9 @@ function SortIcon({ active, direction }) {
 export default function ProductTable({
   data, search, statusFilter, categoryFilter,
   onView, onDelete, onLockSelling, onUnlockSelling, togglingId, onListOrders,
+  loading, page, totalCount, onChangePage,
 }) {
-  const [page, setPage] = useState(1);
-
-  const filtered = data.filter((row) => {
-    const matchName = (row.name ?? "").toLowerCase().includes((search ?? "").toLowerCase());
-    const matchStatus = statusFilter ? row.status === statusFilter : true;
-    const matchCategory = categoryFilter
-      ? String(row.category?.id) === String(categoryFilter) || row.category?.name === categoryFilter
-      : true;
-    return matchName && matchStatus && matchCategory;
-  });
+  const filtered = data; // search and filters already applied on server side
   const [sort, setSort] = useState(null);
   const toggleSort = (key) => {
     setSort((prev) => {
@@ -85,8 +78,6 @@ export default function ProductTable({
       return null;
     });
   };
-
-  useEffect(() => { setPage(1); }, [search, statusFilter, categoryFilter]);
 
   const sorted = useMemo(() => {
     if (!sort) return filtered;
@@ -105,10 +96,7 @@ export default function ProductTable({
     });
   }, [filtered, sort]);
 
-  const paginated = sorted.slice(
-    (page - 1) * PAGE_SIZE,
-    page * PAGE_SIZE
-  );
+  const paginated = sorted;
 
   return (
     <>
@@ -385,7 +373,11 @@ export default function ProductTable({
           </div>
 
           {/* Rows */}
-          {paginated.length === 0 ? (
+          {loading ? (
+            <div className="prod-empty" style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: "8px" }}>
+              <InlineSpinner />
+            </div>
+          ) : paginated.length === 0 ? (
             <div className="prod-empty">Không tìm thấy sản phẩm phù hợp.</div>
           ) : (
             paginated.map((row) => {
@@ -509,12 +501,12 @@ export default function ProductTable({
         </div>
 
         {/* Footer: đếm + phân trang */}
-        {filtered.length > 0 && (
+        {!loading && totalCount > 0 && (
           <div className="prod-footer">
             <span>
-              Hiển thị {Math.min((page - 1) * PAGE_SIZE + 1, filtered.length)}–{Math.min(page * PAGE_SIZE, filtered.length)} / {filtered.length}
+              Hiển thị {Math.min((page - 1) * PAGE_SIZE + 1, totalCount)}–{Math.min(page * PAGE_SIZE, totalCount)} / {totalCount} sản phẩm
             </span>
-            <Pagination page={page} total={filtered.length} onChange={setPage} />
+            <Pagination page={page} total={totalCount} onChange={onChangePage} />
           </div>
         )}
       </div>

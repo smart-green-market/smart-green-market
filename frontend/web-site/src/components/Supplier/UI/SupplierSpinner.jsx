@@ -5,7 +5,7 @@ export function ButtonSpinner({ label = "Đang xử lý..." }) {
 }
 
 export function InlineSpinner({ className = "" }) {
-    return <span className={`text-sm text-neutral-500 ${className}`}>Đang tải...</span>;
+    return <span className={`text-sm text-neutral-500 ${className}`}>Đang tải dữ liệu đơn hàng ...</span>;
 }
 
 export function PageSpinner({ message = "Đang tải dữ liệu..." }) {

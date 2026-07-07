@@ -310,7 +310,8 @@ export function parseOrderList(response) {
 
 export const orderService = {
   getAll: async (params = {}) => {
-    const res = await axiosClient.get("/purchase-orders/", { params });
+    const queryParams = { page_size: 100, ...params };
+    const res = await axiosClient.get("/purchase-orders/", { params: queryParams });
     return res.data;
   },
 
