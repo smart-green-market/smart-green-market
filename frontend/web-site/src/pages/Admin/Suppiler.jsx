@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useState } from "react";
 
 import Toolbar from "../../components/Admin/UI/Toolbar";
 import { AdminInitialLoadGate } from "../../components/Admin/UI/AdminFetchState";
@@ -14,9 +14,9 @@ import {
 } from "../../services/api/suppilerService";
 import { useAdminPaginatedList } from "../../hooks/useAdminPaginatedList";
 import {
-    buildCountsFromCards,
-    buildCountsFromStatusMap,
-} from "../../utils/adminFilterStatsUtils";
+    useAdminFilterStats,
+    useAdminStatsLoading,
+} from "../../hooks/useAdminFilterStats";
 import { useDebouncedValue } from "../../hooks/useDebouncedValue";
 
 const formatSupplierRow = (supplier) => ({
@@ -131,14 +131,13 @@ export default function SupplierPage() {
         }
     };
 
-    const supplierStats = useMemo(() => {
-        if (countStatus && Object.keys(countStatus).length > 0) {
-            return buildCountsFromStatusMap(countStatus, SUPPLIER_STAT_CARDS);
-        }
-        return buildCountsFromCards(data, SUPPLIER_STAT_CARDS, {
-            field: "verification_status",
-        });
-    }, [countStatus, data]);
+    const supplierStats = useAdminFilterStats({
+        countStatus,
+        data,
+        cards: SUPPLIER_STAT_CARDS,
+        field: "verification_status",
+    });
+    const statsLoading = useAdminStatsLoading(isFetching, countStatus);
 
     const handleFilterChange = (value) => {
         setStatusFilter(value);
@@ -158,7 +157,7 @@ export default function SupplierPage() {
                     cards={SUPPLIER_STAT_CARDS}
                     activeFilter={statusFilter}
                     onFilterChange={handleFilterChange}
-                    loading={isFetching || loading}
+                    loading={statsLoading}
                 />
 
                 <Toolbar

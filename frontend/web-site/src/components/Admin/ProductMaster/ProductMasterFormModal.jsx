@@ -125,7 +125,7 @@ export default function ProductMasterFormModal({
                             />
                         </div>
 
-                        <div className="flex flex-col gap-2">
+                        {/* <div className="flex flex-col gap-2">
                             <label className="text-sm font-semibold text-neutral-700">
                                 Mùa
                             </label>
@@ -139,7 +139,7 @@ export default function ProductMasterFormModal({
                                 }
                                 disabled={loading}
                             />
-                        </div>
+                        </div> */}
 
                         <div className="flex flex-col gap-2">
                             <label className="text-sm font-semibold text-neutral-700">

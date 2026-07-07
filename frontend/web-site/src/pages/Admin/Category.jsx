@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useState } from "react";
 import { AdminInitialLoadGate } from "../../components/Admin/UI/AdminFetchState";
 import AdminFilterStatsCards from "../../components/Admin/UI/AdminFilterStatsCards";
 import AdminListPagination from "../../components/Admin/UI/AdminListPagination";
@@ -15,12 +15,12 @@ import {
     formatCategoryRow,
 } from "../../components/Admin/Category/categoryHelpers";
 import { appToast } from "../../components/common/toast";
-import {
-    buildCountsFromCards,
-    buildCountsFromStatusMap,
-} from "../../utils/adminFilterStatsUtils";
 import { categoryService, handleApiError } from "../../services/api/categoryService";
 import { useAdminPaginatedList } from "../../hooks/useAdminPaginatedList";
+import {
+    useAdminFilterStats,
+    useAdminStatsLoading,
+} from "../../hooks/useAdminFilterStats";
 import { useDebouncedValue } from "../../hooks/useDebouncedValue";
 
 export default function CategoryPage() {
@@ -76,12 +76,12 @@ export default function CategoryPage() {
         }
     }, []);
 
-    const categoryStats = useMemo(() => {
-        if (countStatus && Object.keys(countStatus).length > 0) {
-            return buildCountsFromStatusMap(countStatus, CATEGORY_STAT_CARDS);
-        }
-        return buildCountsFromCards(data, CATEGORY_STAT_CARDS, { field: "status" });
-    }, [countStatus, data]);
+    const categoryStats = useAdminFilterStats({
+        countStatus,
+        data,
+        cards: CATEGORY_STAT_CARDS,
+    });
+    const statsLoading = useAdminStatsLoading(isFetching, countStatus);
 
     const refreshCategoryData = useCallback(async () => {
         await refresh();
@@ -238,7 +238,7 @@ export default function CategoryPage() {
                         setStatusFilter(value);
                         setCurrentPage(1);
                     }}
-                    loading={isFetching || loading}
+                    loading={statsLoading}
                 />
 
                 <Toolbar
