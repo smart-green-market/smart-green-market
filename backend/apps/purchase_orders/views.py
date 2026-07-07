@@ -1,23 +1,6 @@
 """API phiếu nhập hàng đại lý ↔ nhà cung cấp.
 
 Router: config/urls.py → purchase_orders/urls.py → PurchaseOrderViewSet
-
-| Endpoint | Role | Service |
-|----------|------|---------|
-| GET/POST /api/purchase-orders/ | Dealer (POST) | create_purchase_orders |
-| GET /api/purchase-orders/{id}/ | All (phân quyền) | — |
-| POST .../confirm/ | Supplier | supplier_confirm_order |
-| POST .../approve-adjustment/ | Dealer | dealer_approve_adjustment |
-| POST .../reject/ | Supplier | supplier_reject_order |
-| GET .../payment-qr/ | Dealer | get_payment_qr |
-| POST .../submit-deposit/ | Dealer | dealer_submit_payment |
-| POST .../submit-final-payment/ | Dealer | dealer_submit_payment |
-| POST .../verify-payment/ | Supplier | supplier_verify_payment |
-| POST .../ship/ | Supplier | supplier_start_shipping |
-| POST .../confirm-delivery/ | Dealer | dealer_confirm_delivery |
-| POST .../cancel/ | Dealer/Admin | cancel_order |
-
-Config công khai: GET /api/purchase-order-config/
 """
 
 from django.db.models import Prefetch, Q
@@ -108,7 +91,7 @@ def _detail_queryset():
         "returns__items__purchase_order_item__supplier_product",
         "returns__requested_by",
         "returns__reviewed_by",
-        "status_histories__changed_by",
+        "status_histories__changed_by", 
     )
 
 

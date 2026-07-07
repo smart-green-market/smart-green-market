@@ -19,6 +19,8 @@ from common.verify_openapi import (
 )
 from apps.accounts.models import AccountRole
 from common.permission import IsAdmin, IsActive, IsAdminOrSupplierProfile, IsDealer, IsSupplier
+from common.pagination import LoadMorePagination
+from common.status_counts import build_count_status, filter_by_status_param
 from common.querysets import (
     ORDER_CULTIVATION,
     ORDER_IMAGE,
@@ -198,6 +200,41 @@ class SupplierProductViewSet(viewsets.ModelViewSet):
             return [IsActive(), IsAdminOrSupplierProfile()]
         return [IsActive()]
 
+    def _apply_supplier_product_list_filters(self, qs, request, *, apply_status=True):
+        search = request.query_params.get("search")
+        if search:
+            search = search.strip()
+            qs = qs.filter(
+                Q(name__icontains=search)
+                | Q(supplier__company_name__icontains=search)
+                | Q(category__name__icontains=search)
+                | Q(product_master__name__icontains=search)
+            )
+        if apply_status:
+            qs = filter_by_status_param(
+                qs, request.query_params.get("status"), field="status"
+            )
+        return qs
+
+    def list(self, request, *args, **kwargs):
+        base_qs = self._apply_supplier_product_list_filters(
+            self.filter_queryset(self.get_queryset()),
+            request,
+            apply_status=False,
+        )
+        count_status = build_count_status(
+            base_qs, field="status", choices=SupplierProductStatus
+        )
+        qs = filter_by_status_param(
+            base_qs, request.query_params.get("status"), field="status"
+        )
+        paginator = LoadMorePagination()
+        page = paginator.paginate_queryset(qs, request, view=self)
+        serializer = self.get_serializer(page, many=True)
+        return paginator.get_paginated_response(
+            serializer.data, count_status=count_status
+        )
+
     def get_queryset(self):
         """Lọc sản phẩm theo quyền Admin, NCC hoặc catalog đại lý."""
         user = self.request.user
@@ -232,21 +269,6 @@ class SupplierProductViewSet(viewsets.ModelViewSet):
                     status_field="status",
                     deleted_value=SupplierProductStatus.DELETED,
                 )
-
-        if self.action == "list":
-            search = self.request.query_params.get("search")
-            if search:
-                search = search.strip()
-                qs = qs.filter(
-                    Q(name__icontains=search)
-                    | Q(supplier__company_name__icontains=search)
-                    | Q(category__name__icontains=search)
-                    | Q(product_master__name__icontains=search)
-                )
-
-            status_param = self.request.query_params.get("status")
-            if status_param:
-                qs = qs.filter(status=status_param)
 
         if self._should_annotate_order_demand():
             qs = annotate_supplier_product_order_demand(qs)

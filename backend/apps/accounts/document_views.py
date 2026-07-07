@@ -17,8 +17,9 @@ from common.verify_openapi import (
     DOCUMENT_VERIFY_REJECT,
     VERIFY_REJECT_HELP,
 )
-from common.pagination import paginate_queryset
+from common.pagination import LoadMorePagination, paginate_queryset
 from common.permission import IsAdmin, IsAdminOrSupplier, IsSupplierOrDealer
+from common.status_counts import build_count_status, filter_by_status_param
 from common.querysets import (
     ORDER_DOCUMENT,
     ORDER_DOCUMENT_BY_ACCOUNT,
@@ -167,10 +168,8 @@ class AccountDocumentViewSet(viewsets.ModelViewSet):
             return [IsAdmin()]
         return [IsAdminOrSupplier()]
 
-    def get_queryset(self):
-        qs = self.queryset
-
-        search = self.request.query_params.get("search")
+    def _apply_document_list_filters(self, qs, request, *, apply_status=True):
+        search = request.query_params.get("search")
         if search:
             search = search.strip()
             qs = qs.filter(
@@ -180,11 +179,13 @@ class AccountDocumentViewSet(viewsets.ModelViewSet):
                 | Q(account__phone__icontains=search)
                 | Q(document_type__icontains=search)
             )
+        if apply_status:
+            qs = filter_by_status_param(
+                qs, request.query_params.get("status"), field="status"
+            )
+        return qs
 
-        status_param = self.request.query_params.get("status")
-        if status_param:
-            qs = qs.filter(status=status_param)
-
+    def _scoped_document_queryset(self, qs):
         if self.request.user.role == "admin":
             account_id = self.request.query_params.get("account_id")
             if account_id:
@@ -209,6 +210,28 @@ class AccountDocumentViewSet(viewsets.ModelViewSet):
             ordering=ORDER_DOCUMENT,
             pending_field="status",
         )
+
+    def list(self, request, *args, **kwargs):
+        base_qs = self._apply_document_list_filters(
+            self._scoped_document_queryset(self.queryset),
+            request,
+            apply_status=False,
+        )
+        count_status = build_count_status(
+            base_qs, field="status", choices=AccountDocumentStatus
+        )
+        qs = filter_by_status_param(
+            base_qs, request.query_params.get("status"), field="status"
+        )
+        paginator = LoadMorePagination()
+        page = paginator.paginate_queryset(qs, request, view=self)
+        serializer = self.get_serializer(page, many=True)
+        return paginator.get_paginated_response(
+            serializer.data, count_status=count_status
+        )
+
+    def get_queryset(self):
+        return self._scoped_document_queryset(self.queryset)
 
     def get_serializer_context(self):
         ctx = super().get_serializer_context()
