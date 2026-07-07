@@ -13,7 +13,7 @@ from apps.dealer_products.services import annotate_dealer_product_stock
 from apps.dealers.models import DealerProfileStatus
 from apps.system_config.services import get_system_settings
 
-from .delivery_slots import validate_delivery_datetime
+from .delivery_slots import validate_preorder_delivery_datetime
 from .models import (
     CustomerPayment,
     CustomerPaymentMethod,
@@ -144,7 +144,7 @@ def create_preorder_request(
         raise ValidationError({"detail": "Cửa hàng chưa hoạt động."})
 
     mark_expired_inventory_batches(dealer_profile_id=dealer.id)
-    validate_delivery_datetime(delivery_time)
+    validate_preorder_delivery_datetime(delivery_time)
     address = _resolve_customer_address(customer, customer_address_id)
     validated_items = _validate_preorder_items(dealer, items_data)
 
@@ -246,7 +246,7 @@ def dealer_propose_preorder(
 
     delivery_changed = False
     if proposed_delivery_time is not None:
-        validate_delivery_datetime(proposed_delivery_time)
+        validate_preorder_delivery_datetime(proposed_delivery_time)
         preorder.proposed_delivery_time = proposed_delivery_time
         delivery_changed = True
     else:

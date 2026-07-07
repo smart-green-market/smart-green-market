@@ -27,7 +27,11 @@ from apps.orders.models import (
 )
 from apps.orders import preorder_services
 from apps.orders import delivery_reschedule_services
-from apps.orders.delivery_slots import VN_TZ, resolve_delivery_time
+from apps.orders.delivery_slots import (
+    VN_TZ,
+    resolve_delivery_time,
+    resolve_preorder_delivery_time,
+)
 from apps.orders.services import create_customer_order
 from apps.orders.waiting_stock_services import try_allocate_waiting_orders
 from apps.supplier_products.models import SupplierProduct, SupplierProductStatus
@@ -213,6 +217,21 @@ class PreOrderWorkflowTests(PreOrderFlowTestBase):
         order.refresh_from_db()
         self.assertEqual(order.status, OrderStatus.PROCESSING)
         self.assertIsNotNone(order.items.first().batch)
+
+    def test_dealer_propose_far_future_delivery(self):
+        preorder = self._create_preorder(quantity=20)
+        far_delivery = resolve_preorder_delivery_time(date(2026, 10, 7), "morning")
+        preorder_services.dealer_propose_preorder(
+            preorder,
+            self.dealer_user,
+            proposed_delivery_time=far_delivery,
+            item_quantities={str(preorder.items.first().id): 15},
+        )
+        preorder.refresh_from_db()
+        self.assertEqual(preorder.proposed_delivery_time, far_delivery)
+        self.assertEqual(
+            preorder.status, PreOrderRequestStatus.CUSTOMER_CONFIRMATION_PENDING
+        )
 
     def test_dealer_propose_customer_reject_closes_request(self):
         preorder = self._create_preorder(quantity=20)

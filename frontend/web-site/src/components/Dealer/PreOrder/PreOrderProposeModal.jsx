@@ -1,5 +1,15 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import ConfirmModal from "../../common/ConfirmModal";
+
+const PREORDER_MAX_BOOKING_DAYS = 120;
+
+function getPreorderDateBounds() {
+  const today = new Date();
+  const min = today.toISOString().slice(0, 10);
+  const maxDate = new Date(today);
+  maxDate.setDate(maxDate.getDate() + PREORDER_MAX_BOOKING_DAYS - 1);
+  return { min, max: maxDate.toISOString().slice(0, 10) };
+}
 
 export default function PreOrderProposeModal({
   open,
@@ -12,6 +22,7 @@ export default function PreOrderProposeModal({
   const [slot, setSlot] = useState("morning");
   const [note, setNote] = useState("");
   const [quantities, setQuantities] = useState({});
+  const dateBounds = useMemo(() => getPreorderDateBounds(), [open]);
 
   useEffect(() => {
     if (!open) return;
@@ -85,10 +96,15 @@ export default function PreOrderProposeModal({
             <label className="mb-1 block font-medium">Ngày giao mới (tùy chọn)</label>
             <input
               type="date"
+              min={dateBounds.min}
+              max={dateBounds.max}
               value={date}
               onChange={(e) => setDate(e.target.value)}
               className="w-full rounded-lg border border-stone-300 px-3 py-2"
             />
+            <p className="mt-1 text-xs text-neutral-500">
+              Có thể chọn trong vòng {PREORDER_MAX_BOOKING_DAYS} ngày kể từ hôm nay.
+            </p>
           </div>
           {date ? (
             <div>

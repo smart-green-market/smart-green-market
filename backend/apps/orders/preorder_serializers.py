@@ -6,7 +6,7 @@ from apps.dealer_products.models import DealerProduct, DealerProductStatus
 from common.openapi_enums import schema_choice_field
 
 from . import preorder_services
-from .delivery_slots import resolve_delivery_time
+from .delivery_slots import resolve_preorder_delivery_time
 from .models import PreOrderRequest, PreOrderRequestItem, PreOrderRequestStatus
 
 
@@ -111,7 +111,7 @@ class PreOrderRequestCreateSerializer(serializers.Serializer):
     note = serializers.CharField(required=False, allow_blank=True, default="")
 
     def validate(self, attrs):
-        attrs["delivery_time"] = resolve_delivery_time(
+        attrs["delivery_time"] = resolve_preorder_delivery_time(
             attrs["delivery_date"],
             attrs["delivery_slot"],
         )
@@ -168,7 +168,9 @@ class PreOrderProposeSerializer(serializers.Serializer):
         date_val = attrs.get("proposed_delivery_date")
         slot_val = attrs.get("proposed_delivery_slot")
         if date_val and slot_val:
-            attrs["proposed_delivery_time"] = resolve_delivery_time(date_val, slot_val)
+            attrs["proposed_delivery_time"] = resolve_preorder_delivery_time(
+                date_val, slot_val
+            )
         elif date_val or slot_val:
             raise serializers.ValidationError(
                 "Cần gửi cả proposed_delivery_date và proposed_delivery_slot."
