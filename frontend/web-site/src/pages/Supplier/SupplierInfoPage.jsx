@@ -1,4 +1,4 @@
-import { InlineSpinner } from "../../components/Supplier/UI/SupplierSpinner";
+import { InlineSpinner, ButtonSpinner } from "../../components/Supplier/UI/SupplierSpinner";
 import { useEffect, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { supplierService } from "../../services/api/suppilerService";
