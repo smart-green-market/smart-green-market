@@ -6,7 +6,7 @@ import 'package:smart_green_market/shared/controllers/auth_controller.dart';
 import 'package:smart_green_market/shared/controllers/storefront_controller.dart';
 import 'package:smart_green_market/shared/services/storage_service.dart';
 
-enum CartAddResult { added, duplicate, authRequired }
+enum CartAddResult { added, duplicate, authRequired, outOfStock }
 
 class CartController extends GetxController {
   CartController(this._storage, this._auth, this._storefront, this._repository);
@@ -61,6 +61,7 @@ class CartController extends GetxController {
 
   Future<CartAddResult> addProduct(ProductModel product, {int quantity = 1}) async {
     if (!_auth.isLoggedIn) return CartAddResult.authRequired;
+    if (!product.inStock) return CartAddResult.outOfStock;
     if (isInCart(product.id)) return CartAddResult.duplicate;
 
     items.add(CartItemModel.fromProduct(product, quantity: quantity));
@@ -84,7 +85,8 @@ class CartController extends GetxController {
     final index = items.indexWhere((item) => item.id == id);
     if (index < 0) return;
     final item = items[index];
-    items[index].quantity = CartUtils.normalizeQuantity(quantity, max: item.availableQuantity);
+    if (item.isOutOfStock) return;
+    items[index].quantity = CartUtils.normalizeQuantity(quantity);
     items.refresh();
     await _saveCart();
   }
@@ -92,6 +94,7 @@ class CartController extends GetxController {
   Future<void> toggleSelect(int id) async {
     final index = items.indexWhere((item) => item.id == id);
     if (index < 0) return;
+    if (items[index].isOutOfStock) return;
     items[index].selected = !items[index].selected;
     items.refresh();
     await _saveCart();
@@ -116,11 +119,10 @@ class CartController extends GetxController {
     for (final item in items) {
       final stock = stockMap[item.id];
       if (stock != null) {
-        item.availableQuantity = stock > 0 ? stock : null;
-        item.quantity = CartUtils.normalizeQuantity(
-          item.quantity,
-          max: stock > 0 ? stock : null,
-        );
+        item.availableQuantity = stock;
+        if (item.isOutOfStock) {
+          item.selected = false;
+        }
       }
     }
     items.refresh();

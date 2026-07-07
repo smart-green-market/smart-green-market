@@ -248,6 +248,14 @@ class CartItemModel {
 
   double get subtotal => price * quantity;
 
+  bool get isOutOfStock =>
+      availableQuantity != null && availableQuantity! <= 0;
+
+  bool get exceedsStock =>
+      availableQuantity != null &&
+      availableQuantity! > 0 &&
+      quantity > availableQuantity!;
+
   Map<String, dynamic> toJson() => {
         'id': id,
         'name': name,
@@ -279,7 +287,7 @@ class CartItemModel {
       quantity: quantity,
       selected: true,
       image: product.thumbnail,
-      availableQuantity: product.availableQuantity > 0 ? product.availableQuantity : null,
+      availableQuantity: product.availableQuantity,
     );
   }
 }

@@ -45,6 +45,7 @@ import {
     parseCheckStockResults,
     splitCheckoutByChoices,
 } from "../../utils/buyerPreorderUtils";
+import { isCartItemOutOfStock } from "../../utils/cartUtils";
 
 export default function OrderPage() {
     const navigate = useNavigate();
@@ -324,8 +325,11 @@ export default function OrderPage() {
         setVoucherError("");
     };
 
+    const hasOutOfStockItem = checkoutItems.some(isCartItemOutOfStock);
+
     const canSubmit =
         checkoutItems.length > 0 &&
+        !hasOutOfStockItem &&
         selectedAddressId != null &&
         selectedDate &&
         selectedSlot &&
@@ -539,6 +543,12 @@ export default function OrderPage() {
                     {buyNowItem ? "Quay lại sản phẩm" : "Quay lại giỏ hàng"}
                 </Link>
             </div>
+
+            {hasOutOfStockItem ? (
+                <div className="mb-6 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+                    Có sản phẩm hết hàng trong đơn. Vui lòng quay lại giỏ hàng và xóa sản phẩm đó trước khi đặt.
+                </div>
+            ) : null}
 
             {pageError ? (
                 <div className="mb-6 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">

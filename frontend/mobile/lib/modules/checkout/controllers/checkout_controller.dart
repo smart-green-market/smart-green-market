@@ -179,6 +179,10 @@ class CheckoutController extends GetxController {
       AppSnackbar.error('Không có sản phẩm để đặt');
       return;
     }
+    if (checkoutItems.any((item) => item.isOutOfStock)) {
+      AppSnackbar.error('Có sản phẩm hết hàng — vui lòng xóa khỏi giỏ');
+      return;
+    }
     if (selectedAddressId.value == null) {
       AppSnackbar.error('Vui lòng chọn địa chỉ giao hàng');
       return;

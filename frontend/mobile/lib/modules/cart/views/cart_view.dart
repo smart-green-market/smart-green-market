@@ -99,8 +99,12 @@ class _CartViewState extends State<CartView> {
                             item: item,
                             onToggle: () => _cart.toggleSelect(item.id),
                             onRemove: () => _cart.removeItem(item.id),
-                            onDecrease: () => _cart.setQuantity(item.id, item.quantity - 1),
-                            onIncrease: () => _cart.setQuantity(item.id, item.quantity + 1),
+                            onDecrease: item.isOutOfStock
+                                ? null
+                                : () => _cart.setQuantity(item.id, item.quantity - 1),
+                            onIncrease: item.isOutOfStock
+                                ? null
+                                : () => _cart.setQuantity(item.id, item.quantity + 1),
                           );
                         },
                       ),
@@ -108,7 +112,10 @@ class _CartViewState extends State<CartView> {
                     _CartSummaryBar(
                       subtotal: _cart.selectedSubtotal,
                       selectedCount: _cart.selectedItems.length,
-                      onCheckout: _cart.selectedItems.isEmpty
+                      hasOutOfStockSelected:
+                          _cart.selectedItems.any((item) => item.isOutOfStock),
+                      onCheckout: _cart.selectedItems.isEmpty ||
+                              _cart.selectedItems.any((item) => item.isOutOfStock)
                           ? null
                           : () => Get.toNamed(AppRoutes.checkout(slug)),
                     ),
@@ -173,15 +180,15 @@ class _CartItemCard extends StatelessWidget {
   final CartItemModel item;
   final VoidCallback onToggle;
   final VoidCallback onRemove;
-  final VoidCallback onDecrease;
-  final VoidCallback onIncrease;
+  final VoidCallback? onDecrease;
+  final VoidCallback? onIncrease;
 
   @override
   Widget build(BuildContext context) {
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: AppColors.surface,
+        color: item.isOutOfStock ? AppColors.error.withValues(alpha: 0.04) : AppColors.surface,
         borderRadius: BorderRadius.circular(AppRadius.lg),
         border: Border.all(color: item.selected ? AppColors.primary.withValues(alpha: 0.35) : AppColors.border),
         boxShadow: const [
@@ -196,7 +203,10 @@ class _CartItemCard extends StatelessWidget {
             child: SizedBox(
               width: 22,
               height: 22,
-              child: Checkbox(value: item.selected, onChanged: (_) => onToggle()),
+              child: Checkbox(
+                value: item.selected,
+                onChanged: item.isOutOfStock ? null : (_) => onToggle(),
+              ),
             ),
           ),
           const SizedBox(width: 10),
@@ -234,6 +244,24 @@ class _CartItemCard extends StatelessWidget {
                   '/ ${item.unit}',
                   style: AppTextStyles.caption.copyWith(color: AppColors.textMuted),
                 ),
+                if (item.availableQuantity != null) ...[
+                  const SizedBox(height: 4),
+                  Text(
+                    item.isOutOfStock
+                        ? 'Hết hàng — vui lòng xóa'
+                        : 'Tồn kho: ${item.availableQuantity} ${item.unit}',
+                    style: AppTextStyles.caption.copyWith(
+                      color: item.isOutOfStock ? AppColors.error : AppColors.textMuted,
+                    ),
+                  ),
+                ],
+                if (item.exceedsStock) ...[
+                  const SizedBox(height: 4),
+                  Text(
+                    'Vượt tồn — xử lý ở bước thanh toán',
+                    style: AppTextStyles.caption.copyWith(color: AppColors.warning),
+                  ),
+                ],
                 const SizedBox(height: 10),
                 Row(
                   children: [
@@ -262,13 +290,13 @@ class _CartItemCard extends StatelessWidget {
 class _QtyStepper extends StatelessWidget {
   const _QtyStepper({
     required this.quantity,
-    required this.onDecrease,
-    required this.onIncrease,
+    this.onDecrease,
+    this.onIncrease,
   });
 
   final int quantity;
-  final VoidCallback onDecrease;
-  final VoidCallback onIncrease;
+  final VoidCallback? onDecrease;
+  final VoidCallback? onIncrease;
 
   @override
   Widget build(BuildContext context) {
@@ -297,10 +325,10 @@ class _QtyStepper extends StatelessWidget {
 }
 
 class _StepButton extends StatelessWidget {
-  const _StepButton({required this.icon, required this.onTap});
+  const _StepButton({required this.icon, this.onTap});
 
   final IconData icon;
-  final VoidCallback onTap;
+  final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {
@@ -309,7 +337,11 @@ class _StepButton extends StatelessWidget {
       borderRadius: BorderRadius.circular(AppRadius.pill),
       child: Padding(
         padding: const EdgeInsets.all(8),
-        child: Icon(icon, size: 16, color: AppColors.textPrimary),
+        child: Icon(
+          icon,
+          size: 16,
+          color: onTap == null ? AppColors.textMuted : AppColors.textPrimary,
+        ),
       ),
     );
   }
@@ -319,11 +351,13 @@ class _CartSummaryBar extends StatelessWidget {
   const _CartSummaryBar({
     required this.subtotal,
     required this.selectedCount,
+    required this.hasOutOfStockSelected,
     required this.onCheckout,
   });
 
   final double subtotal;
   final int selectedCount;
+  final bool hasOutOfStockSelected;
   final VoidCallback? onCheckout;
 
   @override

@@ -63,9 +63,8 @@ class ProductDetailController extends GetxController {
 
   void increaseQty() {
     final p = product.value;
-    if (p == null) return;
-    final max = p.availableQuantity > 0 ? p.availableQuantity : null;
-    quantity.value = CartUtils.normalizeQuantity(quantity.value + 1, max: max);
+    if (p == null || !p.inStock) return;
+    quantity.value = CartUtils.normalizeQuantity(quantity.value + 1);
   }
 
   void decreaseQty() {
@@ -82,6 +81,8 @@ class ProductDetailController extends GetxController {
         AppSnackbar.success('Đã thêm vào giỏ hàng');
       case CartAddResult.duplicate:
         AppSnackbar.info('Sản phẩm đã có trong giỏ hàng');
+      case CartAddResult.outOfStock:
+        AppSnackbar.error('Sản phẩm đã hết hàng');
       case CartAddResult.authRequired:
         AppSnackbar.info('Vui lòng đăng nhập để thêm giỏ hàng');
         Get.toNamed(AppRoutes.login(_storefront.currentSlug));
@@ -90,7 +91,7 @@ class ProductDetailController extends GetxController {
 
   Future<void> buyNow() async {
     final p = product.value;
-    if (p == null) return;
+    if (p == null || !p.inStock) return;
 
     if (!_auth.isLoggedIn) {
       Get.toNamed(AppRoutes.login(_storefront.currentSlug));

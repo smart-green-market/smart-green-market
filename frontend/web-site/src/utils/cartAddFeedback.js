@@ -22,5 +22,10 @@ export function showAddToCartFeedback(result, { showToast = true } = {}) {
 
   if (result.reason === "already_in_cart") {
     appToast.warning("Sản phẩm đã có trong giỏ hàng");
+    return;
+  }
+
+  if (result.reason === "out_of_stock") {
+    appToast.warning("Sản phẩm đã hết hàng");
   }
 }
