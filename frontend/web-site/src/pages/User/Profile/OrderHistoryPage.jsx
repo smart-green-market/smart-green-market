@@ -18,6 +18,8 @@ import {
   parseBuyerOrderList,
 } from "../../../services/api/Buyer/buyerOrder";
 import { useDealerSlug, useStorefrontPaths } from "../../../hooks/useStorefrontPaths";
+import { useOrderRealtimeRefresh } from "../../../hooks/useOrderRealtimeRefresh";
+import { ORDER_REFERENCE_TYPES } from "../../../utils/orderRealtimeUtils";
 import {
   isHistoryOrder,
   isReturnOrder,
@@ -70,10 +72,11 @@ export default function OrderHistoryPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
   const [selectedOrderId, setSelectedOrderId] = useState(null);
+  const [detailRefreshKey, setDetailRefreshKey] = useState(0);
   const [cancelTarget, setCancelTarget] = useState(null);
   const [returnTarget, setReturnTarget] = useState(null);
 
-  const fetchOrders = useCallback(async () => {
+  const fetchOrders = useCallback(async ({ silent = false } = {}) => {
     if (!dealerSlug) {
       setOrders([]);
       setError("Không xác định được cửa hàng. Vui lòng truy cập lại từ liên kết cửa hàng.");
@@ -81,22 +84,35 @@ export default function OrderHistoryPage() {
       return;
     }
 
-    setIsLoading(true);
-    setError(null);
+    if (!silent) {
+      setIsLoading(true);
+      setError(null);
+    }
 
     try {
       const data = await buyerOrder.getAll(dealerSlug);
       setOrders(parseBuyerOrderList(data));
     } catch (err) {
-      setError(handleApiError(err, "Không tải được lịch sử đơn hàng. Vui lòng thử lại."));
+      if (!silent) {
+        setError(handleApiError(err, "Không tải được lịch sử đơn hàng. Vui lòng thử lại."));
+      }
     } finally {
-      setIsLoading(false);
+      if (!silent) setIsLoading(false);
     }
   }, [dealerSlug]);
 
   useEffect(() => {
     fetchOrders();
   }, [fetchOrders]);
+
+  // Realtime: đơn chuyển sang lịch sử (hủy/hoàn tất) hoặc trạng thái trả hàng
+  // thay đổi (đại lý duyệt/từ chối) sẽ tự cập nhật danh sách + modal đang mở.
+  useOrderRealtimeRefresh({
+    referenceTypes: [ORDER_REFERENCE_TYPES.CUSTOMER_ORDER],
+    watchOrderId: selectedOrderId,
+    onRefresh: () => fetchOrders({ silent: true }),
+    onDetailRefresh: () => setDetailRefreshKey((k) => k + 1),
+  });
 
   const historyOrders = useMemo(
     () => sortOrdersByCreatedDesc(orders.filter((order) => isHistoryOrder(order.status))),
@@ -282,6 +298,7 @@ export default function OrderHistoryPage() {
       <OrderDetailModal
         dealerSlug={dealerSlug}
         orderId={selectedOrderId}
+        refreshKey={detailRefreshKey}
         isOpen={selectedOrderId != null}
         onClose={handleCloseDetail}
         onOrderUpdated={fetchOrders}

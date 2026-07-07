@@ -38,7 +38,7 @@ import InfoCard              from "./shared/InfoCard";
 import { InfoRow, MetaItem, SummaryRow } from "./shared/typography";
 
 // ─── MAIN MODAL ─────────────────────────────────────────────────────────────
-export default function DetailOrderModal({ isOpen, onClose, order: initialOrder, onUpdate }) {
+export default function DetailOrderModal({ isOpen, onClose, order: initialOrder, onUpdate, refreshKey = 0 }) {
   const [order, setOrder]                           = useState(null);
   const [supplier, setSupplier]                     = useState(null);
   const [loadingDetail, setLoadingDetail]           = useState(false);
@@ -134,6 +134,21 @@ export default function DetailOrderModal({ isOpen, onClose, order: initialOrder,
 
     return () => { cancelled = true; };
   }, [isOpen, initialOrder?.id]);
+
+  // ── Realtime: âm thầm đồng bộ lại chi tiết khi có notification WS ──
+  // (không reset các modal con / trạng thái loading đang thao tác dở)
+  useEffect(() => {
+    if (!isOpen || !initialOrder?.id || !refreshKey) return;
+    orderService
+      .getById(initialOrder.id)
+      .then((detail) => {
+        setOrder((prev) => (prev ? mergeOrderDetail(prev, detail) : parseOrderDetail(detail)));
+      })
+      .catch((err) => {
+        console.error("[DetailOrderModal] realtime refresh error:", err);
+      });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [refreshKey]);
 
   // ── Keyboard / scroll lock ───────────────────────────────────────
   useEffect(() => {

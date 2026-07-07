@@ -175,13 +175,40 @@ class _OrderTrackingViewState extends State<OrderTrackingView> {
   }
 }
 
-class OrderHistoryView extends StatelessWidget {
+class OrderHistoryView extends StatefulWidget {
   const OrderHistoryView({super.key});
 
   @override
-  Widget build(BuildContext context) {
-    final controller = Get.put(OrderHistoryController(Get.find(), Get.find()));
+  State<OrderHistoryView> createState() => _OrderHistoryViewState();
+}
 
+class _OrderHistoryViewState extends State<OrderHistoryView> {
+  late final OrderHistoryController controller;
+  Worker? _ordersChangedWorker;
+
+  @override
+  void initState() {
+    super.initState();
+    controller = Get.put(OrderHistoryController(Get.find(), Get.find()));
+
+    // Realtime: đơn chuyển sang lịch sử (hủy/hoàn tất) hoặc trạng thái trả
+    // hàng thay đổi (đại lý duyệt/từ chối) sẽ tự làm mới danh sách.
+    final realtime = Get.find<OrderStatusRealtimeController>();
+    _ordersChangedWorker = ever(realtime.ordersChanged, (changed) {
+      if (changed == true) {
+        controller.loadOrders();
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _ordersChangedWorker?.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppHeaderBar(
