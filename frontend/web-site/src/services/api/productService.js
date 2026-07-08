@@ -12,14 +12,36 @@ export const normalizeProductListResponse = normalizePaginatedResponse;
 export const productService = {
   // ADMIN
   getAll: async (params) => {
-    const queryParams = { page_size: 100, ...params };
-    const res = await axiosClient.get("/supplier-products/", {
-      params: sanitizeAdminListParams(queryParams),
-    });
     if (params?.page != null) {
+      const queryParams = { page_size: 100, ...params };
+      const res = await axiosClient.get("/supplier-products/", {
+        params: sanitizeAdminListParams(queryParams),
+      });
       return normalizeProductListResponse(res.data);
     }
-    return res.data?.results ?? res.data;
+
+    let allResults = [];
+    let page = 1;
+    let hasMore = true;
+
+    while (hasMore) {
+      const queryParams = { page_size: 100, ...params, page };
+      const res = await axiosClient.get("/supplier-products/", {
+        params: sanitizeAdminListParams(queryParams),
+      });
+      const data = res.data;
+
+      const results = Array.isArray(data) ? data : (data?.results || []);
+      allResults = [...allResults, ...results];
+
+      if (Array.isArray(data) || (!data?.next && !data?.has_more)) {
+        hasMore = false;
+      } else {
+        page += 1;
+      }
+    }
+
+    return allResults;
   },
 
   getList: async (params = {}) => {

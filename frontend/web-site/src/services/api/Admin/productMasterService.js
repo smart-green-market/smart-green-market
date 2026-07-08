@@ -9,13 +9,34 @@ export const PRODUCT_MASTER_PAGE_SIZE = ADMIN_LIST_PAGE_SIZE;
 
 export const productMasterService = {
   getAll: async (params) => {
-    const res = await axiosClient.get("/product-masters/", {
-      params: sanitizeAdminListParams(params),
-    });
     if (params?.page != null) {
+      const res = await axiosClient.get("/product-masters/", {
+        params: sanitizeAdminListParams(params),
+      });
       return normalizePaginatedResponse(res.data);
     }
-    return res.data;
+
+    let allResults = [];
+    let page = 1;
+    let hasMore = true;
+
+    while (hasMore) {
+      const res = await axiosClient.get("/product-masters/", {
+        params: sanitizeAdminListParams({ page_size: 100, ...params, page }),
+      });
+      const data = res.data;
+
+      const results = Array.isArray(data) ? data : (data?.results || []);
+      allResults = [...allResults, ...results];
+
+      if (Array.isArray(data) || (!data?.next && !data?.has_more)) {
+        hasMore = false;
+      } else {
+        page += 1;
+      }
+    }
+
+    return allResults;
   },
 
   getList: async (params = {}) => {
@@ -158,8 +179,7 @@ export const productMasterService = {
   },
   getByCategory_id: async (id) => {
     const params = id ? { category_id: id } : {};
-    const res = await axiosClient.get(`/product-masters/`, { params });
-    return res.data?.results ?? [];
+    return productMasterService.getAll(params);
   },
 };
 
