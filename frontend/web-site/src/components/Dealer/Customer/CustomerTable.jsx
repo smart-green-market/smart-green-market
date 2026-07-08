@@ -1,6 +1,7 @@
 import { Loader2, AlertTriangle, Users, MoreHorizontal } from "lucide-react";
 import SortableHeader from "../../common/SortableHeader";
 import useTableSort from "../../../hooks/useTableSort";
+import Pagination from "../../common/Pagination";
 
 const COLUMN_CONFIG = {
   full_name:   { key: "full_name",   type: "string" },
@@ -191,26 +192,15 @@ export default function CustomerTable({
 
       {/* Pagination */}
       {!loading && !error && pagination && pagination.count > pagination.pageSize && (
-        <div className="p-4 border-t border-neutral-100 flex items-center justify-between">
+        <div className="p-4 border-t border-neutral-100 flex flex-col sm:flex-row items-center justify-between gap-4">
           <span className="text-sm text-neutral-500 font-medium">
             Trang {pagination.page} · Hiển thị {customers.length} / {pagination.count} khách hàng
           </span>
-          <div className="flex items-center gap-2">
-            <button
-              disabled={pagination.page <= 1}
-              onClick={() => onPageChange(pagination.page - 1)}
-              className="px-3 py-1.5 text-sm font-bold rounded-lg border border-neutral-200 text-neutral-600 hover:bg-neutral-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
-            >
-              Trang trước
-            </button>
-            <button
-              disabled={!pagination.hasMore}
-              onClick={() => onPageChange(pagination.page + 1)}
-              className="px-3 py-1.5 text-sm font-bold rounded-lg border border-neutral-200 text-neutral-600 hover:bg-neutral-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
-            >
-              Trang sau
-            </button>
-          </div>
+          <Pagination
+            currentPage={pagination.page}
+            totalPages={Math.ceil(pagination.count / pagination.pageSize)}
+            onPageChange={onPageChange}
+          />
         </div>
       )}
 

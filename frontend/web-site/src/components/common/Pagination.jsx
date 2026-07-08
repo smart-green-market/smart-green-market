@@ -40,11 +40,18 @@ export default function Pagination({ currentPage, totalPages, onPageChange }) {
 
   const pages = getPages();
 
+  const handlePageChange = (page) => {
+    if (page >= 1 && page <= totalPages && onPageChange) {
+      onPageChange(page);
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    }
+  };
+
   return (
     <div className="flex items-center justify-center gap-2 mt-6 font-['Geist',sans-serif]">
       {/* Nút Previous */}
       <button
-        onClick={() => onPageChange(currentPage - 1)}
+        onClick={() => handlePageChange(currentPage - 1)}
         disabled={currentPage === 1}
         className="w-9 h-9 flex items-center justify-center rounded-xl border border-neutral-200 hover:bg-neutral-50 text-neutral-600 disabled:opacity-50 disabled:hover:bg-transparent cursor-pointer disabled:cursor-not-allowed transition-colors"
       >
@@ -66,7 +73,7 @@ export default function Pagination({ currentPage, totalPages, onPageChange }) {
         return (
           <button
             key={page}
-            onClick={() => onPageChange(page)}
+            onClick={() => handlePageChange(page)}
             className={`w-9 h-9 rounded-xl flex items-center justify-center text-xs font-bold transition-all cursor-pointer ${
               currentPage === page
                 ? "bg-emerald-700 text-white shadow-md shadow-emerald-100"
@@ -80,7 +87,7 @@ export default function Pagination({ currentPage, totalPages, onPageChange }) {
 
       {/* Nút Next */}
       <button
-        onClick={() => onPageChange(currentPage + 1)}
+        onClick={() => handlePageChange(currentPage + 1)}
         disabled={currentPage === totalPages}
         className="w-9 h-9 flex items-center justify-center rounded-xl border border-neutral-200 hover:bg-neutral-50 text-neutral-600 disabled:opacity-50 disabled:hover:bg-transparent cursor-pointer disabled:cursor-not-allowed transition-colors"
       >
