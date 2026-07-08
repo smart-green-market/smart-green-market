@@ -1,13 +1,16 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { Loader2 } from "lucide-react";
 import FilterProductCard from "../../components/User/Home/FilterProductCard";
 import SearchProductFilter from "../../components/User/Search/SearchProductFilter";
-import { useBuyerProductSearch } from "../../hooks/useBuyerCatalog";
+import Pagination from "../../components/common/Pagination";
+import { useBuyerCatalogProducts } from "../../hooks/useBuyerCatalog";
 import { useStorefrontPaths } from "../../hooks/useStorefrontPaths";
 import { buyerCatalogService } from "../../services/api/Buyer/buyerCatalogService";
 import { toCardProduct } from "../../utils/userProductUtils";
-import Banner from "../../components/User/Home/Banner";
+
+const SEARCH_PAGE_SIZE = 20;
+
 export default function SearchProductPage() {
     const [searchParams, setSearchParams] = useSearchParams();
     const paths = useStorefrontPaths();
@@ -15,12 +18,17 @@ export default function SearchProductPage() {
     const ordering = searchParams.get("ordering") ?? "-updated_at";
     const category = searchParams.get("category") ?? "";
     const [input, setInput] = useState(query);
+    const [page, setPage] = useState(1);
     const [categories, setCategories] = useState([]);
     const [loadingCategories, setLoadingCategories] = useState(true);
 
     useEffect(() => {
         setInput(query);
     }, [query]);
+
+    useEffect(() => {
+        setPage(1);
+    }, [query, ordering, category]);
 
     useEffect(() => {
         let cancelled = false;
@@ -54,12 +62,26 @@ export default function SearchProductPage() {
         };
     }, [paths.slug]);
 
-    const { products, loading, error } = useBuyerProductSearch({
-        search: query,
-        ordering,
-        category,
+    const apiParams = useMemo(() => {
+        const params = { ordering };
+        const trimmed = String(query).trim();
+        if (trimmed) params.search = trimmed;
+        if (category) params.category = category;
+        return params;
+    }, [query, ordering, category]);
+
+    const { products, pagination, loading, error } = useBuyerCatalogProducts({
+        apiParams,
+        page,
+        pageSize: SEARCH_PAGE_SIZE,
     });
+
     const items = products.map(toCardProduct);
+    const totalCount = pagination.count;
+    const totalPages = pagination.totalPages;
+    const showingFrom =
+        totalCount === 0 ? 0 : (page - 1) * SEARCH_PAGE_SIZE + 1;
+    const showingTo = Math.min(page * SEARCH_PAGE_SIZE, totalCount);
 
     const updateParams = (nextQuery, nextOrdering, nextCategory) => {
         const params = new URLSearchParams();
@@ -85,13 +107,17 @@ export default function SearchProductPage() {
         updateParams(query, ordering, nextCategory);
     };
 
+    const handlePageChange = (nextPage) => {
+        setPage(nextPage);
+        window.scrollTo({ top: 0, behavior: "smooth" });
+    };
+
     const selectedCategoryName =
         categories.find((item) => String(item.id) === String(category))?.name ??
         "";
 
     return (
         <>
-            {/* <  Banner /> */}
             <div className="mx-auto w-full max-w-[1280px] px-4 py-8 sm:px-10 sm:py-12">
                 <nav className="mb-6 text-sm text-neutral-500">
                     <Link
@@ -140,11 +166,11 @@ export default function SearchProductPage() {
                             <>Danh mục &quot;{selectedCategoryName}&quot;</>
                         )}
                         {" — "}
-                        {items.length} sản phẩm
+                        {totalCount} sản phẩm
                     </p>
                 ) : (
                     <p className="mb-6 text-sm text-neutral-600">
-                        {items.length} sản phẩm trong cửa hàng
+                        {totalCount} sản phẩm trong cửa hàng
                     </p>
                 )}
 
@@ -163,13 +189,25 @@ export default function SearchProductPage() {
                         Không tìm thấy sản phẩm phù hợp.
                     </div>
                 ) : (
-                    <div className="grid grid-cols-2 gap-3 sm:gap-4 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
-                        {items.map((product) => (
-                            <FilterProductCard
-                                key={product.id}
-                                {...product}
-                            />
-                        ))}
+                    <div className="flex flex-col gap-6">
+                        <div className="grid grid-cols-2 gap-3 sm:gap-4 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
+                            {items.map((product) => (
+                                <FilterProductCard
+                                    key={product.id}
+                                    {...product}
+                                />
+                            ))}
+                        </div>
+
+                        {totalCount > 0 ? (
+                            <div className="flex flex-col items-center gap-4">
+                                <Pagination
+                                    currentPage={page}
+                                    totalPages={totalPages}
+                                    onPageChange={handlePageChange}
+                                />
+                            </div>
+                        ) : null}
                     </div>
                 )}
             </div>

@@ -17,6 +17,7 @@ from common.querysets import ORDER_NEWEST, filter_customer_orders
 from common.status_counts import build_count_status, filter_by_status_param
 
 from . import services
+from . import delivery_reschedule_services
 from .models import Order, OrderReturn, OrderStatus
 from .serializers import (
     CancelOrderSerializer,
@@ -24,6 +25,7 @@ from .serializers import (
     OrderDetailSerializer,
     OrderListSerializer,
     OrderReturnReadSerializer,
+    ProposeDeliveryRescheduleSerializer,
     ReviewReturnSerializer,
 )
 
@@ -116,7 +118,7 @@ class CustomerOrderViewSet(viewsets.GenericViewSet):
         return qs
 
     def get_permissions(self):
-        if self.action in ("confirm", "start_processing", "ship"):
+        if self.action in ("confirm", "start_processing", "ship", "propose_delivery_reschedule"):
             return [IsDealer()]
         if self.action in ("list", "retrieve", "cancel", "review_return"):
             return [IsAdminOrDealer()]
@@ -200,6 +202,28 @@ class CustomerOrderViewSet(viewsets.GenericViewSet):
             order,
             request.user,
             note=serializer.validated_data.get("note", ""),
+        )
+        return Response(_detail_response(order, request))
+
+    @extend_schema(
+        tags=["Customer Orders"],
+        summary="Đại lý đề xuất đổi ngày giao",
+        description="Áp dụng khi đơn `waiting_stock` — chuyển sang `delivery_reschedule_proposed`.",
+        request=ProposeDeliveryRescheduleSerializer,
+        responses={200: OrderDetailSerializer},
+    )
+    @action(detail=True, methods=["post"], url_path="propose-delivery-reschedule")
+    def propose_delivery_reschedule(self, request, pk=None):
+        order = self.get_object()
+        if order.dealer.account_id != request.user.id:
+            return Response({"detail": "Không có quyền."}, status=status.HTTP_403_FORBIDDEN)
+        serializer = ProposeDeliveryRescheduleSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        order = delivery_reschedule_services.dealer_propose_delivery_reschedule(
+            order,
+            request.user,
+            proposed_delivery_time=serializer.validated_data["proposed_delivery_time"],
+            reason=serializer.validated_data["reason"],
         )
         return Response(_detail_response(order, request))
 

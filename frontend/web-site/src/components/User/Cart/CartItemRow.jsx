@@ -1,7 +1,9 @@
 import { useEffect, useState } from "react";
 import { Minus, Plus, Trash2 } from "lucide-react";
 import {
-    getCartItemMaxQuantity,
+    cartItemExceedsStock,
+    getCartItemAvailableQuantity,
+    isCartItemOutOfStock,
     normalizeCartQuantity,
 } from "../../../utils/cartUtils";
 import { formatCurrency } from "./mockData";
@@ -14,17 +16,16 @@ export default function CartItemRow({
     onSetQuantity,
     onRemove,
 }) {
-    const maxQuantity = getCartItemMaxQuantity(item);
+    const availableQuantity = getCartItemAvailableQuantity(item);
+    const outOfStock = isCartItemOutOfStock(item);
+    const exceedsStock = cartItemExceedsStock(item);
     const [draftQuantity, setDraftQuantity] = useState(item.quantity);
 
     useEffect(() => {
         setDraftQuantity(item.quantity);
     }, [item.quantity]);
 
-    const normalizedQuantity = normalizeCartQuantity(
-        draftQuantity,
-        maxQuantity,
-    );
+    const normalizedQuantity = normalizeCartQuantity(draftQuantity);
 
     const handleQuantityChange = (event) => {
         const raw = event.target.value;
@@ -36,38 +37,28 @@ export default function CartItemRow({
         const parsed = Number.parseInt(raw, 10);
         if (Number.isNaN(parsed)) return;
 
-        if (maxQuantity != null) {
-            setDraftQuantity(Math.min(parsed, maxQuantity));
-            return;
-        }
-
         setDraftQuantity(Math.max(1, parsed));
     };
 
     const handleQuantityBlur = () => {
-        const next = normalizeCartQuantity(draftQuantity, maxQuantity);
+        const next = normalizeCartQuantity(draftQuantity);
         setDraftQuantity(next);
         if (next !== item.quantity) {
             onSetQuantity(item.id, next);
         }
     };
 
-    const handleDecrease = () => {
-        onDecrease(item.id);
-    };
-
-    const handleIncrease = () => {
-        onIncrease(item.id);
-    };
-
     return (
-        <div className="grid grid-cols-[40px_1.6fr_1fr_1fr_1fr] items-center gap-4 border-t border-stone-300/10 p-6 first:border-t-0">
+        <div
+            className={`grid grid-cols-[40px_1.6fr_1fr_1fr_1fr] items-center gap-4 border-t border-stone-300/10 p-6 first:border-t-0 ${outOfStock ? "bg-red-50/40" : ""}`}
+        >
             <div>
                 <input
                     type="checkbox"
                     checked={item.selected}
                     onChange={() => onToggleSelect(item.id)}
-                    className="h-4 w-4 rounded border-stone-400 text-teal-800 focus:ring-teal-700"
+                    disabled={outOfStock}
+                    className="h-4 w-4 rounded border-stone-400 text-teal-800 focus:ring-teal-700 disabled:cursor-not-allowed disabled:opacity-40"
                 />
             </div>
 
@@ -81,9 +72,19 @@ export default function CartItemRow({
                     <h3 className="text-base font-bold text-emerald-950">
                         {item.name}
                     </h3>
-                    {maxQuantity != null ? (
+                    {availableQuantity != null ? (
                         <p className="mt-1 text-xs text-neutral-500">
-                            Tồn kho: {maxQuantity} {item.unit}
+                            Tồn kho: {availableQuantity} {item.unit}
+                        </p>
+                    ) : null}
+                    {outOfStock ? (
+                        <p className="mt-1 text-xs font-medium text-red-700">
+                            Hết hàng — vui lòng xóa khỏi giỏ
+                        </p>
+                    ) : null}
+                    {exceedsStock ? (
+                        <p className="mt-1 text-xs text-amber-800">
+                            Vượt tồn — sẽ xử lý ở bước thanh toán
                         </p>
                     ) : null}
                     <button
@@ -105,8 +106,8 @@ export default function CartItemRow({
                 <div className="inline-flex h-10 items-center overflow-hidden rounded-lg border border-stone-300">
                     <button
                         type="button"
-                        onClick={handleDecrease}
-                        disabled={normalizedQuantity <= 1}
+                        onClick={() => onDecrease(item.id)}
+                        disabled={outOfStock || normalizedQuantity <= 1}
                         className="px-3 text-emerald-950 disabled:opacity-40 cursor-pointer "
                         aria-label={`Giảm số lượng ${item.name}`}
                     >
@@ -115,21 +116,18 @@ export default function CartItemRow({
                     <input
                         type="number"
                         min={1}
-                        max={maxQuantity ?? undefined}
                         value={draftQuantity}
                         onChange={handleQuantityChange}
                         onBlur={handleQuantityBlur}
+                        disabled={outOfStock}
                         inputMode="numeric"
                         aria-label={`Số lượng ${item.name}`}
-                        className="w-12 border-x border-stone-300 bg-white py-2 text-center text-base font-semibold text-zinc-900 [appearance:textfield] focus:outline-none focus:ring-2 focus:ring-emerald-500/30 [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+                        className="w-12 border-x border-stone-300 bg-white py-2 text-center text-base font-semibold text-zinc-900 [appearance:textfield] focus:outline-none focus:ring-2 focus:ring-emerald-500/30 disabled:cursor-not-allowed disabled:opacity-50 [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
                     />
                     <button
                         type="button"
-                        onClick={handleIncrease}
-                        disabled={
-                            maxQuantity != null &&
-                            normalizedQuantity >= maxQuantity
-                        }
+                        onClick={() => onIncrease(item.id)}
+                        disabled={outOfStock}
                         className="px-3 text-emerald-950 cursor-pointer disabled:opacity-40"
                         aria-label={`Tăng số lượng ${item.name}`}
                     >

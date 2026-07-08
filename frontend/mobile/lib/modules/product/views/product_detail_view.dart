@@ -152,7 +152,7 @@ class _ProductDetailContent extends StatelessWidget {
                     children: [
                       _QtyButton(
                         icon: Icons.remove_rounded,
-                        onTap: controller.decreaseQty,
+                        onTap: product.inStock ? controller.decreaseQty : null,
                       ),
                       Container(
                         constraints: const BoxConstraints(minWidth: 40),
@@ -164,12 +164,16 @@ class _ProductDetailContent extends StatelessWidget {
                       ),
                       _QtyButton(
                         icon: Icons.add_rounded,
-                        onTap: controller.increaseQty,
+                        onTap: product.inStock ? controller.increaseQty : null,
                       ),
                       const Spacer(),
                       Text(
-                        'Còn: ${product.availableQuantity} ${product.unit}',
-                        style: AppTextStyles.captionMuted,
+                        product.inStock
+                            ? 'Còn: ${product.availableQuantity} ${product.unit}'
+                            : 'Hết hàng',
+                        style: AppTextStyles.captionMuted.copyWith(
+                          color: product.inStock ? null : AppColors.error,
+                        ),
                       ),
                     ],
                   ),
@@ -227,7 +231,7 @@ class _ProductDetailContent extends StatelessWidget {
               children: [
                 Expanded(
                   child: OutlinedButton.icon(
-                    onPressed: controller.addToCart,
+                    onPressed: product.inStock ? controller.addToCart : null,
                     icon: const Icon(Icons.add_shopping_cart_rounded, size: 18),
                     label: const Text('Thêm giỏ hàng'),
                   ),
@@ -249,10 +253,10 @@ class _ProductDetailContent extends StatelessWidget {
 }
 
 class _QtyButton extends StatelessWidget {
-  const _QtyButton({required this.icon, required this.onTap});
+  const _QtyButton({required this.icon, this.onTap});
 
   final IconData icon;
-  final VoidCallback onTap;
+  final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {
@@ -267,7 +271,11 @@ class _QtyButton extends StatelessWidget {
           borderRadius: BorderRadius.circular(AppRadius.xs),
           border: Border.all(color: AppColors.border),
         ),
-        child: Icon(icon, size: 16, color: AppColors.textPrimary),
+        child: Icon(
+          icon,
+          size: 16,
+          color: onTap == null ? AppColors.textMuted : AppColors.textPrimary,
+        ),
       ),
     );
   }

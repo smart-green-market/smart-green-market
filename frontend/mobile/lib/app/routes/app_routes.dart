@@ -14,6 +14,7 @@ class AppRoutes {
   static String checkout(String slug) => '/store/$slug/checkout';
   static String orderTracking(String slug) => '/store/$slug/orders/tracking';
   static String orderHistory(String slug) => '/store/$slug/orders/history';
+  static String preorders(String slug) => '/store/$slug/preorders';
   static String profile(String slug) => '/store/$slug/profile';
   static String reviews(String slug) => '/store/$slug/reviews';
   static String vouchers(String slug) => '/store/$slug/vouchers';

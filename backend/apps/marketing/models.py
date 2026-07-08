@@ -1,7 +1,7 @@
 """Phân nhóm khách hàng và tương tác trên gian hàng đại lý."""
 
 from django.db import models
-
+from django.utils import timezone
 
 class CustomerSegment(models.Model):
     """Nhóm khách hàng — gán member qua CustomerProfile."""
@@ -62,6 +62,21 @@ class CustomerSegmentMember(models.Model):
 
     def __str__(self):
         return f"{self.customer_profile} → {self.segment.name}"
+
+class CustomerSegmentationHistory(models.Model):
+    """lưu trữ lịch sử các phiên chạy phân loại khách hàng bằng AI và điểm đánh giá"""
+    dealer_id = models.IntegerField(verbose_name="Mã đại lý")
+    silhouette_score = models.FloatField(verbose_name="Điểm Silhouette Score")
+    created_at = models.DateTimeField(default=timezone.now, verbose_name="Thời gian thực hiện")
+
+    class Meta:
+        db_table = 'marketing_customer_segmentation_history'
+        verbose_name = "Lịch sử phân loại AI"
+        verbose_name_plural = "Lịch sử phân loại AI"
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return f"Dealer {self.dealer_id} - Score: {self.silhouette_score:.4f} ({self.created_at.strftime('%d/%m/%Y %H:%M')})"
 
 
 class CustomerInteraction(models.Model):

@@ -361,8 +361,10 @@ class _CheckoutBottomBar extends StatelessWidget {
               () => SizedBox(
                 width: 168,
                 child: ElevatedButton(
-                  onPressed: controller.submitting.value ? null : controller.submitOrder,
-                  child: controller.submitting.value
+                  onPressed: (controller.submitting.value || controller.stockChecking.value)
+                      ? null
+                      : controller.prepareCheckout,
+                  child: controller.submitting.value || controller.stockChecking.value
                       ? const SizedBox(
                           height: 20,
                           width: 20,

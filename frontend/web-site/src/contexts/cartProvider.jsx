@@ -12,13 +12,14 @@ import { useDealerSlug } from "../hooks/useStorefrontPaths";
 import {
     buildCartItemFromProduct,
     getBuyerCartId,
-    getCartItemMaxQuantity,
+    isCartItemOutOfStock,
     loadCartFromSession,
     normalizeCartQuantity,
     resolveCartOwner,
     saveCartToSession,
 } from "../utils/cartUtils";
 import { isBuyerUser } from "../utils/buyerAuthUtils";
+import { isProductInStock } from "../utils/userProductUtils";
 import {
     clearProductSpamEntry,
     registerDuplicateAddAttempt,
@@ -68,6 +69,10 @@ export function CartProvider({ children }) {
                 return { added: false, reason: "invalid", showToast: false };
             }
 
+            if (!isProductInStock(product)) {
+                return { added: false, reason: "out_of_stock", showToast: true };
+            }
+
             const nextItem = buildCartItemFromProduct(product, quantity);
             let result = { added: true, showToast: true };
 
@@ -105,12 +110,9 @@ export function CartProvider({ children }) {
         setItems((prev) =>
             prev.map((item) => {
                 if (String(item.id) !== String(id)) return item;
+                if (isCartItemOutOfStock(item)) return item;
 
-                const maxQuantity = getCartItemMaxQuantity(item);
-                const next = item.quantity + 1;
-                if (maxQuantity != null && next > maxQuantity) return item;
-
-                return { ...item, quantity: next };
+                return { ...item, quantity: item.quantity + 1 };
             }),
         );
     }, []);
@@ -132,11 +134,11 @@ export function CartProvider({ children }) {
         setItems((prev) =>
             prev.map((item) => {
                 if (String(item.id) !== String(id)) return item;
+                if (isCartItemOutOfStock(item)) return item;
 
-                const maxQuantity = getCartItemMaxQuantity(item);
                 return {
                     ...item,
-                    quantity: normalizeCartQuantity(value, maxQuantity),
+                    quantity: normalizeCartQuantity(value),
                 };
             }),
         );
@@ -157,15 +159,24 @@ export function CartProvider({ children }) {
         setItems((prev) =>
             prev.map((item) => {
                 const latestStock = stockById.get(String(item.id));
-                const availableQuantity =
+                const rawAvailable =
                     latestStock ?? item.availableQuantity ?? null;
-                const maxQuantity = getCartItemMaxQuantity({ availableQuantity });
+                const parsed =
+                    rawAvailable != null && rawAvailable !== ""
+                        ? Number(rawAvailable)
+                        : null;
+                const availableQuantity = Number.isFinite(parsed)
+                    ? parsed
+                    : null;
+                const outOfStock = isCartItemOutOfStock({
+                    ...item,
+                    availableQuantity,
+                });
 
                 return {
                     ...item,
-                    availableQuantity:
-                        maxQuantity != null ? maxQuantity : availableQuantity,
-                    quantity: normalizeCartQuantity(item.quantity, maxQuantity),
+                    availableQuantity,
+                    selected: outOfStock ? false : item.selected,
                 };
             }),
         );
@@ -173,11 +184,12 @@ export function CartProvider({ children }) {
 
     const toggleSelectItem = useCallback((id) => {
         setItems((prev) =>
-            prev.map((item) =>
-                String(item.id) === String(id)
-                    ? { ...item, selected: !item.selected }
-                    : item,
-            ),
+            prev.map((item) => {
+                if (String(item.id) !== String(id)) return item;
+                if (isCartItemOutOfStock(item)) return item;
+
+                return { ...item, selected: !item.selected };
+            }),
         );
     }, []);
 

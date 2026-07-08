@@ -71,16 +71,14 @@ export default function ProductDetailPurchase({
             ? `${product.available_quantity} ${product.unit || ""}`.trim()
             : null;
 
-    const maxQuantity =
-        product.available_quantity != null && Number(product.available_quantity) > 0
+    const availableQuantity =
+        product.available_quantity != null
             ? Number(product.available_quantity)
             : null;
 
     const normalizeQuantity = (value) => {
         const parsed = Number.parseInt(String(value).replace(/\D/g, ""), 10);
-        let next = Number.isNaN(parsed) || parsed < 1 ? 1 : parsed;
-        if (maxQuantity != null) next = Math.min(next, maxQuantity);
-        return next;
+        return Number.isNaN(parsed) || parsed < 1 ? 1 : parsed;
     };
 
     const adjustQuantity = (delta) => {
@@ -97,11 +95,6 @@ export default function ProductDetailPurchase({
         const parsed = Number.parseInt(raw, 10);
         if (Number.isNaN(parsed)) return;
 
-        if (maxQuantity != null) {
-            setQuantity(Math.min(parsed, maxQuantity));
-            return;
-        }
-
         setQuantity(Math.max(1, parsed));
     };
 
@@ -110,6 +103,11 @@ export default function ProductDetailPurchase({
     };
 
     const effectiveQuantity = normalizeQuantity(quantity);
+    const exceedsStock =
+        inStock &&
+        availableQuantity != null &&
+        availableQuantity > 0 &&
+        effectiveQuantity > availableQuantity;
 
     const handleBuyNow = () => {
         if (!inStock) return;
@@ -256,7 +254,6 @@ export default function ProductDetailPurchase({
                             <input
                                 type="number"
                                 min={1}
-                                max={maxQuantity ?? undefined}
                                 value={quantity}
                                 onChange={handleQuantityChange}
                                 onBlur={handleQuantityBlur}
@@ -268,11 +265,7 @@ export default function ProductDetailPurchase({
                             <button
                                 type="button"
                                 onClick={() => adjustQuantity(1)}
-                                disabled={
-                                    !inStock ||
-                                    (maxQuantity != null &&
-                                        normalizeQuantity(quantity) >= maxQuantity)
-                                }
+                                disabled={!inStock}
                                 className="cursor-pointer rounded-r-xl p-2.5 text-emerald-900 transition-colors hover:bg-stone-100 disabled:opacity-40"
                                 aria-label="Tăng số lượng"
                             >
@@ -281,6 +274,13 @@ export default function ProductDetailPurchase({
                         </div>
                     </div>
                 </div>
+
+                {exceedsStock ? (
+                    <p className="mb-4 text-xs text-amber-800">
+                        Bạn đang đặt vượt tồn kho ({availableQuantity} {product.unit || ""}).
+                        Ở bước thanh toán, bạn có thể chọn đặt phần có sẵn hoặc gửi yêu cầu đặt trước.
+                    </p>
+                ) : null}
 
                 <div className="flex flex-col gap-3">
                     <div className="flex gap-3">

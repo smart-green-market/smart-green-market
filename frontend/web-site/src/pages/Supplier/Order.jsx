@@ -14,6 +14,7 @@ export default function OrderSupplierPage() {
   const [loading, setLoading] = useState(false);
   const [search, setSearch] = useState("");
   const [detailRow, setDetailRow] = useState(null);
+  const [detailRefreshKey, setDetailRefreshKey] = useState(0);
 
   const fetchOrders = useCallback(async ({ silent = false } = {}) => {
     try {
@@ -31,20 +32,11 @@ export default function OrderSupplierPage() {
     fetchOrders();
   }, [fetchOrders]);
 
-  const refreshDetail = useCallback(async (orderId) => {
-    try {
-      const detail = await orderService.getById(orderId);
-      setDetailRow(detail ?? null);
-    } catch (error) {
-      console.error("Lỗi khi tải chi tiết đơn hàng:", error);
-    }
-  }, []);
-
   useOrderRealtimeRefresh({
     referenceTypes: [ORDER_REFERENCE_TYPES.PURCHASE_ORDER],
     watchOrderId: detailRow?.id ?? null,
     onRefresh: () => fetchOrders({ silent: true }),
-    onDetailRefresh: (parsed) => refreshDetail(parsed.referenceId),
+    onDetailRefresh: () => setDetailRefreshKey((k) => k + 1),
   });
 
   const handleViewOrder = async (row) => {
@@ -89,6 +81,7 @@ export default function OrderSupplierPage() {
         onClose={() => setDetailRow(null)}
         order={detailRow}
         onUpdate={fetchOrders}
+        refreshKey={detailRefreshKey}
       />
     </div>
   );

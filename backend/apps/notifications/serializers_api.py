@@ -12,7 +12,12 @@ def _format_datetime(value):
     return _datetime_field.to_representation(value) if value else None
 
 
-def serialize_notification_receipt(receipt, purchase_orders_by_id=None, customer_orders_by_id=None):
+def serialize_notification_receipt(
+    receipt,
+    purchase_orders_by_id=None,
+    customer_orders_by_id=None,
+    preorder_requests_by_id=None,
+):
     """Chuyển biên nhận thông báo sang dict cho API."""
     notification = receipt.notification
     data = {
@@ -44,6 +49,13 @@ def serialize_notification_receipt(receipt, purchase_orders_by_id=None, customer
         if order is not None:
             data["reference_status"] = order.status
             data["reference_order_code"] = order.order_code
+    if notification.reference_type == "customer_preorder_request" and notification.reference_id:
+        preorder = None
+        if preorder_requests_by_id is not None:
+            preorder = preorder_requests_by_id.get(notification.reference_id)
+        if preorder is not None:
+            data["reference_status"] = preorder.status
+            data["reference_order_code"] = preorder.request_code
     return data
 
 
@@ -58,6 +70,12 @@ def serialize_notification_receipts(receipts):
         r.notification.reference_id
         for r in receipts
         if r.notification.reference_type == "customer_order" and r.notification.reference_id
+    ]
+    po_request_ids = [
+        r.notification.reference_id
+        for r in receipts
+        if r.notification.reference_type == "customer_preorder_request"
+        and r.notification.reference_id
     ]
     purchase_orders_by_id = {}
     if po_ids:
@@ -79,11 +97,22 @@ def serialize_notification_receipts(receipts):
                 "id", "status", "order_code"
             )
         }
+    preorder_requests_by_id = {}
+    if po_request_ids:
+        from apps.orders.models import PreOrderRequest
+
+        preorder_requests_by_id = {
+            p.id: p
+            for p in PreOrderRequest.objects.filter(id__in=po_request_ids).only(
+                "id", "status", "request_code"
+            )
+        }
     return [
         serialize_notification_receipt(
             r,
             purchase_orders_by_id,
             customer_orders_by_id,
+            preorder_requests_by_id,
         )
         for r in receipts
     ]
@@ -94,6 +123,7 @@ def serialize_notification_receipt_for_push(receipt):
     notification = receipt.notification
     purchase_orders_by_id = None
     customer_orders_by_id = None
+    preorder_requests_by_id = None
 
     if notification.reference_type == "purchase_order" and notification.reference_id:
         from apps.purchase_orders.models import PurchaseOrder
@@ -113,8 +143,18 @@ def serialize_notification_receipt_for_push(receipt):
         if order:
             customer_orders_by_id = {order.id: order}
 
+    if notification.reference_type == "customer_preorder_request" and notification.reference_id:
+        from apps.orders.models import PreOrderRequest
+
+        preorder = PreOrderRequest.objects.filter(pk=notification.reference_id).only(
+            "id", "status", "request_code"
+        ).first()
+        if preorder:
+            preorder_requests_by_id = {preorder.id: preorder}
+
     return serialize_notification_receipt(
         receipt,
         purchase_orders_by_id,
         customer_orders_by_id,
+        preorder_requests_by_id,
     )

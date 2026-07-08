@@ -5,7 +5,7 @@ from django.utils import timezone
 from django.db import transaction
 
 from apps.orders.models import Order
-from apps.marketing.models import CustomerSegment, CustomerSegmentMember, CustomerInteraction
+from apps.marketing.models import CustomerSegment, CustomerSegmentMember, CustomerInteraction, CustomerSegmentationHistory
 
 from django.utils import timezone
 from datetime import timedelta
@@ -111,23 +111,27 @@ class CustomerSegmentationService:
     def __init__(self, k_clusters=4, max_iters=100):
         self.k = k_clusters
         self.max_iters = max_iters
+        self.last_silhouette_score = 0.0
 
     def execute_pipeline(self, dealer_id=None, t_days=30):
-        # 1. Đọc dữ liệu từ Postgres thông qua Django và chuẩn hóa dữ liệu thành TensorFlow Tensor
+        # Đọc dữ liệu từ Postgres thông qua Django và chuẩn hóa dữ liệu thành TensorFlow Tensor
         tensor_input, df, ordered_segments = self._preprocess_data(dealer_id, t_days)
         if df is None or len(df) == 0:
             return None, "Không có dữ liệu khách hàng nào phát sinh giao dịch trong thời gian qua."
             
         if len(df) < self.k:
             return None, f"Số lượng khách hàng hiện tại ({len(df)}) quá ít, không đủ điều kiện tối thiểu để chạy mô hình AI phân cụm (Yêu cầu tối thiểu {self.k} khách hàng)."
-        # 2. Xử lý thuật toán toán học TensorFlow K-Means
+        # Xử lý thuật toán toán học TensorFlow K-Means
         df_clustered = self._run_bisecting_kmeans(tensor_input, df)
 
-        # 3. Gắn nhãn phân cấp động dựa trên điểm số
+        # Gắn nhãn phân cấp động dựa trên điểm số
         df_labeled, label_mapping = self._auto_label_segments(df_clustered, ordered_segments)
 
-        # 4. Lưu kết quả xuống 2 bảng database theo đúng ERD
-        self._save_to_database(df_labeled, label_mapping, dealer_id)
+        # Tính toán Silhouette Score để đánh giá chất lượng phân cụm
+        silhouette_score = self._evaluate_clustering(tensor_input, df_labeled)
+        self.last_silhouette_score = silhouette_score
+        # Lưu kết quả xuống 2 bảng database theo đúng ERD
+        self._save_to_database(df_labeled, label_mapping, dealer_id, silhouette_score)
         return df_labeled, label_mapping
         #return f"Thành công: Đã cập nhật phân khúc khách hàng bằng AI cho {len(df_labeled)} tài khoản."
 
@@ -185,9 +189,6 @@ class CustomerSegmentationService:
         X = tensor_input
         n_samples = X.shape[0]
         
-        # -----------------------------------------------------------------
-        # Hàm cục bộ: Chạy K-Means tiêu chuẩn với k=2 để bổ đôi một cụm con
-        # -----------------------------------------------------------------
         def run_means(X_sub):
             n_sub = X_sub.shape[0]
             if n_sub < 2:
@@ -265,6 +266,67 @@ class CustomerSegmentationService:
         df['Cluster'] = final_assignments
         return df
 
+    def _evaluate_clustering(self, tensor_input, df):
+        """[Private] Tính toán Silhouette Score bằng thuần toán tử TensorFlow"""
+        try:
+            labels = df['Cluster'].values
+            labels_tensor = tf.convert_to_tensor(labels, dtype=tf.int32)
+            
+            # 1. Kiểm tra số lượng cụm thực tế trong phiên chạy
+            unique_labels, _ = tf.unique(labels_tensor)
+            num_clusters = tf.shape(unique_labels)[0]
+            if num_clusters <= 1:
+                return 0.0
+
+            N = tf.shape(tensor_input)[0]
+            
+            # 2. Tính ma trận khoảng cách Euclid Pairwise (N x N) giữa tất cả các cặp điểm
+            # Công thức ma trận hóa: ||x - y||^2 = ||x||^2 - 2<x, y> + ||y||^2
+            r = tf.reduce_sum(tf.square(tensor_input), axis=1, keepdims=True)
+            D_squared = r - 2.0 * tf.matmul(tensor_input, tf.transpose(tensor_input)) + tf.transpose(r)
+            D_matrix = tf.sqrt(tf.maximum(D_squared, 0.0)) # Tránh số âm rất nhỏ do sai số số thực (float precision)
+
+            # Khởi tạo các tensor lưu trữ giá trị a(i), b(i) và kích thước cụm của mỗi điểm
+            a = tf.zeros([N], dtype=tf.float32)
+            b = tf.fill([N], float('inf'))
+            cluster_sizes = tf.zeros([N], dtype=tf.float32)
+
+            # 3. Tính toán hình học dựa trên cơ chế Broadcasting Mask (Vòng lặp qua K cụm)
+            for c in range(self.k):
+                mask_c = tf.equal(labels_tensor, c)
+                count_c = tf.reduce_sum(tf.cast(mask_c, tf.float32))
+                
+                # Cập nhật kích thước cụm tương ứng cho từng điểm
+                cluster_sizes = tf.where(mask_c, count_c, cluster_sizes)
+
+                # Phát tán (Broadcasting) mask để tính tổng khoảng cách từ mọi điểm đến toàn bộ thành viên cụm c
+                mask_c_2d = tf.cast(tf.expand_dims(mask_c, 0), tf.float32) # Mở rộng chiều thành (1, N)
+                sum_dist_to_c = tf.reduce_sum(D_matrix * mask_c_2d, axis=1) # Tổng theo hàng (N,)
+
+                # Tính a(i): Khoảng cách trung bình nội cụm (chỉ áp dụng cho các điểm thuộc cụm c)
+                # Vì D_matrix[i, i] = 0 nên sum_dist_to_c đã tự loại trừ khoảng cách của chính nó
+                a_c = tf.where(count_c > 1, sum_dist_to_c / (count_c - 1.0), 0.0)
+                a = tf.where(mask_c, a_c, a)
+
+                # Tính b(i): Khoảng cách trung bình ngoại cụm gần nhất (áp dụng cho các điểm KHÔNG thuộc cụm c)
+                b_c = tf.where(count_c > 0, sum_dist_to_c / count_c, float('inf'))
+                b = tf.where(tf.logical_not(mask_c), tf.minimum(b, b_c), b)
+
+            # 4. Áp dụng công thức Silhouette cho từng điểm: s(i) = (b - a) / max(a, b)
+            max_ab = tf.maximum(a, b)
+            silhouette_per_point = tf.where(max_ab > 0.0, (b - a) / max_ab, 0.0)
+            
+            # Quy ước toán học chuẩn: Nếu cụm chỉ có 1 phần tử đơn lẻ thì điểm của phần tử đó mặc định bằng 0
+            silhouette_per_point = tf.where(cluster_sizes <= 1.0, 0.0, silhouette_per_point)
+
+            # 5. Lấy trung bình cộng điểm số của tất cả các điểm trong tập dữ liệu
+            mean_silhouette = tf.reduce_mean(silhouette_per_point)
+            return float(mean_silhouette.numpy())
+
+        except Exception as e:
+            print(f"❌ Lỗi trong quá trình tính toán Silhouette Score bằng TensorFlow: {str(e)}")
+        return 0.0
+
     def _auto_label_segments(self, df, ordered_segments=None):
         """[Private] Định danh nhãn dựa trên kết quả thuật toán"""
         cluster_stats = df.groupby('Cluster')[['RFM_score', 'conversion_rate']].mean().reset_index()
@@ -279,7 +341,7 @@ class CustomerSegmentationService:
         df['Customer_Tag_Code'] = df['Cluster'].map(lambda x: label_mapping[x]['code'])
         return df, label_mapping
 
-    def _save_to_database(self, df_labeled, label_mapping, dealer_id):
+    def _save_to_database(self, df_labeled, label_mapping, dealer_id, silhouette_score):
         """[Private] Đồng bộ dữ liệu xuống PostgreSQL đảm bảo ACID và hiệu năng Bulk"""
         with transaction.atomic():
             
@@ -317,3 +379,10 @@ class CustomerSegmentationService:
                 
             if new_members:
                 CustomerSegmentMember.objects.bulk_create(new_members)
+            
+            # BƯỚC 3: Lưu lịch sử phân loại
+            CustomerSegmentationHistory.objects.create(
+                dealer_id=dealer_id,
+                silhouette_score=silhouette_score,
+                created_at=now
+            )

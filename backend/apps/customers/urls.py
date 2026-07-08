@@ -20,10 +20,19 @@ from apps.reviews.storefront_views import (
     StorefrontReviewImagesView,
     StorefrontReviewListCreateView,
 )
+from apps.orders.preorder_views import (
+    StorefrontCheckStockView,
+    StorefrontPreOrderAcceptView,
+    StorefrontPreOrderDetailView,
+    StorefrontPreOrderListCreateView,
+    StorefrontPreOrderRejectView,
+)
 from apps.orders.storefront_views import (
     StorefrontDeliverySlotsView,
     StorefrontOrderCancelView,
     StorefrontOrderConfirmReceivedView,
+    StorefrontOrderAcceptDeliveryRescheduleView,
+    StorefrontOrderRejectDeliveryRescheduleView,
     StorefrontOrderDetailView,
     StorefrontOrderListCreateView,
     StorefrontOrderRequestReturnView,
@@ -175,9 +184,44 @@ urlpatterns = [
         name="storefront-order-cancel",
     ),
     path(
+        "storefronts/<slug:dealer_slug>/orders/<int:pk>/accept-delivery-reschedule/",
+        StorefrontOrderAcceptDeliveryRescheduleView.as_view(),
+        name="storefront-order-accept-delivery-reschedule",
+    ),
+    path(
+        "storefronts/<slug:dealer_slug>/orders/<int:pk>/reject-delivery-reschedule/",
+        StorefrontOrderRejectDeliveryRescheduleView.as_view(),
+        name="storefront-order-reject-delivery-reschedule",
+    ),
+    path(
         "storefronts/<slug:dealer_slug>/orders/<int:pk>/request-return/",
         StorefrontOrderRequestReturnView.as_view(),
         name="storefront-order-request-return",
+    ),
+    path(
+        "storefronts/<slug:dealer_slug>/check-stock/",
+        StorefrontCheckStockView.as_view(),
+        name="storefront-check-stock",
+    ),
+    path(
+        "storefronts/<slug:dealer_slug>/preorder-requests/",
+        StorefrontPreOrderListCreateView.as_view(),
+        name="storefront-preorder-requests",
+    ),
+    path(
+        "storefronts/<slug:dealer_slug>/preorder-requests/<int:pk>/",
+        StorefrontPreOrderDetailView.as_view(),
+        name="storefront-preorder-detail",
+    ),
+    path(
+        "storefronts/<slug:dealer_slug>/preorder-requests/<int:pk>/accept/",
+        StorefrontPreOrderAcceptView.as_view(),
+        name="storefront-preorder-accept",
+    ),
+    path(
+        "storefronts/<slug:dealer_slug>/preorder-requests/<int:pk>/reject/",
+        StorefrontPreOrderRejectView.as_view(),
+        name="storefront-preorder-reject",
     ),
     *router.urls,
 ]

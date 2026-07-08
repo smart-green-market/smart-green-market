@@ -1,8 +1,9 @@
-import { useState, useMemo, useCallback, useEffect } from "react";
+import { useState, useMemo, useCallback, useEffect, useRef } from "react";
 import { useAuth } from "../../../contexts/authProvider";
 import { useNotificationWebSocket } from "../../../hooks/useNotificationWebSocket";
 import {
   getMarkedReadState,
+  isNotificationUnread,
   matchesNotificationRecord,
   parseNotificationWebSocketMessage,
   resolveMarkReadId,
@@ -13,6 +14,10 @@ import {
   handleApiError,
   parseMyNotificationsResponse,
 } from "../../../services/api/notificationService";
+import {
+  dispatchRealtimeNotificationEvent,
+  resolveNotificationId,
+} from "../../../utils/realtimeNotificationUtils";
 import {
   mapApiListToSupplierNotifications,
   mapApiToSupplierNotification,
@@ -39,6 +44,8 @@ export default function useSupplierNotifications({
   const [isDropdownOpen, setDropdownOpen] = useState(false);
   const [isModalOpen, setModalOpen] = useState(false);
   const [loading, setLoading] = useState(false);
+  const knownIdsRef = useRef(new Set());
+  const initialLoadDoneRef = useRef(false);
 
   const pageSize = listLimit ?? SUPPLIER_LIST_PAGE_SIZE;
 
@@ -51,6 +58,26 @@ export default function useSupplierNotifications({
     );
   }, [listLimit]);
 
+  const ingestFetchedItems = useCallback((rawList = [], options = {}) => {
+    if (initialLoadDoneRef.current) {
+      for (const item of rawList) {
+        const id = resolveNotificationId(item);
+        if (id == null || knownIdsRef.current.has(id)) continue;
+        if (!isNotificationUnread(item)) continue;
+        knownIdsRef.current.add(id);
+        dispatchRealtimeNotificationEvent(item);
+      }
+    } else {
+      for (const item of rawList) {
+        const id = resolveNotificationId(item);
+        if (id != null) knownIdsRef.current.add(id);
+      }
+      initialLoadDoneRef.current = true;
+    }
+
+    applyList(rawList, options);
+  }, [applyList]);
+
   const fetchNotifications = useCallback(async () => {
     if (!isEnabled) return;
     setLoading(true);
@@ -60,16 +87,20 @@ export default function useSupplierNotifications({
         page_size: pageSize,
       });
       const parsed = parseMyNotificationsResponse(data);
-      applyList(parsed.results, { unreadCount: parsed.unreadCount });
+      ingestFetchedItems(parsed.results, { unreadCount: parsed.unreadCount });
     } catch (error) {
       console.error(handleApiError(error, "Không thể tải thông báo"));
     } finally {
       setLoading(false);
     }
-  }, [applyList, isEnabled, pageSize]);
+  }, [ingestFetchedItems, isEnabled, pageSize]);
 
   useEffect(() => {
-    if (!isEnabled) return undefined;
+    if (!isEnabled) {
+      knownIdsRef.current.clear();
+      initialLoadDoneRef.current = false;
+      return undefined;
+    }
     fetchNotifications();
     return undefined;
   }, [isEnabled, fetchNotifications]);
@@ -100,6 +131,10 @@ export default function useSupplierNotifications({
       if (notifIsUnread(mapped)) {
         setUnreadCount((prev) => prev + 1);
       }
+
+      const id = resolveNotificationId(message.item);
+      if (id != null) knownIdsRef.current.add(id);
+      dispatchRealtimeNotificationEvent(message.item);
     }
   }, [applyList, listLimit]);
 

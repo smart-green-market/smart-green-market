@@ -57,11 +57,14 @@ TERMINAL_STATUSES = {
 CUSTOMER_ORDER_PENDING_STATUSES = (OrderStatus.PENDING,)
 BUYER_CANCELLABLE = {
     OrderStatus.PENDING,
+    OrderStatus.DELIVERY_RESCHEDULE_PROPOSED,
 }
 DEALER_CANCELLABLE = {
     OrderStatus.PENDING,
     OrderStatus.CONFIRMED,
     OrderStatus.PROCESSING,
+    OrderStatus.WAITING_STOCK,
+    OrderStatus.DELIVERY_RESCHEDULE_PROPOSED,
 }
 
 
@@ -165,6 +168,8 @@ def _restore_batch_quantity(*, batch, quantity, user, transaction_type, reason):
 def _restore_order_inventory(order, user, reason):
     """Hoàn lại tồn kho đã trừ khi đơn bị hủy trước giao hàng."""
     for item in order.items.select_related("batch"):
+        if item.batch_id is None:
+            continue
         _restore_batch_quantity(
             batch=item.batch,
             quantity=item.quantity,

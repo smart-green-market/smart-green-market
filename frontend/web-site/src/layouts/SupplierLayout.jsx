@@ -1,7 +1,6 @@
 import { Outlet, useLocation } from "react-router-dom";
 import { PanelLeftClose, PanelLeftOpen } from "lucide-react";
 import { SupplierNotificationBell } from "../components/Supplier/Notification";
-import AppToaster from "../components/common/AppToaster";
 import SideBar from "../components/Supplier/UI/SideBar";
 import SupplierAvatarDropdown from "../components/Supplier/UI/SupplierAvatarDropdown";
 import { useEffect, useState } from "react";
@@ -58,8 +57,6 @@ function SupplierLayoutInner() {
                     <Outlet />
                 </main>
             </div>
-
-            <AppToaster />
         </div>
     );
 }

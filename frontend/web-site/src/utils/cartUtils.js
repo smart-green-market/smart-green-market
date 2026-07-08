@@ -25,11 +25,28 @@ export function resolveCartOwner(user, dealerSlug) {
   };
 }
 
+export function getCartItemAvailableQuantity(item) {
+  const raw = item?.availableQuantity ?? item?.available_quantity;
+  if (raw == null || raw === "") return null;
+  const parsed = Number(raw);
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
+/** @deprecated Dùng getCartItemAvailableQuantity — giữ để hiển thị tồn khi > 0. */
 export function getCartItemMaxQuantity(item) {
-  const max = item?.availableQuantity ?? item?.available_quantity;
-  if (max == null || max === "") return null;
-  const parsed = Number(max);
-  return Number.isFinite(parsed) && parsed > 0 ? parsed : null;
+  const available = getCartItemAvailableQuantity(item);
+  return available != null && available > 0 ? available : null;
+}
+
+export function isCartItemOutOfStock(item) {
+  const available = getCartItemAvailableQuantity(item);
+  return available != null && available <= 0;
+}
+
+export function cartItemExceedsStock(item) {
+  const available = getCartItemAvailableQuantity(item);
+  if (available == null || available <= 0) return false;
+  return Number(item.quantity) > available;
 }
 
 export function normalizeCartQuantity(value, maxQuantity = null) {
@@ -57,18 +74,20 @@ export function buildCartItemFromProduct(product, quantity = 1) {
 
   const availableQuantity =
     product.available_quantity ?? product.availableQuantity ?? null;
-  const maxQuantity = getCartItemMaxQuantity({ availableQuantity });
+  const parsedAvailable =
+    availableQuantity != null && availableQuantity !== ""
+      ? Number(availableQuantity)
+      : null;
 
   return {
     id: product.id,
     name: product.name ?? product.title ?? "",
     price,
     unit,
-    quantity: normalizeCartQuantity(quantity, maxQuantity),
+    quantity: normalizeCartQuantity(quantity),
     selected: true,
     image,
-    availableQuantity:
-      maxQuantity != null ? maxQuantity : (availableQuantity ?? null),
+    availableQuantity: Number.isFinite(parsedAvailable) ? parsedAvailable : null,
   };
 }
 
@@ -83,17 +102,17 @@ function isValidCartItem(item) {
 }
 
 function normalizeCartItem(item) {
-  const maxQuantity = getCartItemMaxQuantity(item);
+  const availableQuantity = getCartItemAvailableQuantity(item);
 
   return {
     id: item.id,
     name: item.name,
     price: Number(item.price),
     unit: item.unit ?? "kg",
-    quantity: normalizeCartQuantity(item.quantity, maxQuantity),
-    selected: item.selected !== false,
+    quantity: normalizeCartQuantity(item.quantity),
+    selected: item.selected !== false && !isCartItemOutOfStock({ ...item, availableQuantity }),
     image: item.image ?? "https://placehold.co/160x160",
-    availableQuantity: maxQuantity ?? item.availableQuantity ?? null,
+    availableQuantity,
   };
 }
 

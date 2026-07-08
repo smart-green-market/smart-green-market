@@ -44,12 +44,15 @@ CUSTOMER_ORDER_STATUS_VI = {
     "return_rejected": "Từ chối trả hàng",
     "returned": "Đã trả hàng",
     "cancelled": "Đã hủy",
+    "waiting_stock": "Chờ hàng về kho",
+    "delivery_reschedule_proposed": "Chờ xác nhận đổi ngày giao",
 }
 
 REFERENCE_TYPE_VI = {
     "account_document": "Giấy tờ tài khoản",
     "purchase_order": "Phiếu nhập hàng",
     "customer_order": "Đơn hàng khách",
+    "customer_preorder_request": "YC đặt trước",
     "supplier_document": "Giấy tờ nhà cung cấp",
     "supplier": "Hồ sơ nhà cung cấp",
     "dealer": "Hồ sơ đại lý",
@@ -311,4 +314,50 @@ def customer_order_status_updated(order, old_status=""):
         f"[Đơn hàng] {order.order_code} — {new_label}",
         content,
         notif_type,
+    )
+
+
+PREORDER_STATUS_VI = {
+    "submitted": "Đã gửi",
+    "customer_confirmation_pending": "Chờ khách xác nhận",
+    "rejected_by_dealer": "Đại lý từ chối",
+    "rejected_by_customer": "Khách từ chối",
+    "converted": "Đã chuyển thành đơn",
+    "cancelled": "Đã hủy",
+}
+
+
+def preorder_request_event(preorder, event_key, extra=""):
+    """Trả (title, content, type) cho sự kiện YC đặt trước."""
+    code = preorder.request_code
+    templates = {
+        "submitted": (
+            f"[YC đặt trước] {code} — Khách gửi yêu cầu",
+            f"Khách gửi YC đặt trước {code}. Vui lòng xem và phản hồi.",
+            "warning",
+        ),
+        "dealer_confirmed": (
+            f"[YC đặt trước] {code} — Đại lý đã xác nhận",
+            f"Đại lý xác nhận YC {code}. Vui lòng xác nhận để tạo đơn chờ hàng.",
+            "info",
+        ),
+        "dealer_proposed": (
+            f"[YC đặt trước] {code} — Đại lý đề xuất điều chỉnh",
+            f"Đại lý đề xuất thay đổi cho YC {code}. Vui lòng xác nhận hoặc từ chối.",
+            "warning",
+        ),
+        "dealer_rejected": (
+            f"[YC đặt trước] {code} — Đại lý từ chối",
+            f"YC {code} bị từ chối. {preorder.reject_reason or extra}",
+            "error",
+        ),
+        "customer_rejected": (
+            f"[YC đặt trước] {code} — Khách từ chối",
+            f"Khách từ chối đề xuất cho YC {code}.",
+            "info",
+        ),
+    }
+    return templates.get(
+        event_key,
+        (f"[YC đặt trước] {code}", extra or "Cập nhật YC đặt trước.", "info"),
     )

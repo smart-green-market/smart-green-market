@@ -1,6 +1,8 @@
 import { useCallback, useState } from "react";
 import { AdminInitialLoadGate } from "../../components/Admin/UI/AdminFetchState";
+import AdminFilterStatsCards from "../../components/Admin/UI/AdminFilterStatsCards";
 import AdminListPagination from "../../components/Admin/UI/AdminListPagination";
+import { PRODUCT_MASTER_STAT_CARDS } from "../../components/Admin/UI/adminFilterStatsPresets";
 import Toolbar from "../../components/Admin/UI/Toolbar";
 import Filter from "../../components/Admin/ProductMaster/ProductMasterFilter";
 import ProductMasterTable from "../../components/Admin/ProductMaster/ProductMasterTable";
@@ -18,6 +20,10 @@ import {
     handleApiError,
 } from "../../services/api/Admin/productMasterService";
 import { useAdminPaginatedList } from "../../hooks/useAdminPaginatedList";
+import {
+    useAdminFilterStats,
+    useAdminStatsLoading,
+} from "../../hooks/useAdminFilterStats";
 import { useDebouncedValue } from "../../hooks/useDebouncedValue";
 
 export default function ProductMasterPage() {
@@ -33,6 +39,7 @@ export default function ProductMasterPage() {
 
     const {
         data,
+        countStatus,
         isFetching,
         loadError,
         loading,
@@ -57,6 +64,18 @@ export default function ProductMasterPage() {
         onFetchError: (err) =>
             handleApiError(err, "Không thể tải danh sách sản phẩm"),
     });
+
+    const productMasterStats = useAdminFilterStats({
+        countStatus,
+        data,
+        cards: PRODUCT_MASTER_STAT_CARDS,
+    });
+    const statsLoading = useAdminStatsLoading(isFetching, countStatus);
+
+    const handleFilterChange = (value) => {
+        setStatusFilter(value);
+        setCurrentPage(1);
+    };
 
     const handleViewProduct = useCallback(async (row) => {
         try {

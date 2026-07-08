@@ -70,7 +70,15 @@ export const dealerOrderService = {
       console.error("Lỗi khi duyệt/từ chối yêu cầu trả hàng", error);
       throw error;
     }
-  }
+  },
+
+  proposeDeliveryReschedule: async (id, data) => {
+    const res = await axiosClient.post(
+      `/customer-orders/${id}/propose-delivery-reschedule/`,
+      data,
+    );
+    return res.data;
+  },
 };
 
 export const handleApiError = (error, defaultMessage = "Có lỗi xảy ra") => {

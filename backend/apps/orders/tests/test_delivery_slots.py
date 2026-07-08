@@ -1,18 +1,23 @@
 """Unit tests khung giờ giao rau B2C."""
 
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 
 from django.test import SimpleTestCase
 from rest_framework.exceptions import ValidationError
 
 from apps.orders.delivery_slots import (
     MAX_BOOKING_DAYS,
+    MAX_PREORDER_BOOKING_DAYS,
     VN_TZ,
     get_available_delivery_slots,
+    get_preorder_delivery_date_bounds,
+    is_preorder_slot_valid,
     is_slot_available,
     parse_delivery_slot,
     resolve_delivery_time,
+    resolve_preorder_delivery_time,
     validate_delivery_datetime,
+    validate_preorder_delivery_datetime,
 )
 
 VN = VN_TZ
@@ -115,3 +120,34 @@ class ParseDeliverySlotTests(SimpleTestCase):
 
     def test_invalid_time_returns_none(self):
         self.assertIsNone(parse_delivery_slot(_vn_dt(2026, 6, 22, 8, 30)))
+
+
+class PreOrderDeliverySlotTests(SimpleTestCase):
+    def test_far_future_preorder_slot_valid_but_checkout_not(self):
+        now = _vn_dt(2026, 6, 21, 8, 0)
+        far_date = date(2026, 10, 7)
+        self.assertFalse(is_slot_available(far_date, "morning", now=now))
+        self.assertTrue(is_preorder_slot_valid(far_date, "morning", now=now))
+
+    def test_resolve_preorder_far_future(self):
+        now = _vn_dt(2026, 6, 21, 8, 0)
+        dt = resolve_preorder_delivery_time(date(2026, 10, 7), "morning", now=now)
+        self.assertEqual(dt, _vn_dt(2026, 10, 7, 7, 0))
+
+    def test_resolve_preorder_beyond_window_raises(self):
+        now = _vn_dt(2026, 6, 21, 8, 0)
+        too_far = date(2026, 6, 21) + timedelta(days=MAX_PREORDER_BOOKING_DAYS)
+        with self.assertRaises(ValidationError):
+            resolve_preorder_delivery_time(too_far, "morning", now=now)
+
+    def test_validate_preorder_delivery_datetime(self):
+        now = _vn_dt(2026, 6, 21, 8, 0)
+        dt = _vn_dt(2026, 10, 7, 16, 0)
+        validate_preorder_delivery_datetime(dt, now=now)
+
+    def test_preorder_date_bounds(self):
+        now = _vn_dt(2026, 6, 21, 8, 0)
+        bounds = get_preorder_delivery_date_bounds(now=now)
+        self.assertEqual(bounds["min_date"], "2026-06-21")
+        self.assertEqual(bounds["max_date"], "2026-10-18")
+        self.assertEqual(bounds["max_preorder_booking_days"], MAX_PREORDER_BOOKING_DAYS)

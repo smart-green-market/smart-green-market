@@ -59,6 +59,19 @@ class BuyerRepository {
   Future<void> confirmReceived(String slug, int id) => _api.confirmReceived(slug, id);
   Future<void> requestReturn(String slug, int id, String reason) =>
       _api.requestReturn(slug, id, reason);
+  Future<List<StockCheckResult>> checkStock(String slug, List<Map<String, dynamic>> items) =>
+      _api.checkStock(slug, items);
+  Future<List<PreOrderModel>> getPreOrders(String slug) => _api.getPreOrders(slug);
+  Future<PreOrderModel> getPreOrder(String slug, int id) => _api.getPreOrderById(slug, id);
+  Future<PreOrderModel> createPreOrder(String slug, Map<String, dynamic> body) =>
+      _api.createPreOrder(slug, body);
+  Future<OrderModel> acceptPreOrder(String slug, int id) => _api.acceptPreOrder(slug, id);
+  Future<PreOrderModel> rejectPreOrder(String slug, int id, String reason) =>
+      _api.rejectPreOrder(slug, id, reason);
+  Future<OrderModel> acceptDeliveryReschedule(String slug, int id) =>
+      _api.acceptDeliveryReschedule(slug, id);
+  Future<OrderModel> rejectDeliveryReschedule(String slug, int id, String reason) =>
+      _api.rejectDeliveryReschedule(slug, id, reason);
   Future<List<DeliveryDateModel>> getDeliverySlots(String slug) => _api.getDeliverySlots(slug);
   Future<List<AddressModel>> getAddresses(String slug) => _api.getAddresses(slug);
   Future<AddressModel> createAddress(String slug, Map<String, dynamic> body) =>

@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useState } from "react";
 
 import Toolbar from "../../components/Admin/UI/Toolbar";
 import { AdminInitialLoadGate } from "../../components/Admin/UI/AdminFetchState";
@@ -14,11 +14,11 @@ import {
     handleApiError,
 } from "../../services/api/Admin/adminVoucherService";
 import { useAdminPaginatedList } from "../../hooks/useAdminPaginatedList";
-import { useDebouncedValue } from "../../hooks/useDebouncedValue";
 import {
-    buildCountsFromCards,
-    buildCountsFromStatusMap,
-} from "../../utils/adminFilterStatsUtils";
+    useAdminFilterStats,
+    useAdminStatsLoading,
+} from "../../hooks/useAdminFilterStats";
+import { useDebouncedValue } from "../../hooks/useDebouncedValue";
 import { appToast } from "../../components/common/toast";
 
 export default function VoucherPage() {
@@ -90,20 +90,12 @@ export default function VoucherPage() {
             }
         }, []);
 
-    const voucherStats = useMemo(
-        () => {
-            if (countStatus && Object.keys(countStatus).length > 0) {
-                return buildCountsFromStatusMap(
-                    countStatus,
-                    VOUCHER_STAT_CARDS,
-                );
-            }
-            return buildCountsFromCards(data, VOUCHER_STAT_CARDS, {
-                field: "status",
-            });
-        },
-        [countStatus, data],
-    );
+    const voucherStats = useAdminFilterStats({
+        countStatus,
+        data,
+        cards: VOUCHER_STAT_CARDS,
+    });
+    const statsLoading = useAdminStatsLoading(isFetching, countStatus);
 
     // ── APPROVE (KÍCH HOẠT) ────────────────────────────────────────
     const handleApprove = async (voucher) => {
@@ -201,7 +193,7 @@ export default function VoucherPage() {
                     setStatusFilter(value);
                     setCurrentPage(1);
                 }}
-                loading={isFetching || loading}
+                loading={statsLoading}
             />
 
             {/* TOOLBAR */}

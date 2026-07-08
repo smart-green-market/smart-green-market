@@ -248,6 +248,14 @@ class CartItemModel {
 
   double get subtotal => price * quantity;
 
+  bool get isOutOfStock =>
+      availableQuantity != null && availableQuantity! <= 0;
+
+  bool get exceedsStock =>
+      availableQuantity != null &&
+      availableQuantity! > 0 &&
+      quantity > availableQuantity!;
+
   Map<String, dynamic> toJson() => {
         'id': id,
         'name': name,
@@ -279,7 +287,7 @@ class CartItemModel {
       quantity: quantity,
       selected: true,
       image: product.thumbnail,
-      availableQuantity: product.availableQuantity > 0 ? product.availableQuantity : null,
+      availableQuantity: product.availableQuantity,
     );
   }
 }
@@ -349,6 +357,9 @@ class OrderModel {
     this.itemCount = 0,
     this.deliveryDate = '',
     this.deliverySlotName = '',
+    this.proposedDeliveryDate = '',
+    this.proposedDeliverySlotName = '',
+    this.rescheduleReason = '',
     this.createdAt,
     this.note = '',
     this.receiverName = '',
@@ -368,6 +379,9 @@ class OrderModel {
   final int itemCount;
   final String deliveryDate;
   final String deliverySlotName;
+  final String proposedDeliveryDate;
+  final String proposedDeliverySlotName;
+  final String rescheduleReason;
   final DateTime? createdAt;
   final String note;
   final String receiverName;
@@ -391,6 +405,9 @@ class OrderModel {
       itemCount: int.tryParse('${json['item_count']}') ?? 0,
       deliveryDate: '${json['delivery_date'] ?? ''}',
       deliverySlotName: '${json['delivery_slot_name'] ?? ''}',
+      proposedDeliveryDate: '${json['proposed_delivery_date'] ?? ''}',
+      proposedDeliverySlotName: '${json['proposed_delivery_slot_name'] ?? ''}',
+      rescheduleReason: '${json['reschedule_reason'] ?? ''}',
       createdAt: DateTime.tryParse('${json['created_at']}'),
       note: '${json['note'] ?? ''}',
       receiverName: '${json['receiver_name'] ?? ''}',
@@ -408,6 +425,152 @@ class OrderModel {
     );
   }
 }
+
+class StockCheckResult {
+  StockCheckResult({
+    required this.dealerProductId,
+    required this.requestedQuantity,
+    required this.availableQuantity,
+    required this.shortfall,
+    required this.canOrderAvailable,
+    required this.needsPreorder,
+    required this.orderAvailableQuantity,
+  });
+
+  final int dealerProductId;
+  final int requestedQuantity;
+  final int availableQuantity;
+  final int shortfall;
+  final bool canOrderAvailable;
+  final bool needsPreorder;
+  final int orderAvailableQuantity;
+
+  factory StockCheckResult.fromJson(Map<String, dynamic> json) {
+    return StockCheckResult(
+      dealerProductId: int.tryParse('${json['dealer_product_id']}') ?? 0,
+      requestedQuantity: int.tryParse('${json['requested_quantity']}') ?? 0,
+      availableQuantity: int.tryParse('${json['available_quantity']}') ?? 0,
+      shortfall: int.tryParse('${json['shortfall']}') ?? 0,
+      canOrderAvailable: json['can_order_available'] != false,
+      needsPreorder: json['needs_preorder'] == true,
+      orderAvailableQuantity: int.tryParse('${json['order_available_quantity']}') ?? 0,
+    );
+  }
+}
+
+class PreOrderItemModel {
+  PreOrderItemModel({
+    required this.id,
+    required this.dealerProductId,
+    required this.productTitle,
+    required this.unit,
+    required this.requestedQuantity,
+    this.availableAtSubmit = 0,
+    this.confirmedQuantity,
+    this.proposedQuantity,
+  });
+
+  final int id;
+  final int dealerProductId;
+  final String productTitle;
+  final String unit;
+  final int requestedQuantity;
+  final int availableAtSubmit;
+  final int? confirmedQuantity;
+  final int? proposedQuantity;
+
+  factory PreOrderItemModel.fromJson(Map<String, dynamic> json) {
+    return PreOrderItemModel(
+      id: int.tryParse('${json['id']}') ?? 0,
+      dealerProductId: int.tryParse('${json['dealer_product_id']}') ?? 0,
+      productTitle: '${json['product_title'] ?? ''}',
+      unit: '${json['unit'] ?? ''}',
+      requestedQuantity: int.tryParse('${json['requested_quantity']}') ?? 0,
+      availableAtSubmit: int.tryParse('${json['available_at_submit']}') ?? 0,
+      confirmedQuantity: int.tryParse('${json['confirmed_quantity']}'),
+      proposedQuantity: int.tryParse('${json['proposed_quantity']}'),
+    );
+  }
+}
+
+class PreOrderModel {
+  PreOrderModel({
+    required this.id,
+    required this.requestCode,
+    required this.status,
+    this.statusLabel = '',
+    this.requestedDeliveryTime,
+    this.confirmedDeliveryTime,
+    this.proposedDeliveryTime,
+    this.itemCount = 0,
+    this.convertedOrderId,
+    this.createdAt,
+    this.receiverName = '',
+    this.receiverPhone = '',
+    this.deliveryAddress = '',
+    this.note = '',
+    this.dealerNote = '',
+    this.rejectReason = '',
+    this.items = const [],
+  });
+
+  final int id;
+  final String requestCode;
+  final String status;
+  final String statusLabel;
+  final DateTime? requestedDeliveryTime;
+  final DateTime? confirmedDeliveryTime;
+  final DateTime? proposedDeliveryTime;
+  final int itemCount;
+  final int? convertedOrderId;
+  final DateTime? createdAt;
+  final String receiverName;
+  final String receiverPhone;
+  final String deliveryAddress;
+  final String note;
+  final String dealerNote;
+  final String rejectReason;
+  final List<PreOrderItemModel> items;
+
+  factory PreOrderModel.fromJson(Map<String, dynamic> json) {
+    final itemsRaw = json['items'];
+    final status = '${json['status'] ?? ''}';
+
+    return PreOrderModel(
+      id: int.tryParse('${json['id']}') ?? 0,
+      requestCode: '${json['request_code'] ?? ''}',
+      status: status,
+      statusLabel: '${json['status_label'] ?? preorderStatusLabels[status] ?? status}',
+      requestedDeliveryTime: DateTime.tryParse('${json['requested_delivery_time']}'),
+      confirmedDeliveryTime: DateTime.tryParse('${json['confirmed_delivery_time']}'),
+      proposedDeliveryTime: DateTime.tryParse('${json['proposed_delivery_time']}'),
+      itemCount: int.tryParse('${json['item_count']}') ?? 0,
+      convertedOrderId: int.tryParse('${json['converted_order_id']}'),
+      createdAt: DateTime.tryParse('${json['created_at']}'),
+      receiverName: '${json['receiver_name'] ?? ''}',
+      receiverPhone: '${json['receiver_phone'] ?? ''}',
+      deliveryAddress: '${json['delivery_address'] ?? ''}',
+      note: '${json['note'] ?? ''}',
+      dealerNote: '${json['dealer_note'] ?? ''}',
+      rejectReason: '${json['reject_reason'] ?? ''}',
+      items: itemsRaw is List
+          ? itemsRaw
+              .whereType<Map>()
+              .map((e) => PreOrderItemModel.fromJson(Map<String, dynamic>.from(e)))
+              .toList()
+          : [],
+    );
+  }
+}
+
+const preorderStatusLabels = <String, String>{
+  'submitted': 'Chờ đại lý xử lý',
+  'customer_confirmation_pending': 'Chờ bạn xác nhận',
+  'rejected_by_dealer': 'Đại lý từ chối',
+  'rejected_by_customer': 'Bạn đã từ chối',
+  'converted': 'Đã chuyển thành đơn',
+  'cancelled': 'Đã hủy',
+};
 
 class VoucherModel {
   VoucherModel({
