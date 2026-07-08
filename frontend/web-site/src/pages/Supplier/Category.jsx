@@ -126,7 +126,7 @@ export default function CategorySupplierPage() {
           onClose={() => setShowAddCategory(false)}
           onSuccess={(newCat) => {
             console.log("Danh mục mới:", newCat);
-            // TODO: nếu có state danh mục thì append vào đây
+            fetchProducts();
           }}
         />
       )}
