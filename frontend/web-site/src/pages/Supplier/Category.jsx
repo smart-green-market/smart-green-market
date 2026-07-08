@@ -6,6 +6,7 @@ import { categoryService } from "../../services/api/categoryService";
 import DeleteConfirmModal from "../../components/common/DeleteConfirmModal";
 import SupplierPageHeader, { SUPPLIER_PAGE_CLASS } from "../../components/Supplier/UI/SupplierPageHeader";
 import DetailCategoryModal from "../../components/Supplier/Category/DetailCategoryModal"
+import EditCategoryModal from "../../components/Supplier/Category/EditCategoryModal";
 export default function CategorySupplierPage() {
   const [data, setData] = useState([]);
   const [search, setSearch] = useState("");
@@ -16,19 +17,32 @@ export default function CategorySupplierPage() {
   const [showAddCategory, setShowAddCategory] = useState(false);
 
   const [selectedCategory, setSelectedCategory] = useState(null);
+  const [editRow, setEditRow] = useState(null);
 
   /* ── Fetch ── */
-  const fetchProducts = async () => {
+  const fetchCategories = async () => {
     try {
-      const response = await categoryService.getAll();
-      const productList = Array.isArray(response) ? response : (response?.results || []);
-      setData(productList);
+      const [activeList, pendingList, rejectedList, inactiveList] = await Promise.all([
+        categoryService.getAll({ status: "active" }),
+        categoryService.getAll({ status: "pending" }),
+        categoryService.getAll({ status: "rejected" }),
+        categoryService.getAll({ status: "inactive" }),
+      ]);
+      const merged = [
+        ...activeList,
+        ...pendingList,
+        ...rejectedList,
+        ...inactiveList,
+      ];
+      setData(merged);
     } catch (error) {
-      console.error("Lỗi khi tải danh sách sản phẩm:", error);
+      console.error("Lỗi khi tải danh sách danh mục:", error);
     }
   };
 
-  useEffect(() => { fetchProducts(); }, []);
+  useEffect(() => {
+    fetchCategories();
+  }, []);
 
   /* ── Delete ── */
   const [deleting, setDeleting] = useState(false);
@@ -38,31 +52,13 @@ export default function CategorySupplierPage() {
     try {
       setDeleting(true);
       await categoryService.delete(deleteRow.id);
-      setData(prev => prev.filter(row => row.id !== deleteRow.id));
+      setData((prev) => prev.filter((row) => row.id !== deleteRow.id));
       setDeleteRow(null);
     } catch (error) {
-      console.error("Lỗi khi xoá sản phẩm:", error);
-      alert("Xoá sản phẩm thất bại. Vui lòng thử lại!");
+      console.error("Lỗi khi xoá danh mục:", error);
+      alert("Xoá danh mục thất bại. Vui lòng thử lại!");
     } finally {
       setDeleting(false);
-    }
-  };
-
-  /* ── Update (từ DetailModal) ── */
-  const handleUpdate = async (updated) => {
-    setData(prev =>
-      prev.map(row => (row.id === updated.id ? { ...row, ...updated } : row))
-    );
-    setDetailRow(prev => (prev ? { ...prev, ...updated } : prev));
-
-    try {
-      const response = await productService.getAll();
-      const productList = Array.isArray(response) ? response : (response?.results || []);
-      setData(productList);
-      const fresh = productList.find((p) => p.id === updated.id);
-      if (fresh) setDetailRow((prev) => (prev ? { ...prev, ...fresh } : prev));
-    } catch (error) {
-      console.error("Lỗi khi đồng bộ danh sách sau cập nhật:", error);
     }
   };
 
@@ -97,7 +93,7 @@ export default function CategorySupplierPage() {
         onClose={() => !deleting && setDeleteRow(null)}
         onConfirm={handleDelete}
         itemName={deleteRow?.name ?? ""}
-        itemType="sản phẩm"
+        itemType="danh mục"
         loading={deleting}
       />
       {/* 
@@ -113,11 +109,11 @@ export default function CategorySupplierPage() {
           onClose={() => setSelectedCategory(null)}
           onEdit={(cat) => {
             setSelectedCategory(null);
-            openEditModal(cat); // TODO: thay bằng hàm mở edit của bạn
+            setEditRow(cat);
           }}
           onDelete={(cat) => {
             setSelectedCategory(null);
-            handleDelete(cat); // TODO: thay bằng hàm xóa của bạn
+            setDeleteRow(cat);
           }}
         />
       )}
@@ -126,7 +122,17 @@ export default function CategorySupplierPage() {
           onClose={() => setShowAddCategory(false)}
           onSuccess={(newCat) => {
             console.log("Danh mục mới:", newCat);
-            fetchProducts();
+            fetchCategories();
+          }}
+        />
+      )}
+      {editRow && (
+        <EditCategoryModal
+          category={editRow}
+          onClose={() => setEditRow(null)}
+          onSuccess={(updatedCat) => {
+            console.log("Danh mục được cập nhật:", updatedCat);
+            fetchCategories();
           }}
         />
       )}
