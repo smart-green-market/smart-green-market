@@ -18,7 +18,11 @@ export default function SupplierNotificationPage() {
   return (
     <div className="supplier-notif-root">
         <NotificationTable
-          notifications={notif.filteredNotifications}
+          notifications={notif.displayedNotifications}
+          totalCount={notif.filteredNotifications.length}
+          currentPage={notif.currentPage}
+          totalPages={notif.totalPages}
+          onPageChange={notif.setCurrentPage}
           filter={notif.filter}
           onFilterChange={notif.setFilter}
           search={notif.search}

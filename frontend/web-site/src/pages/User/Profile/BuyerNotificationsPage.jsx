@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import {
     Bell,
     Calendar,
@@ -218,45 +218,61 @@ function Pagination({ current, total, onChange }) {
 // ── Main Page ─────────────────────────────────────────────────────────────────
 
 export default function BuyerNotificationsPage() {
-    const [notifications, setNotifications] = useState([]);
+    const [allNotifications, setAllNotifications] = useState([]);
     const [activeFilter, setActiveFilter] = useState("all");
     const [currentPage, setCurrentPage] = useState(1);
-    const [totalCount, setTotalCount] = useState(0);
-    const [unreadCount, setUnreadCount] = useState(0);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
     const [markingAllRead, setMarkingAllRead] = useState(false);
 
+    // Derived states
+    const filteredNotifications = useMemo(() => {
+        if (activeFilter === "unread") {
+            return allNotifications.filter(isNotificationUnread);
+        }
+        if (activeFilter === "read") {
+            return allNotifications.filter((i) => !isNotificationUnread(i));
+        }
+        return allNotifications;
+    }, [allNotifications, activeFilter]);
+
+    const totalCount = filteredNotifications.length;
     const totalPages = Math.ceil(totalCount / PAGE_SIZE) || 1;
 
-    // Derive read/unread totals from what the API provides
-    const unreadInPage = notifications.filter(isNotificationUnread).length;
-    const readInPage = notifications.length - unreadInPage;
+    const unreadCount = useMemo(() => {
+        return allNotifications.filter(isNotificationUnread).length;
+    }, [allNotifications]);
 
-    const tabCounts = {
-        all: totalCount,
-        unread: unreadCount,
-        read: totalCount - unreadCount,
-    };
+    const tabCounts = useMemo(() => {
+        const unread = allNotifications.filter(isNotificationUnread).length;
+        return {
+            all: allNotifications.length,
+            unread: unread,
+            read: allNotifications.length - unread,
+        };
+    }, [allNotifications]);
 
-    const fetchPage = useCallback(async (page, filter) => {
+    const fetchAllNotifications = useCallback(async () => {
         setLoading(true);
         setError(null);
 
         try {
-            // Build params — server only supports page/page_size natively,
-            // so we pass is_read if filtering unread/read (falls back gracefully if not supported)
-            const params = { page, page_size: PAGE_SIZE };
-            if (filter === "unread") params.is_read = false;
-            if (filter === "read") params.is_read = true;
+            let allItems = [];
+            let page = 1;
+            let hasMore = true;
 
-            const raw = await notificationService.getMy(params);
-            const parsed = parseMyNotificationsResponse(raw);
+            while (hasMore) {
+                const raw = await notificationService.getMy({ page, page_size: 100 });
+                const parsed = parseMyNotificationsResponse(raw);
+                const formatted = parsed.results.map(formatNotificationRow);
+                allItems = [...allItems, ...formatted];
+                hasMore = parsed.hasMore;
+                page += 1;
 
-            const formatted = parsed.results.map(formatNotificationRow);
-            setNotifications(formatted);
-            setTotalCount(parsed.count || formatted.length);
-            setUnreadCount(parsed.unreadCount);
+                if (page > 20) break; // Safety break
+            }
+
+            setAllNotifications(allItems);
         } catch (err) {
             setError(handleApiError(err, "Không tải được danh sách thông báo."));
         } finally {
@@ -264,10 +280,10 @@ export default function BuyerNotificationsPage() {
         }
     }, []);
 
-    // Load when page or filter changes
+    // Load initially
     useEffect(() => {
-        fetchPage(currentPage, activeFilter);
-    }, [currentPage, activeFilter, fetchPage]);
+        fetchAllNotifications();
+    }, [fetchAllNotifications]);
 
     const handleFilterChange = (filter) => {
         setActiveFilter(filter);
@@ -284,21 +300,20 @@ export default function BuyerNotificationsPage() {
         try {
             const response = await notificationService.mark_read(markReadId);
             const markedState = getMarkedReadState(response);
-            setNotifications((prev) =>
+            setAllNotifications((prev) =>
                 prev.map((item) =>
                     matchesNotificationRecord(item, markReadId, receiptId)
                         ? { ...item, ...markedState }
                         : item,
                 ),
             );
-            setUnreadCount((prev) => Math.max(0, prev - 1));
         } catch (err) {
             console.error(handleApiError(err, "Không thể đánh dấu đã đọc"));
         }
     }, []);
 
     const handleMarkAllRead = async () => {
-        const unread = notifications.filter(isNotificationUnread);
+        const unread = allNotifications.filter(isNotificationUnread);
         if (unread.length === 0) return;
         setMarkingAllRead(true);
         try {
@@ -309,12 +324,11 @@ export default function BuyerNotificationsPage() {
                 }),
             );
             const now = new Date().toISOString();
-            setNotifications((prev) =>
+            setAllNotifications((prev) =>
                 prev.map((item) =>
                     isNotificationUnread(item) ? { ...item, readAt: now, isRead: true } : item,
                 ),
             );
-            setUnreadCount((prev) => Math.max(0, prev - unread.length));
             appToast.success("Đã đánh dấu tất cả là đã đọc");
         } catch {
             appToast.danger("Có lỗi xảy ra, vui lòng thử lại");
@@ -323,13 +337,11 @@ export default function BuyerNotificationsPage() {
         }
     };
 
-    // For "unread" / "read" tabs, filter client-side from the page
-    const displayedItems =
-        activeFilter === "unread"
-            ? notifications.filter(isNotificationUnread)
-            : activeFilter === "read"
-            ? notifications.filter((i) => !isNotificationUnread(i))
-            : notifications;
+    const displayedItems = useMemo(() => {
+        const fromIndex = (currentPage - 1) * PAGE_SIZE;
+        const toIndex = fromIndex + PAGE_SIZE;
+        return filteredNotifications.slice(fromIndex, toIndex);
+    }, [filteredNotifications, currentPage]);
 
     // Compute display pagination info
     const from = totalCount === 0 ? 0 : (currentPage - 1) * PAGE_SIZE + 1;
@@ -353,7 +365,7 @@ export default function BuyerNotificationsPage() {
                 <div className="flex items-center gap-2">
                     <button
                         type="button"
-                        onClick={() => fetchPage(currentPage, activeFilter)}
+                        onClick={fetchAllNotifications}
                         disabled={loading}
                         className="flex cursor-pointer items-center gap-1.5 rounded-xl border border-neutral-200 bg-white px-3 py-2 text-xs font-semibold text-neutral-600 shadow-sm transition-all hover:border-neutral-300 hover:bg-neutral-50 disabled:opacity-50"
                     >
@@ -423,7 +435,7 @@ export default function BuyerNotificationsPage() {
                     <p className="text-sm font-semibold text-red-700">{error}</p>
                     <button
                         type="button"
-                        onClick={() => fetchPage(currentPage, activeFilter)}
+                        onClick={fetchAllNotifications}
                         className="mt-3 cursor-pointer rounded-xl bg-red-700 px-4 py-2 text-xs font-bold text-white hover:bg-red-800"
                     >
                         Thử lại
@@ -446,7 +458,7 @@ export default function BuyerNotificationsPage() {
             )}
 
             {/* Pagination */}
-            {!loading && !error && totalPages > 1 && activeFilter === "all" && (
+            {!loading && !error && totalPages > 1 && (
                 <Pagination
                     current={currentPage}
                     total={totalPages}

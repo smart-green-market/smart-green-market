@@ -6,6 +6,7 @@ import { PageSpinner } from "../UI/SupplierSpinner";
 import React from 'react';
 import NotificationItem from './NotificationItem';
 import { NOTIF_FILTER_CHIPS } from './notificationConstants';
+import Pagination from "../../common/Pagination";
 import './Notification.css';
 
 export default function NotificationTable({
@@ -17,6 +18,10 @@ export default function NotificationTable({
   onMarkAllRead,
   onItemClick,
   loading = false,
+  totalCount = 0,
+  currentPage = 1,
+  totalPages = 1,
+  onPageChange,
 }) {
   return (
     <div className="page">
@@ -56,7 +61,7 @@ export default function NotificationTable({
             </div>
             <span className="ch-title">Tất cả thông báo</span>
           </div>
-          <span className="ch-link">{notifications.length} thông báo</span>
+          <span className="ch-link">{totalCount} thông báo</span>
         </div>
 
         <div>
@@ -73,6 +78,14 @@ export default function NotificationTable({
           <div className="empty-row">Không tìm thấy thông báo phù hợp.</div>
         )}
       </div>
+
+      {!loading && totalPages > 1 && (
+        <Pagination
+          currentPage={currentPage}
+          totalPages={totalPages}
+          onPageChange={onPageChange}
+        />
+      )}
     </div>
   );
 }
