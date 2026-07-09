@@ -20,7 +20,7 @@ axiosClient.interceptors.request.use(
   (config) => {
     const token = getAccessToken();
 
-    if (token) {
+    if (token && !isAuthBypassRequest(config.url)) {
       config.headers.Authorization = `Bearer ${token}`;
     }
 

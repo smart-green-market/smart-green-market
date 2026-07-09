@@ -25,7 +25,7 @@ const LABEL_TONE = {
  
 const PAGE_SIZE = 9; // 3 cột × 3 hàng
  
-function CertCard({ row, onView }) {
+function CertCard({ row, onView, onRevoke }) {
   const st = STATUS_CONFIG[row.status] ?? {
     label: row.status,
     bg: "bg-gray-100",
@@ -102,12 +102,22 @@ function CertCard({ row, onView }) {
         <span className="text-xs text-neutral-400">
           {products ? `Áp dụng cho ${products.length} sản phẩm` : `Mã: ${row.certificate_code || row.code || "—"}`}
         </span>
-        <button
-          onClick={() => onView(row)}
-          className="text-xs font-semibold text-emerald-700 hover:text-emerald-800"
-        >
-          Xem chi tiết →
-        </button>
+        <div className="flex items-center gap-3">
+          {row.status === "pending" && onRevoke && (
+            <button
+              onClick={() => onRevoke(row)}
+              className="text-xs font-semibold text-red-600 hover:text-red-700"
+            >
+              Thu hồi
+            </button>
+          )}
+          <button
+            onClick={() => onView(row)}
+            className="text-xs font-semibold text-emerald-700 hover:text-emerald-800"
+          >
+            Xem chi tiết →
+          </button>
+        </div>
       </div>
     </div>
   );
@@ -165,7 +175,7 @@ function Pagination({ page, totalPages, onChange }) {
   );
 }
  
-export default function CertificationTable({ data, search, statusFilter, onView }) {
+export default function CertificationTable({ data, search, statusFilter, onView, onRevoke }) {
   const [page, setPage] = useState(1);
  
   const filtered = data.filter((row) => {
@@ -196,7 +206,12 @@ export default function CertificationTable({ data, search, statusFilter, onView 
     <div className="flex flex-col gap-4">
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
         {paginated.map((row) => (
-          <CertCard key={row.id ?? row.certificate_code ?? row.code} row={row} onView={onView} />
+          <CertCard
+            key={row.id ?? row.certificate_code ?? row.code}
+            row={row}
+            onView={onView}
+            onRevoke={onRevoke}
+          />
         ))}
       </div>
  

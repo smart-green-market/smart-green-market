@@ -6,8 +6,26 @@ export const farmingProcessService = {
    * Trả về danh sách quy trình canh tác (có phân trang)
    */
   getAll: async (params = {}) => {
-    const res = await axiosClient.get("/cultivation-processes/", { params });
-    return res.data;
+    let allResults = [];
+    let page = 1;
+    let hasMore = true;
+
+    while (hasMore) {
+      const queryParams = { ...params, page, page_size: 100 };
+      const res = await axiosClient.get("/cultivation-processes/", { params: queryParams });
+      const data = res.data;
+
+      const results = Array.isArray(data) ? data : (data?.results || []);
+      allResults = [...allResults, ...results];
+
+      if (Array.isArray(data) || !data?.has_more || !data?.next) {
+        hasMore = false;
+      } else {
+        page += 1;
+      }
+    }
+
+    return allResults;
   },
 
   /**

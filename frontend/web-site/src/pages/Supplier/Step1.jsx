@@ -49,6 +49,19 @@ export default function Step1({ onNext }) {
         return setError("Mật khẩu: Không được để trống.");
       }
 
+      if (form.password.length < 8 || form.password.length > 15) {
+        return setError("Mật khẩu: Sử dụng tối thiểu 8 ký tự, và tối đa 15 ký tự.");
+      }
+
+      const hasNumber = /[0-9]/.test(form.password);
+      const hasLowerCase = /[a-z]/.test(form.password);
+      const hasUpperCase = /[A-Z]/.test(form.password);
+      const hasSpecialChar = /[^A-Za-z0-9]/.test(form.password);
+
+      if (!hasNumber || !hasLowerCase || !hasUpperCase || !hasSpecialChar) {
+        return setError("Mật khẩu: Phải bao gồm số, chữ thường, chữ in hoa và ký tự đặc biệt.");
+      }
+
       if (form.password !== form.repassword) {
         return setError("Xác nhận mật khẩu: Mật khẩu nhập lại không khớp.");
       }
@@ -67,10 +80,10 @@ export default function Step1({ onNext }) {
       const result = await accountService.create(payload);
 
       console.log("Đăng ký thành công:", result);
-      // const loginResult = await authService.login({
-      //   username: form.username,
-      //   password: form.password,
-      // });
+      const loginResult = await authService.login({
+        username: form.username,
+        password: form.password,
+      });
 
       // Lưu token để Step2, Step3 dùng
       saveAuthTokens({

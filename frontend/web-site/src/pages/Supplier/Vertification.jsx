@@ -55,6 +55,18 @@ export default function CertificationSupplierPage() {
     fetchCertifications();
   };
 
+  const confirmRevoke = async () => {
+    if (!deleteRow) return;
+    try {
+      await certificationService.delete(deleteRow.id);
+      setViewRow(null);
+      fetchCertifications();
+    } catch (error) {
+      console.error("Lỗi khi thu hồi chứng nhận:", error);
+      throw error;
+    }
+  };
+
   // ── Thống kê: chỉ approved mới tính vào active/soon/expired ──
   const stats = data.reduce(
     (acc, row) => {
@@ -123,6 +135,7 @@ export default function CertificationSupplierPage() {
         search={search}
         statusFilter={statusFilter}
         onView={(row) => setViewRow(row)}
+        onRevoke={(row) => setDeleteRow(row)}
       />
 
       {/* ── Modals ──────────────────────────────────────────────────────── */}
@@ -138,6 +151,17 @@ export default function CertificationSupplierPage() {
         isOpen={viewRow !== null}
         onClose={() => setViewRow(null)}
         certification={viewRow}
+        onRevoke={(row) => setDeleteRow(row)}
+      />
+
+      <DeleteConfirmModal
+        isOpen={deleteRow !== null}
+        onClose={() => setDeleteRow(null)}
+        onConfirm={confirmRevoke}
+        itemName={deleteRow?.name ?? ""}
+        itemType="chứng nhận"
+        successMessage="Thu hồi chứng nhận thành công"
+        errorMessage="Không thể thu hồi chứng nhận"
       />
     </div>
   );

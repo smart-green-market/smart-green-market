@@ -153,18 +153,43 @@ export default function AddCertificationModal({ isOpen, onClose, onSuccess }) {
   }, [isOpen]);
 
   const fetchProduct = async () => {
+    setLoadingProducts(true);
     try {
       const res = await productService.getAll();
 
       console.log("FULL RESPONSE:", res);
 
-      setProducts(res.results);
-      setLoadingProducts(false);
+      const productList = Array.isArray(res) ? res : (res?.results || []);
+      setProducts(productList);
     } catch (err) {
-      console.log(err);
+      console.error("Lỗi khi tải danh sách sản phẩm:", err);
+      setProducts([]);
+    } finally {
+      setLoadingProducts(false);
     }
   };
-  useEffect(() => { fetchProduct(); }, [])
+
+  useEffect(() => {
+    if (isOpen) {
+      setForm({
+        name: "",
+        product: "",
+        certificate_code: "",
+        issued_by: "",
+        issue_date: "",
+        expiry_date: "",
+        description: "",
+      });
+      setImageFile(null);
+      setImagePreview(null);
+      setImageStatus(null);
+      setError(null);
+      setFieldErrors({});
+      setSaved(false);
+
+      fetchProduct();
+    }
+  }, [isOpen]);
   // Cleanup object URL khi unmount / đổi file
   useEffect(() => {
     return () => { if (imagePreview) URL.revokeObjectURL(imagePreview); };
@@ -371,7 +396,7 @@ export default function AddCertificationModal({ isOpen, onClose, onSuccess }) {
                   className={inputClass}
                 />
               </div>
-              <div>
+              {/* <div>
                 <label className={labelClass}>
                   <span className="flex items-center gap-1.5">
                     <ShieldCheck className="w-3.5 h-3.5 text-green-700" />
@@ -394,7 +419,7 @@ export default function AddCertificationModal({ isOpen, onClose, onSuccess }) {
                     ))
                   )}
                 </select>
-              </div>
+              </div> */}
               {/* issue_date + expiry_date */}
               <div className="grid grid-cols-2 gap-3">
                 <div>

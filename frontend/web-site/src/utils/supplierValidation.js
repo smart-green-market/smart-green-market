@@ -58,7 +58,10 @@ const EN_ERROR_PATTERNS = [
   [/no file was submitted\.?/i, "Chưa chọn tệp đính kèm."],
   [/passwords do not match\.?/i, "Mật khẩu xác nhận không khớp."],
   [/user with this username already exists\.?/i, "Tên tài khoản đã được sử dụng."],
+  [/a user with that username already exists\.?/i, "Tên tài khoản đã được sử dụng."],
   [/user with this email already exists\.?/i, "Email đã được sử dụng."],
+  [/(?:an?\s+)?account with this email already exists\.?/i, "Email đã được sử dụng."],
+  [/(?:an?\s+)?account with this phone already exists\.?/i, "Số điện thoại đã được sử dụng."],
   [/already exists\.?/i, "Giá trị này đã tồn tại trong hệ thống."],
 ];
 
@@ -94,6 +97,17 @@ export function parseSupplierApiErrors(apiErrors, options = {}) {
 
   if (!apiErrors) {
     return { fieldErrors, general: "", summary: fallback };
+  }
+
+  // Tự động giải nén thuộc tính errors lồng nhau nếu API trả về cấu trúc bọc chuẩn
+  if (
+    typeof apiErrors === "object" &&
+    apiErrors !== null &&
+    apiErrors.errors &&
+    typeof apiErrors.errors === "object" &&
+    !Array.isArray(apiErrors.errors)
+  ) {
+    apiErrors = apiErrors.errors;
   }
 
   if (typeof apiErrors === "string") {
