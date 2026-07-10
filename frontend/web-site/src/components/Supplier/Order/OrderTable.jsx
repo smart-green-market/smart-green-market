@@ -167,16 +167,25 @@ export default function OrderTable({ data, search, loading, onView, selectedIds 
     if (!row.requested_delivery_time) return null;
 
     const reqDate = new Date(row.requested_delivery_time);
-    reqDate.setHours(23, 59, 59, 999);
-    const now = new Date();
-    const diffTime = reqDate - now;
-    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    reqDate.setHours(0, 0, 0, 0); // chỉ lấy ngày
+    
+    const today = new Date();
+    today.setHours(0, 0, 0, 0); // chỉ lấy ngày hiện tại
+    
+    const diffTime = reqDate - today;
+    const diffDays = Math.round(diffTime / (1000 * 60 * 60 * 24));
 
     if (diffDays < 0) {
       return {
         type: "red",
         bgClass: "bg-red-50 hover:bg-red-100/90",
         tooltip: `Đã quá hạn ngày giao mong muốn (${formatDateOnly(row.requested_delivery_time)})!`
+      };
+    } else if (diffDays === 0) {
+      return {
+        type: "red",
+        bgClass: "bg-red-50 hover:bg-red-100/90",
+        tooltip: `Hôm nay là hạn ngày giao mong muốn (${formatDateOnly(row.requested_delivery_time)})!`
       };
     } else if (diffDays <= 3) {
       return {
