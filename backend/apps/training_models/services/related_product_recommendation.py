@@ -24,27 +24,63 @@ class RelatedProductRecommendationService:
         # Đảm bảo thư mục luôn tồn tại
         os.makedirs(self.output_dir, exist_ok=True)
 
-    def execute_pipeline(self):
-        """Hàm thực thi toàn bộ quy trình, gọi từ API View"""
-        # 1. Tải dữ liệu từ DB
+    def train_pipeline(self):
+        # 1. Tải và tiền xử lý dữ liệu
         sentences, unique_items = self._load_data()
         if not sentences:
             return False, "Không đủ dữ liệu đơn hàng để huấn luyện."
-
-        # 2. Chuẩn bị dữ liệu học (Skip-gram)
         target_items, context_items, labels, vocab_size, item2idx, idx2item = self._prepare_data(sentences, unique_items)
-
-        # 3. Huấn luyện mạng Nơ-ron TensorFlow (Có kèm học nối tiếp)
-        model, embeddings = self._train_model(target_items, context_items, labels, vocab_size, item2idx)
-
-        # 4. Xuất model và ma trận ra file tĩnh
+        
+        # 2. Train model (Cần sửa hàm _train_model trả về thêm lịch sử 'history' để lấy loss)
+        model, embeddings, history = self._train_model(target_items, context_items, labels, vocab_size, item2idx)
+        
+        # 3. Tính toán độ phủ danh mục (Coverage)
+        metrics = self._evaluate_metrics(embeddings, idx2item, top_k=self.top_k)
+        
+        # 4. Lấy Loss cuối cùng và Epochs thực tế
+        final_loss = history.history['loss'][-1]
+        epochs_run = len(history.history['loss'])
+        
+        # 5. LƯU LỊCH SỬ VÀO DATABASE
+        from apps.training_models.models import AITrainingHistory # Nhớ import
+        AITrainingHistory.objects.create(
+            model_name="Item2Vec",
+            epochs_run=epochs_run,
+            final_loss=final_loss,
+            catalog_coverage=metrics["catalog_coverage"],
+            total_items_trained=metrics["total_items"],
+            status="SUCCESS"
+        )
+        
+        # 6. Lưu file tĩnh & Đồng bộ DB
         self._save_static_files(model, idx2item)
-
-        # 5. Dùng ma trận vừa Train để tính toán và lưu thẳng vào Database
         self._export_to_db(embeddings, idx2item)
 
-        return True, "Thành công: Đã huấn luyện mô hình và cập nhật danh sách gợi ý."
+        return True, f"Huấn luyện thành công. Độ phủ danh mục: {metrics['catalog_coverage']}%. Data đã lưu lịch sử."
 
+    def inference_pipeline_only(self):
+        """
+        LUỒNG 2 (ONLINE INFERENCE / QUICK EXPORT):
+        Dùng để tái tạo lại danh sách gợi ý trong Database từ file .keras đã lưu mà KHÔNG CẦN TRAIN LẠI.
+        """
+        # 1. Nạp thẳng model tĩnh và từ điển đã lưu
+        model = self._load_existing_model()
+        idx2item = self._load_existing_vocab()
+
+        if model is None or idx2item is None:
+            return False, "Lỗi: Không tìm thấy file .keras hoặc tf_vocab.json. Vui lòng chạy luồng Huấn luyện (Train) trước!"
+
+        try:
+            # 2. Rút trích ma trận trọng số (Embeddings) ngay lập tức
+            embeddings = model.get_layer("target_emb").get_weights()[0]
+
+            # 3. Tính Cosine và ghi thẳng xuống Database
+            self._export_to_db(embeddings, idx2item)
+            
+            return True, "Thành công: Đã CẬP NHẬT DATABASE từ file .keras tĩnh (Không huấn luyện)."
+        except Exception as e:
+            return False, f"Lỗi trong quá trình suy luận: {str(e)}"
+        
     def _load_data(self):
         order_sequences = defaultdict(list)
         items = OrderItem.objects.values_list('order_id', 'dealer_product_id')
@@ -130,7 +166,7 @@ class RelatedProductRecommendationService:
 
         model.compile(optimizer='adam', loss='binary_crossentropy')
         
-        model.fit(
+        history = model.fit(
             x=[np.array(target_items), np.array(context_items)], 
             y=np.array(labels), 
             epochs=self.epochs, 
@@ -140,7 +176,63 @@ class RelatedProductRecommendationService:
         )
         
         # Trả về cả object model (để lưu) và ma trận trọng số (để tính toán)
-        return model, model.get_layer("target_emb").get_weights()[0]
+        embeddings = model.get_layer("target_emb").get_weights()[0]
+        return model, embeddings, history
+    
+    def _evaluate_metrics(self, embeddings, idx2item, top_k=7):
+        """
+        Tính toán các chỉ số đánh giá mô hình (Catalog Coverage).
+        """
+        from apps.dealer_products.models import DealerProduct
+        
+        norms_all = np.linalg.norm(embeddings, axis=1)
+        norms_all[norms_all == 0] = 1e-10 
+        
+        idx2item_clean = {int(k): v for k, v in idx2item.items()}
+        product_to_dealer = dict(DealerProduct.objects.values_list('id', 'dealer_profile_id'))
+        
+        total_valid_items = len(idx2item_clean)
+        unique_recommended_items = set()
+
+        # Quét qua toàn bộ sản phẩm để giả lập lấy gợi ý
+        for idx, product_id in idx2item_clean.items():
+            target_pid = int(product_id)
+            target_dealer_id = product_to_dealer.get(target_pid)
+            
+            if not target_dealer_id:
+                continue
+                
+            target_vector = embeddings[idx]
+            dot_products = np.dot(embeddings, target_vector)
+            norm_target = np.linalg.norm(target_vector)
+            similarities = dot_products / (norms_all * norm_target)
+            
+            best_indices = similarities.argsort()[::-1]
+            
+            recommendations = []
+            for best_idx in best_indices:
+                best_idx_int = int(best_idx)
+                if best_idx_int != 0 and best_idx_int != idx and best_idx_int in idx2item_clean:
+                    candidate_pid = int(idx2item_clean[best_idx_int])
+                    candidate_dealer_id = product_to_dealer.get(candidate_pid)
+                    
+                    if candidate_dealer_id == target_dealer_id:
+                        recommendations.append(candidate_pid)
+                        unique_recommended_items.add(candidate_pid) # Lưu vết sản phẩm được gợi ý
+                        
+                if len(recommendations) == top_k:
+                    break
+        
+        # Tính toán tỷ lệ phần trăm Coverage
+        coverage_percentage = (len(unique_recommended_items) / total_valid_items) * 100 if total_valid_items > 0 else 0
+        
+        metrics = {
+            "total_items": total_valid_items,
+            "items_recommended": len(unique_recommended_items),
+            "catalog_coverage": round(coverage_percentage, 2)
+        }
+        
+        return metrics
 
     def _save_static_files(self, model, idx2item):
         model.save(os.path.join(self.output_dir, 'full_model.keras'))

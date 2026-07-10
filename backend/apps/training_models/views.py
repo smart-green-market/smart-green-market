@@ -139,14 +139,43 @@ customer_segmentation = CustomerSegmentationView.as_view()
         ),
     },
 )
-class RelatedProductRecommendationView(APIView):
-    """API POST huấn luyện pipeline gợi ý sản phẩm mua kèm — chỉ admin."""
 
+@extend_schema(
+    tags=["AI Training"],
+    summary="Huấn luyện mô hình gợi ý sản phẩm mua kèm (Item2Vec)",
+    description=(
+        "API POST (LUỒNG 1): Chạy pipeline huấn luyện mô hình học sâu Item2Vec từ lịch sử đơn hàng. "
+        "Bao gồm cơ chế Học kế thừa (Transfer Learning). Tác vụ nặng, tốn thời gian, chỉ dành cho Admin."
+    ),
+    request=None,
+    responses={
+        200: inline_serializer(
+            name="TrainRelatedProductSuccessResponse",
+            fields={
+                "success": serializers.BooleanField(),
+                "message": serializers.CharField(),
+            },
+        ),
+        400: inline_serializer(
+            name="TrainRelatedProductFailureResponse",
+            fields={
+                "success": serializers.BooleanField(),
+                "message": serializers.CharField(),
+            },
+        ),
+    },
+)
+class TrainRelatedProductView(APIView):
+    """
+    API POST (LUỒNG 1): Huấn luyện lại mô hình AI.
+    Chỉ dành cho Admin gọi định kỳ hoặc khi thực sự cần update file .keras.
+    """
     permission_classes = [IsAdmin]
 
     def post(self, request):
         try:
-            success, message = RelatedProductRecommendationService().execute_pipeline()
+            # GỌI HÀM HUẤN LUYỆN (train_pipeline)
+            success, message = RelatedProductRecommendationService().train_pipeline()
         except Exception as exc:
             logger.exception("Related product recommendation training failed")
             return Response(
@@ -159,23 +188,74 @@ class RelatedProductRecommendationView(APIView):
 
         if not success:
             return Response(
-                {
-                    "success": False,
-                    "message": message,
-                },
+                {"success": False, "message": message},
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
         return Response(
-            {
-                "success": True,
-                "message": message,
-            },
+            {"success": True, "message": message},
             status=status.HTTP_200_OK,
         )
 
 
-train_related_products = RelatedProductRecommendationView.as_view()
+@extend_schema(
+    tags=["AI Training"],
+    summary="Đồng bộ nhanh danh sách gợi ý sản phẩm (Inference)",
+    description=(
+        "API POST (LUỒNG 2): Chỉ thực hiện tính toán độ tương đồng Cosine từ file ma trận trọng số `.keras` "
+        "để lưu xuống CSDL mà không cần huấn luyện lại. Tốc độ siêu nhanh (< 1s)."
+    ),
+    request=None,
+    responses={
+        200: inline_serializer(
+            name="SyncRelatedProductSuccessResponse",
+            fields={
+                "success": serializers.BooleanField(),
+                "message": serializers.CharField(),
+            },
+        ),
+        400: inline_serializer(
+            name="SyncRelatedProductFailureResponse",
+            fields={
+                "success": serializers.BooleanField(),
+                "message": serializers.CharField(),
+            },
+        ),
+    },
+)
+class SyncRelatedProductView(APIView):
+    """
+    API POST (LUỒNG 2): Đồng bộ Database từ file .keras tĩnh.
+    Dành cho Admin gọi thủ công khi muốn cập nhật nhanh DB mà không cần Train.
+    """
+    permission_classes = [IsAdmin]
+
+    def post(self, request):
+        try:
+            # GỌI HÀM ĐỒNG BỘ SUY LUẬN (inference_pipeline_only)
+            success, message = RelatedProductRecommendationService().inference_pipeline_only()
+        except Exception as exc:
+            logger.exception("Related product recommendation sync failed")
+            return Response(
+                {
+                    "success": False,
+                    "message": f"Đồng bộ gợi ý sản phẩm thất bại: {exc}",
+                },
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
+
+        if not success:
+            return Response(
+                {"success": False, "message": message},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        return Response(
+            {"success": True, "message": message},
+            status=status.HTTP_200_OK,
+        )
+train_related_products = TrainRelatedProductView.as_view()
+sync_related_products = SyncRelatedProductView.as_view()
 
 
 # ---------------------------------------------------------
