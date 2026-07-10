@@ -7,7 +7,7 @@ from datetime import datetime
 from django.conf import settings
 from django.db import connection, transaction
 from django.utils import timezone
-from django.db.models import Sum
+from django.db.models import Sum,F
 from django.db.models.functions import TruncDate
 
 # Import các Django Model thực tế từ hệ thống của bạn
@@ -44,9 +44,8 @@ class TrendAndDecisionRecommendationService:
             "days_to_nearest_expiry", "price_ratio", "is_custom_product"
         ]
 
-    def execute_pipeline(self, dealer_id):
-        """Hàm điều hướng chính, thực thi toàn bộ quy trình cho DUY NHẤT một dealer_id"""
-        # Đường dẫn lưu model riêng biệt theo từng dealer để tránh xung đột chéo dữ liệu
+    def train_models(self, dealer_id):
+        """API 1: Chỉ tải dữ liệu và huấn luyện mô hình, sau đó lưu ra file."""
         dealer_dir = os.path.join(self.base_output_dir, f"dealer_{dealer_id}")
         os.makedirs(dealer_dir, exist_ok=True)
         
@@ -55,37 +54,65 @@ class TrendAndDecisionRecommendationService:
         decision_model_path = os.path.join(dealer_dir, "decision_model.keras")
         decision_meta_path = os.path.join(dealer_dir, "decision_model_meta.json")
 
-        # 1. Tải và lọc dữ liệu từ CSDL (Chỉ lấy thông tin sản phẩm của riêng Dealer này)
+        # 1. Tải dữ liệu từ DB
         products_df, sales_series, inventory_snapshot = self._load_database_data(dealer_id)
         if sales_series is None or len(sales_series) == 0:
             return False, f"Không đủ dữ liệu lịch sử bán hàng của đại lý {dealer_id} để huấn luyện."
 
-        # 2. Chuẩn bị dữ liệu và Huấn luyện mô hình Dự đoán xu thế (LSTM)
+        # 2. Huấn luyện và lưu model Xu thế (LSTM)
         try:
-            trend_model, trend_meta = self._train_trend_model(
-                sales_series, products_df, trend_model_path, trend_meta_path
-            )
+            self._train_trend_model(sales_series, products_df, trend_model_path, trend_meta_path)
         except Exception as e:
-            return False, f"Lỗi trong quá trình huấn luyện mô hình Xu thế LSTM: {e}"
+            return False, f"Lỗi huấn luyện mô hình Xu thế: {e}"
 
-        # 3. Huấn luyện mô hình Gợi ý Quyết định Kinh doanh (Dense Network)
+        # 3. Huấn luyện và lưu model Quyết định
         try:
-            decision_model, decision_meta = self._train_decision_model(
-                decision_model_path, decision_meta_path
-            )
+            self._train_decision_model(decision_model_path, decision_meta_path)
         except Exception as e:
-            return False, f"Lỗi trong quá trình huấn luyện mô hình Quyết định: {e}"
+            return False, f"Lỗi huấn luyện mô hình Quyết định: {e}"
 
-        # 4. Thực hiện suy luận (Inference) và Xuất kết quả trực tiếp vào Database
+        return True, f"Thành công: Đã huấn luyện xong mô hình AI cho đại lý {dealer_id}."
+
+
+    def analyze_data(self, dealer_id):
+        """API 2: Tải mô hình đã train từ file lên để dự đoán dữ liệu mới và ghi vào DB."""
+        dealer_dir = os.path.join(self.base_output_dir, f"dealer_{dealer_id}")
+        
+        trend_model_path = os.path.join(dealer_dir, "trend_lstm_model.keras")
+        trend_meta_path = os.path.join(dealer_dir, "trend_model_meta.json")
+        decision_model_path = os.path.join(dealer_dir, "decision_model.keras")
+        decision_meta_path = os.path.join(dealer_dir, "decision_model_meta.json")
+
+        # 1. Kiểm tra mô hình đã tồn tại chưa
+        if not os.path.exists(trend_model_path) or not os.path.exists(decision_model_path):
+            return False, "Chưa có mô hình AI. Vui lòng gọi API Huấn luyện (Train) trước."
+
+        try:
+            # 2. Load Metadata
+            with open(trend_meta_path, "r", encoding="utf-8") as f:
+                trend_meta = json.load(f)
+            with open(decision_meta_path, "r", encoding="utf-8") as f:
+                decision_meta = json.load(f)
+
+            # 3. Load Keras Models
+            trend_model = tf.keras.models.load_model(trend_model_path)
+            decision_model = tf.keras.models.load_model(decision_model_path)
+        except Exception as e:
+            return False, f"Lỗi khi tải mô hình từ ổ cứng: {e}"
+
+        # 4. Tải dữ liệu thực tế tại thời điểm hiện tại
+        products_df, sales_series, inventory_snapshot = self._load_database_data(dealer_id)
+
+        # 5. Phân tích và ghi vào DB
         try:
             self._export_predictions_to_db(
                 dealer_id, products_df, sales_series, inventory_snapshot, 
                 trend_model, trend_meta, decision_model, decision_meta
             )
         except Exception as e:
-            return False, f"Lỗi khi lưu kết quả phân tích AI vào Database: {e}"
+            return False, f"Lỗi khi lưu kết quả vào Database: {e}"
 
-        return True, f"Thành công: Đã cập nhật chuỗi xu thế và quyết định kinh doanh cho đại lý {dealer_id}."
+        return True, "Thành công: Phân tích dữ liệu bằng model đã lưu và cập nhật DB."
 
     # =======================================================================
     # BƯỚC 1: TRUY VẤN CSDL (DJANGO ORM & PANDAS)
@@ -97,24 +124,40 @@ class TrendAndDecisionRecommendationService:
         # 1. Lấy danh sách sản phẩm đại lý
         products = DealerProduct.objects.filter(
             dealer_profile_id=dealer_id, 
-        ).values('id', 'dealer_profile_id', 'supplier_product_id', 'retail_price')
+        ).annotate(
+            # Trỏ trực tiếp vào trường 'title' của model DealerProduct
+            product_name=F('title')
+        ).values(
+            'id', 
+            'dealer_profile_id', 
+            'supplier_product_id', 
+            'retail_price',
+            'product_name'  # Lấy trường đã được annotate
+        )
         
         if not products.exists():
             return None, None, None
         
         products_df = pd.DataFrame(list(products))
+        
+        # Đổi tên các cột ID cho khớp với logic xử lý của AI
         products_df.rename(columns={
             'id': 'dealer_product_id',
-            'dealer_profile_id': 'dealer_id' 
+            'dealer_profile_id': 'dealer_id',
         }, inplace=True)
         
+        # Ép kiểu Decimal sang Float
         products_df['retail_price'] = products_df['retail_price'].astype(float)
         
-        products_df['product_name'] = "Sản phẩm " + products_df['dealer_product_id'].astype(str)
+        # Lấp đầy tên nếu có sản phẩm nào bị null title trong Database
+        if 'product_name' in products_df.columns:
+            products_df['product_name'] = products_df['product_name'].fillna("Sản phẩm chưa cập nhật tên")
+        else:
+            products_df['product_name'] = "Sản phẩm " + products_df['dealer_product_id'].astype(str)
+        
         products_df['category'] = "Rau củ" 
         products_df['product_type'] = "standard"
         
-        # product_ids này ĐÃ ĐƯỢC LỌC ĐỘC QUYỀN cho dealer_id hiện tại
         product_ids = products_df['dealer_product_id'].tolist()
 
         # 2. Truy vấn dữ liệu bán hàng từ bảng OrderItem
