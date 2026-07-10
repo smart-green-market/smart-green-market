@@ -257,9 +257,6 @@ export default function DetailCategoryModal({ category, onClose, onEdit, onDelet
             <button className="cdm-btn ghost" onClick={onClose}>
               Đóng
             </button>
-            <button className="cdm-btn danger" onClick={() => { onClose(); onDelete(category); }}>
-              <Trash2 size={13} /> Xóa
-            </button>
             <button className="cdm-btn primary" onClick={() => { onClose(); onEdit(category); }}>
               <Pencil size={13} /> Chỉnh sửa
             </button>

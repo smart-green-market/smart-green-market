@@ -1,0 +1,221 @@
+import { useState, useEffect } from "react";
+import { ButtonSpinner } from "../UI/SupplierSpinner";
+import { categoryService } from "../../../services/api/categoryService";
+import {
+  parseSupplierApiErrors,
+  validateCategoryForm,
+  errorsToSummary,
+  extractSupplierApiMessage,
+} from "../../../utils/supplierValidation";
+
+export default function EditCategoryModal({ category, onClose, onSuccess }) {
+  const [form, setForm] = useState({
+    name: category?.name || "",
+    description: category?.description || "",
+    sort_order: category?.sort_order || 0,
+  });
+  const [errors, setErrors] = useState({});
+  const [submitting, setSubmitting] = useState(false);
+  const [apiError, setApiError] = useState("");
+
+  useEffect(() => {
+    if (category) {
+      setForm({
+        name: category.name || "",
+        description: category.description || "",
+        sort_order: category.sort_order || 0,
+      });
+    }
+  }, [category]);
+
+  const handleField = (key, val) => {
+    setForm((f) => ({ ...f, [key]: val }));
+    if (errors[key]) setErrors((e) => ({ ...e, [key]: "" }));
+  };
+
+  const handleSubmit = async () => {
+    setApiError("");
+    const errs = validateCategoryForm(form);
+    if (Object.keys(errs).length) {
+      setErrors(errs);
+      setApiError(errorsToSummary(errs));
+      return;
+    }
+
+    const payload = {
+      scope: category.scope || "custom",
+      name: form.name.trim(),
+      description: form.description.trim(),
+      sort_order: Number(form.sort_order),
+    };
+
+    try {
+      setSubmitting(true);
+      const updatedCategory = await categoryService.update(category.id, payload);
+      onSuccess?.(updatedCategory);
+      onClose();
+    } catch (err) {
+      const { fieldErrors, general, summary } = parseSupplierApiErrors(err?.response?.data, {
+        fallback: "Cập nhật danh mục thất bại. Vui lòng kiểm tra lại thông tin.",
+      });
+      if (Object.keys(fieldErrors).length) setErrors(fieldErrors);
+      setApiError(general || summary || extractSupplierApiMessage(err));
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const handleBackdrop = (e) => {
+    if (e.target === e.currentTarget && !submitting) onClose();
+  };
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40"
+      onClick={handleBackdrop}
+    >
+      <div className="relative bg-white rounded-xl shadow-2xl w-full max-w-md border border-gray-200 overflow-hidden">
+        {/* Header */}
+        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
+          <div className="flex items-center gap-3">
+            <div className="w-8 h-8 rounded-lg bg-emerald-50 flex items-center justify-center flex-shrink-0">
+              <svg className="w-4 h-4 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                  d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+              </svg>
+            </div>
+            <div>
+              <h3 className="text-sm font-semibold text-gray-900">Sửa danh mục</h3>
+              <p className="text-xs text-gray-400 mt-0.5">Cập nhật thông tin danh mục sản phẩm</p>
+            </div>
+          </div>
+          <button
+            onClick={onClose}
+            disabled={submitting}
+            className="p-1.5 rounded-lg text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors disabled:opacity-40"
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
+
+        {/* Body */}
+        <div className="px-6 py-5 flex flex-col gap-4">
+          {apiError && (
+            <div className="flex items-start gap-2 px-3 py-2.5 bg-red-50 border border-red-200 rounded-lg text-sm text-red-700">
+              <svg className="w-4 h-4 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                  d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+              {apiError}
+            </div>
+          )}
+
+          {/* Tên danh mục */}
+          <div>
+            <label className="text-[11px] font-semibold text-gray-400 uppercase tracking-wider block mb-1.5">
+              Tên danh mục <span className="text-red-400">*</span>
+            </label>
+            <input
+              type="text"
+              value={form.name}
+              onChange={(e) => handleField("name", e.target.value)}
+              placeholder="Ví dụ: Rau củ quả"
+              disabled={submitting}
+              className={`w-full px-3 py-2.5 rounded-lg border text-sm transition-all outline-none
+                focus:ring-2 focus:ring-emerald-100 focus:border-emerald-400
+                disabled:bg-gray-50 disabled:text-gray-400
+                ${errors.name ? "border-red-300 bg-red-50" : "border-gray-200"}`}
+            />
+            {errors.name && <FieldError msg={errors.name} />}
+          </div>
+
+          {/* Mô tả */}
+          <div>
+            <label className="text-[11px] font-semibold text-gray-400 uppercase tracking-wider block mb-1.5">
+              Mô tả
+            </label>
+            <textarea
+              value={form.description}
+              onChange={(e) => handleField("description", e.target.value)}
+              placeholder="Mô tả ngắn về danh mục này..."
+              rows={3}
+              disabled={submitting}
+              className="w-full px-3 py-2.5 rounded-lg border border-gray-200 text-sm transition-all outline-none resize-none
+                focus:ring-2 focus:ring-emerald-100 focus:border-emerald-400
+                disabled:bg-gray-50 disabled:text-gray-400"
+            />
+          </div>
+
+          {/* Thứ tự sắp xếp */}
+          <div>
+            <label className="text-[11px] font-semibold text-gray-400 uppercase tracking-wider block mb-1.5">
+              Thứ tự sắp xếp <span className="text-red-400">*</span>
+              <span className="ml-1.5 font-normal text-gray-300 normal-case tracking-normal">
+                (số càng nhỏ hiện trước)
+              </span>
+            </label>
+            <input
+              type="number"
+              min={0}
+              value={form.sort_order}
+              onChange={(e) => handleField("sort_order", e.target.value)}
+              placeholder="0"
+              disabled={submitting}
+              className={`w-full px-3 py-2.5 rounded-lg border text-sm transition-all outline-none
+                focus:ring-2 focus:ring-emerald-100 focus:border-emerald-400
+                disabled:bg-gray-50 disabled:text-gray-400
+                ${errors.sort_order ? "border-red-300 bg-red-50" : "border-gray-200"}`}
+            />
+            {errors.sort_order && <FieldError msg={errors.sort_order} />}
+          </div>
+        </div>
+
+        {/* Footer */}
+        <div className="flex gap-3 px-6 py-4 border-t border-gray-100 bg-gray-50">
+          <button
+            onClick={onClose}
+            disabled={submitting}
+            className="flex-1 px-4 py-2.5 rounded-lg border border-gray-200 text-sm font-medium text-gray-600
+              hover:bg-gray-100 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            Hủy
+          </button>
+          <button
+            onClick={handleSubmit}
+            disabled={submitting}
+            style={{ flex: 2 }}
+            className={`px-6 py-2.5 rounded-lg text-white text-sm font-medium transition-all
+              flex items-center justify-center gap-2
+              ${submitting ? "bg-[#52B788] cursor-not-allowed" : "bg-[#2D6A4F] hover:bg-[#1B4332]"}`}
+          >
+            {submitting ? (
+              <ButtonSpinner label="Đang lưu..." />
+            ) : (
+              <>
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                </svg>
+                Lưu thay đổi
+              </>
+            )}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function FieldError({ msg }) {
+  return (
+    <p className="text-xs text-red-500 mt-1 flex items-center gap-1">
+      <svg className="w-3 h-3 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+        <path fillRule="evenodd"
+          d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z"
+          clipRule="evenodd" />
+      </svg>
+      {msg}
+    </p>
+  );
+}

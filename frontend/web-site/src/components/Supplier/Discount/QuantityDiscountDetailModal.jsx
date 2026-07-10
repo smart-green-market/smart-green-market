@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { X } from "lucide-react";
+import { PageSpinner } from "../UI/SupplierSpinner";
 import { quantityDiscountService } from "../../../services/api/quantityDiscountService";
 import {
   QUANTITY_DISCOUNT_SCOPE_LABELS,

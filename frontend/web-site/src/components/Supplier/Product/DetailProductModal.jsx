@@ -3,7 +3,7 @@ import {
   X, Check, ChevronLeft, ChevronRight, ZoomIn,
   Package, Tag, Thermometer, ShieldCheck,
   Calendar, Hash, AlertCircle, CheckCircle,
-  XCircle, Loader2, Pencil, Save, Ban, Lock, LockOpen, ImageIcon, CircleDotDashed, Edit
+  XCircle, Loader2, Pencil, Save, Ban, Lock, LockOpen, ImageIcon, CircleDotDashed, Edit, Trash2
 } from "lucide-react";
 import { productService } from "../../../services/api/productService";
 import ConfirmModal from "../../common/ConfirmModal";
@@ -265,6 +265,23 @@ export default function DetailProductModal({
   const [createRow, setCreateRow] = useState(null);
   const [editRow,setEditRow] = useState(null);
   const [showConfirmSave, setShowConfirmSave] = useState(false);
+  const [deleteRow, setDeleteRow] = useState(null);
+  const [deleting, setDeleting] = useState(false);
+
+  const handleDeleteStep = async () => {
+    if (!deleteRow) return;
+    setDeleting(true);
+    try {
+      await farmingProcessService.delete(deleteRow.id);
+      await refreshCultivationSteps();
+      setDeleteRow(null);
+    } catch (err) {
+      console.error("Lỗi khi xóa quy trình:", err);
+      appToast.danger("Xóa quy trình thất bại. Vui lòng thử lại!");
+    } finally {
+      setDeleting(false);
+    }
+  };
   useEffect(() => {
     setProduct(initialProduct);
     setSaved(false);
@@ -636,12 +653,24 @@ export default function DetailProductModal({
                             {step.description || "—"}
                           </p>
                         </div>
-                        <button
-                          onClick={() => setEditRow(step)}
-                          className="ml-auto flex items-center justify-center w-8 h-8 rounded-md bg-gray-500 text-white hover:bg-gray-300 transition-colors"
-                        >
-                          <Edit size={16} />
-                        </button>
+                        <div className="ml-auto flex gap-1.5 flex-shrink-0">
+                          <button
+                            type="button"
+                            onClick={() => setEditRow(step)}
+                            className="flex items-center justify-center w-8 h-8 rounded-md bg-zinc-100 hover:bg-green-100 hover:text-green-700 text-zinc-500 transition-colors"
+                            title="Sửa bước này"
+                          >
+                            <Edit size={14} />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setDeleteRow(step)}
+                            className="flex items-center justify-center w-8 h-8 rounded-md bg-zinc-100 hover:bg-red-100 hover:text-red-700 text-zinc-500 transition-colors"
+                            title="Xóa bước này"
+                          >
+                            <Trash2 size={14} />
+                          </button>
+                        </div>
                       </div>
                     ))}
                   </div>
@@ -780,6 +809,19 @@ export default function DetailProductModal({
         variant="success"
         successMessage="Cập nhật sản phẩm thành công!"
         errorMessage="Cập nhật sản phẩm thất bại. Vui lòng thử lại."
+      />
+      <ConfirmModal
+        isOpen={deleteRow !== null}
+        onClose={() => !deleting && setDeleteRow(null)}
+        onConfirm={handleDeleteStep}
+        title="Xác nhận xóa bước quy trình"
+        message={`Bạn có chắc chắn muốn xóa bước "${deleteRow?.process_name}"? Hành động này không thể hoàn tác.`}
+        confirmText="Xóa"
+        cancelText="Hủy"
+        variant="danger"
+        loading={deleting}
+        successMessage="Xóa bước quy trình thành công!"
+        errorMessage="Xóa bước quy trình thất bại. Vui lòng thử lại."
       />
       <style>{`
         @keyframes modalIn {
