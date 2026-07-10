@@ -12,7 +12,8 @@ import {
   CheckCircle,
   HelpCircle,
   ArrowRight,
-  Info
+  Info,
+  Cpu
 } from "lucide-react";
 import aiPredictionService from "../../../services/api/aiPredictionService";
 import { dealerService } from "../../../services/api/dealerService";
@@ -25,92 +26,171 @@ export default function DealerAiPredictionPage() {
   const [summaryKpi, setSummaryKpi] = useState(null);
   const [selectedPrediction, setSelectedPrediction] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [training, setTraining] = useState(false);
+  const [analyzing, setAnalyzing] = useState(false);
   const [dealerProfile, setDealerProfile] = useState(null);
   const [error, setError] = useState(null);
+  const [successMessage, setSuccessMessage] = useState("");
+  const [errorMessage, setErrorMessage] = useState("");
+  const [filterCategory, setFilterCategory] = useState("");
+  const [filterDecisionType, setFilterDecisionType] = useState("");
 
-  useEffect(() => {
-    const fetchData = async () => {
-      try {
-        setLoading(true);
-        setError(null);
-        let profile = null;
+  const loadData = async (showLoading = true, cat = filterCategory, dec = filterDecisionType) => {
+    try {
+      if (showLoading) setLoading(true);
+      setError(null);
+      let profile = dealerProfile;
+      if (!profile) {
         try {
           profile = await dealerService.getMe();
           setDealerProfile(profile);
         } catch (e) {
           console.error("Failed to fetch dealer info, using default dealer_id = 7", e);
         }
-
-        const dealerId = profile?.id || 7;
-
-        // Gọi song song 2 API dự báo & khuyến nghị
-        const [predictionsData, recommendationsData] = await Promise.all([
-          aiPredictionService.getProductPredictions(),
-          aiPredictionService.getDecisionRecommendations(dealerId),
-        ]);
-
-        const recs = recommendationsData && Array.isArray(recommendationsData.recommendations)
-          ? recommendationsData.recommendations
-          : [];
-        
-        if (recommendationsData && recommendationsData.summary_kpi) {
-          setSummaryKpi(recommendationsData.summary_kpi);
-        }
-
-        // Tạo danh sách dự báo động từ dữ liệu khuyến nghị thực tế (vì có forecast_next_days)
-        let preds = [];
-        if (recs.length > 0) {
-          // Trích xuất dự báo sản lượng bán (sales volume/demand forecasting) từ AI recommendations thật
-          preds = recs.map((r, idx) => {
-            const isUp = r.growth_rate > 0.02;
-            const isDown = r.growth_rate < -0.02;
-            const trend = isUp ? "up" : isDown ? "down" : "stable";
-
-            // Tạo nhãn ngày dự báo (7 ngày kể từ hôm nay)
-            const dates = [];
-            const baseDate = new Date();
-            const forecastDaysCount = r.forecast_next_days?.length || 7;
-            for (let i = 0; i < forecastDaysCount; i++) {
-              const d = new Date(baseDate);
-              d.setDate(baseDate.getDate() + i);
-              const day = String(d.getDate()).padStart(2, "0");
-              const month = String(d.getMonth() + 1).padStart(2, "0");
-              dates.push(`${day}/${month}`);
-            }
-
-            return {
-              id: r.dealer_product_id || idx,
-              product_name: r.product_name,
-              category: r.category,
-              current_price: r.recent_avg_daily_sales || 0, // Giá trị sản lượng bán trung bình
-              predicted_price: r.forecast_next_days ? r.forecast_next_days[r.forecast_next_days.length - 1] : r.recent_avg_daily_sales,
-              confidence: Math.round(r.decision_confidence * 100) || 95,
-              trend: trend,
-              forecast_dates: dates,
-              forecast_prices: r.forecast_next_days || Array(7).fill(r.recent_avg_daily_sales),
-              is_sales_volume: true // Cờ đánh dấu đây là sản lượng để đổi VND thành kg
-            };
-          });
-        } else {
-          // Fallback về mock giá mặc định nếu không có dữ liệu recommendations
-          preds = Array.isArray(predictionsData) ? predictionsData : [];
-        }
-
-        setPredictions(preds);
-        setRecommendations(recs);
-        if (preds.length > 0) {
-          setSelectedPrediction(preds[0]);
-        }
-      } catch (error) {
-        console.error("Error loading AI Prediction data:", error);
-        setError("Không thể tải thông tin từ hệ thống AI. Vui lòng kết nối server backend và thử lại.");
-      } finally {
-        setLoading(false);
       }
-    };
 
-    fetchData();
+      const dealerId = profile?.id || 7;
+
+      // Gọi song song 2 API dự báo & khuyến nghị
+      const [predictionsData, recommendationsData] = await Promise.all([
+        aiPredictionService.getProductPredictions(),
+        aiPredictionService.getDecisionRecommendations(dealerId, cat, dec),
+      ]);
+
+      const recs = recommendationsData && Array.isArray(recommendationsData.recommendations)
+        ? recommendationsData.recommendations
+        : [];
+      
+      if (recommendationsData && recommendationsData.summary_kpi) {
+        setSummaryKpi(recommendationsData.summary_kpi);
+      }
+
+      // Tạo danh sách dự báo động từ dữ liệu khuyến nghị thực tế (vì có forecast_next_days)
+      let preds = [];
+      if (recs.length > 0) {
+        // Trích xuất dự báo sản lượng bán (sales volume/demand forecasting) từ AI recommendations thật
+        preds = recs.map((r, idx) => {
+          const isUp = r.growth_rate > 0.02;
+          const isDown = r.growth_rate < -0.02;
+          const trend = isUp ? "up" : isDown ? "down" : "stable";
+
+          // Tạo nhãn ngày dự báo (7 ngày kể từ hôm nay)
+          const dates = [];
+          const baseDate = new Date();
+          const forecastDaysCount = r.forecast_next_days?.length || 7;
+          for (let i = 0; i < forecastDaysCount; i++) {
+            const d = new Date(baseDate);
+            d.setDate(baseDate.getDate() + i);
+            const day = String(d.getDate()).padStart(2, "0");
+            const month = String(d.getMonth() + 1).padStart(2, "0");
+            dates.push(`${day}/${month}`);
+          }
+
+          return {
+            id: r.dealer_product_id || idx,
+            product_name: r.product_name,
+            category: r.category,
+            current_price: r.recent_avg_daily_sales || 0, // Giá trị sản lượng bán trung bình
+            predicted_price: r.forecast_next_days ? r.forecast_next_days[r.forecast_next_days.length - 1] : r.recent_avg_daily_sales,
+            confidence: Math.round(r.decision_confidence * 100) || 95,
+            trend: trend,
+            forecast_dates: dates,
+            forecast_prices: r.forecast_next_days || Array(7).fill(r.recent_avg_daily_sales),
+            is_sales_volume: true // Cờ đánh dấu đây là sản lượng để đổi VND thành kg
+          };
+        });
+      } else {
+        // Fallback về mock giá mặc định nếu không có dữ liệu recommendations
+        preds = Array.isArray(predictionsData) ? predictionsData : [];
+      }
+
+      setPredictions(preds);
+      setRecommendations(recs);
+      if (preds.length > 0) {
+        setSelectedPrediction(prev => {
+          if (prev) {
+            const found = preds.find(p => p.id === prev.id);
+            return found || preds[0];
+          }
+          return preds[0];
+        });
+      }
+    } catch (err) {
+      console.error("Error loading AI Prediction data:", err);
+      setError("Không thể tải thông tin từ hệ thống AI. Vui lòng kết nối server backend và thử lại.");
+    } finally {
+      if (showLoading) setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadData();
   }, []);
+
+  useEffect(() => {
+    // Tránh gọi trùng lặp lúc mount
+    const delayDebounce = setTimeout(() => {
+      if (!loading) {
+        loadData(false, filterCategory, filterDecisionType);
+      }
+    }, 400);
+
+    return () => clearTimeout(delayDebounce);
+  }, [filterCategory, filterDecisionType]);
+
+  const handleTrainAi = async () => {
+    if (training) return;
+    setTraining(true);
+    setSuccessMessage("");
+    setErrorMessage("");
+    try {
+      const dealerId = dealerProfile?.id || 7;
+      const res = await aiPredictionService.trainAiModel(dealerId);
+      setSuccessMessage(res.message || "Huấn luyện AI thành công! Đang cập nhật dữ liệu...");
+      
+      // Tự động đóng thông báo sau 5 giây
+      setTimeout(() => setSuccessMessage(""), 5000);
+      
+      // Load lại dữ liệu dự đoán mới nhất
+      await loadData(false);
+    } catch (e) {
+      console.error("Error training AI model:", e);
+      const backendError = e.response?.data?.error || e.message || "Đã xảy ra lỗi trong quá trình huấn luyện.";
+      setErrorMessage(`Huấn luyện thất bại: ${backendError}`);
+      
+      // Tự động đóng thông báo sau 6 giây
+      setTimeout(() => setErrorMessage(""), 6000);
+    } finally {
+      setTraining(false);
+    }
+  };
+
+  const handleAnalyzeAi = async () => {
+    if (analyzing) return;
+    setAnalyzing(true);
+    setSuccessMessage("");
+    setErrorMessage("");
+    try {
+      const dealerId = dealerProfile?.id || 7;
+      const res = await aiPredictionService.analyzeAiData(dealerId);
+      setSuccessMessage(res.message || "Phân tích dữ liệu & dự báo thành công!");
+      
+      // Tự động đóng thông báo sau 5 giây
+      setTimeout(() => setSuccessMessage(""), 5000);
+      
+      // Load lại dữ liệu dự đoán mới nhất
+      await loadData(false);
+    } catch (e) {
+      console.error("Error analyzing AI data:", e);
+      const backendError = e.response?.data?.error || e.message || "Đã xảy ra lỗi trong quá trình phân tích.";
+      setErrorMessage(`Phân tích thất bại: ${backendError}`);
+      
+      // Tự động đóng thông báo sau 6 giây
+      setTimeout(() => setErrorMessage(""), 6000);
+    } finally {
+      setAnalyzing(false);
+    }
+  };
 
   if (loading) {
     return (
@@ -381,32 +461,98 @@ export default function DealerAiPredictionPage() {
           </p>
         </div>
 
-        {/* Tab switcher */}
-        <div className="bg-neutral-100/80 backdrop-blur-xs p-1 rounded-xl flex items-center border border-neutral-200/40 shadow-2xs self-start md:self-auto">
+        <div className="flex flex-wrap items-center gap-3 self-start md:self-auto">
+          {/* Analyze / Run Prediction Button */}
           <button
-            onClick={() => setActiveTab("predictions")}
-            className={`flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-bold transition-all duration-200 cursor-pointer ${
-              activeTab === "predictions"
-                ? "bg-white text-emerald-800 shadow-sm"
-                : "text-neutral-500 hover:text-neutral-800"
+            onClick={handleAnalyzeAi}
+            disabled={analyzing}
+            className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold transition-all duration-200 cursor-pointer shadow-xs ${
+              analyzing
+                ? "bg-blue-100 text-blue-400 border border-blue-200 cursor-not-allowed"
+                : "bg-gradient-to-tr from-blue-600 to-indigo-500 text-white hover:shadow-md hover:from-blue-700 hover:to-indigo-600 active:scale-95 border border-blue-500/20"
+            }`}
+            title="Tải model đã train từ đĩa cứng, chạy dự báo cho dữ liệu kho mới nhất và cập nhật đè vào Database."
+          >
+            {analyzing ? (
+              <>
+                <div className="animate-spin rounded-full h-3.5 w-3.5 border-b-2 border-blue-500"></div>
+                <span>Đang phân tích...</span>
+              </>
+            ) : (
+              <>
+                <Cpu className="w-3.5 h-3.5" />
+                <span>Chạy dự báo</span>
+              </>
+            )}
+          </button>
+
+          {/* Train AI Button */}
+          <button
+            onClick={handleTrainAi}
+            disabled={training}
+            className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold transition-all duration-200 cursor-pointer shadow-xs ${
+              training
+                ? "bg-emerald-100 text-emerald-400 border border-emerald-200 cursor-not-allowed"
+                : "bg-gradient-to-tr from-emerald-600 to-green-500 text-white hover:shadow-md hover:from-emerald-700 hover:to-green-600 active:scale-95 border border-emerald-500/20"
             }`}
           >
-            <TrendingUp className="w-3.5 h-3.5" />
-            {isSalesVolumeForecast ? "Dự báo nhu cầu" : "Xu hướng giá"}
+            {training ? (
+              <>
+                <div className="animate-spin rounded-full h-3.5 w-3.5 border-b-2 border-emerald-500"></div>
+                <span>Đang huấn luyện...</span>
+              </>
+            ) : (
+              <>
+                <Brain className="w-3.5 h-3.5" />
+                <span>Huấn luyện AI</span>
+              </>
+            )}
           </button>
-          <button
-            onClick={() => setActiveTab("recommendations")}
-            className={`flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-bold transition-all duration-200 cursor-pointer ${
-              activeTab === "recommendations"
-                ? "bg-white text-emerald-800 shadow-sm"
-                : "text-neutral-500 hover:text-neutral-800"
-            }`}
-          >
-            <Brain className="w-3.5 h-3.5" />
-            Gợi ý quyết định
-          </button>
+
+          {/* Tab switcher */}
+          <div className="bg-neutral-100/80 backdrop-blur-xs p-1 rounded-xl flex items-center border border-neutral-200/40 shadow-2xs">
+            <button
+              onClick={() => setActiveTab("predictions")}
+              className={`flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-bold transition-all duration-200 cursor-pointer ${
+                activeTab === "predictions"
+                  ? "bg-white text-emerald-800 shadow-sm"
+                  : "text-neutral-500 hover:text-neutral-800"
+              }`}
+            >
+              <TrendingUp className="w-3.5 h-3.5" />
+              {isSalesVolumeForecast ? "Dự báo nhu cầu" : "Xu hướng giá"}
+            </button>
+            <button
+              onClick={() => setActiveTab("recommendations")}
+              className={`flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-bold transition-all duration-200 cursor-pointer ${
+                activeTab === "recommendations"
+                  ? "bg-white text-emerald-800 shadow-sm"
+                  : "text-neutral-500 hover:text-neutral-800"
+              }`}
+            >
+              <Brain className="w-3.5 h-3.5" />
+              Gợi ý quyết định
+            </button>
+          </div>
         </div>
       </div>
+
+      {/* Alert Banners */}
+      {successMessage && (
+        <div className="mb-6 p-4 bg-emerald-50 border border-emerald-200 rounded-xl flex items-center gap-3 animate-fade-in shadow-2xs">
+          <CheckCircle className="w-5 h-5 text-emerald-600 shrink-0 animate-bounce" />
+          <div className="flex-1 text-xs font-bold text-emerald-800">{successMessage}</div>
+          <button onClick={() => setSuccessMessage("")} className="text-emerald-400 hover:text-emerald-600 text-xs font-bold px-1.5 py-0.5 rounded cursor-pointer">✕</button>
+        </div>
+      )}
+      
+      {errorMessage && (
+        <div className="mb-6 p-4 bg-rose-50 border border-rose-200 rounded-xl flex items-center gap-3 animate-fade-in shadow-2xs">
+          <AlertCircle className="w-5 h-5 text-rose-600 shrink-0 animate-pulse" />
+          <div className="flex-1 text-xs font-bold text-rose-800">{errorMessage}</div>
+          <button onClick={() => setErrorMessage("")} className="text-rose-400 hover:text-rose-600 text-xs font-bold px-1.5 py-0.5 rounded cursor-pointer">✕</button>
+        </div>
+      )}
 
       {/* Main Content Areas */}
       {activeTab === "predictions" ? (
@@ -553,6 +699,58 @@ export default function DealerAiPredictionPage() {
       ) : (
         /* Tab 2: Decision Recommendations */
         <div className="max-w-4xl mx-auto space-y-6">
+          {/* Bộ lọc gợi ý */}
+          <div className="bg-white border border-emerald-100/50 rounded-2xl p-5 shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-4">
+            <div className="flex-1">
+              <h3 className="text-sm font-extrabold text-neutral-800 mb-1">Bộ lọc đề xuất</h3>
+              <p className="text-[11px] text-neutral-400">Lọc kết quả AI theo danh mục và loại quyết định từ database</p>
+            </div>
+            
+            <div className="flex flex-col sm:flex-row items-center gap-3 w-full md:w-auto">
+              {/* Category Filter */}
+              <div className="w-full sm:w-48">
+                <label className="block text-[10px] font-bold text-neutral-400 uppercase tracking-wider mb-1">Danh mục</label>
+                <input
+                  type="text"
+                  value={filterCategory}
+                  onChange={(e) => setFilterCategory(e.target.value)}
+                  placeholder="Ví dụ: Rau củ, Trái cây..."
+                  className="w-full px-3 py-2 text-xs border border-neutral-200 rounded-xl focus:outline-none focus:ring-1 focus:ring-emerald-500 focus:border-emerald-500 bg-neutral-50/50"
+                />
+              </div>
+
+              {/* Decision Type Filter */}
+              <div className="w-full sm:w-56">
+                <label className="block text-[10px] font-bold text-neutral-400 uppercase tracking-wider mb-1">Loại quyết định</label>
+                <select
+                  value={filterDecisionType}
+                  onChange={(e) => setFilterDecisionType(e.target.value)}
+                  className="w-full px-3 py-2 text-xs border border-neutral-200 rounded-xl focus:outline-none focus:ring-1 focus:ring-emerald-500 focus:border-emerald-500 bg-neutral-50/50"
+                >
+                  <option value="">Tất cả quyết định</option>
+                  <option value="Nhập hàng gấp">Nhập hàng gấp</option>
+                  <option value="Nhập thêm hàng">Nhập thêm hàng</option>
+                  <option value="Duy trì">Duy trì</option>
+                  <option value="Khuyến mãi đẩy hàng">Khuyến mãi đẩy hàng</option>
+                  <option value="Giảm nhập / ngừng nhập">Giảm nhập / ngừng nhập</option>
+                </select>
+              </div>
+
+              {/* Clear Filter Button */}
+              {(filterCategory || filterDecisionType) && (
+                <button
+                  onClick={() => {
+                    setFilterCategory("");
+                    setFilterDecisionType("");
+                  }}
+                  className="w-full sm:w-auto px-4 py-2 mt-4 sm:mt-auto bg-neutral-900 text-white hover:bg-emerald-600 rounded-xl text-xs font-bold transition-all active:scale-95 cursor-pointer h-[38px] flex items-center justify-center shrink-0"
+                >
+                  Xóa lọc
+                </button>
+              )}
+            </div>
+          </div>
+
           {/* KPI Summary Block */}
           {summaryKpi && (
             <div className="grid grid-cols-2 md:grid-cols-5 gap-4">

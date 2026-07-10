@@ -71,11 +71,19 @@ const aiPredictionService = {
         if (res && Array.isArray(res.data)) {
           return res.data;
         }
-        throw new Error("Expected array response but got " + typeof res.data);
+        return [];
+      })
+      .catch(err => {
+        console.warn("Product predictions API not available, returning empty list:", err);
+        return [];
       });
   },
-  getDecisionRecommendations: (dealerId) => {
-    return axiosClient.get("/trend-and-decision-recommendation/", { params: { dealer_id: dealerId } })
+  getDecisionRecommendations: (dealerId, category, decisionType) => {
+    const params = { dealer_id: dealerId };
+    if (category) params.category = category;
+    if (decisionType) params.decision_type = decisionType;
+    
+    return axiosClient.get("/dealer/recommendations/", { params })
       .then(res => {
         if (res && res.data && Array.isArray(res.data.recommendations)) {
           return {
@@ -84,6 +92,18 @@ const aiPredictionService = {
           };
         }
         throw new Error("Expected recommendations array inside res.data but got " + typeof res.data);
+      });
+  },
+  trainAiModel: (dealerId) => {
+    return axiosClient.post("/dealer/train/", { dealer_id: dealerId })
+      .then(res => {
+        return res.data;
+      });
+  },
+  analyzeAiData: (dealerId) => {
+    return axiosClient.post("/dealer/analyze/", { dealer_id: dealerId })
+      .then(res => {
+        return res.data;
       });
   }
 };
