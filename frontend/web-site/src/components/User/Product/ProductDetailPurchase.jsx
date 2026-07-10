@@ -29,6 +29,8 @@ import {
     getStockLabel,
     hasProductDiscount,
     isProductInStock,
+    isProductPreorderOnly,
+    isProductPurchasable,
 } from "../../../utils/userProductUtils";
 import StarRating from "./StarRating";
 
@@ -58,6 +60,8 @@ export default function ProductDetailPurchase({
     const { user } = useAuth();
     const { addToCart } = useCart();
     const inStock = isProductInStock(product);
+    const purchasable = isProductPurchasable(product);
+    const preorderOnly = isProductPreorderOnly(product);
     const hasDiscount = hasProductDiscount(product);
     const discountPercent = getDiscountPercent(product);
     const effectivePrice = getEffectiveProductPrice(product);
@@ -110,7 +114,7 @@ export default function ProductDetailPurchase({
         effectiveQuantity > availableQuantity;
 
     const handleBuyNow = () => {
-        if (!inStock) return;
+        if (!purchasable) return;
 
         const buyNowItem = buildCartItemFromProduct(product, effectiveQuantity);
 
@@ -130,7 +134,7 @@ export default function ProductDetailPurchase({
     };
 
     const handleAddToCart = () => {
-        if (!inStock) return;
+        if (!purchasable) return;
 
         const result = addToCart(product, effectiveQuantity);
         showAddToCartFeedback(result);
@@ -157,7 +161,9 @@ export default function ProductDetailPurchase({
                         className={`rounded-full px-3 py-1 text-xs font-semibold ${
                             inStock
                                 ? "bg-green-100 text-green-800"
-                                : "bg-red-100 text-red-700"
+                                : purchasable
+                                  ? "bg-amber-100 text-amber-800"
+                                  : "bg-red-100 text-red-700"
                         }`}
                     >
                         {stockLabel}
@@ -243,7 +249,7 @@ export default function ProductDetailPurchase({
                                 type="button"
                                 onClick={() => adjustQuantity(-1)}
                                 disabled={
-                                    !inStock ||
+                                    !purchasable ||
                                     normalizeQuantity(quantity) <= 1
                                 }
                                 className="cursor-pointer rounded-l-xl p-2.5 text-emerald-900 transition-colors hover:bg-stone-100 disabled:opacity-40"
@@ -257,7 +263,7 @@ export default function ProductDetailPurchase({
                                 value={quantity}
                                 onChange={handleQuantityChange}
                                 onBlur={handleQuantityBlur}
-                                disabled={!inStock}
+                                disabled={!purchasable}
                                 inputMode="numeric"
                                 aria-label="Số lượng sản phẩm"
                                 className="min-w-14 max-w-20 border-x border-stone-200 bg-white px-2 py-2 text-center text-base font-medium text-zinc-900 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none focus:outline-none focus:ring-2 focus:ring-emerald-500/30 disabled:cursor-not-allowed disabled:opacity-50"
@@ -265,7 +271,7 @@ export default function ProductDetailPurchase({
                             <button
                                 type="button"
                                 onClick={() => adjustQuantity(1)}
-                                disabled={!inStock}
+                                disabled={!purchasable}
                                 className="cursor-pointer rounded-r-xl p-2.5 text-emerald-900 transition-colors hover:bg-stone-100 disabled:opacity-40"
                                 aria-label="Tăng số lượng"
                             >
@@ -274,6 +280,13 @@ export default function ProductDetailPurchase({
                         </div>
                     </div>
                 </div>
+
+                {preorderOnly ? (
+                    <p className="mb-4 text-xs text-amber-800">
+                        Sản phẩm tạm hết tồn. Bạn có thể đặt trước — đại lý xác nhận
+                        và giao khi hàng về kho.
+                    </p>
+                ) : null}
 
                 {exceedsStock ? (
                     <p className="mb-4 text-xs text-amber-800">
@@ -287,27 +300,27 @@ export default function ProductDetailPurchase({
                         <button
                             type="button"
                             onClick={handleBuyNow}
-                            disabled={!inStock}
+                            disabled={!purchasable}
                             className={`cursor-pointer flex flex-1 items-center justify-center gap-3 rounded-lg bg-orange-500 px-4 py-4 text-base text-white transition-colors ${
-                                inStock
+                                purchasable
                                     ? "hover:bg-orange-600"
                                     : "cursor-not-allowed opacity-50"
                             }`}
                         >
                             <Zap className="h-4 w-4" />
-                            MUA NGAY
+                            {preorderOnly ? "ĐẶT TRƯỚC" : "MUA NGAY"}
                         </button>
                     </div>
 
                     <button
                         type="button"
                         onClick={handleAddToCart}
-                        disabled={!inStock}
-                        className={`cursor-pointer flex items-center justify-center gap-3 rounded-lg bg-emerald-950 px-4 py-4 text-base text-white transition-colors ${inStock ? "hover:bg-emerald-900" : "cursor-not-allowed opacity-50"
+                        disabled={!purchasable}
+                        className={`cursor-pointer flex items-center justify-center gap-3 rounded-lg bg-emerald-950 px-4 py-4 text-base text-white transition-colors ${purchasable ? "hover:bg-emerald-900" : "cursor-not-allowed opacity-50"
                             }`}
                     >
                         <ShoppingCart className="h-4 w-4" />
-                        THÊM VÀO GIỎ HÀNG
+                        {preorderOnly ? "THÊM VÀO GIỎ (ĐẶT TRƯỚC)" : "THÊM VÀO GIỎ HÀNG"}
                     </button>
                 </div>
             </div>

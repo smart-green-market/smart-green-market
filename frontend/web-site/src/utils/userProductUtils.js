@@ -390,9 +390,46 @@ export function isProductInStock(productOrStatus) {
   return status === "active" || status === "approved";
 }
 
+const UNAVAILABLE_PRODUCT_STATUSES = new Set([
+  "inactive",
+  "pending",
+  "rejected",
+  "deleted",
+  "paused",
+]);
+
+/** SP còn được đặt (mua ngay hoặc đặt trước khi hết tồn). */
+export function isProductPurchasable(product) {
+  if (!product || typeof product !== "object") return false;
+
+  const status = product.status;
+  if (status && UNAVAILABLE_PRODUCT_STATUSES.has(status)) {
+    return false;
+  }
+
+  if (status === "active" || status === "approved") {
+    return true;
+  }
+
+  if (
+    typeof product.in_stock === "boolean" ||
+    product.available_quantity != null ||
+    product.availableQuantity != null
+  ) {
+    return true;
+  }
+
+  return isProductInStock(product);
+}
+
+/** SP đang bán nhưng hết tồn — chỉ đi luồng đặt trước. */
+export function isProductPreorderOnly(product) {
+  return isProductPurchasable(product) && !isProductInStock(product);
+}
+
 export function getStockLabel(status, inStock) {
   if (typeof inStock === "boolean") {
-    return inStock ? "Còn hàng" : "Hết hàng";
+    return inStock ? "Còn hàng" : "Đặt trước";
   }
   if (status === "active" || status === "approved") return "Còn hàng";
   if (status === "inactive" || status === "paused") return "Ngừng bán";

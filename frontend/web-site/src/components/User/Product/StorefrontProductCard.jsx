@@ -7,7 +7,7 @@ import { buildCartItemFromProduct } from "../../../utils/cartUtils";
 import { showAddToCartFeedback } from "../../../utils/cartAddFeedback";
 import ProductImage from "./ProductImage";
 import ProductDiscountRibbon from "./ProductDiscountRibbon";
-import { formatAvailableQuantityLabel } from "../../../utils/userProductUtils";
+import { formatAvailableQuantityLabel, isProductPurchasable } from "../../../utils/userProductUtils";
 
 export default function StorefrontProductCard({
     id,
@@ -57,8 +57,10 @@ export default function StorefrontProductCard({
         in_stock: inStock,
     };
 
+    const purchasable = isProductPurchasable(cartProduct);
+
     const handleBuyNow = () => {
-        if (!inStock) return;
+        if (!purchasable) return;
 
         const buyNowItem = buildCartItemFromProduct(cartProduct, 1);
 
@@ -213,7 +215,7 @@ export default function StorefrontProductCard({
                                 isCarousel
                                     ? "h-7 w-7 rounded-md"
                                     : "h-9 w-9 rounded-lg"
-                            } ${inStock ? "" : "pointer-events-none opacity-40"}`}
+                            } ${purchasable ? "" : "pointer-events-none opacity-40"}`}
                             iconClassName={isCarousel ? "h-3.5 w-3.5" : "h-4 w-4"}
                         />
                     ) : null}
@@ -224,14 +226,14 @@ export default function StorefrontProductCard({
                 <button
                     type="button"
                     onClick={handleBuyNow}
-                    disabled={!inStock}
+                    disabled={!purchasable}
                     className={`w-full cursor-pointer border-2 border-emerald-700 font-semibold text-emerald-800 transition-colors hover:bg-emerald-50 disabled:pointer-events-none disabled:opacity-40 ${
                         isCarousel
                             ? "rounded-lg py-1.5 text-xs"
                             : "rounded-xl py-2.5 text-sm"
                     }`}
                 >
-                    Mua ngay
+                    {inStock ? "Mua ngay" : "Đặt trước"}
                 </button>
             </div>
         </article>

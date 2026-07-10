@@ -86,4 +86,28 @@ describe("splitCheckoutByChoices", () => {
     expect(choices["1"]).toBe(STOCK_CHOICE.ORDER_AVAILABLE);
     expect(choices["2"]).toBeUndefined();
   });
+
+  it("defaults fully out of stock to preorder", () => {
+    const outOfStockMerged = mergeStockWithCheckoutItems(
+      [{ id: 3, name: "Rau C", quantity: 5 }],
+      parseCheckStockResults([
+        {
+          dealer_product_id: 3,
+          requested_quantity: 5,
+          available_quantity: 0,
+          shortfall: 5,
+          can_order_available: false,
+          needs_preorder: true,
+          order_available_quantity: 0,
+        },
+      ]),
+    );
+
+    const choices = getDefaultStockChoices(outOfStockMerged);
+    expect(choices["3"]).toBe(STOCK_CHOICE.PREORDER);
+
+    const split = splitCheckoutByChoices(outOfStockMerged, choices);
+    expect(split.orderItems).toEqual([]);
+    expect(split.preorderItems).toEqual([{ id: 3, quantity: 5 }]);
+  });
 });

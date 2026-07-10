@@ -4,6 +4,10 @@ export function showAddToCartFeedback(result, { showToast = true } = {}) {
   if (!showToast || result?.showToast === false) return;
 
   if (result.added) {
+    if (result.preorderOnly) {
+      appToast.success("Đã thêm vào giỏ — sẽ đặt trước khi thanh toán");
+      return;
+    }
     appToast.success("Đã thêm vào giỏ hàng");
     return;
   }
@@ -25,7 +29,7 @@ export function showAddToCartFeedback(result, { showToast = true } = {}) {
     return;
   }
 
-  if (result.reason === "out_of_stock") {
-    appToast.warning("Sản phẩm đã hết hàng");
+  if (result.reason === "unavailable") {
+    appToast.warning("Sản phẩm không còn được bán");
   }
 }

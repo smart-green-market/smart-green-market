@@ -12,14 +12,13 @@ import { useDealerSlug } from "../hooks/useStorefrontPaths";
 import {
     buildCartItemFromProduct,
     getBuyerCartId,
-    isCartItemOutOfStock,
     loadCartFromSession,
     normalizeCartQuantity,
     resolveCartOwner,
     saveCartToSession,
 } from "../utils/cartUtils";
 import { isBuyerUser } from "../utils/buyerAuthUtils";
-import { isProductInStock } from "../utils/userProductUtils";
+import { isProductPurchasable } from "../utils/userProductUtils";
 import {
     clearProductSpamEntry,
     registerDuplicateAddAttempt,
@@ -69,12 +68,18 @@ export function CartProvider({ children }) {
                 return { added: false, reason: "invalid", showToast: false };
             }
 
-            if (!isProductInStock(product)) {
-                return { added: false, reason: "out_of_stock", showToast: true };
+            if (!isProductPurchasable(product)) {
+                return { added: false, reason: "unavailable", showToast: true };
             }
 
             const nextItem = buildCartItemFromProduct(product, quantity);
-            let result = { added: true, showToast: true };
+            const preorderOnly =
+                nextItem.availableQuantity != null && nextItem.availableQuantity <= 0;
+            let result = {
+                added: true,
+                showToast: true,
+                preorderOnly,
+            };
 
             setItems((prev) => {
                 const exists = prev.some(
@@ -110,7 +115,6 @@ export function CartProvider({ children }) {
         setItems((prev) =>
             prev.map((item) => {
                 if (String(item.id) !== String(id)) return item;
-                if (isCartItemOutOfStock(item)) return item;
 
                 return { ...item, quantity: item.quantity + 1 };
             }),
@@ -134,7 +138,6 @@ export function CartProvider({ children }) {
         setItems((prev) =>
             prev.map((item) => {
                 if (String(item.id) !== String(id)) return item;
-                if (isCartItemOutOfStock(item)) return item;
 
                 return {
                     ...item,
@@ -168,15 +171,9 @@ export function CartProvider({ children }) {
                 const availableQuantity = Number.isFinite(parsed)
                     ? parsed
                     : null;
-                const outOfStock = isCartItemOutOfStock({
-                    ...item,
-                    availableQuantity,
-                });
-
                 return {
                     ...item,
                     availableQuantity,
-                    selected: outOfStock ? false : item.selected,
                 };
             }),
         );
@@ -186,7 +183,6 @@ export function CartProvider({ children }) {
         setItems((prev) =>
             prev.map((item) => {
                 if (String(item.id) !== String(id)) return item;
-                if (isCartItemOutOfStock(item)) return item;
 
                 return { ...item, selected: !item.selected };
             }),

@@ -43,6 +43,11 @@ export function isCartItemOutOfStock(item) {
   return available != null && available <= 0;
 }
 
+/** Mục giỏ hàng hết tồn — checkout sẽ đi luồng đặt trước. */
+export function isCartItemPreorderOnly(item) {
+  return isCartItemOutOfStock(item);
+}
+
 export function cartItemExceedsStock(item) {
   const available = getCartItemAvailableQuantity(item);
   if (available == null || available <= 0) return false;
@@ -110,7 +115,7 @@ function normalizeCartItem(item) {
     price: Number(item.price),
     unit: item.unit ?? "kg",
     quantity: normalizeCartQuantity(item.quantity),
-    selected: item.selected !== false && !isCartItemOutOfStock({ ...item, availableQuantity }),
+    selected: item.selected !== false,
     image: item.image ?? "https://placehold.co/160x160",
     availableQuantity,
   };
