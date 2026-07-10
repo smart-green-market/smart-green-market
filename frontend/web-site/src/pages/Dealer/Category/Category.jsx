@@ -48,10 +48,10 @@ export default function DealerCategoryPage() {
     const fetchCategories = async () => {
         setIsLoading(true);
         try {
-            const data = await categoryService.getAll({ 
-                page: currentPage, 
-                page_size: 9, 
-                search: debouncedSearchQuery, 
+            const data = await categoryService.getAll({
+                page: currentPage,
+                page_size: 9,
+                search: debouncedSearchQuery,
                 status: statusFilter,
                 has_products: hasProductsFilter ? true : undefined
             });
@@ -134,11 +134,7 @@ export default function DealerCategoryPage() {
         if (!deleteCategoryId) return;
         try {
             await categoryService.delete(deleteCategoryId);
-            toast.success("Xóa danh mục thành công!");
             fetchCategories();
-        } catch (error) {
-            console.log(error);
-            toast.error(handleApiError(error, "Không thể xóa danh mục"));
         } finally {
             setDeleteCategoryId(null);
         }

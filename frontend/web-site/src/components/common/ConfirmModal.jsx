@@ -39,9 +39,9 @@ export default function ConfirmModal({
             onClose?.();
         } catch (error) {
             console.error(error);
-
+            const detailMsg = typeof error.response?.data?.detail === "string" ? error.response.data.detail : null;
             if (showToast && !error?.toastHandled) {
-                appToast.danger(errorMessage || style.defaultErrorMessage);
+                appToast.danger(detailMsg || errorMessage || style.defaultErrorMessage);
             }
         } finally {
             setInternalLoading(false);

@@ -130,11 +130,10 @@ function ProductFilterChips({ value, onChange, data }) {
       </span>
       <button
         onClick={() => onChange("")}
-        className={`px-3 py-1 rounded-full text-xs font-semibold border transition-colors ${
-          value === ""
-            ? "bg-emerald-800 text-white border-emerald-800"
-            : "bg-white text-neutral-600 border-neutral-200 hover:border-emerald-600"
-        }`}
+        className={`px-3 py-1 rounded-full text-xs font-semibold border transition-colors ${value === ""
+          ? "bg-emerald-800 text-white border-emerald-800"
+          : "bg-white text-neutral-600 border-neutral-200 hover:border-emerald-600"
+          }`}
       >
         Tất cả
       </button>
@@ -142,11 +141,10 @@ function ProductFilterChips({ value, onChange, data }) {
         <button
           key={id}
           onClick={() => onChange(String(id))}
-          className={`px-3 py-1 rounded-full text-xs font-semibold border transition-colors ${
-            value === String(id)
-              ? "bg-emerald-800 text-white border-emerald-800"
-              : "bg-white text-neutral-600 border-neutral-200 hover:border-emerald-600"
-          }`}
+          className={`px-3 py-1 rounded-full text-xs font-semibold border transition-colors ${value === String(id)
+            ? "bg-emerald-800 text-white border-emerald-800"
+            : "bg-white text-neutral-600 border-neutral-200 hover:border-emerald-600"
+            }`}
         >
           {name ?? `SP #${id}`}
         </button>

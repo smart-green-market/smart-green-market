@@ -160,11 +160,7 @@ export default function DealerDiscountPage() {
     if (!deletePolicyId) return;
     try {
       await discountService.delete(deletePolicyId);
-      toast.success("Xóa chính sách thành công");
       fetchPolicies();
-    } catch (error) {
-      console.error("Error deleting policy:", error);
-      toast.error("Không thể xóa chính sách. Vui lòng thử lại.");
     } finally {
       setDeletePolicyId(null);
     }
@@ -178,11 +174,7 @@ export default function DealerDiscountPage() {
     if (!deleteVoucherId) return;
     try {
       await voucherService.delete(deleteVoucherId);
-      toast.success("Xóa voucher thành công");
       fetchVouchers();
-    } catch (error) {
-      console.error("Error deleting voucher:", error);
-      toast.error("Không thể xóa voucher. Vui lòng thử lại.");
     } finally {
       setDeleteVoucherId(null);
     }

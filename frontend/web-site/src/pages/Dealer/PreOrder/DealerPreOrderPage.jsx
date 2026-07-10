@@ -159,9 +159,8 @@ export default function DealerPreOrderPage() {
       />
 
       {loading ? (
-        <div className="flex items-center justify-center py-16 text-gray-500">
-          <Loader2 className="mr-2 h-5 w-5 animate-spin" />
-          Đang tải...
+        <div className="flex justify-center items-center py-20">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-emerald-600"></div>
         </div>
       ) : requests.length === 0 ? (
         <div className="rounded-xl border border-gray-200 bg-white px-6 py-12 text-center">
@@ -184,9 +183,8 @@ export default function DealerPreOrderPage() {
                   <tr
                     key={item.id}
                     onClick={() => setSelected(item)}
-                    className={`cursor-pointer hover:bg-emerald-50 ${
-                      selected?.id === item.id ? "bg-emerald-50" : ""
-                    }`}
+                    className={`cursor-pointer hover:bg-emerald-50 ${selected?.id === item.id ? "bg-emerald-50" : ""
+                      }`}
                   >
                     <td className="px-4 py-3 font-medium text-gray-900">{item.request_code}</td>
                     <td className="px-4 py-3 text-gray-600">
