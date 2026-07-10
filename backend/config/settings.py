@@ -131,6 +131,7 @@ INSTALLED_APPS = [
     "apps.dashboard",
     "apps.training_models",
     "apps.voucher",
+    "apps.statistical",
 ]
 
 if CLOUDINARY_URL:
