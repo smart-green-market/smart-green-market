@@ -55,10 +55,7 @@ export default function ProductGallery({ product, onUpdate }) {
     if (!deleteImageId) return;
     try {
       await dealerProductService.deleteImage(deleteImageId);
-      toast.success("Đã xóa ảnh!");
       onUpdate();
-    } catch (error) {
-      toast.error("Lỗi khi xóa ảnh.");
     } finally {
       setDeleteImageId(null);
     }
