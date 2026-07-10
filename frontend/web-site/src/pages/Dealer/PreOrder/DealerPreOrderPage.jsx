@@ -1,12 +1,8 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { ClipboardList } from "lucide-react";
 import { toast } from "sonner";
 import PreOrderProposeModal from "../../../components/Dealer/PreOrder/PreOrderProposeModal";
-import PreOrderDetailPanel from "../../../components/PreOrder/PreOrderDetailPanel";
-import PreOrderRequestCard from "../../../components/PreOrder/PreOrderRequestCard";
-import PreOrderStatusSummary from "../../../components/PreOrder/PreOrderStatusSummary";
+import PreOrderWorkspace from "../../../components/PreOrder/PreOrderWorkspace";
 import RejectModal from "../../../components/common/RejectModal";
-import SupplierFilter from "../../../components/Dealer/Supplier/SupplierFilter";
 import {
   dealerPreOrderService,
   handleApiError,
@@ -73,6 +69,18 @@ export default function DealerPreOrderPage() {
   useEffect(() => {
     fetchList();
   }, [fetchList]);
+
+  useEffect(() => {
+    if (!requests.length) {
+      setSelectedId(null);
+      setDetail(null);
+      return;
+    }
+    const stillVisible = requests.some((item) => item.id === selectedId);
+    if (!stillVisible) {
+      setSelectedId(requests[0].id);
+    }
+  }, [requests, selectedId]);
 
   useEffect(() => {
     if (selectedId) fetchDetail(selectedId);
@@ -142,104 +150,67 @@ export default function DealerPreOrderPage() {
   };
 
   return (
-    <div className="space-y-6 bg-emerald-50/15 p-6 min-h-screen">
-      <div>
-        <h1 className="text-2xl font-extrabold text-emerald-950">Yêu cầu đặt trước</h1>
-        <p className="mt-1 text-sm text-emerald-800/70">
-          Xử lý các yêu cầu đặt hàng vượt tồn kho từ khách hàng.
-        </p>
-      </div>
-
-      <PreOrderStatusSummary
-        counts={statusCounts}
+    <div className="min-h-screen bg-emerald-50/15 p-6">
+      <PreOrderWorkspace
+        title="Yêu cầu đặt trước"
+        subtitle="Xử lý các yêu cầu đặt hàng vượt tồn kho từ khách hàng."
         audience="dealer"
-        activeFilter={statusFilter}
-        onFilterChange={setStatusFilter}
+        loading={loading}
+        requests={requests}
+        allCount={allRequests.length}
+        statusCounts={statusCounts}
+        statusFilter={statusFilter}
+        onStatusFilterChange={setStatusFilter}
         filters={DEALER_PREORDER_FILTERS}
-      />
-
-      <SupplierFilter
         searchQuery={searchQuery}
         onSearchChange={setSearchQuery}
-        statusFilter={statusFilter}
-        onStatusChange={setStatusFilter}
-        filterOptions={DEALER_PREORDER_FILTERS.map((item) => ({
-          label: item.label,
-          value: item.value,
-        }))}
-        placeholder="Tìm mã YC, tên khách..."
+        searchPlaceholder="Tìm mã YC, tên khách..."
+        showSearch
+        selectedId={selectedId}
+        onSelect={setSelectedId}
+        detail={detail}
+        detailLoading={detailLoading}
+        emptyDetailMessage="Chọn yêu cầu bên trái để xem và xử lý."
+        detailActions={
+          detail ? (
+            <>
+              {detail.status === "submitted" ? (
+                <div className="flex flex-col gap-2 sm:flex-row">
+                  <button
+                    type="button"
+                    disabled={actionLoading}
+                    onClick={handleConfirm}
+                    className="flex-1 rounded-xl bg-emerald-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-emerald-700 disabled:opacity-50"
+                  >
+                    Xác nhận
+                  </button>
+                  <button
+                    type="button"
+                    disabled={actionLoading}
+                    onClick={() => setProposeOpen(true)}
+                    className="flex-1 rounded-xl bg-amber-500 px-4 py-2.5 text-sm font-semibold text-white hover:bg-amber-600 disabled:opacity-50"
+                  >
+                    Đề xuất
+                  </button>
+                  <button
+                    type="button"
+                    disabled={actionLoading}
+                    onClick={() => setRejectOpen(true)}
+                    className="rounded-xl border border-stone-300 px-4 py-2.5 text-sm font-semibold text-neutral-700 hover:bg-stone-50 disabled:opacity-50"
+                  >
+                    Từ chối
+                  </button>
+                </div>
+              ) : null}
+              {detail.convertedOrderId ? (
+                <p className="text-sm font-medium text-emerald-800">
+                  Đã chuyển thành đơn #{detail.convertedOrderId}
+                </p>
+              ) : null}
+            </>
+          ) : null
+        }
       />
-
-      {loading ? (
-        <div className="flex items-center justify-center py-20">
-          <div className="h-8 w-8 animate-spin rounded-full border-b-2 border-emerald-600" />
-        </div>
-      ) : allRequests.length === 0 ? (
-        <div className="rounded-2xl border border-stone-200 bg-white px-6 py-12 text-center shadow-sm">
-          <ClipboardList className="mx-auto h-10 w-10 text-neutral-300" />
-          <p className="mt-3 font-medium text-neutral-700">Chưa có yêu cầu đặt trước</p>
-        </div>
-      ) : requests.length === 0 ? (
-        <div className="rounded-2xl border border-stone-200 bg-white px-6 py-10 text-center text-sm text-neutral-600">
-          Không có yêu cầu nào ở trạng thái đã chọn.
-        </div>
-      ) : (
-        <div className="grid grid-cols-1 gap-6 xl:grid-cols-[minmax(0,1fr)_400px]">
-          <div className="space-y-3">
-            {requests.map((item) => (
-              <PreOrderRequestCard
-                key={item.id}
-                request={item}
-                selected={selectedId === item.id}
-                onClick={() => setSelectedId(item.id)}
-                audience="dealer"
-              />
-            ))}
-          </div>
-
-          <PreOrderDetailPanel
-            detail={detail}
-            audience="dealer"
-            loading={detailLoading && !detail}
-            emptyMessage="Chọn một yêu cầu để xem và xử lý."
-          >
-            {detail?.status === "submitted" ? (
-              <div className="flex flex-col gap-2">
-                <button
-                  type="button"
-                  disabled={actionLoading}
-                  onClick={handleConfirm}
-                  className="rounded-xl bg-emerald-600 px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-emerald-700 disabled:opacity-50"
-                >
-                  Xác nhận theo yêu cầu
-                </button>
-                <button
-                  type="button"
-                  disabled={actionLoading}
-                  onClick={() => setProposeOpen(true)}
-                  className="rounded-xl bg-amber-500 px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-amber-600 disabled:opacity-50"
-                >
-                  Đề xuất điều chỉnh
-                </button>
-                <button
-                  type="button"
-                  disabled={actionLoading}
-                  onClick={() => setRejectOpen(true)}
-                  className="rounded-xl border border-stone-300 bg-white px-4 py-2.5 text-sm font-semibold text-neutral-700 transition-colors hover:bg-stone-50 disabled:opacity-50"
-                >
-                  Từ chối
-                </button>
-              </div>
-            ) : null}
-
-            {detail?.convertedOrderId ? (
-              <p className="text-sm font-medium text-emerald-800">
-                Đã chuyển thành đơn #{detail.convertedOrderId}
-              </p>
-            ) : null}
-          </PreOrderDetailPanel>
-        </div>
-      )}
 
       <PreOrderProposeModal
         open={proposeOpen}
