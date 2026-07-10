@@ -1,3 +1,4 @@
+import { useMemo } from "react";
 import { Loader2, AlertTriangle, Users, MoreHorizontal } from "lucide-react";
 import SortableHeader from "../../common/SortableHeader";
 import useTableSort from "../../../hooks/useTableSort";
@@ -8,6 +9,7 @@ const COLUMN_CONFIG = {
   email:       { key: "email",       type: "string" },
   phone:       { key: "phone",       type: "string" },
   total_spent: { key: "total_spent", type: "number" },
+  primary_segment_name: { key: "primary_segment_name", type: "string" },
   status:      { key: "status",      type: "string" },
   created_at:  { key: "created_at",  type: "date" },
 };
@@ -22,7 +24,14 @@ export default function CustomerTable({
   searchQuery,
   statusFilter,
 }) {
-  const { sortedData, sortColumn, sortDirection, handleSort } = useTableSort(customers, COLUMN_CONFIG);
+  const processedCustomers = useMemo(() => {
+    return (customers || []).map((c) => ({
+      ...c,
+      primary_segment_name: c.primary_segment?.name || "Chưa có",
+    }));
+  }, [customers]);
+
+  const { sortedData, sortColumn, sortDirection, handleSort } = useTableSort(processedCustomers, COLUMN_CONFIG);
 
   /** Lấy chữ cái đầu của tên để hiển thị avatar */
   const getInitials = (fullName) => {
@@ -120,6 +129,7 @@ export default function CustomerTable({
                 <SortableHeader label="Email" column="email" sortColumn={sortColumn} sortDirection={sortDirection} onSort={handleSort} className="!font-black" />
                 <SortableHeader label="Số điện thoại" column="phone" sortColumn={sortColumn} sortDirection={sortDirection} onSort={handleSort} className="!font-black" />
                 <SortableHeader label="Tổng chi tiêu" column="total_spent" sortColumn={sortColumn} sortDirection={sortDirection} onSort={handleSort} className="!font-black" />
+                <SortableHeader label="Phân loại" column="primary_segment_name" sortColumn={sortColumn} sortDirection={sortDirection} onSort={handleSort} className="!font-black" />
                 <SortableHeader label="Trạng thái" column="status" sortColumn={sortColumn} sortDirection={sortDirection} onSort={handleSort} className="!font-black" />
                 <SortableHeader label="Ngày đăng ký" column="created_at" sortColumn={sortColumn} sortDirection={sortDirection} onSort={handleSort} className="!font-black" />
                 <th className="py-4 px-6 text-[11px] font-black text-neutral-500 uppercase tracking-wider text-right">Hành động</th>
@@ -166,6 +176,15 @@ export default function CustomerTable({
                           </span>
                         )}
                       </div>
+                    </td>
+                    <td className="py-4 px-6">
+                      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold ${
+                        customer.primary_segment_name !== "Chưa có"
+                          ? "bg-indigo-50 text-indigo-700 border border-indigo-100"
+                          : "text-neutral-500 font-medium"
+                      }`}>
+                        {customer.primary_segment_name}
+                      </span>
                     </td>
                     <td className="py-4 px-6">
                       <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold border ${badge.className}`}>
