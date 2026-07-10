@@ -97,7 +97,7 @@ export default function DealerPreOrderPage() {
     setActionLoading(true);
     try {
       await dealerPreOrderService.confirm(selected.id, {});
-      toast.success("Đã xác nhận yêu cầu đặt trước");
+      toast.success("Đã tạo đơn chờ hàng cho khách");
       await fetchList({ silent: true });
       await fetchDetail(selected.id);
     } catch (err) {

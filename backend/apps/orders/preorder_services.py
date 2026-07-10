@@ -188,20 +188,18 @@ def _ensure_preorder_editable(preorder):
 
 @transaction.atomic
 def dealer_confirm_preorder(preorder, user, *, note=""):
-    """Dealer xác nhận YC — chốt SL/ngày như customer yêu cầu."""
+    """Dealer xác nhận YC nguyên xi → tự tạo Order waiting_stock."""
     if preorder.status != PreOrderRequestStatus.SUBMITTED:
         raise ValidationError({"detail": "Chỉ xác nhận YC đang chờ đại lý."})
 
     preorder.confirmed_delivery_time = preorder.requested_delivery_time
     preorder.proposed_delivery_time = None
     preorder.dealer_note = note or ""
-    preorder.status = PreOrderRequestStatus.CUSTOMER_CONFIRMATION_PENDING
     preorder.save(
         update_fields=[
             "confirmed_delivery_time",
             "proposed_delivery_time",
             "dealer_note",
-            "status",
             "updated_at",
         ]
     )
@@ -210,9 +208,16 @@ def dealer_confirm_preorder(preorder, user, *, note=""):
         item.proposed_quantity = None
         item.save(update_fields=["confirmed_quantity", "proposed_quantity"])
 
-    from .preorder_notifications import notify_preorder_dealer_confirmed
+    from django.contrib.auth import get_user_model
 
-    notify_preorder_dealer_confirmed(preorder, actor=user)
+    buyer_user = get_user_model().objects.get(pk=preorder.customer.user_id)
+    _convert_preorder_to_waiting_stock_order(
+        preorder,
+        changed_by_user=buyer_user,
+        notify_actor=user,
+        history_note="Đại lý xác nhận YC — tự động tạo đơn chờ hàng",
+    )
+    preorder.refresh_from_db()
     return preorder
 
 
@@ -313,10 +318,14 @@ def _effective_preorder_terms(preorder):
 
 
 @transaction.atomic
-def customer_accept_preorder(preorder, user):
-    """Customer đồng ý → tạo Order waiting_stock + COD pending."""
-    if preorder.status != PreOrderRequestStatus.CUSTOMER_CONFIRMATION_PENDING:
-        raise ValidationError({"detail": "YC không ở trạng thái chờ khách xác nhận."})
+def _convert_preorder_to_waiting_stock_order(
+    preorder,
+    *,
+    changed_by_user,
+    notify_actor,
+    history_note="Chuyển từ YC đặt trước — chờ hàng về kho",
+):
+    """Chuyển YC đã chốt điều kiện thành Order waiting_stock."""
     if preorder.converted_order_id:
         raise ValidationError({"detail": "YC đã được chuyển thành đơn."})
 
@@ -379,8 +388,8 @@ def customer_accept_preorder(preorder, user):
         order=order,
         old_status="",
         new_status=OrderStatus.WAITING_STOCK,
-        note="Chuyển từ YC đặt trước — chờ hàng về kho",
-        changed_by=user,
+        note=history_note,
+        changed_by=changed_by_user,
     )
 
     now = timezone.now()
@@ -398,10 +407,27 @@ def customer_accept_preorder(preorder, user):
         ]
     )
 
-    from .preorder_notifications import notify_preorder_converted_to_order
+    from .notifications import notify_customer_order_status_change
 
-    notify_preorder_converted_to_order(preorder, order, actor=user)
+    notify_customer_order_status_change(
+        order,
+        actor=notify_actor,
+        old_status="",
+    )
     return order
+
+
+@transaction.atomic
+def customer_accept_preorder(preorder, user):
+    """Customer đồng ý đề xuất → tạo Order waiting_stock + COD pending."""
+    if preorder.status != PreOrderRequestStatus.CUSTOMER_CONFIRMATION_PENDING:
+        raise ValidationError({"detail": "YC không ở trạng thái chờ khách xác nhận."})
+
+    return _convert_preorder_to_waiting_stock_order(
+        preorder,
+        changed_by_user=user,
+        notify_actor=user,
+    )
 
 
 @transaction.atomic

@@ -78,7 +78,6 @@ export default function CartItemRow({
                     ) : null}
                     {preorderOnly ? (
                         <p className="mt-1 text-xs font-medium text-amber-800">
-                            Hết tồn — sẽ đặt trước khi thanh toán
                         </p>
                     ) : null}
                     {exceedsStock ? (
