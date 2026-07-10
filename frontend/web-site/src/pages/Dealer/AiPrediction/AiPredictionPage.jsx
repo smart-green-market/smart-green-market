@@ -60,7 +60,7 @@ export default function DealerAiPredictionPage() {
       const recs = recommendationsData && Array.isArray(recommendationsData.recommendations)
         ? recommendationsData.recommendations
         : [];
-      
+
       if (recommendationsData && recommendationsData.summary_kpi) {
         setSummaryKpi(recommendationsData.summary_kpi);
       }
@@ -147,17 +147,17 @@ export default function DealerAiPredictionPage() {
       const dealerId = dealerProfile?.id || 7;
       const res = await aiPredictionService.trainAiModel(dealerId);
       setSuccessMessage(res.message || "Huấn luyện AI thành công! Đang cập nhật dữ liệu...");
-      
+
       // Tự động đóng thông báo sau 5 giây
       setTimeout(() => setSuccessMessage(""), 5000);
-      
+
       // Load lại dữ liệu dự đoán mới nhất
       await loadData(false);
     } catch (e) {
       console.error("Error training AI model:", e);
       const backendError = e.response?.data?.error || e.message || "Đã xảy ra lỗi trong quá trình huấn luyện.";
       setErrorMessage(`Huấn luyện thất bại: ${backendError}`);
-      
+
       // Tự động đóng thông báo sau 6 giây
       setTimeout(() => setErrorMessage(""), 6000);
     } finally {
@@ -174,17 +174,17 @@ export default function DealerAiPredictionPage() {
       const dealerId = dealerProfile?.id || 7;
       const res = await aiPredictionService.analyzeAiData(dealerId);
       setSuccessMessage(res.message || "Phân tích dữ liệu & dự báo thành công!");
-      
+
       // Tự động đóng thông báo sau 5 giây
       setTimeout(() => setSuccessMessage(""), 5000);
-      
+
       // Load lại dữ liệu dự đoán mới nhất
       await loadData(false);
     } catch (e) {
       console.error("Error analyzing AI data:", e);
       const backendError = e.response?.data?.error || e.message || "Đã xảy ra lỗi trong quá trình phân tích.";
       setErrorMessage(`Phân tích thất bại: ${backendError}`);
-      
+
       // Tự động đóng thông báo sau 6 giây
       setTimeout(() => setErrorMessage(""), 6000);
     } finally {
@@ -308,7 +308,7 @@ export default function DealerAiPredictionPage() {
     const prices = data.forecast_prices;
     const dates = data.forecast_dates || [];
     const isSales = data.is_sales_volume;
-    
+
     const minPrice = Math.min(...prices) * 0.95; // Margin dưới
     const maxPrice = Math.max(...prices) * 1.05; // Margin trên
     const priceRange = (maxPrice - minPrice) || 1;
@@ -448,7 +448,7 @@ export default function DealerAiPredictionPage() {
   return (
     <div className="p-6 bg-emerald-50/15 min-h-screen font-['Geist',sans-serif]">
       {/* Header */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between mb-8 gap-4">
+      <div className="flex flex-col md:flex-row md:items-center justify-between mb-4 gap-4">
         <div>
           <div className="flex items-center gap-2 mb-1.5">
             <div className="p-2 bg-gradient-to-tr from-emerald-500 to-green-600 rounded-xl text-white shadow-md shadow-emerald-500/10">
@@ -462,39 +462,14 @@ export default function DealerAiPredictionPage() {
         </div>
 
         <div className="flex flex-wrap items-center gap-3 self-start md:self-auto">
-          {/* Analyze / Run Prediction Button */}
-          <button
-            onClick={handleAnalyzeAi}
-            disabled={analyzing}
-            className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold transition-all duration-200 cursor-pointer shadow-xs ${
-              analyzing
-                ? "bg-blue-100 text-blue-400 border border-blue-200 cursor-not-allowed"
-                : "bg-gradient-to-tr from-blue-600 to-indigo-500 text-white hover:shadow-md hover:from-blue-700 hover:to-indigo-600 active:scale-95 border border-blue-500/20"
-            }`}
-            title="Tải model đã train từ đĩa cứng, chạy dự báo cho dữ liệu kho mới nhất và cập nhật đè vào Database."
-          >
-            {analyzing ? (
-              <>
-                <div className="animate-spin rounded-full h-3.5 w-3.5 border-b-2 border-blue-500"></div>
-                <span>Đang phân tích...</span>
-              </>
-            ) : (
-              <>
-                <Cpu className="w-3.5 h-3.5" />
-                <span>Chạy dự báo</span>
-              </>
-            )}
-          </button>
-
           {/* Train AI Button */}
           <button
             onClick={handleTrainAi}
             disabled={training}
-            className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold transition-all duration-200 cursor-pointer shadow-xs ${
-              training
-                ? "bg-emerald-100 text-emerald-400 border border-emerald-200 cursor-not-allowed"
-                : "bg-gradient-to-tr from-emerald-600 to-green-500 text-white hover:shadow-md hover:from-emerald-700 hover:to-green-600 active:scale-95 border border-emerald-500/20"
-            }`}
+            className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold transition-all duration-200 cursor-pointer shadow-xs ${training
+              ? "bg-emerald-100 text-emerald-400 border border-emerald-200 cursor-not-allowed"
+              : "bg-gradient-to-tr from-emerald-600 to-green-500 text-white hover:shadow-md hover:from-emerald-700 hover:to-green-600 active:scale-95 border border-emerald-500/20"
+              }`}
           >
             {training ? (
               <>
@@ -509,31 +484,54 @@ export default function DealerAiPredictionPage() {
             )}
           </button>
 
-          {/* Tab switcher */}
-          <div className="bg-neutral-100/80 backdrop-blur-xs p-1 rounded-xl flex items-center border border-neutral-200/40 shadow-2xs">
-            <button
-              onClick={() => setActiveTab("predictions")}
-              className={`flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-bold transition-all duration-200 cursor-pointer ${
-                activeTab === "predictions"
-                  ? "bg-white text-emerald-800 shadow-sm"
-                  : "text-neutral-500 hover:text-neutral-800"
+          {/* Analyze / Run Prediction Button */}
+          <button
+            onClick={handleAnalyzeAi}
+            disabled={analyzing}
+            className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold transition-all duration-200 cursor-pointer shadow-xs ${analyzing
+              ? "bg-blue-100 text-blue-400 border border-blue-200 cursor-not-allowed"
+              : "bg-gradient-to-tr from-blue-600 to-indigo-500 text-white hover:shadow-md hover:from-blue-700 hover:to-indigo-600 active:scale-95 border border-blue-500/20"
               }`}
-            >
-              <TrendingUp className="w-3.5 h-3.5" />
-              {isSalesVolumeForecast ? "Dự báo nhu cầu" : "Xu hướng giá"}
-            </button>
-            <button
-              onClick={() => setActiveTab("recommendations")}
-              className={`flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-bold transition-all duration-200 cursor-pointer ${
-                activeTab === "recommendations"
-                  ? "bg-white text-emerald-800 shadow-sm"
-                  : "text-neutral-500 hover:text-neutral-800"
+            title="Tải model đã train từ đĩa cứng, chạy dự báo cho dữ liệu kho mới nhất và cập nhật đè vào Database."
+          >
+            {analyzing ? (
+              <>
+                <div className="animate-spin rounded-full h-3.5 w-3.5 border-b-2 border-blue-500"></div>
+                <span>Đang phân tích...</span>
+              </>
+            ) : (
+              <>
+                <Cpu className="w-3.5 h-3.5" />
+                <span>Chạy dự báo</span>
+              </>
+            )}
+          </button>
+        </div>
+      </div>
+
+      {/* Tab Switcher Row */}
+      <div className="flex justify-end mb-4">
+        <div className="bg-neutral-100/80 backdrop-blur-xs p-1 rounded-xl flex items-center border border-neutral-200/40 shadow-2xs">
+          <button
+            onClick={() => setActiveTab("predictions")}
+            className={`flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-bold transition-all duration-200 cursor-pointer ${activeTab === "predictions"
+              ? "bg-white text-emerald-800 shadow-sm"
+              : "text-neutral-500 hover:text-neutral-800"
               }`}
-            >
-              <Brain className="w-3.5 h-3.5" />
-              Gợi ý quyết định
-            </button>
-          </div>
+          >
+            <TrendingUp className="w-3.5 h-3.5" />
+            {isSalesVolumeForecast ? "Dự báo nhu cầu" : "Xu hướng giá"}
+          </button>
+          <button
+            onClick={() => setActiveTab("recommendations")}
+            className={`flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-bold transition-all duration-200 cursor-pointer ${activeTab === "recommendations"
+              ? "bg-white text-emerald-800 shadow-sm"
+              : "text-neutral-500 hover:text-neutral-800"
+              }`}
+          >
+            <Brain className="w-3.5 h-3.5" />
+            Gợi ý quyết định
+          </button>
         </div>
       </div>
 
@@ -545,7 +543,7 @@ export default function DealerAiPredictionPage() {
           <button onClick={() => setSuccessMessage("")} className="text-emerald-400 hover:text-emerald-600 text-xs font-bold px-1.5 py-0.5 rounded cursor-pointer">✕</button>
         </div>
       )}
-      
+
       {errorMessage && (
         <div className="mb-6 p-4 bg-rose-50 border border-rose-200 rounded-xl flex items-center gap-3 animate-fade-in shadow-2xs">
           <AlertCircle className="w-5 h-5 text-rose-600 shrink-0 animate-pulse" />
@@ -592,9 +590,8 @@ export default function DealerAiPredictionPage() {
                       <tr
                         key={p.id}
                         onClick={() => setSelectedPrediction(p)}
-                        className={`group cursor-pointer transition-colors hover:bg-emerald-50/30 ${
-                          isSelected ? "bg-emerald-50/50" : ""
-                        }`}
+                        className={`group cursor-pointer transition-colors hover:bg-emerald-50/30 ${isSelected ? "bg-emerald-50/50" : ""
+                          }`}
                       >
                         <td className="py-3.5 pl-2">
                           <span className="text-sm font-bold text-neutral-700 group-hover:text-emerald-700 transition-colors">
@@ -608,13 +605,12 @@ export default function DealerAiPredictionPage() {
                         <td className="py-3.5 text-right font-bold text-neutral-800 text-sm">
                           <div>{formatValue(p.predicted_price, p.is_sales_volume)}</div>
                           <span
-                            className={`text-[10px] font-semibold ${
-                              priceDiff > 0
-                                ? "text-emerald-600"
-                                : priceDiff < 0
+                            className={`text-[10px] font-semibold ${priceDiff > 0
+                              ? "text-emerald-600"
+                              : priceDiff < 0
                                 ? "text-rose-600"
                                 : "text-neutral-400"
-                            }`}
+                              }`}
                           >
                             {priceDiff > 0 ? "+" : ""}
                             {percentDiff.toFixed(1)}%
@@ -649,7 +645,7 @@ export default function DealerAiPredictionPage() {
                 {/* Details Card */}
                 <div className="bg-white border border-emerald-100/50 rounded-2xl p-6 shadow-xs relative overflow-hidden">
                   <div className="absolute top-0 right-0 w-24 h-24 bg-emerald-500/5 rounded-full -mr-8 -mt-8"></div>
-                  
+
                   <div className="flex items-start justify-between mb-4">
                     <div>
                       <span className="text-[10px] font-black uppercase text-emerald-600 tracking-wider">Chi tiết dự báo</span>
@@ -705,7 +701,7 @@ export default function DealerAiPredictionPage() {
               <h3 className="text-sm font-extrabold text-neutral-800 mb-1">Bộ lọc đề xuất</h3>
               <p className="text-[11px] text-neutral-400">Lọc kết quả AI theo danh mục và loại quyết định từ database</p>
             </div>
-            
+
             <div className="flex flex-col sm:flex-row items-center gap-3 w-full md:w-auto">
               {/* Category Filter */}
               <div className="w-full sm:w-48">
@@ -786,9 +782,9 @@ export default function DealerAiPredictionPage() {
                 AI phân tích dữ liệu tồn kho, xu hướng thị trường và dự báo nhu cầu để đưa ra các gợi ý tối ưu lượng hàng hóa của đại lý nhằm tối đa doanh thu và giảm thiểu rác thải sinh học.
               </p>
             </div>
-            <span className="text-xs font-extrabold bg-white/15 px-3 py-1.5 rounded-lg border border-white/10 shrink-0">
+            {/* <span className="text-xs font-extrabold bg-white/15 px-3 py-1.5 rounded-lg border border-white/10 shrink-0">
               Cập nhật: Mới nhất
-            </span>
+            </span> */}
           </div>
 
           <div className="space-y-4">
@@ -799,13 +795,12 @@ export default function DealerAiPredictionPage() {
               >
                 <div className="flex items-start gap-4">
                   {/* Icon depending on type */}
-                  <div className={`p-3 rounded-xl shrink-0 mt-0.5 ${
-                    rec.type === "import_alert" 
-                      ? "bg-emerald-50 text-emerald-600" 
-                      : rec.type === "discount_alert"
+                  <div className={`p-3 rounded-xl shrink-0 mt-0.5 ${rec.type === "import_alert"
+                    ? "bg-emerald-50 text-emerald-600"
+                    : rec.type === "discount_alert"
                       ? "bg-amber-50 text-amber-600"
                       : "bg-blue-50 text-blue-600"
-                  }`}>
+                    }`}>
                     {rec.type === "import_alert" ? (
                       <TrendingUp className="w-5 h-5" />
                     ) : rec.type === "discount_alert" ? (
@@ -855,14 +850,14 @@ export default function DealerAiPredictionPage() {
 // React Icons helper since Percent might not be in Lucide version or as standard
 function PercentIcon({ className }) {
   return (
-    <svg 
-      xmlns="http://www.w3.org/2000/svg" 
-      viewBox="0 0 24 24" 
-      fill="none" 
-      stroke="currentColor" 
-      strokeWidth="2.5" 
-      strokeLinecap="round" 
-      strokeLinejoin="round" 
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2.5"
+      strokeLinecap="round"
+      strokeLinejoin="round"
       className={className}
     >
       <line x1="19" y1="5" x2="5" y2="19"></line>
