@@ -354,6 +354,7 @@ def merge_duplicate_dealer_products_for_dealer(dealer_profile, *, user=None) -> 
         merged_groups += 1
         merged_products += len(duplicate_ids)
 
+    cleanup_batches_on_deleted_dealer_products(dealer_profile, user=user)
     return {
         "merged_groups": merged_groups,
         "merged_products": merged_products,
@@ -375,18 +376,48 @@ def merge_all_duplicate_dealer_products(*, user=None) -> dict:
     return totals
 
 
+def cleanup_batches_on_deleted_dealer_products(
+    dealer_profile=None, *, user=None
+) -> int:
+    """Soft-delete mọi lô còn hiển thị thuộc SP đã gộp/xóa."""
+    batch_qs = DealerInventoryBatch.objects.filter(
+        deleted_at__isnull=True,
+        dealer_product__status=DealerProductStatus.DELETED,
+    )
+    if dealer_profile is not None:
+        batch_qs = batch_qs.filter(dealer_product__dealer_profile=dealer_profile)
+
+    now = timezone.now()
+    cleaned = 0
+    for batch in batch_qs.select_for_update():
+        if batch.remaining_quantity > 0:
+            batch.remaining_quantity = 0
+            batch.status = DealerInventoryBatchStatus.DEPLETED
+        batch.deleted_at = now
+        batch.save(
+            update_fields=[
+                "remaining_quantity",
+                "status",
+                "deleted_at",
+                "updated_at",
+            ]
+        )
+        cleaned += 1
+    return cleaned
+
+
 def consolidate_orphan_batches_for_dealer(dealer_profile, *, user=None) -> int:
     """Đảm bảo mỗi SP chỉ còn lô MAIN mang tồn (SP không trùng tên)."""
+    cleanup_batches_on_deleted_dealer_products(dealer_profile, user=user)
     count = 0
     for product in DealerProduct.objects.filter(dealer_profile=dealer_profile).exclude(
         status=DealerProductStatus.DELETED
     ):
-        before = DealerInventoryBatch.objects.filter(
+        has_extra = DealerInventoryBatch.objects.filter(
             dealer_product=product,
             deleted_at__isnull=True,
-            remaining_quantity__gt=0,
-        ).exclude(batch_number=CANONICAL_BATCH_NUMBER).count()
-        if before:
+        ).exclude(batch_number=CANONICAL_BATCH_NUMBER).exists()
+        if has_extra:
             merge_inventory_into_main_batch(product, user=user)
             count += 1
     return count

@@ -213,7 +213,7 @@ export default function DealerInventoryPage() {
         statusFilter={statusFilter}
         onStatusChange={(val) => { setStatusFilter(val); setInventoryPage(1); }}
         filterOptions={filterOptions}
-        placeholder="Tìm kiếm lô hàng (Mã lô, tên nông sản, nhà cung cấp...)"
+        placeholder="Tìm kiếm sản phẩm (tên nông sản, danh mục...)"
       />
 
       {/* 3. Bảng dữ liệu chi tiết danh sách lô hàng trong kho */}

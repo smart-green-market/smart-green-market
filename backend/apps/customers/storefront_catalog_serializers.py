@@ -254,10 +254,6 @@ class StorefrontProductDetailSerializer(StorefrontProductListSerializer):
         source="supplier_product.name",
         read_only=True,
     )
-    supplier_name = serializers.CharField(
-        source="supplier_product.supplier.company_name",
-        read_only=True,
-    )
     storage_duration_days = serializers.IntegerField(
         source="supplier_product.storage_duration_days",
         read_only=True,
@@ -309,7 +305,6 @@ class StorefrontProductDetailSerializer(StorefrontProductListSerializer):
             "expiry_date",
             "days_to_expiry",
             "supplier_product_name",
-            "supplier_name",
             "storage_duration_days",
             "min_storage_temp",
             "max_storage_temp",

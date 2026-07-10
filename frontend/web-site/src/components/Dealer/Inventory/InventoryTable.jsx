@@ -7,7 +7,6 @@ import useTableSort from "../../../hooks/useTableSort";
 const COLUMN_CONFIG = {
   batchCode:   { key: "batchCode",   type: "string" },
   productName: { key: "productName", type: "string" },
-  supplier:    { key: "supplier",    type: "string" },
   stock:       { key: "stock",       type: "number" },
   priceImport: { key: "priceImport", type: "currency" },
   importDate:  { key: "importDate",  type: "date" },
@@ -22,7 +21,7 @@ export default function InventoryTable({ data, onRowClick, currentPage, totalPag
     return (
       <div className="w-full rounded-2xl border border-neutral-200 overflow-hidden bg-white shadow-xs font-['Geist',sans-serif] py-16 text-center">
         <div className="text-sm text-neutral-500 font-semibold">
-          Không tìm thấy lô hàng nào trong kho.
+          Không tìm thấy sản phẩm nào trong kho.
         </div>
       </div>
     );
@@ -35,9 +34,8 @@ export default function InventoryTable({ data, onRowClick, currentPage, totalPag
           <table className="w-full border-collapse text-left whitespace-nowrap">
             <thead>
               <tr className="bg-neutral-50 border-b border-neutral-200/60">
-                <SortableHeader label="Mã lô" column="batchCode" sortColumn={sortColumn} sortDirection={sortDirection} onSort={handleSort} />
+                <SortableHeader label="Mã kho" column="batchCode" sortColumn={sortColumn} sortDirection={sortDirection} onSort={handleSort} />
                 <SortableHeader label="Tên nông sản" column="productName" sortColumn={sortColumn} sortDirection={sortDirection} onSort={handleSort} />
-                <SortableHeader label="Nhà cung cấp" column="supplier" sortColumn={sortColumn} sortDirection={sortDirection} onSort={handleSort} />
                 <SortableHeader label="Tồn kho" column="stock" sortColumn={sortColumn} sortDirection={sortDirection} onSort={handleSort} />
                 <SortableHeader label="Giá mua" column="priceImport" sortColumn={sortColumn} sortDirection={sortDirection} onSort={handleSort} />
                 <SortableHeader label="Ngày nhập" column="importDate" sortColumn={sortColumn} sortDirection={sortDirection} onSort={handleSort} />
@@ -75,9 +73,6 @@ export default function InventoryTable({ data, onRowClick, currentPage, totalPag
                         <span className="font-bold text-neutral-800">{row.productName}</span>
                         <span className="text-xs text-neutral-400">{row.category}</span>
                       </div>
-                    </td>
-                    <td className="px-6 py-4">
-                      <span className="text-neutral-600 font-medium text-xs">{row.supplier}</span>
                     </td>
                     <td className="px-6 py-4">
                       <span className="font-bold text-neutral-800">

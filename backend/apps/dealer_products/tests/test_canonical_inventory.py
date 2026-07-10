@@ -14,7 +14,10 @@ from apps.dealer_products.canonical_inventory import (
     find_canonical_dealer_product,
     get_or_create_canonical_dealer_product,
 )
-from apps.dealer_products.merge_duplicates import merge_duplicate_dealer_products_for_dealer
+from apps.dealer_products.merge_duplicates import (
+    cleanup_batches_on_deleted_dealer_products,
+    merge_duplicate_dealer_products_for_dealer,
+)
 from apps.dealer_products.models import (
     DealerInventoryBatch,
     DealerInventoryBatchStatus,
@@ -316,3 +319,57 @@ class CanonicalInventoryTests(TestCase):
         self.assertEqual(order.status, OrderStatus.PROCESSING)
         order.items.first().refresh_from_db()
         self.assertIsNotNone(order.items.first().batch)
+
+    def test_warehouse_list_shows_one_main_batch_after_merge(self):
+        from rest_framework.test import APIClient
+
+        canonical = DealerProduct.objects.create(
+            dealer_profile=self.dealer,
+            supplier_product=self.sp_a,
+            product_master=self.rau_lang_master,
+            title="Rau lang",
+            retail_price="8000.00",
+            status=DealerProductStatus.ACTIVE,
+        )
+        DealerInventoryBatch.objects.create(
+            dealer_product=canonical,
+            batch_number=CANONICAL_BATCH_NUMBER,
+            quantity=110,
+            remaining_quantity=110,
+            import_price="8000.00",
+            import_date=timezone.localdate(),
+            status=DealerInventoryBatchStatus.ACTIVE,
+        )
+        for suffix in ("A", "B"):
+            dup = DealerProduct.objects.create(
+                dealer_profile=self.dealer,
+                supplier_product=self.sp_b if suffix == "A" else self.sp_a,
+                title=f"Rau lang — cũ {suffix}",
+                retail_price="8000.00",
+                status=DealerProductStatus.DELETED,
+            )
+            DealerInventoryBatch.objects.create(
+                dealer_product=dup,
+                batch_number=CANONICAL_BATCH_NUMBER,
+                quantity=0,
+                remaining_quantity=0,
+                import_price="7500.00",
+                import_date=timezone.localdate(),
+                status=DealerInventoryBatchStatus.ACTIVE,
+            )
+
+        cleanup_batches_on_deleted_dealer_products(self.dealer)
+
+        client = APIClient()
+        client.force_authenticate(user=self.dealer.account)
+        response = client.get("/api/dealer-inventory-batches/", {"search": "rau lang"})
+        self.assertEqual(response.status_code, 200)
+        results = response.data.get("results", response.data)
+        rau_rows = [
+            row
+            for row in results
+            if "rau" in (row.get("dealer_product_title") or "").casefold()
+        ]
+        self.assertEqual(len(rau_rows), 1)
+        self.assertEqual(rau_rows[0]["batch_number"], CANONICAL_BATCH_NUMBER)
+        self.assertEqual(rau_rows[0]["remaining_quantity"], 110)
