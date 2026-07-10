@@ -33,3 +33,16 @@ class ProductPredictionResult(models.Model):
 
     def __str__(self):
         return f"{self.product_name} - {self.decision} ({self.decision_confidence * 100:.1f}%)"
+    
+class AITrainingHistory(models.Model):
+    model_name = models.CharField(max_length=50, default="Item2Vec")
+    run_date = models.DateTimeField(default=timezone.now)
+    epochs_run = models.IntegerField(help_text="Số epoch thực tế đã chạy (sau khi EarlyStopping)")
+    final_loss = models.FloatField(help_text="Độ suy hao (Loss) ở epoch cuối cùng")
+    catalog_coverage = models.FloatField(help_text="Độ phủ danh mục (%)")
+    total_items_trained = models.IntegerField(help_text="Tổng số sản phẩm tham gia huấn luyện")
+    status = models.CharField(max_length=20, default="SUCCESS")
+    
+    class Meta:
+        db_table = 'ai_training_history'
+        ordering = ['-run_date']
