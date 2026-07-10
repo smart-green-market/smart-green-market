@@ -40,7 +40,7 @@ export default function ConfirmBatchShippingModal({ isOpen, onClose, onConfirm, 
             <div className="w-8 h-8 rounded-lg bg-blue-50 flex items-center justify-center">
               <Truck size={18} className="text-blue-600" />
             </div>
-            <h3 className="font-bold text-gray-900 text-base">Xác nhận giao hàng loạt</h3>
+            <h3 className="font-bold text-gray-900 text-base">Xác nhận giao hàng</h3>
           </div>
           <button 
             onClick={onClose}

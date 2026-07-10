@@ -8,6 +8,7 @@ import ConfirmBatchShippingModal from "../../components/Supplier/Order/ConfirmBa
 import SupplierPageHeader, { SUPPLIER_PAGE_CLASS } from "../../components/Supplier/UI/SupplierPageHeader";
 import { orderService, parseOrderList, extractOrderItems } from "../../services/api/orderService";
 import { exportOrdersToExcel } from "../../utils/exportUtils";
+import { matchesStatusFilter } from "../../components/Supplier/Order/orderStatusConfig";
 import { useOrderRealtimeRefresh } from "../../hooks/useOrderRealtimeRefresh";
 import { ORDER_REFERENCE_TYPES } from "../../utils/orderRealtimeUtils";
 
@@ -17,6 +18,7 @@ export default function OrderSupplierPage() {
   const [search, setSearch] = useState("");
   const [detailRow, setDetailRow] = useState(null);
   const [detailRefreshKey, setDetailRefreshKey] = useState(0);
+  const [statusFilter, setStatusFilter] = useState("all");
 
   // State quản lý chọn đơn hàng loạt
   const [selectedIds, setSelectedIds] = useState([]);
@@ -126,7 +128,27 @@ export default function OrderSupplierPage() {
           className="px-4 py-2 border border-neutral-200 rounded-lg text-sm w-80 outline-none focus:border-emerald-600"
         />
         <button
-          onClick={() => exportOrdersToExcel(data)}
+          onClick={async () => {
+            const toastId = toast.loading("Đang tải dữ liệu đơn hàng và xuất Excel...");
+            try {
+              const keyword = (search ?? "").trim().toLowerCase();
+              const filteredData = data.filter((row) => {
+                const matchSearch =
+                  !keyword ||
+                  row.order_code?.toLowerCase().includes(keyword) ||
+                  row.dealer_name?.toLowerCase().includes(keyword);
+                const matchStatus = matchesStatusFilter(row, statusFilter);
+                return matchSearch && matchStatus;
+              });
+              await exportOrdersToExcel(filteredData);
+              toast.success("Xuất file Excel thành công!");
+            } catch (error) {
+              console.error("Lỗi xuất Excel:", error);
+              toast.error(error?.message || "Có lỗi xảy ra khi xuất Excel.");
+            } finally {
+              toast.dismiss(toastId);
+            }
+          }}
           className="flex items-center gap-2 px-4 py-2 text-sm font-semibold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 rounded-lg transition-colors cursor-pointer"
         >
           <FileSpreadsheet className="w-4 h-4" />
@@ -152,7 +174,7 @@ export default function OrderSupplierPage() {
             className="flex items-center gap-2 px-4 py-2 text-xs font-bold text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition-all shadow-sm shadow-blue-100 cursor-pointer"
           >
             <Truck size={14} />
-            Giao hàng loạt ({selectedOrders.length})
+            Bắt đầu giao {selectedOrders.length} đơn
           </button>
         </div>
       )}
@@ -166,6 +188,8 @@ export default function OrderSupplierPage() {
         setSelectedIds={setSelectedIds}
         detailCache={detailCache}
         setDetailCache={setDetailCache}
+        statusFilter={statusFilter}
+        setStatusFilter={setStatusFilter}
       />
 
       <DetailOrderModal

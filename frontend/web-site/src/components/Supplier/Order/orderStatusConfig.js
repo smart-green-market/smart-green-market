@@ -48,3 +48,30 @@ export const SUPPLIER_ORDER_STATUS_FILTERS = [
 export function getSupplierOrderStatusConfig(status) {
   return SUPPLIER_ORDER_STATUS[status] ?? { label: status || "Không xác định", tone: "gr" };
 }
+
+const RETURN_STATUS_ALIASES = {
+  return_request: "return_requested",
+  return_pending_review: "return_requested",
+};
+
+export function normalizeOrderStatus(status) {
+  const value = String(status ?? "").trim();
+  return RETURN_STATUS_ALIASES[value] ?? value;
+}
+
+export function matchesStatusFilter(row, statusFilter) {
+  if (statusFilter === "all") return true;
+
+  const rowStatus = normalizeOrderStatus(row?.status);
+  const activeFilter = SUPPLIER_ORDER_STATUS_FILTERS.find((f) => f.key === statusFilter);
+  if (!activeFilter) return rowStatus === normalizeOrderStatus(statusFilter);
+
+  if (activeFilter.statuses) {
+    return activeFilter.statuses.some(
+      (status) => normalizeOrderStatus(status) === rowStatus,
+    );
+  }
+
+  return normalizeOrderStatus(statusFilter) === rowStatus;
+}
+

@@ -5,6 +5,8 @@ import { extractOrderItems, normalizeOrderItem, orderService, getSuccessfullyRet
 import {
   getSupplierOrderStatusConfig,
   SUPPLIER_ORDER_STATUS_FILTERS,
+  normalizeOrderStatus,
+  matchesStatusFilter,
 } from "./orderStatusConfig";
 
 const ITEMS_SUMMARY_LIMIT = 3;
@@ -64,31 +66,7 @@ const getOrderItemsQty = (row) => {
   return `${total.toLocaleString("vi-VN")} ${unit}`;
 };
 
-const RETURN_STATUS_ALIASES = {
-  return_request: "return_requested",
-  return_pending_review: "return_requested",
-};
 
-function normalizeOrderStatus(status) {
-  const value = String(status ?? "").trim();
-  return RETURN_STATUS_ALIASES[value] ?? value;
-}
-
-function matchesStatusFilter(row, statusFilter) {
-  if (statusFilter === "all") return true;
-
-  const rowStatus = normalizeOrderStatus(row?.status);
-  const activeFilter = STATUS_FILTERS.find((f) => f.key === statusFilter);
-  if (!activeFilter) return rowStatus === normalizeOrderStatus(statusFilter);
-
-  if (activeFilter.statuses) {
-    return activeFilter.statuses.some(
-      (status) => normalizeOrderStatus(status) === rowStatus,
-    );
-  }
-
-  return normalizeOrderStatus(statusFilter) === rowStatus;
-}
 
 const STATUS_FILTERS = SUPPLIER_ORDER_STATUS_FILTERS;
 
@@ -155,8 +133,18 @@ const TABLE_MIN_WIDTH = 980;
 const DATE_COL_WIDTH = 88;
 const ACTION_COL_WIDTH = 44;
 
-export default function OrderTable({ data, search, loading, onView, selectedIds = [], setSelectedIds, detailCache = {}, setDetailCache }) {
-  const [statusFilter, setStatusFilter] = useState("all");
+export default function OrderTable({
+  data,
+  search,
+  loading,
+  onView,
+  selectedIds = [],
+  setSelectedIds,
+  detailCache = {},
+  setDetailCache,
+  statusFilter,
+  setStatusFilter,
+}) {
   const [page, setPage] = useState(1);
   const [sort, setSort] = useState(null);
 
