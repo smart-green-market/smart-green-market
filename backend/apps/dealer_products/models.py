@@ -50,6 +50,14 @@ class DealerProduct(models.Model):
         on_delete=models.PROTECT,
         related_name="dealer_products",
     )
+    product_master = models.ForeignKey(
+        "product_catalog.ProductMaster",
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name="dealer_products",
+        help_text="Catalog chuẩn — một SP bán lẻ / master / đại lý",
+    )
     category = models.ForeignKey(
         "categories.Category",
         on_delete=models.PROTECT,
@@ -81,16 +89,31 @@ class DealerProduct(models.Model):
         constraints = [
             models.UniqueConstraint(
                 "dealer_profile",
-                Lower("title"),
+                "product_master",
                 condition=Q(
+                    product_master__isnull=False,
                     status__in=[
                         DealerProductStatus.PENDING,
                         DealerProductStatus.ACTIVE,
                         DealerProductStatus.INACTIVE,
                         DealerProductStatus.REJECTED,
-                    ]
+                    ],
                 ),
-                name="unique_dealer_product_title_per_dealer",
+                name="unique_dealer_product_master_per_dealer",
+            ),
+            models.UniqueConstraint(
+                "dealer_profile",
+                Lower("title"),
+                condition=Q(
+                    product_master__isnull=True,
+                    status__in=[
+                        DealerProductStatus.PENDING,
+                        DealerProductStatus.ACTIVE,
+                        DealerProductStatus.INACTIVE,
+                        DealerProductStatus.REJECTED,
+                    ],
+                ),
+                name="unique_dealer_product_title_per_dealer_no_master",
             ),
         ]
 

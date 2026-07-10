@@ -13,6 +13,8 @@ from apps.dealer_products.canonical_inventory import (
     CANONICAL_BATCH_NUMBER,
     get_or_create_main_batch,
     normalize_dealer_product_title,
+    resolve_canonical_title,
+    resolve_product_master_id,
     strip_title_suffix,
 )
 from apps.dealer_products.models import (
@@ -232,17 +234,83 @@ def merge_inventory_into_main_batch(dealer_product: DealerProduct, *, user=None)
     return main_batch
 
 
+def _resolve_product_master_id(product: DealerProduct) -> int | None:
+    return resolve_product_master_id(
+        supplier_product=product.supplier_product,
+        product_master_id=product.product_master_id,
+    )
+
+
+def _group_key_for_product(product: DealerProduct) -> tuple | None:
+    master_id = _resolve_product_master_id(product)
+    if master_id:
+        return ("master", master_id)
+    title_key = normalize_dealer_product_title(product.title)
+    if title_key:
+        return ("title", title_key)
+    return None
+
+
+def _safe_canonical_title(canonical: DealerProduct, master, group_ids: set[int]) -> str:
+    if master is not None and master.name:
+        candidate = master.name.strip()
+        conflict = (
+            DealerProduct.objects.filter(
+                dealer_profile_id=canonical.dealer_profile_id,
+                title__iexact=candidate,
+            )
+            .exclude(id__in=group_ids)
+            .exclude(status=DealerProductStatus.DELETED)
+            .exists()
+        )
+        if not conflict:
+            return candidate
+    return strip_title_suffix(canonical.title)
+
+
+def _finalize_canonical_product(canonical: DealerProduct, group: list[DealerProduct]) -> None:
+    group_ids = {product.id for product in group}
+    master_id = _resolve_product_master_id(canonical)
+    if not master_id:
+        for product in group:
+            master_id = _resolve_product_master_id(product)
+            if master_id:
+                break
+
+    updates = []
+    if master_id and canonical.product_master_id != master_id:
+        canonical.product_master_id = master_id
+        updates.append("product_master")
+
+    if master_id:
+        from apps.product_catalog.models import ProductMaster
+
+        master = ProductMaster.objects.filter(pk=master_id).first()
+        new_title = _safe_canonical_title(canonical, master, group_ids)
+        if new_title and canonical.title != new_title:
+            canonical.title = new_title
+            updates.append("title")
+    else:
+        canonical.title = strip_title_suffix(canonical.title)
+        updates.append("title")
+
+    if updates:
+        updates.append("updated_at")
+        canonical.save(update_fields=updates)
+
+
 @transaction.atomic
 def merge_duplicate_dealer_products_for_dealer(dealer_profile, *, user=None) -> dict:
-    """Gộp SP trùng tên của một đại lý. Trả về thống kê."""
+    """Gộp SP trùng catalog (hoặc trùng tên khi không có catalog) của một đại lý."""
     products = list(
         DealerProduct.objects.filter(dealer_profile=dealer_profile)
         .exclude(status=DealerProductStatus.DELETED)
+        .select_related("supplier_product", "product_master")
         .order_by("id")
     )
-    groups: dict[str, list[DealerProduct]] = defaultdict(list)
+    groups: dict[tuple, list[DealerProduct]] = defaultdict(list)
     for product in products:
-        key = normalize_dealer_product_title(product.title)
+        key = _group_key_for_product(product)
         if key:
             groups[key].append(product)
 
@@ -256,7 +324,7 @@ def merge_duplicate_dealer_products_for_dealer(dealer_profile, *, user=None) -> 
         duplicates = [p for p in group if p.id != canonical.id]
         duplicate_ids = [p.id for p in duplicates]
 
-        canonical.title = strip_title_suffix(canonical.title)
+        _finalize_canonical_product(canonical, group)
 
         _repoint_simple_fk(DealerProductImage, "dealer_product", canonical.id, duplicate_ids)
         _repoint_simple_fk(AgeDiscountPolicy, "dealer_product", canonical.id, duplicate_ids)
@@ -282,7 +350,6 @@ def merge_duplicate_dealer_products_for_dealer(dealer_profile, *, user=None) -> 
             status=DealerProductStatus.DELETED,
             updated_at=timezone.now(),
         )
-        canonical.save(update_fields=["title", "updated_at"])
 
         merged_groups += 1
         merged_products += len(duplicate_ids)
@@ -295,7 +362,7 @@ def merge_duplicate_dealer_products_for_dealer(dealer_profile, *, user=None) -> 
 
 @transaction.atomic
 def merge_all_duplicate_dealer_products(*, user=None) -> dict:
-    """Gộp SP trùng tên cho mọi đại lý."""
+    """Gộp SP trùng catalog / tên cho mọi đại lý."""
     from apps.dealers.models import DealerProfile
 
     totals = {"dealers": 0, "merged_groups": 0, "merged_products": 0}

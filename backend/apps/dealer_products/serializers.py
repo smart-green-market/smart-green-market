@@ -12,7 +12,11 @@ from common.files import build_media_url
 from common.openapi_enums import schema_choice_field
 from common.validators import require_rejection_reason, validate_image_upload
 
-from .canonical_inventory import find_canonical_dealer_product, strip_title_suffix
+from .canonical_inventory import (
+    find_canonical_dealer_product,
+    resolve_canonical_title,
+    strip_title_suffix,
+)
 from .models import (
     DealerInventoryBatch,
     DealerInventoryBatchStatus,
@@ -278,12 +282,25 @@ class DealerProductSerializer(serializers.ModelSerializer):
         profile = request.user.dealer_profile
         supplier_product = validated_data["supplier_product"]
         title = strip_title_suffix(
-            validated_data.get("title") or supplier_product.name
+            validated_data.get("title")
+            or resolve_canonical_title(supplier_product=supplier_product)
         )
         validated_data["title"] = title
-        if find_canonical_dealer_product(profile, title):
+        master_id = supplier_product.product_master_id
+        if master_id:
+            validated_data["product_master_id"] = master_id
+        if find_canonical_dealer_product(
+            profile,
+            supplier_product=supplier_product,
+            product_master_id=master_id,
+            title=title,
+        ):
             raise serializers.ValidationError(
-                {"title": "Sản phẩm này đã có trong cửa hàng."}
+                {
+                    "supplier_product": (
+                        "Sản phẩm catalog này đã có trong cửa hàng."
+                    )
+                }
             )
         validated_data["dealer_profile"] = profile
         validated_data.setdefault("status", DealerProductStatus.PENDING)

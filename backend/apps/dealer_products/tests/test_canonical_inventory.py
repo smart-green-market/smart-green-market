@@ -1,4 +1,4 @@
-"""Tests một SP / tên, lô MAIN, nhập kho cộng dồn, gộp trùng."""
+"""Tests một SP / product catalog, lô MAIN, nhập kho cộng dồn, gộp trùng."""
 
 from decimal import Decimal
 
@@ -24,6 +24,7 @@ from apps.dealer_products.models import (
 from apps.dealers.models import DealerProfile, DealerProfileStatus
 from apps.orders.models import Order, OrderItem, OrderStatus
 from apps.orders.services import _allocate_batches
+from apps.product_catalog.models import ProductMaster, ProductMasterStatus
 from apps.purchase_orders.models import PurchaseOrder, PurchaseOrderItem, PurchaseOrderStatus
 from apps.purchase_orders.services import _import_dealer_inventory
 from apps.supplier_products.models import SupplierProduct, SupplierProductStatus
@@ -88,9 +89,17 @@ class CanonicalInventoryTests(TestCase):
             scope=CategoryScope.SYSTEM,
             status=CategoryStatus.ACTIVE,
         )
+        self.rau_lang_master = ProductMaster.objects.create(
+            category=self.category,
+            name="Rau lang",
+            slug="rau-lang-master",
+            default_unit="kg",
+            status=ProductMasterStatus.ACTIVE,
+        )
         self.sp_a = SupplierProduct.objects.create(
             supplier=self.supplier_a,
             category=self.category,
+            product_master=self.rau_lang_master,
             name="Rau lang",
             slug="rau-lang-a",
             unit="kg",
@@ -100,14 +109,27 @@ class CanonicalInventoryTests(TestCase):
         self.sp_b = SupplierProduct.objects.create(
             supplier=self.supplier_b,
             category=self.category,
-            name="Rau lang",
-            slug="rau-lang-b",
+            product_master=self.rau_lang_master,
+            name="Rau lan",
+            slug="rau-lan-b",
             unit="kg",
             wholesale_price="7500.00",
             status=SupplierProductStatus.ACTIVE,
         )
 
-    def test_import_reuses_canonical_product_across_suppliers(self):
+    def _create_po_item(self, order, sp, qty):
+        PurchaseOrderItem.objects.create(
+            purchase_order=order,
+            supplier_product=sp,
+            quantity=qty,
+            original_quantity=qty,
+            unit_price=sp.wholesale_price,
+            base_unit_price=sp.wholesale_price,
+            subtotal=Decimal(qty) * Decimal(str(sp.wholesale_price)),
+            review_status="approved",
+        )
+
+    def test_import_reuses_canonical_product_by_product_master(self):
         for sp, qty in ((self.sp_a, 40), (self.sp_b, 70)):
             order = PurchaseOrder.objects.create(
                 order_code=f"PN-CANON-{sp.id}",
@@ -120,16 +142,7 @@ class CanonicalInventoryTests(TestCase):
                 receiver_phone="0900000000",
                 total_amount=Decimal("500000"),
             )
-            PurchaseOrderItem.objects.create(
-                purchase_order=order,
-                supplier_product=sp,
-                quantity=qty,
-                original_quantity=qty,
-                unit_price=sp.wholesale_price,
-                base_unit_price=sp.wholesale_price,
-                subtotal=Decimal(qty) * Decimal(str(sp.wholesale_price)),
-                review_status="approved",
-            )
+            self._create_po_item(order, sp, qty)
             _import_dealer_inventory(order, self.dealer.account)
 
         products = DealerProduct.objects.filter(
@@ -137,22 +150,20 @@ class CanonicalInventoryTests(TestCase):
         ).exclude(status=DealerProductStatus.DELETED)
         self.assertEqual(products.count(), 1)
         product = products.get()
+        self.assertEqual(product.product_master_id, self.rau_lang_master.id)
         self.assertEqual(product.title, "Rau lang")
 
-        batches = DealerInventoryBatch.objects.filter(
+        main = DealerInventoryBatch.objects.get(
             dealer_product=product,
-            deleted_at__isnull=True,
+            batch_number=CANONICAL_BATCH_NUMBER,
         )
-        self.assertEqual(batches.count(), 1)
-        main = batches.get()
-        self.assertEqual(main.batch_number, CANONICAL_BATCH_NUMBER)
         self.assertEqual(main.remaining_quantity, 110)
 
-    def test_merge_duplicate_products_consolidates_stock(self):
+    def test_merge_duplicate_products_by_product_master_different_names(self):
         p1 = DealerProduct.objects.create(
             dealer_profile=self.dealer,
             supplier_product=self.sp_a,
-            title="Rau lang — bán lẻ",
+            title="Rau lan",
             retail_price="12000.00",
             status=DealerProductStatus.ACTIVE,
         )
@@ -192,6 +203,8 @@ class CanonicalInventoryTests(TestCase):
         )
         self.assertEqual(active.count(), 1)
         canonical = active.get()
+        self.assertEqual(canonical.product_master_id, self.rau_lang_master.id)
+        self.assertEqual(canonical.title, "Rau lang")
         main = DealerInventoryBatch.objects.get(
             dealer_product=canonical,
             batch_number=CANONICAL_BATCH_NUMBER,
@@ -220,9 +233,27 @@ class CanonicalInventoryTests(TestCase):
         self.assertEqual(qty, 10)
 
     def test_waiting_stock_allocates_after_import_to_canonical(self):
+        tao_master = ProductMaster.objects.create(
+            category=self.category,
+            name="Táo",
+            slug="tao-master",
+            default_unit="kg",
+            status=ProductMasterStatus.ACTIVE,
+        )
+        sp_tao_a = SupplierProduct.objects.create(
+            supplier=self.supplier_a,
+            category=self.category,
+            product_master=tao_master,
+            name="Táo",
+            slug="tao-a",
+            unit="kg",
+            wholesale_price="18000.00",
+            status=SupplierProductStatus.ACTIVE,
+        )
         product_old = DealerProduct.objects.create(
             dealer_profile=self.dealer,
-            supplier_product=self.sp_a,
+            supplier_product=sp_tao_a,
+            product_master=tao_master,
             title="Táo",
             retail_price="19000.00",
             status=DealerProductStatus.ACTIVE,
@@ -251,10 +282,11 @@ class CanonicalInventoryTests(TestCase):
             subtotal=Decimal("57000"),
         )
 
-        sp_tao = SupplierProduct.objects.create(
+        sp_tao_b = SupplierProduct.objects.create(
             supplier=self.supplier_b,
             category=self.category,
-            name="Táo",
+            product_master=tao_master,
+            name="Tao",
             slug="tao-b",
             unit="kg",
             wholesale_price="16000.00",
@@ -271,19 +303,14 @@ class CanonicalInventoryTests(TestCase):
             receiver_phone="0900000000",
             total_amount=Decimal("1100000"),
         )
-        PurchaseOrderItem.objects.create(
-            purchase_order=po,
-            supplier_product=sp_tao,
-            quantity=110,
-            original_quantity=110,
-            unit_price=Decimal("16000"),
-            base_unit_price=Decimal("16000"),
-            subtotal=Decimal("1760000"),
-            review_status="approved",
-        )
+        self._create_po_item(po, sp_tao_b, 110)
         _import_dealer_inventory(po, self.dealer.account)
 
-        canonical = find_canonical_dealer_product(self.dealer, "Táo")
+        canonical = find_canonical_dealer_product(
+            self.dealer,
+            supplier_product=sp_tao_b,
+            product_master_id=tao_master.id,
+        )
         self.assertIsNotNone(canonical)
         order.refresh_from_db()
         self.assertEqual(order.status, OrderStatus.PROCESSING)
