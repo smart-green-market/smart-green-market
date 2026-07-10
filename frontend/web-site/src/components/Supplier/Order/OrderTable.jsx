@@ -155,14 +155,47 @@ const TABLE_MIN_WIDTH = 980;
 const DATE_COL_WIDTH = 88;
 const ACTION_COL_WIDTH = 44;
 
-export default function OrderTable({ data, search, loading, onView }) {
+export default function OrderTable({ data, search, loading, onView, selectedIds = [], setSelectedIds, detailCache = {}, setDetailCache }) {
   const [statusFilter, setStatusFilter] = useState("all");
   const [page, setPage] = useState(1);
   const [sort, setSort] = useState(null);
 
-  // Cache items + returns theo order id
-  const [detailCache, setDetailCache] = useState({}); // { [orderId]: { items, returns } }
   const fetchingIds = useRef(new Set());
+
+  const getRowHighlight = (row) => {
+    if (row.status !== "pending_supplier_confirmation") return null;
+    if (!row.requested_delivery_time) return null;
+
+    const reqDate = new Date(row.requested_delivery_time);
+    reqDate.setHours(0, 0, 0, 0); // chỉ lấy ngày
+    
+    const today = new Date();
+    today.setHours(0, 0, 0, 0); // chỉ lấy ngày hiện tại
+    
+    const diffTime = reqDate - today;
+    const diffDays = Math.round(diffTime / (1000 * 60 * 60 * 24));
+
+    if (diffDays < 0) {
+      return {
+        type: "red",
+        bgClass: "bg-red-50 hover:bg-red-100/90",
+        tooltip: `Đã quá hạn ngày giao mong muốn (${formatDateOnly(row.requested_delivery_time)})!`
+      };
+    } else if (diffDays === 0) {
+      return {
+        type: "red",
+        bgClass: "bg-red-50 hover:bg-red-100/90",
+        tooltip: `Hôm nay là hạn ngày giao mong muốn (${formatDateOnly(row.requested_delivery_time)})!`
+      };
+    } else if (diffDays <= 3) {
+      return {
+        type: "yellow",
+        bgClass: "bg-amber-50 hover:bg-amber-100/90",
+        tooltip: `Sắp đến ngày giao mong muốn (còn ${diffDays} ngày - ${formatDateOnly(row.requested_delivery_time)})!`
+      };
+    }
+    return null;
+  };
 
   const toggleSort = (key) => {
     setSort((prev) => {
@@ -203,6 +236,11 @@ export default function OrderTable({ data, search, loading, onView }) {
   const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
   const safePage = Math.min(page, totalPages);
   const pageRows = sorted.slice((safePage - 1) * PAGE_SIZE, safePage * PAGE_SIZE);
+
+  const hasProcessingInPage = useMemo(() => {
+    return pageRows.some((row) => row.status === "processing");
+  }, [pageRows]);
+  const actualMinWidth = hasProcessingInPage ? 1020 : 980;
 
   // Fetch detail khi thiếu items hoặc thiếu returns (đơn có lịch sử trả hàng)
   useEffect(() => {
@@ -320,8 +358,30 @@ export default function OrderTable({ data, search, loading, onView }) {
         <div className="overflow-x-auto">
           <div
             className="flex items-center gap-2 px-3 py-2 text-[10px] uppercase tracking-wide"
-            style={{ minWidth: TABLE_MIN_WIDTH, color: "#80899a", borderBottom: "0.5px solid #e5e7eb" }}
+            style={{ minWidth: actualMinWidth, color: "#80899a", borderBottom: "0.5px solid #e5e7eb" }}
           >
+            {hasProcessingInPage && (
+              <div style={{ width: 40, flexShrink: 0, display: "flex", justifyContent: "center", alignItems: "center" }}>
+                <input
+                  type="checkbox"
+                  checked={
+                    pageRows.filter((r) => r.status === "processing").length > 0 &&
+                    pageRows.filter((r) => r.status === "processing").every((r) => selectedIds.includes(r.id))
+                  }
+                  onChange={(e) => {
+                    const pageProcessingIds = pageRows
+                      .filter((r) => r.status === "processing")
+                      .map((r) => r.id);
+                    if (e.target.checked) {
+                      setSelectedIds((prev) => [...new Set([...prev, ...pageProcessingIds])]);
+                    } else {
+                      setSelectedIds((prev) => prev.filter((id) => !pageProcessingIds.includes(id)));
+                    }
+                  }}
+                  className="w-4 h-4 rounded text-emerald-600 focus:ring-emerald-500 border-neutral-300 cursor-pointer"
+                />
+              </div>
+            )}
             <div style={{ flex: 1, minWidth: 140 }}>
               <span
                 className="inline-flex items-center gap-1 cursor-pointer select-none hover:text-[#111827] transition-colors"
@@ -385,14 +445,14 @@ export default function OrderTable({ data, search, loading, onView }) {
           {loading ? (
             <div
               className="py-16 text-center text-sm"
-              style={{ minWidth: TABLE_MIN_WIDTH, color: "#80899a" }}
+              style={{ minWidth: actualMinWidth, color: "#80899a" }}
             >
               Đang tải đơn hàng...
             </div>
           ) : filtered.length === 0 ? (
             <div
               className="py-16 text-center text-sm"
-              style={{ minWidth: TABLE_MIN_WIDTH, color: "#80899a" }}
+              style={{ minWidth: actualMinWidth, color: "#80899a" }}
             >
               Chưa có đơn hàng nào.
             </div>
@@ -400,16 +460,49 @@ export default function OrderTable({ data, search, loading, onView }) {
             pageRows.map((rawRow, idx) => {
               const row = getDisplayRow(rawRow);
               const itemsLoaded = extractOrderItems(row).length > 0;
+              const highlight = getRowHighlight(row);
 
               return (
                 <div
                   key={row.id ?? row.order_code ?? idx}
-                  className="flex items-center gap-2 px-3 py-2 transition-colors hover:bg-[#f9fafb] group"
+                  className={`flex items-center gap-2 px-3 py-2 transition-colors relative group/row ${
+                    highlight ? highlight.bgClass : "hover:bg-[#f9fafb] bg-white"
+                  }`}
                   style={{
-                    minWidth: TABLE_MIN_WIDTH,
+                    minWidth: actualMinWidth,
                     borderBottom: idx === pageRows.length - 1 ? "none" : "0.5px solid #e5e7eb",
                   }}
                 >
+                  {highlight && (
+                    <div className="absolute hidden group-hover/row:flex flex-col gap-1 bg-gray-900 text-white text-xs rounded-lg px-3 py-2 z-30 shadow-xl border border-neutral-800 -top-12 left-10 pointer-events-none whitespace-nowrap animate-fade-in">
+                      <div className="flex items-center gap-1.5 font-bold">
+                        <span className={highlight.type === "red" ? "text-red-400" : "text-amber-400"}>⚠️ Cảnh báo:</span>
+                        <span>{highlight.type === "red" ? "Quá hạn ngày giao" : "Sắp đến ngày giao"}</span>
+                      </div>
+                      <p className="text-neutral-300 text-[10px]">{highlight.tooltip}</p>
+                      <div className="absolute border-solid border-t-gray-900 border-t-8 border-x-transparent border-x-8 border-b-0 w-0 h-0 -bottom-2 left-4" />
+                    </div>
+                  )}
+                  {hasProcessingInPage && (
+                    <div style={{ width: 40, flexShrink: 0, display: "flex", justifyContent: "center", alignItems: "center" }}>
+                      {row.status === "processing" ? (
+                        <input
+                          type="checkbox"
+                          checked={selectedIds.includes(row.id)}
+                          onChange={(e) => {
+                            if (e.target.checked) {
+                              setSelectedIds((prev) => [...prev, row.id]);
+                            } else {
+                              setSelectedIds((prev) => prev.filter((id) => id !== row.id));
+                            }
+                          }}
+                          className="w-4 h-4 rounded text-emerald-600 focus:ring-emerald-500 border-neutral-300 cursor-pointer"
+                        />
+                      ) : (
+                        <div className="w-4 h-4" />
+                      )}
+                    </div>
+                  )}
                   <div style={{ flex: 1, minWidth: 140 }}>
                     <div className="text-xs font-medium" style={{ color: "#111827" }}>
                       {row.order_code}
@@ -464,7 +557,13 @@ export default function OrderTable({ data, search, loading, onView }) {
                   </div>
                   <div
                     style={{ width: ACTION_COL_WIDTH, flexShrink: 0, textAlign: "center" }}
-                    className="sticky right-0 bg-white group-hover:bg-[#f9fafb]"
+                    className={`sticky right-0 transition-colors ${
+                      highlight
+                        ? highlight.type === "red"
+                          ? "bg-red-50 group-hover/row:bg-red-100/90"
+                          : "bg-amber-50 group-hover/row:bg-amber-100/90"
+                        : "bg-white group-hover/row:bg-[#f9fafb]"
+                    }`}
                   >
                     <button
                       onClick={() => onView?.(row)}

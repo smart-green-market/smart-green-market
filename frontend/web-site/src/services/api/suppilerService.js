@@ -70,7 +70,8 @@ export const supplierService = {
 
   getById: (id) => axiosClient.get(`/suppliers/${id}/`).then((res) => res.data),
 
-  getProductById: (id) => axiosClient.get(`/suppliers/${id}/products/`).then((res) => res.data),
+  getProductById: (id) =>
+    axiosClient.get(`/suppliers/${id}/products/`).then((res) => res.data),
 
   /** Lấy SP của NCC (dealer đặt hàng) — có phân trang. */
   getSupplierProducts: (supplierId, params = {}) => {
@@ -80,6 +81,10 @@ export const supplierService = {
     }
     return axiosClient.get("/supplier-products/", { params: queryParams }).then((res) => res.data);
   },
+  getSupplierProductsForId: (supplierId, params = {}) =>
+    axiosClient
+      .get(`/suppliers/${supplierId}/products/`, { params })
+      .then((res) => res.data),
 
   // {
   //   "id": 0,
