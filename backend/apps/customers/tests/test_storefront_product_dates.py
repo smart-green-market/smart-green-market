@@ -9,6 +9,7 @@ from rest_framework.test import APIClient
 
 from apps.accounts.models import Account, AccountRole, AccountStatus
 from apps.categories.models import Category, CategoryScope, CategoryStatus
+from apps.dealer_products.canonical_inventory import CANONICAL_BATCH_NUMBER
 from apps.dealer_products.inventory_expiry import compute_batch_production_date
 from apps.dealer_products.models import (
     DealerInventoryBatch,
@@ -77,32 +78,35 @@ class StorefrontProductDatesTests(TestCase):
         )
         self.today = timezone.localdate()
 
-    def _create_batch(self, *, import_offset=0, expiry_offset=5, production_offset=0):
+    def _create_main_batch(self, *, import_offset=0, expiry_offset=5, production_offset=0):
         import_date = self.today - timedelta(days=import_offset)
         production_date = self.today - timedelta(days=production_offset)
         expiry_date = self.today + timedelta(days=expiry_offset)
-        return DealerInventoryBatch.objects.create(
+        batch, _ = DealerInventoryBatch.objects.update_or_create(
             dealer_product=self.product,
-            batch_number=f"BATCH-{import_offset}",
-            quantity=20,
-            remaining_quantity=20,
-            import_price="8000.00",
-            import_date=import_date,
-            production_date=production_date,
-            expiry_date=expiry_date,
-            status=DealerInventoryBatchStatus.ACTIVE,
+            batch_number=CANONICAL_BATCH_NUMBER,
+            defaults={
+                "quantity": 20,
+                "remaining_quantity": 20,
+                "import_price": "8000.00",
+                "import_date": import_date,
+                "production_date": production_date,
+                "expiry_date": expiry_date,
+                "status": DealerInventoryBatchStatus.ACTIVE,
+                "deleted_at": None,
+            },
         )
+        return batch
 
-    def test_storefront_detail_returns_fifo_batch_dates(self):
-        older = self._create_batch(import_offset=3, production_offset=3, expiry_offset=2)
-        self._create_batch(import_offset=1, production_offset=1, expiry_offset=6)
+    def test_storefront_detail_returns_main_batch_dates(self):
+        main = self._create_main_batch(import_offset=3, production_offset=3, expiry_offset=2)
 
         url = f"/api/storefronts/{self.dealer.slug}/products/{self.product.id}/"
         response = self.client.get(url)
 
         self.assertEqual(response.status_code, 200)
-        self.assertEqual(response.data["production_date"], older.production_date)
-        self.assertEqual(response.data["expiry_date"], older.expiry_date)
+        self.assertEqual(response.data["production_date"], main.production_date)
+        self.assertEqual(response.data["expiry_date"], main.expiry_date)
         self.assertEqual(response.data["days_to_expiry"], 2)
 
     def test_storefront_detail_null_dates_when_out_of_stock(self):
@@ -124,7 +128,7 @@ class StorefrontProductDatesTests(TestCase):
         )
         self.assertEqual(production, import_date)
 
-    def test_import_sets_production_date_on_batch(self):
+    def test_import_accumulates_main_batch_without_expiry(self):
         from apps.purchase_orders.models import (
             PurchaseOrder,
             PurchaseOrderItem,
@@ -143,25 +147,32 @@ class StorefrontProductDatesTests(TestCase):
             receiver_phone="0900000000",
             total_amount=Decimal("100000"),
         )
-        item = PurchaseOrderItem.objects.create(
+        PurchaseOrderItem.objects.create(
             purchase_order=order,
             supplier_product=self.supplier_product,
             quantity=10,
             original_quantity=10,
             unit_price=Decimal("10000"),
+            base_unit_price=Decimal("10000"),
             subtotal=Decimal("100000"),
             review_status="approved",
         )
         _import_dealer_inventory(order, self.dealer.account)
 
-        batch = DealerInventoryBatch.objects.get(purchase_order_item=item)
-        import_date = timezone.localdate()
-        self.assertEqual(batch.production_date, import_date)
-        self.assertEqual(batch.expiry_date, import_date + timedelta(days=5))
+        canonical = DealerProduct.objects.get(
+            dealer_profile=self.dealer,
+            title="Rau muống",
+        )
+        batch = DealerInventoryBatch.objects.get(
+            dealer_product=canonical,
+            batch_number=CANONICAL_BATCH_NUMBER,
+        )
+        self.assertEqual(batch.remaining_quantity, 10)
+        self.assertIsNone(batch.expiry_date)
 
-        annotate_dealer_product_stock(DealerProduct.objects.filter(pk=self.product.pk))
-        url = f"/api/storefronts/{self.dealer.slug}/products/{self.product.id}/"
+        annotate_dealer_product_stock(DealerProduct.objects.filter(pk=canonical.pk))
+        url = f"/api/storefronts/{self.dealer.slug}/products/{canonical.id}/"
         response = self.client.get(url)
         self.assertEqual(response.status_code, 200)
-        self.assertEqual(response.data["production_date"], import_date)
-        self.assertEqual(response.data["expiry_date"], import_date + timedelta(days=5))
+        self.assertIsNone(response.data["production_date"])
+        self.assertIsNone(response.data["expiry_date"])

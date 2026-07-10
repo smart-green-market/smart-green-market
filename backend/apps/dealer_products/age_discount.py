@@ -243,7 +243,7 @@ def price_for_order_allocation(batch, quantity):
 
 
 def compute_product_display_price(dealer_product, *, today=None, at=None) -> BatchPriceResult:
-    """Giá hiển thị catalog = lô FIFO đầu tiên (lô sẽ bán trước)."""
+    """Giá hiển thị catalog = giá lô MAIN (flash sale theo giờ trên SP)."""
     base_price = dealer_product.retail_price
     first_batch = (
         get_sellable_batches_qs(dealer_product).select_related("dealer_product__dealer_profile").first()

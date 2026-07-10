@@ -473,6 +473,10 @@ class Command(BaseCommand):
 
             for idx, sp in enumerate(selected_supp_prods):
                 retail_price = pick_retail_price(sp.wholesale_price)
+                title = f'{sp.product_master.name if sp.product_master else sp.name}'
+                from apps.dealer_products.canonical_inventory import find_canonical_dealer_product
+                if find_canonical_dealer_product(dealer, title):
+                    continue
 
                 dp_category = system_to_custom.get(sp.category_id, sp.category)
 
@@ -481,7 +485,7 @@ class Command(BaseCommand):
                     supplier_product=sp,
                     category=dp_category,
                     retail_price=retail_price,
-                    title=f'{sp.product_master.name if sp.product_master else sp.name} — bán lẻ',
+                    title=title,
                     description=build_dealer_description(sp, retail_price),
                     status=DealerProductStatus.ACTIVE
                 )

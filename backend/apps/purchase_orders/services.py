@@ -33,18 +33,11 @@ from django.db.models import Sum
 from django.utils import timezone
 from rest_framework.exceptions import ValidationError
 
-from apps.dealer_products.inventory_expiry import (
-    compute_batch_expiry_date,
-    compute_batch_production_date,
+from apps.dealer_products.canonical_inventory import (
+    add_import_to_main_batch,
+    get_or_create_canonical_dealer_product,
 )
-from apps.dealer_products.models import (
-    DealerInventoryBatch,
-    DealerInventoryBatchStatus,
-    DealerInventoryTransaction,
-    DealerInventoryTransactionType,
-    DealerProduct,
-    DealerProductStatus,
-)
+from apps.dealer_products.models import DealerProduct
 from apps.accounts.models import AccountStatus
 from apps.categories.models import CategoryScope, CategoryStatus
 from apps.dealers.models import DealerProfileStatus
@@ -1013,58 +1006,31 @@ def _resolve_dealer_category(supplier_product):
 
 
 def _import_dealer_inventory(order, user):
-    """Tạo DealerProduct (nếu chưa có) + DealerInventoryBatch + transaction IMPORT.
+    """Nhập kho đại lý: một SP / tên + cộng dồn lô MAIN.
 
-    Mỗi dòng đơn → 1 batch gắn purchase_order_item (FIFO xuất kho sau này).
-    Danh mục bán lẻ: copy danh mục hệ thống của NCC nếu có, ngược lại để trống
-    cho đại lý tự phân loại (xem _resolve_dealer_category).
-  Model: apps/dealer_products/models.py
+    Danh mục bán lẻ: copy danh mục hệ thống của NCC nếu có (xem _resolve_dealer_category).
     """
     import_date = timezone.now().date()
 
     for item in order.items.filter(
         review_status=PurchaseOrderItemReviewStatus.APPROVED,
     ).select_related("supplier_product", "supplier_product__category"):
-        dealer_product, _ = DealerProduct.objects.get_or_create(
-            dealer_profile=order.dealer,
+        dealer_product, _ = get_or_create_canonical_dealer_product(
+            order.dealer,
             supplier_product=item.supplier_product,
-            defaults={
-                "title": item.supplier_product.name,
-                "retail_price": item.unit_price,
-                "category": _resolve_dealer_category(item.supplier_product),
-                "status": DealerProductStatus.ACTIVE,
-            },
+            retail_price=item.unit_price,
+            category=_resolve_dealer_category(item.supplier_product),
         )
         qty = _remaining_import_quantity(order, item)
         if qty <= 0:
             continue
-        batch_number = f"{order.order_code}-{item.id}"
-        expiry_date = compute_batch_expiry_date(import_date, item.supplier_product)
-        production_date = compute_batch_production_date(
-            import_date,
-            item.supplier_product,
-            expiry_date=expiry_date,
-        )
-        batch = DealerInventoryBatch.objects.create(
+        add_import_to_main_batch(
             dealer_product=dealer_product,
-            purchase_order_item=item,
-            batch_number=batch_number,
             quantity=qty,
-            remaining_quantity=qty,
             import_price=item.unit_price,
-            import_date=import_date,
-            production_date=production_date,
-            expiry_date=expiry_date,
-            status=DealerInventoryBatchStatus.ACTIVE,
-        )
-        DealerInventoryTransaction.objects.create(
-            batch=batch,
-            type=DealerInventoryTransactionType.IMPORT,
-            quantity_before=0,
-            quantity_change=qty,
-            quantity_after=qty,
             reason=f"Nhập từ phiếu {order.order_code}",
-            created_by=user,
+            user=user,
+            import_date=import_date,
         )
         from apps.orders.waiting_stock_services import try_allocate_waiting_orders
 

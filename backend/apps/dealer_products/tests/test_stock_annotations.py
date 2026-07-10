@@ -7,6 +7,7 @@ from django.utils import timezone
 
 from apps.accounts.models import Account, AccountRole, AccountStatus
 from apps.categories.models import Category, CategoryScope, CategoryStatus
+from apps.dealer_products.canonical_inventory import CANONICAL_BATCH_NUMBER
 from apps.dealer_products.models import (
     DealerInventoryBatch,
     DealerInventoryBatchStatus,
@@ -73,7 +74,7 @@ class AnnotateDealerProductStockTests(TestCase):
         today = timezone.localdate()
         DealerInventoryBatch.objects.create(
             dealer_product=self.product,
-            batch_number="B1",
+            batch_number=CANONICAL_BATCH_NUMBER,
             quantity=100,
             remaining_quantity=50,
             import_price="10000.00",
@@ -88,7 +89,7 @@ class AnnotateDealerProductStockTests(TestCase):
             import_price="10000.00",
             import_date=today,
             expiry_date=today - timedelta(days=1),
-            status=DealerInventoryBatchStatus.ACTIVE,
+            status=DealerInventoryBatchStatus.EXPIRED,
         )
 
     def test_imported_total_available_quantities(self):
@@ -98,7 +99,7 @@ class AnnotateDealerProductStockTests(TestCase):
         self.assertEqual(product.available_quantity, 50)
 
     def test_wastage_reduces_total_not_imported(self):
-        batch = self.product.inventory_batches.get(batch_number="B1")
+        batch = self.product.inventory_batches.get(batch_number=CANONICAL_BATCH_NUMBER)
         record_wastage(
             batch=batch,
             quantity=10,

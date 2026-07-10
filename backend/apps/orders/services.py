@@ -107,26 +107,19 @@ def _active_batches_qs(dealer_product):
 
 
 def _allocate_batches(dealer_product, quantity):
-    """Phân bổ FIFO — trả list (batch, qty)."""
-    allocations = []
-    remaining = quantity
-    for batch in _active_batches_qs(dealer_product):
-        if remaining <= 0:
-            break
-        take = min(batch.remaining_quantity, remaining)
-        if take > 0:
-            allocations.append((batch, take))
-            remaining -= take
-    if remaining > 0:
+    """Phân bổ từ lô MAIN duy nhất — trả list (batch, qty)."""
+    batch = _active_batches_qs(dealer_product).first()
+    if batch is None or batch.remaining_quantity < quantity:
+        available = batch.remaining_quantity if batch else 0
         raise ValidationError(
             {
                 "items": (
                     f"Sản phẩm '{dealer_product.title}' không đủ tồn "
-                    f"(thiếu {remaining} đơn vị)."
+                    f"(thiếu {quantity - available} đơn vị)."
                 )
             }
         )
-    return allocations
+    return [(batch, quantity)]
 
 
 def _deduct_batch(batch, quantity, order_code, user):

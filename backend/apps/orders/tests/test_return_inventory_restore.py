@@ -8,6 +8,7 @@ from django.utils import timezone
 from apps.accounts.models import Account, AccountRole, AccountStatus
 from apps.categories.models import Category, CategoryScope, CategoryStatus
 from apps.customers.models import CustomerAddress, CustomerProfile
+from apps.dealer_products.canonical_inventory import CANONICAL_BATCH_NUMBER
 from apps.dealer_products.models import (
     DealerInventoryBatch,
     DealerInventoryBatchStatus,
@@ -112,7 +113,7 @@ class ReturnInventoryRestoreTests(TestCase):
         )
         self.batch = DealerInventoryBatch.objects.create(
             dealer_product=self.dealer_product,
-            batch_number="B-RETURN-INV",
+            batch_number=CANONICAL_BATCH_NUMBER,
             quantity=20,
             remaining_quantity=5,
             import_price="10000.00",

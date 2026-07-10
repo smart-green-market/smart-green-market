@@ -3,6 +3,8 @@
 from django.conf import settings
 from django.contrib.postgres.fields import ArrayField
 from django.db import models
+from django.db.models import Q
+from django.db.models.functions import Lower
 
 
 class DealerProductStatus(models.TextChoices):
@@ -76,6 +78,21 @@ class DealerProduct(models.Model):
         verbose_name = "Dealer Product"
         verbose_name_plural = "Dealer Products"
         ordering = ["-updated_at", "-created_at", "-id"]
+        constraints = [
+            models.UniqueConstraint(
+                "dealer_profile",
+                Lower("title"),
+                condition=Q(
+                    status__in=[
+                        DealerProductStatus.PENDING,
+                        DealerProductStatus.ACTIVE,
+                        DealerProductStatus.INACTIVE,
+                        DealerProductStatus.REJECTED,
+                    ]
+                ),
+                name="unique_dealer_product_title_per_dealer",
+            ),
+        ]
 
     def __str__(self):
         return self.title
