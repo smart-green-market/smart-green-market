@@ -3,6 +3,7 @@ import {
     HardDrive,
     Loader2,
     RefreshCw,
+    RotateCw,
     Save,
     Shield,
     ShoppingCart,
@@ -294,6 +295,7 @@ export default function SettingsAside() {
     const [isFetching, setIsFetching] = useState(true);
     const [isSaving, setIsSaving] = useState(false);
     const [isTraining, setIsTraining] = useState(false);
+    const [isSyncing, setIsSyncing] = useState(false);
     const [loadError, setLoadError] = useState("");
     const [confirmOpen, setConfirmOpen] = useState(false);
 
@@ -361,6 +363,28 @@ export default function SettingsAside() {
         }
     };
 
+    const handleSyncRelatedProducts = async () => {
+        setIsSyncing(true);
+        try {
+            const result = await aiTrainingServicer.reloadRelatedProducts();
+            if (result?.success) {
+                appToast.success(
+                    "Đã đồng bộ danh sách gợi ý sản phẩm",
+                );
+            } else {
+                appToast.warning(
+                    result?.message || "Đồng bộ gợi ý sản phẩm không thành công.",
+                );
+            }
+        } catch (err) {
+            appToast.error(
+                handleTrainingApiError(err, "Không thể đồng bộ gợi ý sản phẩm."),
+            );
+        } finally {
+            setIsSyncing(false);
+        }
+    };
+
     const handleConfirmUpdate = async () => {
         const patch = buildPatch(formValues, originalValues);
         if (!Object.keys(patch).length) return;
@@ -422,7 +446,7 @@ export default function SettingsAside() {
                         <button
                             type="button"
                             onClick={fetchConfig}
-                            disabled={isSaving || isTraining}
+                            disabled={isSaving || isTraining || isSyncing}
                             title="Tải lại"
                             className="cursor-pointer inline-flex shrink-0 items-center gap-2 rounded-lg border border-neutral-300 px-4 py-2.5 text-sm font-semibold text-neutral-700 transition-colors hover:bg-neutral-50 disabled:opacity-50"
                         >
@@ -432,8 +456,23 @@ export default function SettingsAside() {
 
                         <button
                             type="button"
+                            onClick={handleSyncRelatedProducts}
+                            disabled={isSaving || isTraining || isSyncing}
+                            title="Đồng bộ gợi ý sản phẩm từ mô hình hiện có"
+                            className="cursor-pointer inline-flex shrink-0 items-center gap-2 rounded-lg border border-emerald-300 bg-emerald-50 px-4 py-2.5 text-sm font-semibold text-emerald-800 transition-colors hover:bg-emerald-100 disabled:opacity-50"
+                        >
+                            {isSyncing ? (
+                                <Loader2 className="h-4 w-4 animate-spin" />
+                            ) : (
+                                <RotateCw className="h-4 w-4" />
+                            )}
+                            Đồng bộ
+                        </button>
+
+                        <button
+                            type="button"
                             onClick={handleTrainAi}
-                            disabled={isSaving || isTraining}
+                            disabled={isSaving || isTraining || isSyncing}
                             title="Huấn luyện gợi ý sản phẩm liên quan"
                             className="cursor-pointer inline-flex shrink-0 items-center gap-2 rounded-lg border border-violet-300 bg-violet-50 px-4 py-2.5 text-sm font-semibold text-violet-800 transition-colors hover:bg-violet-100 disabled:opacity-50"
                         >
