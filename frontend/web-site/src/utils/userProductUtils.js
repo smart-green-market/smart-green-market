@@ -369,7 +369,21 @@ export function isProductInStock(productOrStatus) {
     if (typeof productOrStatus.in_stock === "boolean") {
       return productOrStatus.in_stock;
     }
-    return isProductInStock(productOrStatus.status);
+
+    const rawAvail =
+      productOrStatus.available_quantity ?? productOrStatus.availableQuantity;
+    if (rawAvail != null && rawAvail !== "") {
+      const avail = Number(rawAvail);
+      if (Number.isFinite(avail)) {
+        return avail > 0;
+      }
+    }
+
+    if (productOrStatus.status != null) {
+      return isProductInStock(productOrStatus.status);
+    }
+
+    return false;
   }
 
   const status = productOrStatus;

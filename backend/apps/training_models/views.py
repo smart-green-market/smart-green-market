@@ -1,5 +1,6 @@
-from drf_spectacular.utils import extend_schema, inline_serializer
-from rest_framework import serializers, status
+from drf_spectacular.utils import extend_schema, inline_serializer, OpenApiParameter
+from drf_spectacular.types import OpenApiTypes
+from rest_framework import serializers, status, permissions
 from rest_framework.exceptions import PermissionDenied
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
@@ -7,8 +8,10 @@ from rest_framework.views import APIView
 from django.http import HttpResponse
 
 from apps.accounts.models import AccountRole
-from apps.training_models.services import RelatedProductRecommendationService, CustomerSegmentationService
+from apps.training_models.services import RelatedProductRecommendationService, CustomerSegmentationService, TrendAndDecisionRecommendationService
 from common.permission import IsAdmin, IsAdminOrDealer
+from .models import ProductPredictionResult
+from .serializers import ProductPredictionResultSerializer
 
 import logging
 logger = logging.getLogger(__name__)
@@ -173,3 +176,110 @@ class RelatedProductRecommendationView(APIView):
 
 
 train_related_products = RelatedProductRecommendationView.as_view()
+
+
+# ---------------------------------------------------------
+# API 1: HUẤN LUYỆN MÔ HÌNH (TRAIN)
+# ---------------------------------------------------------
+class DealerTrainModelView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    @extend_schema(
+        tags=["AI Training & Prediction"],
+        summary="1. Huấn luyện mô hình AI cho Đại lý",
+        description="Đọc dữ liệu lịch sử và huấn luyện mô hình LSTM & Quyết định. Kết quả model được lưu ra file `.keras`.",
+        request=inline_serializer(
+            name="DealerTrainRequest",
+            fields={"dealer_id": serializers.IntegerField(help_text="ID của đại lý cần train")}
+        ),
+        responses={200: inline_serializer(name="DealerTrainSuccess", fields={"message": serializers.CharField()})}
+    )
+    def post(self, request, *args, **kwargs):
+        dealer_id = request.data.get('dealer_id')
+        if not dealer_id:
+            return Response({"error": "Vui lòng cung cấp 'dealer_id'."}, status=status.HTTP_400_BAD_REQUEST)
+
+        ai_service = TrendAndDecisionRecommendationService()
+        success, message = ai_service.train_models(dealer_id=int(dealer_id))
+
+        if not success:
+            return Response({"error": message}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+        return Response({"message": message}, status=status.HTTP_200_OK)
+
+# ---------------------------------------------------------
+# API 2: GỌI PHÂN TÍCH TỪ MÔ HÌNH ĐÃ CÓ (INFERENCE)
+# ---------------------------------------------------------
+class DealerAnalyzeView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    @extend_schema(
+        tags=["AI Training & Prediction"],
+        summary="2. Phân tích và dự báo dựa trên Model",
+        description="Load model đã train từ đĩa cứng, chạy dự báo cho dữ liệu kho mới nhất và cập nhật đè vào Database.",
+        request=inline_serializer(
+            name="DealerAnalyzeRequest",
+            fields={"dealer_id": serializers.IntegerField(help_text="ID của đại lý cần phân tích")}
+        ),
+        responses={200: inline_serializer(name="DealerAnalyzeSuccess", fields={"message": serializers.CharField()})}
+    )
+    def post(self, request, *args, **kwargs):
+        dealer_id = request.data.get('dealer_id')
+        if not dealer_id:
+            return Response({"error": "Vui lòng cung cấp 'dealer_id'."}, status=status.HTTP_400_BAD_REQUEST)
+
+        ai_service = TrendAndDecisionRecommendationService()
+        success, message = ai_service.analyze_data(dealer_id=int(dealer_id))
+
+        if not success:
+            return Response({"error": message}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+        return Response({"message": message}, status=status.HTTP_200_OK)
+
+# ---------------------------------------------------------
+# API 3: TRUY XUẤT KẾT QUẢ ĐÃ LƯU (READ DB)
+# ---------------------------------------------------------
+class DealerRecommendationView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    @extend_schema(
+        tags=["AI Training & Prediction"],
+        summary="3. Lấy kết quả phân tích & gợi ý (từ Database)",
+        description="Truy vấn dữ liệu đã được API Phân tích ghi xuống Database để hiển thị lên UI.",
+        parameters=[
+            OpenApiParameter("dealer_id", OpenApiTypes.INT, required=True),
+            OpenApiParameter("decision_type", OpenApiTypes.STR, required=False),
+            OpenApiParameter("category", OpenApiTypes.STR, required=False),
+        ]
+    )
+    def get(self, request, *args, **kwargs):
+        dealer_id = request.query_params.get('dealer_id')
+        if not dealer_id:
+            return Response({"error": "Vui lòng cung cấp 'dealer_id'."}, status=status.HTTP_400_BAD_REQUEST)
+
+        queryset = ProductPredictionResult.objects.filter(dealer_id=dealer_id)
+
+        decision_filter = request.query_params.get('decision_type')
+        category_filter = request.query_params.get('category')
+
+        if decision_filter:
+            queryset = queryset.filter(decision__iexact=decision_filter)
+        if category_filter:
+            queryset = queryset.filter(category__iexact=category_filter)
+
+        queryset = queryset.order_by('decision', '-decision_confidence')
+
+        summary_stats = {
+            "nhap_hang_gap": queryset.filter(decision="Nhập hàng gấp").count(),
+            "nhap_them": queryset.filter(decision="Nhập thêm hàng").count(),
+            "duy_tri": queryset.filter(decision="Duy trì").count(),
+            "khuyen_mai": queryset.filter(decision="Khuyến mãi đẩy hàng").count(),
+            "giam_nhap": queryset.filter(decision="Giảm nhập / ngừng nhập").count(),
+        }
+
+        serializer = ProductPredictionResultSerializer(queryset, many=True)
+        return Response({"summary_kpi": summary_stats, "recommendations": serializer.data}, status=status.HTTP_200_OK)
+
+dealer_train_model = DealerTrainModelView.as_view()
+dealer_analyze_data = DealerAnalyzeView.as_view()
+dealer_recommendations = DealerRecommendationView.as_view()

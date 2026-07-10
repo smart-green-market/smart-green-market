@@ -10,13 +10,36 @@ export const CATEGORY_PAGE_SIZE = ADMIN_LIST_PAGE_SIZE;
 
 export const categoryService = {
   // USER
-  getAll: (params) =>
-    axiosClient
-      .get("/categories/", { params: sanitizeAdminListParams(params) })
-      .then((res) => {
-        if (params?.page != null) return normalizePaginatedResponse(res.data);
-        return normalizeListResponse(res.data);
-      }),
+  getAll: async (params) => {
+    if (params?.page != null) {
+      const res = await axiosClient.get("/categories/", {
+        params: sanitizeAdminListParams(params),
+      });
+      return normalizePaginatedResponse(res.data);
+    }
+
+    let allResults = [];
+    let page = 1;
+    let hasMore = true;
+
+    while (hasMore) {
+      const res = await axiosClient.get("/categories/", {
+        params: sanitizeAdminListParams({ page_size: 100, ...params, page }),
+      });
+      const data = res.data;
+
+      const results = Array.isArray(data) ? data : (data?.results || []);
+      allResults = [...allResults, ...results];
+
+      if (Array.isArray(data) || (!data?.next && !data?.has_more)) {
+        hasMore = false;
+      } else {
+        page += 1;
+      }
+    }
+
+    return allResults;
+  },
 
   getList: (params = {}) =>
     axiosClient
@@ -181,7 +204,7 @@ export const categoryService = {
 
   // Supplier
   getsupplierCategories: () =>
-    axiosClient.get("/categories/").then((res) => res.data.results),
+    categoryService.getAll(),
 
   delete: (id) =>
     axiosClient.delete(`/categories/${id}/`).then((res) => res.data),

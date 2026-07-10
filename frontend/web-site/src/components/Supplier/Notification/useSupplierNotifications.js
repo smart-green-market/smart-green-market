@@ -46,8 +46,11 @@ export default function useSupplierNotifications({
   const [loading, setLoading] = useState(false);
   const knownIdsRef = useRef(new Set());
   const initialLoadDoneRef = useRef(false);
+  const [currentPage, setCurrentPage] = useState(1);
 
-  const pageSize = listLimit ?? SUPPLIER_LIST_PAGE_SIZE;
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [filter, search]);
 
   const applyList = useCallback((rawList = [], options = {}) => {
     let mapped = mapApiListToSupplierNotifications(rawList);
@@ -82,18 +85,41 @@ export default function useSupplierNotifications({
     if (!isEnabled) return;
     setLoading(true);
     try {
-      const data = await notificationService.getMy({
-        page: 1,
-        page_size: pageSize,
-      });
-      const parsed = parseMyNotificationsResponse(data);
-      ingestFetchedItems(parsed.results, { unreadCount: parsed.unreadCount });
+      let allItems = [];
+      let page = 1;
+      let hasMore = true;
+      let unreadCountValue = 0;
+
+      if (listLimit != null) {
+        const data = await notificationService.getMy({
+          page: 1,
+          page_size: listLimit,
+        });
+        const parsed = parseMyNotificationsResponse(data);
+        allItems = parsed.results;
+        unreadCountValue = parsed.unreadCount;
+      } else {
+        while (hasMore) {
+          const data = await notificationService.getMy({
+            page,
+            page_size: 100,
+          });
+          const parsed = parseMyNotificationsResponse(data);
+          allItems = [...allItems, ...parsed.results];
+          unreadCountValue = parsed.unreadCount;
+          hasMore = parsed.hasMore;
+          page += 1;
+          if (page > 20) break;
+        }
+      }
+
+      ingestFetchedItems(allItems, { unreadCount: unreadCountValue });
     } catch (error) {
       console.error(handleApiError(error, "Không thể tải thông báo"));
     } finally {
       setLoading(false);
     }
-  }, [ingestFetchedItems, isEnabled, pageSize]);
+  }, [ingestFetchedItems, isEnabled, listLimit]);
 
   useEffect(() => {
     if (!isEnabled) {
@@ -159,6 +185,17 @@ export default function useSupplierNotifications({
       return matchType && matchText;
     });
   }, [notifications, filter, search]);
+
+  const totalPages = useMemo(() => {
+    if (listLimit != null) return 1;
+    return Math.ceil(filteredNotifications.length / 10) || 1;
+  }, [filteredNotifications.length, listLimit]);
+
+  const displayedNotifications = useMemo(() => {
+    if (listLimit != null) return filteredNotifications;
+    const fromIndex = (currentPage - 1) * 10;
+    return filteredNotifications.slice(fromIndex, fromIndex + 10);
+  }, [filteredNotifications, currentPage, listLimit]);
 
   const markOneReadApi = useCallback(async (id, receiptId) => {
     const markReadId = resolveMarkReadId({ id, receipt_id: receiptId });
@@ -227,6 +264,10 @@ export default function useSupplierNotifications({
     notifications,
     recentNotifications,
     filteredNotifications,
+    displayedNotifications,
+    currentPage,
+    totalPages,
+    setCurrentPage,
     unreadCount,
     loading,
     refreshNotifications: fetchNotifications,

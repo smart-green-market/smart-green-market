@@ -95,6 +95,10 @@ export default function CultivationSupplierPage() {
         isOpen={viewRow !== null}
         onClose={() => setViewRow(null)}
         process={viewRow}
+        onDelete={(row) => {
+          setViewRow(null);
+          setDeleteRow(row);
+        }}
       />
 
       <EditCultivationModal

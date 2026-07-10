@@ -71,33 +71,47 @@ export default function DealerSupplierDetailPage() {
   const [supplier, setSupplier] = useState(null);
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [productsLoading, setProductsLoading] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalCount, setTotalCount] = useState(0);
+  const pageSize = 12;
 
-  // Gọi API lấy thông tin chi tiết và danh sách sản phẩm của nhà cung cấp
-  const fetchSupplierDetails = async () => {
+  // Gọi API lấy thông tin chi tiết nhà cung cấp
+  const fetchSupplierInfo = async () => {
     try {
       setLoading(true);
-      const [supplierInfo, productsResponse] = await Promise.all([
-        supplierService.getById(id).catch((err) => {
-          console.error("Lỗi khi tải thông tin nhà cung cấp:", err);
-          return null;
-        }),
-        supplierService.getProductById(id).catch((err) => {
-          console.error("Lỗi khi tải sản phẩm nhà cung cấp:", err);
-          return null;
-        }),
-      ]);
-
+      const supplierInfo = await supplierService.getById(id);
       setSupplier(mapSupplierInfo(supplierInfo));
-      setProducts(mapProductsList(productsResponse));
-    } catch (error) {
-      console.error("Lỗi khi tải chi tiết nhà cung cấp:", error);
+    } catch (err) {
+      console.error("Lỗi khi tải thông tin nhà cung cấp:", err);
     } finally {
       setLoading(false);
     }
   };
 
+  // Gọi API lấy danh sách sản phẩm phân trang
+  const fetchSupplierProducts = async (page) => {
+    try {
+      setProductsLoading(true);
+      const productsResponse = await supplierService.getSupplierProducts(id, {
+        page,
+        page_size: pageSize,
+      });
+      setProducts(mapProductsList(productsResponse));
+      setTotalCount(productsResponse?.count ?? 0);
+    } catch (err) {
+      console.error("Lỗi khi tải sản phẩm nhà cung cấp:", err);
+    } finally {
+      setProductsLoading(false);
+    }
+  };
+
   useEffect(() => {
-    fetchSupplierDetails();
+    if (id) {
+      fetchSupplierInfo();
+      fetchSupplierProducts(1);
+      setCurrentPage(1);
+    }
   }, [id]);
 
   if (loading) {
@@ -132,7 +146,7 @@ export default function DealerSupplierDetailPage() {
           <span>/</span>
           <span>Nhà cung cấp</span>
           <span>/</span>
-          <span className="text-emerald-950 font-medium">{supplier.name}</span>
+          <span className="text-emerald-950 font-medium">{supplier.company_name}</span>
         </div>
       </div>
 
@@ -140,7 +154,17 @@ export default function DealerSupplierDetailPage() {
       <SupplierInfoCard supplier={supplier} />
 
       {/* Hiển thị danh sách sản phẩm của nhà cung cấp đó */}
-      <SupplierProductList products={products} />
+      <SupplierProductList
+        products={products}
+        currentPage={currentPage}
+        totalCount={totalCount}
+        pageSize={pageSize}
+        onPageChange={(newPage) => {
+          setCurrentPage(newPage);
+          fetchSupplierProducts(newPage);
+        }}
+        productsLoading={productsLoading}
+      />
     </div>
   );
 }

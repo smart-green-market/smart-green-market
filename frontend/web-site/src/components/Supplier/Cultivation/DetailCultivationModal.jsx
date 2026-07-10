@@ -1,4 +1,4 @@
-import { X } from "lucide-react";
+import { X, Trash2 } from "lucide-react";
 import { Overlay, ModalBox, Field } from "./CreateCultivationModal";
 
 function formatDate(iso) {
@@ -12,7 +12,7 @@ function formatDate(iso) {
   });
 }
 
-export default function DetailCultivationModal({ isOpen, onClose, process }) {
+export default function DetailCultivationModal({ isOpen, onClose, process, onDelete }) {
   if (!isOpen || !process) return null;
 
   return (
@@ -62,7 +62,16 @@ export default function DetailCultivationModal({ isOpen, onClose, process }) {
           </Field>
         </div>
 
-        <div className="flex justify-end px-6 py-4 border-t border-neutral-100">
+        <div className="flex justify-between items-center px-6 py-4 border-t border-neutral-100">
+          <button
+            type="button"
+            onClick={() => onDelete?.(process)}
+            className="flex items-center gap-1.5 px-4 py-2 rounded-lg bg-red-50 text-red-600 hover:bg-red-100 transition-colors text-sm font-semibold"
+          >
+            <Trash2 size={16} />
+            Xóa quy trình
+          </button>
+
           <button
             onClick={onClose}
             className="px-4 py-2 rounded-lg border border-neutral-200 text-sm text-neutral-600 hover:bg-neutral-50 transition-colors"

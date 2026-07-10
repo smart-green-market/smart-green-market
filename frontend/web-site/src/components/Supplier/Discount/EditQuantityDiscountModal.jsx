@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { ButtonSpinner } from "../UI/SupplierSpinner";
+import { ButtonSpinner, PageSpinner } from "../UI/SupplierSpinner";
 import { X, Tag } from "lucide-react";
 import { toast } from "sonner";
 import { categoryService } from "../../../services/api/categoryService";

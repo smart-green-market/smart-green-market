@@ -54,6 +54,7 @@ export default function StorefrontProductCard({
         image,
         availableQuantity,
         available_quantity: availableQuantity,
+        in_stock: inStock,
     };
 
     const handleBuyNow = () => {

@@ -468,7 +468,7 @@ export default function ProductTable({
                       <button className="p-act" title="Xem đơn hàng" onClick={() => onListOrders?.(row)}>
                         <ClipboardList size={14} />
                       </button>
-                      {showLock ? (
+                      {/* {showLock ? (
   <button
     className="p-act warn"
     title="Khóa bán"
@@ -488,7 +488,7 @@ export default function ProductTable({
   </button>
 ) : (
   <div className="p-act p-act-placeholder" />
-)}
+)} */}
                       <button className="p-act danger" title="Xóa" onClick={() => onDelete(row)}>
                         <Trash2 size={14} />
                       </button>

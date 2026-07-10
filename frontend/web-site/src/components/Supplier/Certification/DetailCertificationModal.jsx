@@ -25,7 +25,7 @@ const STATUS_CONFIG = {
  * onClose       : () => void
  * certification : object (Dữ liệu chứng nhận từ API)
  */
-export default function DetailCertificationModal({ isOpen, onClose, certification }) {
+export default function DetailCertificationModal({ isOpen, onClose, certification, onRevoke }) {
 
   // Escape key & Body scroll lock
   useEffect(() => {
@@ -241,6 +241,14 @@ export default function DetailCertificationModal({ isOpen, onClose, certificatio
         {/* ── Footer ── */}
         <div className="h-px bg-zinc-100 mx-6 flex-shrink-0" />
         <div className="px-6 py-4 flex justify-end gap-3 bg-stone-50 rounded-b-2xl flex-shrink-0">
+          {certification.status === "pending" && onRevoke && (
+            <button
+              onClick={() => onRevoke(certification)}
+              className="px-6 py-2.5 text-sm font-semibold text-white bg-red-600 hover:bg-red-700 rounded-xl transition-colors"
+            >
+              Thu hồi chứng nhận
+            </button>
+          )}
           <button
             onClick={onClose}
             className="px-6 py-2.5 text-sm font-semibold text-zinc-700 bg-white border border-zinc-200 hover:bg-zinc-100 hover:text-zinc-900 rounded-xl transition-colors"
