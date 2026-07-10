@@ -13,6 +13,7 @@ import {
   Users,
   Percent,
   Sparkles,
+  BarChart3,
 } from "lucide-react";
 
 // Cấu trúc danh mục chia nhóm rõ ràng
@@ -21,6 +22,7 @@ const MENU_GROUPS = [
     title: "Tổng quan",
     items: [
       { label: "Trang chủ", icon: LayoutDashboard, to: "/dai-ly", end: true },
+      { label: "Thống kê", icon: BarChart3, to: "/dai-ly/thong-ke" },
       { label: "Dự báo & Gợi ý (AI)", icon: Sparkles, to: "/dai-ly/du-bao-ai" },
     ],
   },

@@ -38,6 +38,11 @@ export default function ProductCard({
           <h3 className="font-bold text-neutral-800 text-base line-clamp-1">
             {product.name}
           </h3>
+          {product.supplier?.company_name && (
+            <p className="text-xs text-gray-500 font-medium mt-0.5">
+              {product.supplier.company_name}
+            </p>
+          )}
           <p className="text-xs text-neutral-400 mt-0.5 font-medium">
             Mã: {product.code} | Đơn vị: {product.unit}
           </p>

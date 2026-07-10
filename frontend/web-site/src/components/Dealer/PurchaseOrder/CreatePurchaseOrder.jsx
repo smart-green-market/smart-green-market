@@ -147,10 +147,7 @@ export default function CreatePurchaseOrder({ onClose, onSuccess }) {
         setSuppliers(supplierList);
         setCategories(Array.isArray(categoryData) ? categoryData : []);
 
-        // Mặc định chọn nhà cung cấp đầu tiên nếu có danh sách
-        if (supplierList.length > 0) {
-          setSelectedSupplier(supplierList[0].id);
-        }
+        // Mặc định chọn "Tất cả" (selectedSupplier = "")
 
         if (dealerData?.length > 0 && !savedDraft) {
           const dealer = dealerData[0];
@@ -178,12 +175,6 @@ export default function CreatePurchaseOrder({ onClose, onSuccess }) {
 
   useEffect(() => {
     const fetchProducts = async () => {
-      if (!selectedSupplier) {
-        setProducts([]);
-        setTotalProductsCount(0);
-        setLoading(false);
-        return;
-      }
       setLoading(true);
       try {
         const productParams = {

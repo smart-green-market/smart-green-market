@@ -18,3 +18,5 @@ export { default as DealerProductManagementPage } from "./Product/ProductManagem
 export { default as DealerProductDetailPage } from "./Product/ProductDetail";
 export { default as DealerDiscountPage } from "./Discount/DealerDiscountPage";
 export { default as DealerAiPredictionPage } from "./AiPrediction/AiPredictionPage";
+export { default as DealerStatsPage } from "./Stats";
+
