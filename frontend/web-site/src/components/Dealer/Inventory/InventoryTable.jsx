@@ -1,11 +1,9 @@
-import { useMemo } from "react";
 import { Eye } from "lucide-react";
 import Pagination from "../../common/Pagination";
 import SortableHeader from "../../common/SortableHeader";
 import useTableSort from "../../../hooks/useTableSort";
 
 const COLUMN_CONFIG = {
-  batchCode:   { key: "batchCode",   type: "string" },
   productName: { key: "productName", type: "string" },
   stock:       { key: "stock",       type: "number" },
   priceImport: { key: "priceImport", type: "currency" },
@@ -34,7 +32,6 @@ export default function InventoryTable({ data, onRowClick, currentPage, totalPag
           <table className="w-full border-collapse text-left whitespace-nowrap">
             <thead>
               <tr className="bg-neutral-50 border-b border-neutral-200/60">
-                <SortableHeader label="Mã kho" column="batchCode" sortColumn={sortColumn} sortDirection={sortDirection} onSort={handleSort} />
                 <SortableHeader label="Tên nông sản" column="productName" sortColumn={sortColumn} sortDirection={sortDirection} onSort={handleSort} />
                 <SortableHeader label="Tồn kho" column="stock" sortColumn={sortColumn} sortDirection={sortDirection} onSort={handleSort} />
                 <SortableHeader label="Giá mua" column="priceImport" sortColumn={sortColumn} sortDirection={sortDirection} onSort={handleSort} />
@@ -59,15 +56,10 @@ export default function InventoryTable({ data, onRowClick, currentPage, totalPag
 
                 return (
                   <tr
-                    key={row.id || row.batchCode || index}
+                    key={row.originalData?.id || row.productName || index}
                     onClick={() => onRowClick && onRowClick(row)}
                     className="hover:bg-emerald-50/30 cursor-pointer transition-colors duration-150 group"
                   >
-                    <td className="px-6 py-4">
-                      <span className="text-emerald-800 text-xs font-bold font-mono">
-                        {row.batchCode}
-                      </span>
-                    </td>
                     <td className="px-6 py-4">
                       <div className="flex flex-col">
                         <span className="font-bold text-neutral-800">{row.productName}</span>
