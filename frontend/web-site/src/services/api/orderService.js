@@ -351,5 +351,9 @@ export const orderService = {
   confirmShipping: async (orderId, data) => {
     const res = await axiosClient.post(`/purchase-orders/${orderId}/ship/`, data)
     return res.data
+  },
+  confirmDelivery: async (orderId, data = {}) => {
+    const res = await axiosClient.post(`/purchase-orders/${orderId}/confirm-delivery/`, data)
+    return res.data
   }
 };
