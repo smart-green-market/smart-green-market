@@ -23,7 +23,7 @@ import { HomePage, ProductDetailPage, ProductsPage, CartPage, OrderPage, Payment
 //Supplier Pages
 import { OrderSupplierPage, ProductSupplierPage, CertificationSupplierPage, RegisterPage, SupplierLoginPage, SupplierInfoPage, CategorySupplierPage, CultivationSupplierPage, DashboardSupplierPage, SupplierNotificationPage, NotFound, OrderStats, RevenuePage, SupplierDiscountPage } from "./pages/Supplier";
 //Admin Pages
-import { AdminLoginPage, AdminDashboardPage, SettingPage, SupplierPage, CategoryPage, ProductPage, ProductMasterPage, SeasonPage, CertificationPage, DocumentPage, NotificationPage, DealerPage, VoucherPage, SupplierFinancePage, } from "./pages/Admin";
+import { AdminStatisticsPage, AdminLoginPage, AdminDashboardPage, SettingPage, SupplierPage, CategoryPage, ProductPage, ProductMasterPage, SeasonPage, CertificationPage, DocumentPage, NotificationPage, DealerPage, VoucherPage, SupplierFinancePage, } from "./pages/Admin";
 //Dealer Pages
 import { RegisterDealerPage, DealerLoginPage, DealerDashboardPage, DealerInventoryPage, DealerSupplierPage, DealerCategoryPage, DealerSalesOrderPage, DealerPreOrderPage, DealerPurchaseOrderPage, DealerCreatePurchaseOrderPage, DealerPurchaseOrderDetailPage, DealerDraftOrderPreviewPage, DealerSupplierDetailPage, DealerCategoryDetail, DealerInfoPage, DealerCustomerPage, DealerProductManagementPage, DealerProductDetailPage, DealerDiscountPage, DealerAiPredictionPage } from "./pages/Dealer";
 export default function App() {
@@ -94,6 +94,7 @@ export default function App() {
                     <Route element={<AdminProtectedRoute />}>
                         <Route path="/quan-tri" element={<AdminLayout />}>
                             <Route index element={<AdminDashboardPage />} />
+                            <Route path="thong-ke" element={<AdminStatisticsPage />} />
                             <Route path="cau-hinh" element={<SettingPage />} />
                             <Route path="nha-cung-cap" element={<SupplierPage />} />
                             <Route path="tai-chinh-ncc" element={<SupplierFinancePage />} />
