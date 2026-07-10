@@ -181,6 +181,7 @@ class StorefrontProductListSerializer(serializers.ModelSerializer):
             "thumbnail",
             "category",
             "unit",
+            "status",
             "available_quantity",
             "in_stock",
             "created_at",

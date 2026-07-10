@@ -6,7 +6,7 @@ import {
     fetchRelatedBuyerProducts,
 } from "../../hooks/useBuyerCatalog";
 import { useStorefrontPaths } from "../../hooks/useStorefrontPaths";
-import { getDiscountPercent } from "../../utils/userProductUtils";
+import { getDiscountPercent, isProductInStock } from "../../utils/userProductUtils";
 import { addRecentlyViewed } from "../../utils/recentlyViewedUtils";
 import { recordProductView } from "../../utils/buyerInteractionUtils";
 import { useAuth } from "../../contexts/authProvider";
@@ -51,9 +51,11 @@ export default function ProductDetailPage() {
     useEffect(() => {
         let cancelled = false;
 
-        async function loadProduct() {
-            setLoading(true);
-            setError("");
+        async function loadProduct({ silent = false } = {}) {
+            if (!silent) {
+                setLoading(true);
+                setError("");
+            }
 
             if (!paths.slug) {
                 setError("Chưa xác định cửa hàng. Vui lòng truy cập qua link cửa hàng đại lý.");
@@ -79,27 +81,39 @@ export default function ProductDetailPage() {
                 if (cancelled) return;
 
                 setProduct(detail);
-                setReviewSummary(mapProductReviewSummary(ratingData));
+                if (ratingData) {
+                    setReviewSummary(mapProductReviewSummary(ratingData));
+                }
 
-                const relatedList = await fetchRelatedBuyerProducts(
-                    paths.slug,
-                    detail.id,
-                    10,
-                );
-                if (!cancelled) setRelated(relatedList);
+                if (!silent) {
+                    const relatedList = await fetchRelatedBuyerProducts(
+                        paths.slug,
+                        detail.id,
+                        10,
+                    );
+                    if (!cancelled) setRelated(relatedList);
+                }
             } catch (err) {
-                if (!cancelled) {
+                if (!cancelled && !silent) {
                     setError(handleApiError(err, "Không thể tải thông tin sản phẩm"));
                 }
             } finally {
-                if (!cancelled) setLoading(false);
+                if (!cancelled && !silent) setLoading(false);
             }
         }
 
         if (id) loadProduct();
 
+        const handleVisibility = () => {
+            if (document.visibilityState === "visible" && id) {
+                loadProduct({ silent: true });
+            }
+        };
+        document.addEventListener("visibilitychange", handleVisibility);
+
         return () => {
             cancelled = true;
+            document.removeEventListener("visibilitychange", handleVisibility);
         };
     }, [id, paths.slug]);
 
@@ -179,7 +193,7 @@ export default function ProductDetailPage() {
                         thumbnail={product.thumbnail}
                         name={product.name}
                         status={product.status}
-                        inStock={product.in_stock}
+                        inStock={isProductInStock(product)}
                         discountPercent={getDiscountPercent(product)}
                     />
                     <ProductDetailPurchase

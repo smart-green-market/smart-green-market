@@ -68,7 +68,7 @@ export default function ProductDetailPurchase({
     const retailPrice = getRetailProductPrice(product);
     const storageLabel = formatStorageDuration(product.storage_duration_days);
     const unitLabel = formatUnitLabel(product.unit);
-    const stockLabel = getStockLabel(product.status, product.in_stock);
+    const stockLabel = getStockLabel(product.status, inStock);
     const supplierName = product.dealer_name || product.supplier_name;
     const stockValue =
         product.available_quantity != null
