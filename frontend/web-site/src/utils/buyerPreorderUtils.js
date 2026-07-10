@@ -1,4 +1,5 @@
 import { buildCreateOrderPayload } from "./buyerOrderUtils";
+import { getPreOrderStatusMeta } from "./preorderStatusConfig";
 
 export const STOCK_CHOICE = {
   ORDER_AVAILABLE: "order_available",
@@ -8,10 +9,10 @@ export const STOCK_CHOICE = {
 
 export const PREORDER_STATUS_LABELS = {
   submitted: "Chờ đại lý xử lý",
-  customer_confirmation_pending: "Chờ bạn xác nhận",
+  customer_confirmation_pending: "Cần bạn xác nhận",
   rejected_by_dealer: "Đại lý từ chối",
   rejected_by_customer: "Bạn đã từ chối",
-  converted: "Đã chuyển thành đơn",
+  converted: "Đã thành đơn",
   cancelled: "Đã hủy",
 };
 
@@ -130,7 +131,10 @@ export function parsePreOrderSummary(raw) {
     requestCode: raw.request_code ?? "",
     status: raw.status ?? "",
     statusLabel:
-      raw.status_label ?? PREORDER_STATUS_LABELS[raw.status] ?? raw.status ?? "",
+      raw.status_label ??
+      getPreOrderStatusMeta(raw.status, "buyer").label ??
+      raw.status ??
+      "",
     requestedDeliveryTime: raw.requested_delivery_time ?? null,
     confirmedDeliveryTime: raw.confirmed_delivery_time ?? null,
     proposedDeliveryTime: raw.proposed_delivery_time ?? null,

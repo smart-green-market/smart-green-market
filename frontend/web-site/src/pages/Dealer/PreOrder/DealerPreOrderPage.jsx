@@ -1,7 +1,10 @@
-import { useCallback, useEffect, useState } from "react";
-import { ClipboardList, Loader2 } from "lucide-react";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { ClipboardList } from "lucide-react";
 import { toast } from "sonner";
 import PreOrderProposeModal from "../../../components/Dealer/PreOrder/PreOrderProposeModal";
+import PreOrderDetailPanel from "../../../components/PreOrder/PreOrderDetailPanel";
+import PreOrderRequestCard from "../../../components/PreOrder/PreOrderRequestCard";
+import PreOrderStatusSummary from "../../../components/PreOrder/PreOrderStatusSummary";
 import RejectModal from "../../../components/common/RejectModal";
 import SupplierFilter from "../../../components/Dealer/Supplier/SupplierFilter";
 import {
@@ -10,35 +13,21 @@ import {
 } from "../../../services/api/dealerPreOrderService";
 import { useOrderRealtimeRefresh } from "../../../hooks/useOrderRealtimeRefresh";
 import { ORDER_REFERENCE_TYPES } from "../../../utils/orderRealtimeUtils";
-import { PREORDER_STATUS_LABELS } from "../../../utils/buyerPreorderUtils";
-
-const STATUS_OPTIONS = [
-  { value: "", label: "Tất cả" },
-  { value: "submitted", label: "Chờ xử lý" },
-  { value: "customer_confirmation_pending", label: "Chờ khách xác nhận" },
-  { value: "converted", label: "Đã chuyển đơn" },
-  { value: "rejected_by_dealer", label: "Đã từ chối" },
-  { value: "rejected_by_customer", label: "Khách từ chối" },
-];
-
-function formatDateTime(value) {
-  if (!value) return "—";
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return "—";
-  return new Intl.DateTimeFormat("vi-VN", {
-    dateStyle: "short",
-    timeStyle: "short",
-  }).format(date);
-}
+import { parsePreOrderList, parsePreOrderSummary } from "../../../utils/buyerPreorderUtils";
+import {
+  countPreOrdersByStatus,
+  DEALER_PREORDER_FILTERS,
+} from "../../../utils/preorderStatusConfig";
 
 export default function DealerPreOrderPage() {
-  const [requests, setRequests] = useState([]);
+  const [allRequests, setAllRequests] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
-  const [selected, setSelected] = useState(null);
+  const [selectedId, setSelectedId] = useState(null);
   const [detail, setDetail] = useState(null);
+  const [detailLoading, setDetailLoading] = useState(false);
   const [actionLoading, setActionLoading] = useState(false);
   const [rejectOpen, setRejectOpen] = useState(false);
   const [proposeOpen, setProposeOpen] = useState(false);
@@ -53,24 +42,31 @@ export default function DealerPreOrderPage() {
     try {
       const data = await dealerPreOrderService.getAll({
         search: debouncedSearch,
-        status: statusFilter,
-        page_size: 20,
+        page_size: 50,
       });
-      setRequests(data.results ?? []);
+      setAllRequests(parsePreOrderList(data));
     } catch (err) {
       if (!silent) toast.error(handleApiError(err, "Không tải được YC đặt trước"));
     } finally {
       if (!silent) setLoading(false);
     }
-  }, [debouncedSearch, statusFilter]);
+  }, [debouncedSearch]);
+
+  const requests = useMemo(() => {
+    if (!statusFilter) return allRequests;
+    return allRequests.filter((item) => item.status === statusFilter);
+  }, [allRequests, statusFilter]);
 
   const fetchDetail = useCallback(async (id) => {
     if (!id) return;
+    setDetailLoading(true);
     try {
       const data = await dealerPreOrderService.getById(id);
-      setDetail(data);
+      setDetail(parsePreOrderSummary(data));
     } catch (err) {
       toast.error(handleApiError(err, "Không tải được chi tiết YC"));
+    } finally {
+      setDetailLoading(false);
     }
   }, []);
 
@@ -79,27 +75,32 @@ export default function DealerPreOrderPage() {
   }, [fetchList]);
 
   useEffect(() => {
-    if (selected?.id) fetchDetail(selected.id);
+    if (selectedId) fetchDetail(selectedId);
     else setDetail(null);
-  }, [selected, fetchDetail]);
+  }, [selectedId, fetchDetail]);
 
   useOrderRealtimeRefresh({
     referenceTypes: [ORDER_REFERENCE_TYPES.CUSTOMER_PREORDER_REQUEST],
-    watchOrderId: selected?.id,
+    watchOrderId: selectedId,
     onRefresh: () => fetchList({ silent: true }),
     onDetailRefresh: () => {
-      if (selected?.id) fetchDetail(selected.id);
+      if (selectedId) fetchDetail(selectedId);
     },
   });
 
+  const statusCounts = useMemo(
+    () => countPreOrdersByStatus(allRequests),
+    [allRequests],
+  );
+
   const handleConfirm = async () => {
-    if (!selected?.id) return;
+    if (!selectedId) return;
     setActionLoading(true);
     try {
-      await dealerPreOrderService.confirm(selected.id, {});
+      await dealerPreOrderService.confirm(selectedId, {});
       toast.success("Đã tạo đơn chờ hàng cho khách");
       await fetchList({ silent: true });
-      await fetchDetail(selected.id);
+      await fetchDetail(selectedId);
     } catch (err) {
       toast.error(handleApiError(err, "Không thể xác nhận YC"));
     } finally {
@@ -108,14 +109,14 @@ export default function DealerPreOrderPage() {
   };
 
   const handlePropose = async (payload) => {
-    if (!selected?.id) return;
+    if (!selectedId) return;
     setActionLoading(true);
     try {
-      await dealerPreOrderService.propose(selected.id, payload);
+      await dealerPreOrderService.propose(selectedId, payload);
       toast.success("Đã gửi đề xuất cho khách hàng");
       setProposeOpen(false);
       await fetchList({ silent: true });
-      await fetchDetail(selected.id);
+      await fetchDetail(selectedId);
     } catch (err) {
       toast.error(handleApiError(err, "Không thể gửi đề xuất"));
       throw err;
@@ -125,14 +126,14 @@ export default function DealerPreOrderPage() {
   };
 
   const handleReject = async (reason) => {
-    if (!selected?.id) return;
+    if (!selectedId) return;
     setActionLoading(true);
     try {
-      await dealerPreOrderService.reject(selected.id, { reason });
+      await dealerPreOrderService.reject(selectedId, { reason });
       toast.success("Đã từ chối yêu cầu");
       setRejectOpen(false);
       await fetchList({ silent: true });
-      await fetchDetail(selected.id);
+      await fetchDetail(selectedId);
     } catch (err) {
       toast.error(handleApiError(err, "Không thể từ chối YC"));
     } finally {
@@ -141,120 +142,102 @@ export default function DealerPreOrderPage() {
   };
 
   return (
-    <div className="space-y-6 p-6">
+    <div className="space-y-6 bg-emerald-50/15 p-6 min-h-screen">
       <div>
-        <h1 className="text-2xl font-bold text-gray-900">Yêu cầu đặt trước</h1>
-        <p className="mt-1 text-sm text-gray-500">
+        <h1 className="text-2xl font-extrabold text-emerald-950">Yêu cầu đặt trước</h1>
+        <p className="mt-1 text-sm text-emerald-800/70">
           Xử lý các yêu cầu đặt hàng vượt tồn kho từ khách hàng.
         </p>
       </div>
+
+      <PreOrderStatusSummary
+        counts={statusCounts}
+        audience="dealer"
+        activeFilter={statusFilter}
+        onFilterChange={setStatusFilter}
+        filters={DEALER_PREORDER_FILTERS}
+      />
 
       <SupplierFilter
         searchQuery={searchQuery}
         onSearchChange={setSearchQuery}
         statusFilter={statusFilter}
         onStatusChange={setStatusFilter}
-        filterOptions={STATUS_OPTIONS}
+        filterOptions={DEALER_PREORDER_FILTERS.map((item) => ({
+          label: item.label,
+          value: item.value,
+        }))}
         placeholder="Tìm mã YC, tên khách..."
       />
 
       {loading ? (
-        <div className="flex justify-center items-center py-20">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-emerald-600"></div>
+        <div className="flex items-center justify-center py-20">
+          <div className="h-8 w-8 animate-spin rounded-full border-b-2 border-emerald-600" />
+        </div>
+      ) : allRequests.length === 0 ? (
+        <div className="rounded-2xl border border-stone-200 bg-white px-6 py-12 text-center shadow-sm">
+          <ClipboardList className="mx-auto h-10 w-10 text-neutral-300" />
+          <p className="mt-3 font-medium text-neutral-700">Chưa có yêu cầu đặt trước</p>
         </div>
       ) : requests.length === 0 ? (
-        <div className="rounded-xl border border-gray-200 bg-white px-6 py-12 text-center">
-          <ClipboardList className="mx-auto h-10 w-10 text-gray-300" />
-          <p className="mt-3 font-medium text-gray-700">Chưa có yêu cầu đặt trước</p>
+        <div className="rounded-2xl border border-stone-200 bg-white px-6 py-10 text-center text-sm text-neutral-600">
+          Không có yêu cầu nào ở trạng thái đã chọn.
         </div>
       ) : (
-        <div className="grid grid-cols-1 gap-6 xl:grid-cols-[minmax(0,1fr)_380px]">
-          <div className="overflow-hidden rounded-xl border border-gray-200 bg-white">
-            <table className="min-w-full divide-y divide-gray-200 text-sm">
-              <thead className="bg-gray-50">
-                <tr>
-                  <th className="px-4 py-3 text-left font-semibold text-gray-600">Mã YC</th>
-                  <th className="px-4 py-3 text-left font-semibold text-gray-600">Trạng thái</th>
-                  <th className="px-4 py-3 text-left font-semibold text-gray-600">Giao dự kiến</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-100">
-                {requests.map((item) => (
-                  <tr
-                    key={item.id}
-                    onClick={() => setSelected(item)}
-                    className={`cursor-pointer hover:bg-emerald-50 ${selected?.id === item.id ? "bg-emerald-50" : ""
-                      }`}
-                  >
-                    <td className="px-4 py-3 font-medium text-gray-900">{item.request_code}</td>
-                    <td className="px-4 py-3 text-gray-600">
-                      {item.status_label ?? PREORDER_STATUS_LABELS[item.status] ?? item.status}
-                    </td>
-                    <td className="px-4 py-3 text-gray-600">
-                      {formatDateTime(item.requested_delivery_time)}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+        <div className="grid grid-cols-1 gap-6 xl:grid-cols-[minmax(0,1fr)_400px]">
+          <div className="space-y-3">
+            {requests.map((item) => (
+              <PreOrderRequestCard
+                key={item.id}
+                request={item}
+                selected={selectedId === item.id}
+                onClick={() => setSelectedId(item.id)}
+                audience="dealer"
+              />
+            ))}
           </div>
 
-          <div className="rounded-xl border border-gray-200 bg-white p-5">
-            {!selected ? (
-              <p className="text-sm text-gray-500">Chọn một yêu cầu để xử lý.</p>
-            ) : (
-              <div className="space-y-4">
-                <div>
-                  <p className="text-xs uppercase text-gray-500">Mã YC</p>
-                  <p className="font-semibold text-gray-900">{detail?.request_code ?? selected.request_code}</p>
-                </div>
-                <div>
-                  <p className="text-xs uppercase text-gray-500">Trạng thái</p>
-                  <p className="text-gray-800">
-                    {detail?.status_label ??
-                      PREORDER_STATUS_LABELS[detail?.status ?? selected.status]}
-                  </p>
-                </div>
-                {(detail?.items ?? []).map((item) => (
-                  <div key={item.id} className="rounded-lg bg-gray-50 px-3 py-2 text-sm">
-                    <p className="font-medium text-gray-900">{item.product_title}</p>
-                    <p className="text-gray-600">
-                      Yêu cầu {item.requested_quantity} {item.unit}
-                    </p>
-                  </div>
-                ))}
-
-                {detail?.status === "submitted" ? (
-                  <div className="flex flex-col gap-2 pt-2">
-                    <button
-                      type="button"
-                      disabled={actionLoading}
-                      onClick={handleConfirm}
-                      className="rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold text-white disabled:opacity-50"
-                    >
-                      Xác nhận theo yêu cầu
-                    </button>
-                    <button
-                      type="button"
-                      disabled={actionLoading}
-                      onClick={() => setProposeOpen(true)}
-                      className="rounded-lg bg-amber-500 px-4 py-2 text-sm font-semibold text-white disabled:opacity-50"
-                    >
-                      Đề xuất điều chỉnh
-                    </button>
-                    <button
-                      type="button"
-                      disabled={actionLoading}
-                      onClick={() => setRejectOpen(true)}
-                      className="rounded-lg border border-gray-300 px-4 py-2 text-sm font-semibold text-gray-700"
-                    >
-                      Từ chối
-                    </button>
-                  </div>
-                ) : null}
+          <PreOrderDetailPanel
+            detail={detail}
+            audience="dealer"
+            loading={detailLoading && !detail}
+            emptyMessage="Chọn một yêu cầu để xem và xử lý."
+          >
+            {detail?.status === "submitted" ? (
+              <div className="flex flex-col gap-2">
+                <button
+                  type="button"
+                  disabled={actionLoading}
+                  onClick={handleConfirm}
+                  className="rounded-xl bg-emerald-600 px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-emerald-700 disabled:opacity-50"
+                >
+                  Xác nhận theo yêu cầu
+                </button>
+                <button
+                  type="button"
+                  disabled={actionLoading}
+                  onClick={() => setProposeOpen(true)}
+                  className="rounded-xl bg-amber-500 px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-amber-600 disabled:opacity-50"
+                >
+                  Đề xuất điều chỉnh
+                </button>
+                <button
+                  type="button"
+                  disabled={actionLoading}
+                  onClick={() => setRejectOpen(true)}
+                  className="rounded-xl border border-stone-300 bg-white px-4 py-2.5 text-sm font-semibold text-neutral-700 transition-colors hover:bg-stone-50 disabled:opacity-50"
+                >
+                  Từ chối
+                </button>
               </div>
-            )}
-          </div>
+            ) : null}
+
+            {detail?.convertedOrderId ? (
+              <p className="text-sm font-medium text-emerald-800">
+                Đã chuyển thành đơn #{detail.convertedOrderId}
+              </p>
+            ) : null}
+          </PreOrderDetailPanel>
         </div>
       )}
 
