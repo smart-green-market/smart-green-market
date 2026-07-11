@@ -218,10 +218,10 @@ export function formatDealerProduct(raw) {
       : 0;
   const status = raw?.status ?? "active";
   const inStock =
-    availableQtyRaw != null && availableQtyRaw !== ""
-      ? availableQuantity > 0
-      : typeof raw?.in_stock === "boolean"
-        ? raw.in_stock
+    typeof raw?.in_stock === "boolean"
+      ? raw.in_stock
+      : availableQtyRaw != null && availableQtyRaw !== ""
+        ? availableQuantity > 0
         : status === "active" || status === "approved";
 
   return {
@@ -242,7 +242,7 @@ export function formatDealerProduct(raw) {
     age_discount_reason: raw?.age_discount_reason ?? "",
     wholesale_price: retailPrice,
     price: effectivePrice ?? retailPrice,
-    available_quantity: availableQuantity,
+    available_quantity: inStock ? availableQuantity : 0,
     in_stock: inStock,
     storage_duration_days: raw.storage_duration_days,
     min_storage_temp: raw.min_storage_temp,
@@ -368,6 +368,10 @@ export function formatProductPrice(price) {
 
 export function isProductInStock(productOrStatus) {
   if (productOrStatus && typeof productOrStatus === "object") {
+    if (typeof productOrStatus.in_stock === "boolean") {
+      if (!productOrStatus.in_stock) return false;
+    }
+
     const rawAvail =
       productOrStatus.available_quantity ?? productOrStatus.availableQuantity;
     if (rawAvail != null && rawAvail !== "") {
@@ -555,7 +559,7 @@ export function toCardProduct(product) {
     rating: product.rating,
     sold: product.sold,
     in_stock: inStock,
-    available_quantity: product.available_quantity ?? 0,
+    available_quantity: inStock ? (product.available_quantity ?? 0) : 0,
     category_id: product.category_id,
     priceValue: effectivePrice,
     retailPriceValue: retailPrice,
