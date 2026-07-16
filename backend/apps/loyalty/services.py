@@ -122,11 +122,13 @@ def recalculate_customer_tiers_for_dealer(dealer, *, reason="Điều chỉnh c�
     """Tính lại hạng toàn bộ khách của đại lý sau khi đổi ngưỡng/vô hiệu hóa hạng."""
     from apps.customers.models import CustomerProfile
 
-    profiles = CustomerProfile.objects.filter(
-        user__store_dealer=dealer,
-    ).select_for_update()
+    profiles = (
+        CustomerProfile.objects.filter(user__store_dealer=dealer)
+        .select_for_update(of=("self",))
+        .select_related("current_tier", "user")
+    )
 
-    for profile in profiles.select_related("current_tier", "user"):
+    for profile in profiles:
         sync_customer_tier(
             profile,
             reason=reason,
