@@ -577,7 +577,11 @@ class AdminDashboardViewSet(viewsets.ViewSet):
                         name='AdminRevenueSummary',
                         fields={
                             'this_month_dealer': serializers.DecimalField(max_digits=14, decimal_places=2, help_text="Tổng doanh thu đại lý tháng hiện tại"),
-                            'this_month_supplier': serializers.DecimalField(max_digits=14, decimal_places=2, help_text="Tổng doanh thu nhà cung cấp tháng hiện tại")
+                            'this_month_supplier': serializers.DecimalField(max_digits=14, decimal_places=2, help_text="Tổng doanh thu nhà cung cấp tháng hiện tại"),
+                            'this_month_total': serializers.DecimalField(max_digits=14, decimal_places=2, help_text="Tổng doanh thu toàn hệ thống tháng hiện tại"),
+                            'last_month_dealer': serializers.DecimalField(max_digits=14, decimal_places=2, help_text="Tổng doanh thu đại lý tháng trước"),
+                            'last_month_supplier': serializers.DecimalField(max_digits=14, decimal_places=2, help_text="Tổng doanh thu nhà cung cấp tháng trước"),
+                            'last_month_total': serializers.DecimalField(max_digits=14, decimal_places=2, help_text="Tổng doanh thu toàn hệ thống tháng trước")
                         }
                     ),
                     'active_dealers': serializers.IntegerField(help_text="Số lượng dealer đang hoạt động"),
@@ -595,6 +599,11 @@ class AdminDashboardViewSet(viewsets.ViewSet):
 
         now = timezone.now()
         this_month_start = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+        
+        if this_month_start.month == 1:
+            last_month_start = this_month_start.replace(year=this_month_start.year - 1, month=12)
+        else:
+            last_month_start = this_month_start.replace(month=this_month_start.month - 1)
 
         # 1. Tổng doanh thu nền tảng/tháng
         completed_orders = Order.objects.filter(
@@ -603,12 +612,26 @@ class AdminDashboardViewSet(viewsets.ViewSet):
         )
         total_revenue = completed_orders.aggregate(total=Sum('total_amount'))['total'] or 0
 
+        last_month_completed_orders = Order.objects.filter(
+            status__in=[OrderStatus.COMPLETED, OrderStatus.DELIVERED],
+            updated_at__gte=last_month_start,
+            updated_at__lt=this_month_start
+        )
+        total_revenue_last_month = last_month_completed_orders.aggregate(total=Sum('total_amount'))['total'] or 0
+
         # Doanh thu nhà cung cấp/tháng (B2B)
         completed_purchase_orders = PurchaseOrder.objects.filter(
             status__in=[PurchaseOrderStatus.COMPLETED, PurchaseOrderStatus.DELIVERED],
             updated_at__gte=this_month_start
         )
         total_revenue_supplier = completed_purchase_orders.aggregate(total=Sum('total_amount'))['total'] or 0
+
+        last_month_completed_purchase_orders = PurchaseOrder.objects.filter(
+            status__in=[PurchaseOrderStatus.COMPLETED, PurchaseOrderStatus.DELIVERED],
+            updated_at__gte=last_month_start,
+            updated_at__lt=this_month_start
+        )
+        total_revenue_supplier_last_month = last_month_completed_purchase_orders.aggregate(total=Sum('total_amount'))['total'] or 0
 
         # 2. Số dealer đang hoạt động
         active_dealers = Account.objects.filter(
@@ -631,7 +654,11 @@ class AdminDashboardViewSet(viewsets.ViewSet):
         return Response({
             "revenue": {
                 "this_month_dealer": total_revenue,
-                "this_month_supplier": total_revenue_supplier
+                "this_month_supplier": total_revenue_supplier,
+                "this_month_total": total_revenue + total_revenue_supplier,
+                "last_month_dealer": total_revenue_last_month,
+                "last_month_supplier": total_revenue_supplier_last_month,
+                "last_month_total": total_revenue_last_month + total_revenue_supplier_last_month
             },
             "active_dealers": active_dealers,
             "active_suppliers": active_suppliers,
