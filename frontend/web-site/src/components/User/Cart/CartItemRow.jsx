@@ -76,10 +76,6 @@ export default function CartItemRow({
                             Tồn kho: {availableQuantity} {item.unit}
                         </p>
                     ) : null}
-                    {preorderOnly ? (
-                        <p className="mt-1 text-xs font-medium text-amber-800">
-                        </p>
-                    ) : null}
                     {exceedsStock ? (
                         <p className="mt-1 text-xs text-amber-800">
                             Vượt tồn — sẽ xử lý ở bước thanh toán

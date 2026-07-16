@@ -18,7 +18,7 @@ import {
     saveCartToSession,
 } from "../utils/cartUtils";
 import { isBuyerUser } from "../utils/buyerAuthUtils";
-import { isProductPurchasable } from "../utils/userProductUtils";
+import { isProductPurchasable, isProductInStock } from "../utils/userProductUtils";
 import {
     clearProductSpamEntry,
     registerDuplicateAddAttempt,
@@ -73,8 +73,7 @@ export function CartProvider({ children }) {
             }
 
             const nextItem = buildCartItemFromProduct(product, quantity);
-            const preorderOnly =
-                nextItem.availableQuantity != null && nextItem.availableQuantity <= 0;
+            const preorderOnly = !isProductInStock(product);
             let result = {
                 added: true,
                 showToast: true,
@@ -152,27 +151,33 @@ export function CartProvider({ children }) {
             return;
         }
 
-        const stockById = new Map(
-            catalogProducts.map((product) => [
-                String(product.id),
-                product.available_quantity ?? null,
-            ]),
+        const catalogById = new Map(
+            catalogProducts.map((product) => [String(product.id), product]),
         );
 
         setItems((prev) =>
             prev.map((item) => {
-                const latestStock = stockById.get(String(item.id));
+                const catalogProduct = catalogById.get(String(item.id));
+                if (!catalogProduct) return item;
+
+                const inStock = isProductInStock(catalogProduct);
                 const rawAvailable =
-                    latestStock ?? item.availableQuantity ?? null;
+                    catalogProduct.available_quantity ??
+                    item.availableQuantity ??
+                    null;
                 const parsed =
                     rawAvailable != null && rawAvailable !== ""
                         ? Number(rawAvailable)
                         : null;
-                const availableQuantity = Number.isFinite(parsed)
-                    ? parsed
-                    : null;
+                const availableQuantity = inStock
+                    ? Number.isFinite(parsed)
+                        ? parsed
+                        : null
+                    : 0;
+
                 return {
                     ...item,
+                    inStock,
                     availableQuantity,
                 };
             }),
