@@ -65,6 +65,13 @@ from .serializer import (
                 required=False,
                 description="Dealer: lọc sản phẩm theo NCC (ID từ GET /api/suppliers/)",
             ),
+            OpenApiParameter(
+                name="category",
+                type=int,
+                location=OpenApiParameter.QUERY,
+                required=False,
+                description="Lọc sản phẩm theo danh mục",
+            ),
             OpenApiParameter("search", str, description="Tìm kiếm theo tên sản phẩm, công ty nhà cung cấp, danh mục, hoặc sản phẩm chuẩn", required=False),
             OpenApiParameter("status", str, description="Lọc theo trạng thái (pending, active, inactive, rejected)", required=False),
         ],
@@ -210,6 +217,11 @@ class SupplierProductViewSet(viewsets.ModelViewSet):
                 | Q(category__name__icontains=search)
                 | Q(product_master__name__icontains=search)
             )
+            
+        category_id = request.query_params.get("category")
+        if category_id:
+            qs = qs.filter(category_id=category_id)
+            
         if apply_status:
             qs = filter_by_status_param(
                 qs, request.query_params.get("status"), field="status"

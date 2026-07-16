@@ -3,10 +3,13 @@
 from django.db.models import Q
 from drf_spectacular.utils import extend_schema, extend_schema_view, OpenApiParameter
 from rest_framework import viewsets
+from rest_framework.decorators import action
 from rest_framework.exceptions import PermissionDenied, ValidationError
 from rest_framework.parsers import FormParser, JSONParser, MultiPartParser
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
+
+from apps.marketing.segment_defaults import resolve_primary_segment_membership
 
 from apps.accounts.models import AccountRole, AccountStatus
 from common.openapi import PAGINATION_QUERY_HELP, paginated_response_schema
@@ -68,7 +71,7 @@ class DealerCustomerViewSet(viewsets.ModelViewSet):
     serializer_class = DealerCustomerListSerializer
 
     def get_permissions(self):
-        if self.action in ("list", "retrieve", "update", "partial_update"):
+        if self.action in ("list", "retrieve", "update", "partial_update", "segment_stats"):
             return [IsAdminOrDealer()]
         return [IsAdmin()]
 
@@ -114,6 +117,23 @@ class DealerCustomerViewSet(viewsets.ModelViewSet):
         page = paginator.paginate_queryset(qs, request, view=self)
         serializer = self.get_serializer(page, many=True)
         return paginator.get_paginated_response(serializer.data, count_status=count_status)
+
+    @action(detail=False, methods=["get"], url_path="segment-stats")
+    def segment_stats(self, request):
+        qs = self.get_queryset().prefetch_related("segment_memberships__segment")
+        segment_counts = {}
+        for profile in qs:
+            memberships = list(profile.segment_memberships.all())
+            primary = resolve_primary_segment_membership(memberships)
+            seg_name = primary.segment.name if primary else "Chưa phân loại"
+            segment_counts[seg_name] = segment_counts.get(seg_name, 0) + 1
+
+        data = [
+            {"name": name, "count": count}
+            for name, count in segment_counts.items()
+        ]
+        data.sort(key=lambda x: x["count"], reverse=True)
+        return Response(data)
 
     def get_serializer_class(self):
         if self.action in ("update", "partial_update"):

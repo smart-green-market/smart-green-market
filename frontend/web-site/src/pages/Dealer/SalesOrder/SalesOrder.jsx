@@ -53,11 +53,11 @@ export default function DealerSalesOrderPage() {
             case "delivered": return "Đã giao";
             case "completed": return "Hoàn tất";
             case "cancelled": return "Đã hủy";
-      case "return_requested": return "Yêu cầu trả hàng";
-      case "returned": return "Đã trả hàng";
-      case "waiting_stock": return "Chờ hàng về kho";
-      case "delivery_reschedule_proposed": return "Chờ xác nhận đổi ngày giao";
-      default: return status || "Chờ xác nhận";
+            case "return_requested": return "Yêu cầu trả hàng";
+            case "returned": return "Đã trả hàng";
+            case "waiting_stock": return "Chờ hàng về kho";
+            case "delivery_reschedule_proposed": return "Chờ xác nhận đổi ngày giao";
+            default: return status || "Chờ xác nhận";
         }
     };
 
@@ -450,8 +450,9 @@ export default function DealerSalesOrderPage() {
                             const hasPreparing = selectedRows.some(r => (r.status || r.delivery) === "Đang chuẩn bị hàng");
                             const hasCancelable = selectedRows.some(r => {
                                 const st = r.status || r.delivery;
-                                return st === "Chờ xác nhận" || st === "Đã xác nhận" || st === "Đang chuẩn bị hàng";
+                                return st === "Chờ xác nhận" || st === "Đã xác nhận" || st === "Đang chuẩn bị hàng" || st === "Chờ hàng về kho";
                             });
+                            const canPrint = selectedRows.every(r => (r.status || r.delivery) !== "Đã hủy");
 
                             return (
                                 <div className="mb-4 p-4 bg-emerald-50 border border-emerald-200 rounded-2xl flex flex-col md:flex-row justify-between items-start md:items-center gap-4 animate-in fade-in slide-in-from-top-4">
@@ -491,12 +492,14 @@ export default function DealerSalesOrderPage() {
                                                 <XCircle className="w-4 h-4" /> Hủy đơn hàng
                                             </button>
                                         )}
-                                        <button
-                                            onClick={handleBulkPrint}
-                                            className="px-4 py-2 bg-white border border-neutral-200 hover:bg-neutral-50 text-neutral-700 rounded-xl text-xs font-bold transition-all shadow-sm flex items-center justify-center gap-2 cursor-pointer w-full sm:w-auto"
-                                        >
-                                            <Printer className="w-4 h-4" /> In hoá đơn ({selectedRows.length})
-                                        </button>
+                                        {canPrint && (
+                                            <button
+                                                onClick={handleBulkPrint}
+                                                className="px-4 py-2 bg-white border border-neutral-200 hover:bg-neutral-50 text-neutral-700 rounded-xl text-xs font-bold transition-all shadow-sm flex items-center justify-center gap-2 cursor-pointer w-full sm:w-auto"
+                                            >
+                                                <Printer className="w-4 h-4" /> In hoá đơn ({selectedRows.length})
+                                            </button>
+                                        )}
                                     </div>
                                 </div>
                             );

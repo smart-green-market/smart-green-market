@@ -116,12 +116,14 @@ export default function DealerPurchaseOrderPage() {
             }));
             let list = [...mappedList];
             if (location.state?.newOrder) {
+                //Duyệt qua từng đơn xem có đơn mới chưa thì thêm vào để cập nhật UI
                 const newO = location.state.newOrder;
                 if (!list.some(o => o.id === newO.id)) {
                     list = [newO, ...list];
                 }
             }
             setPurchaseOrders(list);
+            //Lấy số lượng đơn hàng tương ứng với trạng thái
             if (response?.count_status) {
                 setCountStatus(response.count_status);
             } else {

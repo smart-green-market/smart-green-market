@@ -300,12 +300,14 @@ export default function ({ order, onClose, onPrint, onConfirm, onStartProcessing
           </button>
         )}
 
-        <button
-          onClick={() => onPrint && onPrint(order)}
-          className="w-full py-3 rounded-xl bg-neutral-100 hover:bg-neutral-200 text-neutral-700 font-bold text-sm transition-all cursor-pointer flex items-center justify-center gap-2"
-        >
-          <Printer className="w-4 h-4" /> In hoá đơn
-        </button>
+        {order.status !== "Đã hủy" && (
+          <button
+            onClick={() => onPrint && onPrint(order)}
+            className="w-full py-3 rounded-xl bg-neutral-100 hover:bg-neutral-200 text-neutral-700 font-bold text-sm transition-all cursor-pointer flex items-center justify-center gap-2"
+          >
+            <Printer className="w-4 h-4" /> In hoá đơn
+          </button>
+        )}
       </div>
     </div>
   );
