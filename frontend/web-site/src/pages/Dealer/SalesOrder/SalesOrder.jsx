@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
-import { ShoppingCart, Plus, CheckCircle2, Truck, Printer, Package, XCircle } from "lucide-react";
+import { ShoppingCart, Plus, CheckCircle2, Truck, Printer, Package, XCircle, ClipboardList } from "lucide-react";
 import { toast } from "sonner";
 import SupplierFilter from "../../../components/Dealer/Supplier/SupplierFilter";
 import SalesOrderList from "../../../components/Dealer/SalesOrder/SalesOrderList";
@@ -7,6 +7,7 @@ import SalesOrderStatsCards from "../../../components/Dealer/SalesOrder/SalesOrd
 import CreateSalesOrderModal from "../../../components/Dealer/SalesOrder/CreateSalesOrderModal";
 import SalesOrderDetailPanel from "../../../components/Dealer/SalesOrder/SalesOrderDetailPanel";
 import PrintInvoiceModal from "../../../components/Dealer/SalesOrder/PrintInvoiceModal";
+import PrintPickingListModal from "../../../components/Dealer/SalesOrder/PrintPickingListModal";
 import RejectModal from "../../../components/common/RejectModal";
 import ProposeDeliveryRescheduleModal from "../../../components/Dealer/SalesOrder/ProposeDeliveryRescheduleModal";
 import { dealerOrderService } from "../../../services/api/dealerOrderService";
@@ -38,6 +39,10 @@ export default function DealerSalesOrderPage() {
     // Print Modal State
     const [isPrintModalOpen, setIsPrintModalOpen] = useState(false);
     const [ordersToPrint, setOrdersToPrint] = useState([]);
+
+    // Print Picking List State
+    const [isPickingModalOpen, setIsPickingModalOpen] = useState(false);
+    const [ordersToPrintPicking, setOrdersToPrintPicking] = useState([]);
 
     const [salesOrders, setSalesOrders] = useState([]);
     const [isLoading, setIsLoading] = useState(true);
@@ -175,24 +180,27 @@ export default function DealerSalesOrderPage() {
                 .map(row => dealerOrderService.confirmOrder(row.originalData.id));
 
             await Promise.all(confirmPromises);
-
+            toast.success("Đã xác nhận đồng loạt thành công!");
             await fetchOrders();
             setClearSelectedToggle(!clearSelectedToggle);
             setSelectedRows([]);
         } catch (error) {
             console.error("Lỗi khi xác nhận đơn hàng đồng loạt", error);
-            alert("Có lỗi xảy ra khi xác nhận đơn hàng");
+            const errMsg = error.response?.data?.detail || "Có lỗi xảy ra khi xác nhận đơn hàng";
+            toast.error(errMsg);
         }
     };
 
     const handleSingleConfirm = async (order) => {
         try {
             await dealerOrderService.confirmOrder(order.originalData.id);
+            toast.success(`Đã xác nhận đơn hàng ${order.id} thành công!`);
             await fetchOrders();
             await refreshDetailPanel(order.originalData.id);
         } catch (error) {
             console.error("Lỗi khi xác nhận đơn hàng", error);
-            alert("Có lỗi xảy ra khi xác nhận đơn hàng");
+            const errMsg = error.response?.data?.detail || "Có lỗi xảy ra khi xác nhận đơn hàng";
+            toast.error(errMsg);
         }
     };
 
@@ -275,22 +283,26 @@ export default function DealerSalesOrderPage() {
     const handleStartProcessing = async (order) => {
         try {
             await dealerOrderService.startProcessing(order.originalData.id);
+            toast.success(`Đã chuẩn bị hàng cho đơn ${order.id}`);
             await fetchOrders();
             await refreshDetailPanel(order.originalData.id);
         } catch (error) {
             console.error("Lỗi khi chuyển trạng thái đang chuẩn bị hàng", error);
-            alert("Có lỗi xảy ra khi chuyển trạng thái");
+            const errMsg = error.response?.data?.detail || "Có lỗi xảy ra khi chuyển trạng thái";
+            toast.error(errMsg);
         }
     };
 
     const handleShipOrder = async (order) => {
         try {
             await dealerOrderService.shipOrder(order.originalData.id);
+            toast.success(`Đã giao hàng cho đơn ${order.id}`);
             await fetchOrders();
             await refreshDetailPanel(order.originalData.id);
         } catch (error) {
             console.error("Lỗi khi chuyển trạng thái giao hàng", error);
-            alert("Có lỗi xảy ra khi chuyển trạng thái giao hàng");
+            const errMsg = error.response?.data?.detail || "Có lỗi xảy ra khi chuyển trạng thái giao hàng";
+            toast.error(errMsg);
         }
     };
 
@@ -301,13 +313,14 @@ export default function DealerSalesOrderPage() {
                 .map(row => dealerOrderService.startProcessing(row.originalData.id));
 
             await Promise.all(processPromises);
-
+            toast.success("Đã chuẩn bị hàng đồng loạt thành công!");
             await fetchOrders();
             setClearSelectedToggle(!clearSelectedToggle);
             setSelectedRows([]);
         } catch (error) {
             console.error("Lỗi khi chuẩn bị hàng đồng loạt", error);
-            alert("Có lỗi xảy ra khi chuyển trạng thái chuẩn bị hàng");
+            const errMsg = error.response?.data?.detail || "Có lỗi xảy ra khi chuyển trạng thái chuẩn bị hàng";
+            toast.error(errMsg);
         }
     };
 
@@ -318,13 +331,14 @@ export default function DealerSalesOrderPage() {
                 .map(row => dealerOrderService.shipOrder(row.originalData.id));
 
             await Promise.all(shipPromises);
-
+            toast.success("Đã giao hàng đồng loạt thành công!");
             await fetchOrders();
             setClearSelectedToggle(!clearSelectedToggle);
             setSelectedRows([]);
         } catch (error) {
             console.error("Lỗi khi giao hàng đồng loạt", error);
-            alert("Có lỗi xảy ra khi bắt đầu giao hàng đồng loạt");
+            const errMsg = error.response?.data?.detail || "Có lỗi xảy ra khi bắt đầu giao hàng đồng loạt";
+            toast.error(errMsg);
         }
     };
 
@@ -398,6 +412,16 @@ export default function DealerSalesOrderPage() {
         setIsPrintModalOpen(true);
     };
 
+    const handleBulkPrintPicking = () => {
+        setOrdersToPrintPicking(selectedRows);
+        setIsPickingModalOpen(true);
+    };
+
+    const handleSinglePrintPicking = (order) => {
+        setOrdersToPrintPicking([order]);
+        setIsPickingModalOpen(true);
+    };
+
     return (
         <div className="p-6 bg-emerald-50/15 min-h-screen font-['Geist',sans-serif]">
             {/* Header */}
@@ -452,7 +476,15 @@ export default function DealerSalesOrderPage() {
                                 const st = r.status || r.delivery;
                                 return st === "Chờ xác nhận" || st === "Đã xác nhận" || st === "Đang chuẩn bị hàng" || st === "Chờ hàng về kho";
                             });
-                            const canPrint = selectedRows.every(r => (r.status || r.delivery) !== "Đã hủy");
+                            const canPrint = selectedRows.length > 0 && selectedRows.every(r => {
+                                const st = r.originalData?.status;
+                                return st === "delivered" || st === "completed";
+                            });
+
+                            const canPrintPicking = selectedRows.length > 0 && selectedRows.every(r => {
+                                const st = r.originalData?.status;
+                                return st === "confirmed";
+                            });
 
                             return (
                                 <div className="mb-4 p-4 bg-emerald-50 border border-emerald-200 rounded-2xl flex flex-col md:flex-row justify-between items-start md:items-center gap-4 animate-in fade-in slide-in-from-top-4">
@@ -492,12 +524,20 @@ export default function DealerSalesOrderPage() {
                                                 <XCircle className="w-4 h-4" /> Hủy đơn hàng
                                             </button>
                                         )}
+                                        {canPrintPicking && (
+                                            <button
+                                                onClick={handleBulkPrintPicking}
+                                                className="px-4 py-2 bg-white border border-neutral-200 hover:bg-neutral-50 text-neutral-700 rounded-xl text-xs font-bold transition-all shadow-sm flex items-center justify-center gap-2 cursor-pointer w-full sm:w-auto"
+                                            >
+                                                <ClipboardList className="w-4 h-4 text-emerald-600" /> In phiếu soạn ({selectedRows.length})
+                                            </button>
+                                        )}
                                         {canPrint && (
                                             <button
                                                 onClick={handleBulkPrint}
                                                 className="px-4 py-2 bg-white border border-neutral-200 hover:bg-neutral-50 text-neutral-700 rounded-xl text-xs font-bold transition-all shadow-sm flex items-center justify-center gap-2 cursor-pointer w-full sm:w-auto"
                                             >
-                                                <Printer className="w-4 h-4" /> In hoá đơn ({selectedRows.length})
+                                                <Printer className="w-4 h-4" /> Xuất hoá đơn ({selectedRows.length})
                                             </button>
                                         )}
                                     </div>
@@ -529,6 +569,7 @@ export default function DealerSalesOrderPage() {
                             order={selectedOrder}
                             onClose={() => setSelectedOrder(null)}
                             onPrint={handleSinglePrint}
+                            onPrintPicking={handleSinglePrintPicking}
                             onConfirm={handleSingleConfirm}
                             onStartProcessing={handleStartProcessing}
                             onShipOrder={handleShipOrder}
@@ -550,6 +591,12 @@ export default function DealerSalesOrderPage() {
                 isOpen={isPrintModalOpen}
                 orders={ordersToPrint}
                 onClose={() => setIsPrintModalOpen(false)}
+            />
+
+            <PrintPickingListModal
+                isOpen={isPickingModalOpen}
+                orders={ordersToPrintPicking}
+                onClose={() => setIsPickingModalOpen(false)}
             />
 
             <ProposeDeliveryRescheduleModal

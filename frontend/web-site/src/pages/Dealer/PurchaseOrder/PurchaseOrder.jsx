@@ -1,8 +1,9 @@
 import { useState, useEffect, useCallback } from "react";
-import { ClipboardList, Plus } from "lucide-react";
+import { ClipboardList, Plus, Printer } from "lucide-react";
 import SupplierFilter from "../../../components/Dealer/Supplier/SupplierFilter";
 import PurchaseOrderList from "../../../components/Dealer/PurchaseOrder/PurchaseOrderList";
 import PurchaseOrderStatsCard from "../../../components/Dealer/PurchaseOrder/PurchaseOrderStatsCard";
+import PrintWarehouseReceiptModal from "../../../components/Dealer/PurchaseOrderDetail/PrintWarehouseReceiptModal";
 import { purchaseOrderService } from "../../../services/api/purchaseOrderService";
 import Pagination from "../../../components/common/Pagination";
 import { useNavigate, useLocation } from "react-router-dom";
@@ -50,6 +51,11 @@ export default function DealerPurchaseOrderPage() {
     const [totalPages, setTotalPages] = useState(1);
     const page_size = 10;
 
+    // States cho in hàng loạt & chọn dòng
+    const [selectedRows, setSelectedRows] = useState([]);
+    const [clearSelectedToggle, setClearSelectedToggle] = useState(false);
+    const [isPrintReceiptsOpen, setIsPrintReceiptsOpen] = useState(false);
+
     const filterOptions = [
         { label: "Tất cả", value: "", colorClass: "text-neutral-700" },
         { label: "Chờ xác nhận", value: "pending_supplier_confirmation", colorClass: "text-amber-700" },
@@ -87,6 +93,11 @@ export default function DealerPurchaseOrderPage() {
         }, 500);
         return () => clearTimeout(timer);
     }, [searchQuery, debouncedSearchQuery]);
+
+    useEffect(() => {
+        setSelectedRows([]);
+        setClearSelectedToggle(prev => !prev);
+    }, [currentPage, statusFilter, debouncedSearchQuery]);
 
     const fetchOrders = useCallback(async ({ silent = false } = {}) => {
         if (!silent) setLoading(true);
@@ -199,6 +210,32 @@ export default function DealerPurchaseOrderPage() {
                 placeholder="Tìm kiếm đơn nhập hàng (Mã đơn, Nhà cung cấp...)"
             />
 
+            {/* Bulk Actions Bar */}
+            {selectedRows.length > 0 && (() => {
+                const canPrintBulk = selectedRows.every(r => r.rawStatus !== "cancelled" && r.rawStatus !== "rejected");
+                return (
+                    <div className="mb-4 p-4 bg-emerald-50 border border-emerald-200 rounded-2xl flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 animate-in fade-in slide-in-from-top-4">
+                        <span className="text-sm font-bold text-emerald-800">
+                            Đã chọn {selectedRows.length} đơn nhập hàng
+                        </span>
+                        <div className="flex flex-wrap gap-2.5 w-full sm:w-auto">
+                            {canPrintBulk ? (
+                                <button
+                                    onClick={() => setIsPrintReceiptsOpen(true)}
+                                    className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold transition-all shadow-sm flex items-center justify-center gap-2 w-full sm:w-auto cursor-pointer active:scale-95"
+                                >
+                                    <Printer className="w-4 h-4" /> In phiếu nhập hàng ({selectedRows.length})
+                                </button>
+                            ) : (
+                                <span className="text-xs text-red-600 font-medium italic flex items-center">
+                                    Không thể in đơn đã hủy hoặc từ chối
+                                </span>
+                            )}
+                        </div>
+                    </div>
+                );
+            })()}
+
             {/* List of orders */}
             <div className="relative">
                 {loading ? (
@@ -210,6 +247,8 @@ export default function DealerPurchaseOrderPage() {
                         <PurchaseOrderList
                             purchaseOrders={filteredData}
                             onViewDetail={handleViewDetail}
+                            onSelectedRowsChange={({ selectedRows }) => setSelectedRows(selectedRows)}
+                            clearSelectedRows={clearSelectedToggle}
                         />
                         <Pagination
                             currentPage={currentPage}
@@ -219,6 +258,12 @@ export default function DealerPurchaseOrderPage() {
                     </>
                 )}
             </div>
+
+            <PrintWarehouseReceiptModal
+                isOpen={isPrintReceiptsOpen}
+                orders={selectedRows}
+                onClose={() => setIsPrintReceiptsOpen(false)}
+            />
 
 
 

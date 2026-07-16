@@ -1,11 +1,48 @@
 import { X, Printer, Package } from "lucide-react";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
+import { dealerOrderService } from "../../../services/api/dealerOrderService";
 
 export default function PrintInvoiceModal({ orders, isOpen, onClose }) {
+  const [detailedOrders, setDetailedOrders] = useState([]);
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    if (isOpen && orders && orders.length > 0) {
+      const fetchDetails = async () => {
+        setLoading(true);
+        try {
+          const fetched = await Promise.all(
+            orders.map(async (order) => {
+              const orderId = order.originalData?.id;
+              if (orderId) {
+                const detail = await dealerOrderService.getById(orderId);
+                return {
+                  ...order,
+                  originalData: detail,
+                };
+              }
+              return order;
+            })
+          );
+          setDetailedOrders(fetched);
+        } catch (error) {
+          console.error("Lỗi khi tải chi tiết đơn hàng để in:", error);
+        } finally {
+          setLoading(false);
+        }
+      };
+      fetchDetails();
+    } else {
+      setDetailedOrders([]);
+    }
+  }, [isOpen, orders]);
+
   if (!isOpen || !orders || orders.length === 0) return null;
 
   const handlePrint = () => {
-    const content = document.getElementById("printable-area").innerHTML;
+    const content = document.getElementById("printable-area")?.innerHTML;
+    if (!content) return;
+
     const iframe = document.createElement("iframe");
     iframe.style.position = "fixed";
     iframe.style.right = "0";
@@ -17,14 +54,15 @@ export default function PrintInvoiceModal({ orders, isOpen, onClose }) {
 
     const doc = iframe.contentWindow.document;
     doc.open();
-    doc.write("<html><head><title>In Hoá Đơn</title>");
-    
+    const titleName = detailedOrders.length === 1 ? `Hoa_Don_${detailedOrders[0].id}` : `Danh_Sach_Hoa_Don`;
+    doc.write(`<html><head><title>${titleName}</title>`);
+
     // Copy all styles from parent to iframe
     const styles = document.querySelectorAll('style, link[rel="stylesheet"]');
     styles.forEach(s => {
       doc.write(s.outerHTML);
     });
-    
+
     doc.write('<style>@media print { body { -webkit-print-color-adjust: exact; print-color-adjust: exact; } .page-break { page-break-after: always; } }</style>');
     doc.write("</head><body class='bg-white' style='padding: 20px;'>");
     doc.write(content);
@@ -55,121 +93,128 @@ export default function PrintInvoiceModal({ orders, isOpen, onClose }) {
           <div className="flex items-center gap-2">
             <button
               onClick={handlePrint}
-              className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-sm font-bold shadow-md flex items-center gap-2 transition-colors"
+              disabled={loading}
+              className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white rounded-xl text-xs sm:text-sm font-bold shadow-md flex items-center gap-1.5 transition-colors cursor-pointer"
             >
               <Printer className="w-4 h-4" /> In ngay
             </button>
             <button
               onClick={onClose}
-              className="p-2 hover:bg-neutral-100 rounded-xl text-neutral-500 transition-colors"
+              className="p-2 hover:bg-neutral-100 rounded-xl text-neutral-500 transition-colors cursor-pointer"
             >
               <X className="w-5 h-5" />
             </button>
           </div>
         </div>
 
-        {/* Printable Area Container */}
-        <div className="p-6 overflow-y-auto bg-neutral-200/50 flex flex-col gap-8 items-center" id="printable-area">
-          
-          
-          {orders.map((order, index) => {
-            const fullData = order.originalData || {};
-            const products = fullData.items || [];
-            const formatCurrency = (val) => new Intl.NumberFormat('vi-VN').format(Number(val || 0)) + ' đ';
+        {loading ? (
+          <div className="flex justify-center items-center py-20 flex-1 bg-white">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-emerald-600"></div>
+          </div>
+        ) : (
+          /* Printable Area Container */
+          <div className="p-6 overflow-y-auto bg-neutral-200/50 flex flex-col gap-8 items-center" id="printable-area">
 
-            return (
-              <div key={order.id} className={`bg-white p-8 w-full max-w-2xl shadow-sm border border-neutral-200 mx-auto ${index < orders.length - 1 ? 'page-break' : ''}`}>
-                
-                {/* Header */}
-                <div className="flex justify-between items-start border-b-2 border-neutral-800 pb-6 mb-6">
-                  <div>
-                    <h1 className="text-2xl font-black text-neutral-900 tracking-tight uppercase">Đại Lý Nông Sản</h1>
-                    <p className="text-sm text-neutral-600 font-medium mt-1">Smart Green Market</p>
-                    <p className="text-xs text-neutral-500 mt-1">SĐT: 0123 456 789 - Email: hotro@sgm.vn</p>
-                  </div>
-                  <div className="text-right">
-                    <h2 className="text-xl font-bold text-neutral-800 uppercase tracking-widest">Hoá Đơn</h2>
-                    <p className="text-sm text-neutral-600 font-bold mt-1">#{order.id}</p>
-                    <p className="text-xs text-neutral-500 mt-1">Ngày: {order.date}</p>
-                  </div>
-                </div>
 
-                {/* Customer Info */}
-                <div className="mb-6">
-                  <h3 className="text-xs font-black text-neutral-400 uppercase tracking-widest mb-2 border-b border-neutral-100 pb-1">Giao đến</h3>
-                  <p className="font-bold text-neutral-800 text-lg">{order.customer}</p>
-                  <p className="text-sm text-neutral-600 mt-1">SĐT khách hàng: {fullData.customer_phone || "(Đang cập nhật)"}</p>
-                  <p className="text-sm text-neutral-600 mt-0.5">Địa chỉ giao: {fullData.delivery_address || "(Đang cập nhật)"}</p>
-                </div>
+            {detailedOrders.map((order, index) => {
+              const fullData = order.originalData || {};
+              const products = fullData.items || [];
+              const formatCurrency = (val) => new Intl.NumberFormat('vi-VN').format(Number(val || 0)) + ' đ';
 
-                {/* Items Table */}
-                <table className="w-full mb-6">
-                  <thead>
-                    <tr className="border-b-2 border-neutral-800 text-left">
-                      <th className="py-2 text-xs font-black text-neutral-600 uppercase tracking-wider">STT</th>
-                      <th className="py-2 text-xs font-black text-neutral-600 uppercase tracking-wider">Tên sản phẩm</th>
-                      <th className="py-2 text-xs font-black text-neutral-600 uppercase tracking-wider text-right">SL</th>
-                      <th className="py-2 text-xs font-black text-neutral-600 uppercase tracking-wider text-right">Đơn giá</th>
-                      <th className="py-2 text-xs font-black text-neutral-600 uppercase tracking-wider text-right">Thành tiền</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-neutral-100">
-                    {products.map((item, idx) => {
-                      return (
-                        <tr key={idx}>
-                          <td className="py-3 text-sm text-neutral-500 font-medium">{idx + 1}</td>
-                          <td className="py-3 text-sm font-bold text-neutral-800">{item.product_name}</td>
-                          <td className="py-3 text-sm font-black text-neutral-900 text-right">{item.quantity} {item.product_unit}</td>
-                          <td className="py-3 text-sm text-neutral-600 text-right">{formatCurrency(item.unit_price)}</td>
-                          <td className="py-3 text-sm font-bold text-emerald-700 text-right">{formatCurrency(item.subtotal)}</td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
+              return (
+                <div key={order.id} className={`bg-white p-8 w-full max-w-2xl shadow-sm border border-neutral-200 mx-auto ${index < orders.length - 1 ? 'page-break' : ''}`}>
 
-                {/* Totals */}
-                <div className="border-t-2 border-neutral-800 pt-4 flex justify-end">
-                  <div className="w-72">
-                    <div className="flex justify-between items-center mb-1">
-                      <span className="text-sm text-neutral-600 font-bold">Thanh toán:</span>
-                      <span className="text-sm font-bold text-neutral-800 uppercase text-right truncate max-w-[150px]" title={fullData.payment_method}>{fullData.payment_method || order.payment}</span>
+                  {/* Header */}
+                  <div className="flex justify-between items-start border-b-2 border-neutral-800 pb-6 mb-6">
+                    <div>
+                      <h1 className="text-2xl font-black text-neutral-900 tracking-tight uppercase">Đại Lý Nông Sản</h1>
+                      <p className="text-sm text-neutral-600 font-medium mt-1">Smart Green Market</p>
+                      {/* <p className="text-xs text-neutral-500 mt-1">SĐT: 0123 456 789 - Email: hotro@sgm.vn</p> */}
                     </div>
-                    {Number(fullData.shipping_fee) > 0 && (
-                      <>
-                        <div className="flex justify-between items-center mb-1">
-                          <span className="text-sm text-neutral-600 font-bold">Tạm tính:</span>
-                          <span className="text-sm font-bold text-neutral-800">{formatCurrency(fullData.subtotal_amount)}</span>
-                        </div>
-                        <div className="flex justify-between items-center mb-1">
-                          <span className="text-sm text-neutral-600 font-bold">Phí vận chuyển:</span>
-                          <span className="text-sm font-bold text-neutral-800">{formatCurrency(fullData.shipping_fee)}</span>
-                        </div>
-                      </>
-                    )}
-                    {Number(fullData.discount_amount) > 0 && (
-                      <div className="flex justify-between items-center mb-2">
-                        <span className="text-sm text-neutral-600 font-bold">Giảm giá:</span>
-                        <span className="text-sm font-bold text-neutral-800">- {formatCurrency(fullData.discount_amount)}</span>
+                    <div className="text-right">
+                      <h2 className="text-xl font-bold text-neutral-800 uppercase tracking-widest">Hoá Đơn</h2>
+                      <p className="text-sm text-neutral-600 font-bold mt-1">#{order.id}</p>
+                      <p className="text-xs text-neutral-500 mt-1">Ngày: {order.date}</p>
+                    </div>
+                  </div>
+
+                  {/* Customer Info */}
+                  <div className="mb-6">
+                    <h3 className="text-xs font-black text-neutral-400 uppercase tracking-widest mb-2 border-b border-neutral-100 pb-1">Giao đến</h3>
+                    <p className="font-bold text-neutral-800 text-lg">{order.customer}</p>
+                    <p className="text-sm text-neutral-600 mt-1">SĐT khách hàng: {fullData.customer_phone || "(Đang cập nhật)"}</p>
+                    <p className="text-sm text-neutral-600 mt-0.5">Địa chỉ giao: {fullData.delivery_address || "(Đang cập nhật)"}</p>
+                  </div>
+
+                  {/* Items Table */}
+                  <table className="w-full mb-6">
+                    <thead>
+                      <tr className="border-b-2 border-neutral-800 text-left">
+                        <th className="py-2 text-xs font-black text-neutral-600 uppercase tracking-wider">STT</th>
+                        <th className="py-2 text-xs font-black text-neutral-600 uppercase tracking-wider">Tên sản phẩm</th>
+                        <th className="py-2 text-xs font-black text-neutral-600 uppercase tracking-wider text-right">SL</th>
+                        <th className="py-2 text-xs font-black text-neutral-600 uppercase tracking-wider text-right">Đơn giá</th>
+                        <th className="py-2 text-xs font-black text-neutral-600 uppercase tracking-wider text-right">Thành tiền</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-neutral-100">
+                      {products.map((item, idx) => {
+                        return (
+                          <tr key={idx}>
+                            <td className="py-3 text-sm text-neutral-500 font-medium">{idx + 1}</td>
+                            <td className="py-3 text-sm font-bold text-neutral-800">{item.product_name}</td>
+                            <td className="py-3 text-sm font-black text-neutral-900 text-right">{item.quantity} {item.product_unit}</td>
+                            <td className="py-3 text-sm text-neutral-600 text-right">{formatCurrency(item.unit_price)}</td>
+                            <td className="py-3 text-sm font-bold text-emerald-700 text-right">{formatCurrency(item.subtotal)}</td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+
+                  {/* Totals */}
+                  <div className="border-t-2 border-neutral-800 pt-4 flex justify-end">
+                    <div className="w-72">
+                      <div className="flex justify-between items-center mb-1">
+                        <span className="text-sm text-neutral-600 font-bold">Thanh toán:</span>
+                        <span className="text-sm font-bold text-neutral-800 uppercase text-right truncate max-w-[150px]" title={fullData.payment_method}>{fullData.payment_method || order.payment}</span>
                       </div>
-                    )}
-                    <div className="flex justify-between items-center bg-neutral-50 p-3 mt-2 rounded-lg border border-neutral-200">
-                      <span className="text-sm text-neutral-800 font-black uppercase">Tổng tiền:</span>
-                      <span className="text-lg font-black text-emerald-700">{formatCurrency(fullData.total_amount)}</span>
+                      {Number(fullData.shipping_fee) > 0 && (
+                        <>
+                          <div className="flex justify-between items-center mb-1">
+                            <span className="text-sm text-neutral-600 font-bold">Tạm tính:</span>
+                            <span className="text-sm font-bold text-neutral-800">{formatCurrency(fullData.subtotal_amount)}</span>
+                          </div>
+                          <div className="flex justify-between items-center mb-1">
+                            <span className="text-sm text-neutral-600 font-bold">Phí vận chuyển:</span>
+                            <span className="text-sm font-bold text-neutral-800">{formatCurrency(fullData.shipping_fee)}</span>
+                          </div>
+                        </>
+                      )}
+                      {Number(fullData.discount_amount) > 0 && (
+                        <div className="flex justify-between items-center mb-2">
+                          <span className="text-sm text-neutral-600 font-bold">Giảm giá:</span>
+                          <span className="text-sm font-bold text-neutral-800">- {formatCurrency(fullData.discount_amount)}</span>
+                        </div>
+                      )}
+                      <div className="flex justify-between items-center bg-neutral-50 p-3 mt-2 rounded-lg border border-neutral-200">
+                        <span className="text-sm text-neutral-800 font-black uppercase">Tổng tiền:</span>
+                        <span className="text-lg font-black text-emerald-700">{formatCurrency(fullData.total_amount)}</span>
+                      </div>
                     </div>
                   </div>
-                </div>
 
-                {/* Footer Notes */}
-                <div className="mt-12 text-center text-xs text-neutral-400 font-medium">
-                  <p>Cảm ơn quý khách đã tin tưởng mua hàng tại Smart Green Market!</p>
-                  <p className="mt-1">Vui lòng kiểm tra kỹ hàng hoá trước khi nhận.</p>
+                  {/* Footer Notes */}
+                  <div className="mt-12 text-center text-xs text-neutral-400 font-medium">
+                    <p>Cảm ơn quý khách đã tin tưởng mua hàng tại Smart Green Market!</p>
+                    <p className="mt-1">Vui lòng kiểm tra kỹ hàng hoá trước khi nhận.</p>
+                  </div>
+
                 </div>
-                
-              </div>
-            );
-          })}
-        </div>
+              );
+            })}
+          </div>
+        )}
       </div>
     </div>
   );
