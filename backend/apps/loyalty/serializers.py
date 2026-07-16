@@ -49,8 +49,26 @@ class LoyaltyTierWriteSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError("Ngưỡng điểm không được âm.")
         return value
 
-    def validate(self, attrs):
+    def validate_benefits(self, value):
+        if value is None:
+            return []
+        if isinstance(value, str):
+            stripped = value.strip()
+            return [] if not stripped else [stripped]
+        if isinstance(value, list):
+            return [str(item) for item in value]
+        raise serializers.ValidationError("benefits phải là danh sách quyền lợi.")
+
+    def _resolve_dealer(self):
         dealer = self.context.get("dealer")
+        if dealer is not None:
+            return dealer
+        if self.instance is not None:
+            return self.instance.dealer
+        return None
+
+    def validate(self, attrs):
+        dealer = self._resolve_dealer()
         if dealer is None:
             return attrs
 

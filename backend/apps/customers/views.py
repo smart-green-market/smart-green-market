@@ -30,6 +30,11 @@ from .serializers import (
     CustomerProfileUpdateSerializer,
     StorefrontCustomerProfileSerializer,
 )
+from .customer_list_stats import (
+    build_count_loyalty,
+    build_count_segment,
+    filter_by_primary_segment_code,
+)
 from .services import customer_profile_detail_queryset
 from .storefront_serializers import DealerCustomerListSerializer, DealerCustomerNoteSerializer
 
@@ -42,7 +47,8 @@ def _customer_profile_queryset():
     list=extend_schema(
         tags=["Dealer Customers"],
         summary="Tệp khách hàng của đại lý",
-        description="Admin xem tất cả. Dealer chỉ thấy buyer đăng ký tại cửa hàng mình."
+        description="Admin xem tất cả. Dealer chỉ thấy buyer đăng ký tại cửa hàng mình. "
+        "Response kèm count_status, count_loyalty, count_segment."
         + PAGINATION_QUERY_HELP,
         responses={
             200: paginated_response_schema(
@@ -54,6 +60,7 @@ def _customer_profile_queryset():
             OpenApiParameter("search", str, description="Tìm kiếm theo tên, email, sđt", required=False),
             OpenApiParameter("status", str, description="Lọc theo trạng thái tài khoản", required=False),
             OpenApiParameter("tier_code", str, description="Lọc theo mã hạng thành viên", required=False),
+            OpenApiParameter("segment_code", str, description="Lọc theo mã phân khúc khách hàng (primary segment)", required=False),
         ],
     ),
     retrieve=extend_schema(tags=["Dealer Customers"], summary="Chi tiết khách hàng"),
@@ -91,7 +98,8 @@ class DealerCustomerViewSet(viewsets.ModelViewSet):
         if search:
             search = search.strip()
             qs = qs.filter(
-                Q(user__first_name__icontains=search)
+                Q(user__full_name__icontains=search)
+                | Q(user__first_name__icontains=search)
                 | Q(user__last_name__icontains=search)
                 | Q(user__email__icontains=search)
                 | Q(user__phone__icontains=search)
@@ -104,6 +112,9 @@ class DealerCustomerViewSet(viewsets.ModelViewSet):
         tier_code = request.query_params.get("tier_code")
         if tier_code:
             qs = qs.filter(current_tier__code=tier_code.strip().upper())
+        segment_code = request.query_params.get("segment_code")
+        if segment_code:
+            qs = filter_by_primary_segment_code(qs, segment_code)
         return qs
 
     def list(self, request, *args, **kwargs):
@@ -115,13 +126,20 @@ class DealerCustomerViewSet(viewsets.ModelViewSet):
         count_status = build_count_status(
             base_qs, field="user__status", choices=AccountStatus
         )
+        count_loyalty = build_count_loyalty(base_qs)
+        count_segment = build_count_segment(base_qs)
         qs = filter_by_status_param(
             base_qs, request.query_params.get("status"), field="user__status"
         )
         paginator = LoadMorePagination()
         page = paginator.paginate_queryset(qs, request, view=self)
         serializer = self.get_serializer(page, many=True)
-        return paginator.get_paginated_response(serializer.data, count_status=count_status)
+        return paginator.get_paginated_response(
+            serializer.data,
+            count_status=count_status,
+            count_loyalty=count_loyalty,
+            count_segment=count_segment,
+        )
 
     @action(detail=False, methods=["get"], url_path="segment-stats")
     def segment_stats(self, request):
@@ -172,6 +190,57 @@ class DealerCustomerViewSet(viewsets.ModelViewSet):
     def partial_update(self, request, *args, **kwargs):
         kwargs["partial"] = True
         return self.update(request, *args, **kwargs)
+
+
+@extend_schema_view(
+    list=extend_schema(
+        tags=["Admin Customers"],
+        summary="Danh sách khách hàng (Admin)",
+        description=(
+            "Admin xem toàn bộ khách hàng đăng ký qua các gian hàng đại lý. "
+            "Response kèm count_status, count_loyalty, count_segment. "
+            "Có thể lọc theo đại lý, trạng thái tài khoản, hạng thành viên, phân khúc."
+        )
+        + PAGINATION_QUERY_HELP,
+        responses={
+            200: paginated_response_schema(
+                DealerCustomerListSerializer,
+                "PaginatedAdminCustomer",
+            )
+        },
+        parameters=[
+            OpenApiParameter("search", str, description="Tìm kiếm theo tên, email, sđt", required=False),
+            OpenApiParameter("status", str, description="Lọc theo trạng thái tài khoản", required=False),
+            OpenApiParameter("tier_code", str, description="Lọc theo mã hạng thành viên", required=False),
+            OpenApiParameter("segment_code", str, description="Lọc theo mã phân khúc khách hàng (primary segment)", required=False),
+            OpenApiParameter("dealer_id", int, description="Lọc theo ID đại lý", required=False),
+            OpenApiParameter("dealer_slug", str, description="Lọc theo slug gian hàng đại lý", required=False),
+        ],
+    ),
+    retrieve=extend_schema(tags=["Admin Customers"], summary="Chi tiết khách hàng (Admin)"),
+    partial_update=extend_schema(
+        tags=["Admin Customers"],
+        summary="Cập nhật ghi chú khách hàng (Admin)",
+        request=DealerCustomerNoteSerializer,
+        responses={200: DealerCustomerListSerializer},
+    ),
+    update=extend_schema(tags=["Admin Customers"], summary="Cập nhật ghi chú khách hàng (Admin)"),
+)
+class AdminCustomerViewSet(DealerCustomerViewSet):
+    """Admin quản lý khách hàng trên toàn hệ thống — cùng payload với dealer."""
+
+    def get_permissions(self):
+        return [IsAdmin()]
+
+    def get_queryset(self):
+        qs = self.queryset
+        dealer_id = self.request.query_params.get("dealer_id")
+        if dealer_id:
+            qs = qs.filter(user__store_dealer_id=dealer_id)
+        dealer_slug = self.request.query_params.get("dealer_slug")
+        if dealer_slug:
+            qs = qs.filter(user__store_dealer__slug=dealer_slug.strip())
+        return qs
 
 
 @extend_schema_view(

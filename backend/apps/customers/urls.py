@@ -38,6 +38,7 @@ from apps.orders.storefront_views import (
     StorefrontOrderRequestReturnView,
 )
 from .views import (
+    AdminCustomerViewSet,
     DealerCustomerViewSet,
     StorefrontCustomerAddressViewSet,
     StorefrontCustomerProfileViewSet,
@@ -45,6 +46,7 @@ from .views import (
 
 router = DefaultRouter()
 router.register("dealer-customers", DealerCustomerViewSet, basename="dealer-customer")
+router.register("admin/customers", AdminCustomerViewSet, basename="admin-customer")
 
 storefront_profile = StorefrontCustomerProfileViewSet.as_view({
     "get": "retrieve",
