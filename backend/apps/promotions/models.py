@@ -32,13 +32,27 @@ class PromotionScheduleType(models.TextChoices):
 
 
 class PromotionTargetType(models.TextChoices):
-    """Đối tượng áp dụng khuyến mãi."""
+    """Phạm vi sản phẩm / đối tượng legacy trên PromotionTarget."""
 
     ALL = "all", "Tất cả khách / sản phẩm"
     SEGMENT = "segment", "Theo nhóm khách"
     PRODUCT = "product", "Theo sản phẩm đại lý"
     CATEGORY = "category", "Theo danh mục"
     CUSTOMER = "customer", "Theo khách hàng"
+
+
+class VoucherAudienceType(models.TextChoices):
+    """Đối tượng khách hàng được sử dụng voucher."""
+
+    ALL = "ALL", "Tất cả khách hàng"
+    LOYALTY_TIER = "LOYALTY_TIER", "Theo hạng thành viên"
+    CUSTOMER_SEGMENT = "CUSTOMER_SEGMENT", "Theo phân khúc khách hàng"
+
+
+PRODUCT_TARGET_TYPES = {
+    PromotionTargetType.PRODUCT,
+    PromotionTargetType.CATEGORY,
+}
 
 
 class Promotion(models.Model):
@@ -133,6 +147,16 @@ class Promotion(models.Model):
         null=True,
         blank=True,
         help_text="Lý do từ chối duyệt voucher",
+    )
+    audience_type = models.CharField(
+        max_length=30,
+        choices=VoucherAudienceType.choices,
+        default=VoucherAudienceType.ALL,
+    )
+    loyalty_tiers = models.ManyToManyField(
+        "loyalty.LoyaltyTier",
+        blank=True,
+        related_name="promotions",
     )
 
     created_at = models.DateTimeField(auto_now_add=True)

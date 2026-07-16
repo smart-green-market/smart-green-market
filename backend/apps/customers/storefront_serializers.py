@@ -11,10 +11,11 @@ from apps.accounts.serializers import LoginAccountSerializer
 from apps.dealers.models import DealerProfile
 from apps.marketing.segment_defaults import resolve_primary_segment_membership
 from apps.marketing.serializers import CustomerProfileSegmentSerializer
+from apps.loyalty.serializers import LoyaltyTierSummarySerializer, serialize_loyalty_status
 from common.openapi_enums import schema_choice_field
 
 from .models import CustomerProfile
-from .serializers import CustomerProfileSerializer
+from .serializers import CustomerProfileSerializer, StorefrontCustomerProfileSerializer
 from .services import (
     build_storefront_username,
     customer_profile_detail_queryset,
@@ -116,7 +117,7 @@ class StorefrontAuthResponseSerializer(serializers.Serializer):
     access = serializers.CharField(help_text="JWT access token")
     refresh = serializers.CharField(help_text="JWT refresh token")
     account = LoginAccountSerializer(help_text="Thông tin tài khoản buyer")
-    customer_profile = CustomerProfileSerializer(help_text="Hồ sơ khách hàng tại đại lý")
+    customer_profile = CustomerProfileSerializer(help_text="Hồ sơ khách hàng tại đại lý (không lộ phân khúc nội bộ)")
     store_dealer = serializers.DictField(help_text="Thông tin gian hàng đại lý")
 
 
@@ -130,7 +131,7 @@ def build_storefront_auth_response(account, request):
         "access": str(refresh.access_token),
         "refresh": str(refresh),
         "account": LoginAccountSerializer(account, context={"request": request}).data,
-        "customer_profile": CustomerProfileSerializer(
+        "customer_profile": StorefrontCustomerProfileSerializer(
             customer_profile,
             context={"request": request},
         ).data,
@@ -164,6 +165,8 @@ class DealerCustomerListSerializer(serializers.ModelSerializer):
     )
     segments = serializers.SerializerMethodField()
     primary_segment = serializers.SerializerMethodField()
+    current_tier = LoyaltyTierSummarySerializer(read_only=True)
+    loyalty = serializers.SerializerMethodField()
 
     class Meta:
         model = CustomerProfile
@@ -180,6 +183,8 @@ class DealerCustomerListSerializer(serializers.ModelSerializer):
             "total_orders",
             "total_spent",
             "loyalty_points",
+            "current_tier",
+            "loyalty",
             "last_order_at",
             "note",
             "segments",
@@ -198,12 +203,18 @@ class DealerCustomerListSerializer(serializers.ModelSerializer):
             "total_orders",
             "total_spent",
             "loyalty_points",
+            "current_tier",
+            "loyalty",
             "last_order_at",
             "segments",
             "primary_segment",
             "created_at",
             "updated_at",
         ]
+
+    @extend_schema_field(serializers.DictField())
+    def get_loyalty(self, obj):
+        return serialize_loyalty_status(obj)
 
     @extend_schema_field(CustomerProfileSegmentSerializer(many=True))
     def get_segments(self, obj):

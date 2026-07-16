@@ -7,14 +7,12 @@ from django.db.models.functions import Lower
 
 def forwards_merge_and_consolidate(apps, schema_editor):
     from apps.dealer_products.merge_duplicates import (
-        consolidate_orphan_batches_for_dealer,
-        merge_all_duplicate_dealer_products,
+        merge_all_duplicate_dealer_products_for_migration,
     )
-    from apps.dealers.models import DealerProfile
 
-    merge_all_duplicate_dealer_products()
-    for dealer in DealerProfile.objects.all().order_by("id"):
-        consolidate_orphan_batches_for_dealer(dealer)
+    # Dùng historical models — lúc này chưa có cột product_master_id.
+    # Migration 0015 sẽ gộp lại theo catalog sau khi thêm product_master.
+    merge_all_duplicate_dealer_products_for_migration(apps)
 
 
 def backwards_noop(apps, schema_editor):

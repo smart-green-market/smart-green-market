@@ -120,6 +120,7 @@ INSTALLED_APPS = [
     "apps.dealers",
     "apps.dealer_products",
     "apps.customers",
+    "apps.loyalty",
     "apps.purchase_orders",
     "apps.orders",
     "apps.marketing",

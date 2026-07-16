@@ -436,6 +436,9 @@ def buyer_confirm_received(order, user, note=""):
 
     _mark_cod_paid(order)
     _update_customer_stats(order.customer, order)
+    from apps.loyalty.services import award_points_for_completed_order
+
+    award_points_for_completed_order(order, actor=user)
 
     return record_status_change(
         order,
@@ -578,6 +581,10 @@ def dealer_review_return(order_return, user, *, approved, review_note=""):
         Decimal("0"),
     )
     order.customer.save(update_fields=["total_spent", "updated_at"])
+
+    from apps.loyalty.services import deduct_points_for_approved_return
+
+    deduct_points_for_approved_return(order, actor=user)
 
     order.payments.filter(status=CustomerPaymentStatus.PAID).update(
         status=CustomerPaymentStatus.REFUNDED,

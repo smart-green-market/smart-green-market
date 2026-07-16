@@ -8,6 +8,7 @@ from apps.accounts.models import AccountRole, AccountStatus
 from apps.customers.storefront_catalog_serializers import StorefrontProductCategorySerializer
 from apps.marketing.segment_defaults import resolve_primary_segment_membership
 from apps.marketing.serializers import CustomerProfileSegmentSerializer
+from apps.loyalty.serializers import serialize_loyalty_status
 from common.avatar import build_avatar_url, save_account_avatar
 from common.openapi_enums import schema_choice_field
 from common.validators import validate_image_upload
@@ -128,6 +129,48 @@ class CustomerProfileSerializer(serializers.ModelSerializer):
         if primary is None:
             return None
         return CustomerProfileSegmentSerializer(primary, context=self.context).data
+
+    @extend_schema_field(CustomerAddressReadSerializer(allow_null=True))
+    def get_default_address(self, obj):
+        addresses = list(obj.addresses.all())
+        default = next((item for item in addresses if item.is_default), None)
+        if default is None and addresses:
+            default = addresses[0]
+        if default is None:
+            return None
+        return CustomerAddressReadSerializer(default, context=self.context).data
+
+
+class StorefrontCustomerProfileSerializer(serializers.ModelSerializer):
+    """Hồ sơ buyer trên storefront — không lộ phân khúc nội bộ."""
+
+    user = CustomerAccountNestedSerializer(read_only=True)
+    favorite_category = StorefrontProductCategorySerializer(read_only=True)
+    addresses = CustomerAddressReadSerializer(many=True, read_only=True)
+    default_address = serializers.SerializerMethodField()
+    loyalty = serializers.SerializerMethodField()
+
+    class Meta:
+        model = CustomerProfile
+        fields = [
+            "id",
+            "user",
+            "favorite_category",
+            "addresses",
+            "default_address",
+            "total_orders",
+            "total_spent",
+            "loyalty_points",
+            "loyalty",
+            "last_order_at",
+            "created_at",
+            "updated_at",
+        ]
+        read_only_fields = fields
+
+    @extend_schema_field(serializers.DictField())
+    def get_loyalty(self, obj):
+        return serialize_loyalty_status(obj)
 
     @extend_schema_field(CustomerAddressReadSerializer(allow_null=True))
     def get_default_address(self, obj):

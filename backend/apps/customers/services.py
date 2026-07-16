@@ -52,6 +52,7 @@ def customer_profile_detail_queryset():
         "user",
         "user__store_dealer",
         "favorite_category",
+        "current_tier",
     ).prefetch_related(
         "addresses",
         Prefetch(

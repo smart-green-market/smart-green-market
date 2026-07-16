@@ -126,12 +126,16 @@ class SavedVoucherFlowTests(TestCase):
         )
 
     def test_apply_requires_saved_voucher(self):
-        with self.assertRaisesMessage(ValidationError, "Bạn cần lưu voucher trước khi áp dụng."):
+        with self.assertRaises(ValidationError) as ctx:
             CartVoucherService.apply_voucher(
                 self.customer,
                 "SAVE10",
                 [{"dealer_product_id": self.product.id, "quantity": 2}],
             )
+        self.assertIn(
+            "Bạn cần lưu voucher trước khi áp dụng.",
+            ctx.exception.detail["voucher_code"],
+        )
 
     def test_saved_voucher_can_be_applied(self):
         CustomerSavedVoucher.objects.create(

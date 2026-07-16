@@ -6,8 +6,11 @@ from apps.promotions.models import (
     Promotion,
     PromotionStatus,
     PromotionUsage,
+    PRODUCT_TARGET_TYPES,
+    PromotionTargetType,
 )
 from apps.dealer_products.models import DealerProduct
+from .audience_service import validate_voucher_audience_for_customer
 
 
 def normalize_decimal(val):
@@ -33,28 +36,31 @@ class CartVoucherService:
     @staticmethod
     def _get_voucher(voucher_code):
         try:
-            return Promotion.objects.prefetch_related("targets").get(code=voucher_code)
+            return Promotion.objects.prefetch_related(
+                "targets",
+                "loyalty_tiers",
+            ).get(code=voucher_code)
         except Promotion.DoesNotExist:
-            raise ValidationError("Voucher không tồn tại.")
+            raise ValidationError({"voucher_code": ["Voucher không tồn tại."]})
 
     @staticmethod
     def _validate_voucher_state(voucher):
         now = timezone.now()
         if voucher.status == PromotionStatus.INACTIVE:
-            raise ValidationError("Voucher đã bị xóa hoặc tạm dừng.")
+            raise ValidationError({"voucher_code": ["Voucher đã bị xóa hoặc tạm dừng."]})
         if voucher.status == PromotionStatus.PENDING:
-            raise ValidationError("Voucher chưa được duyệt.")
+            raise ValidationError({"voucher_code": ["Voucher chưa được duyệt."]})
         if voucher.status == PromotionStatus.REJECTED:
-            raise ValidationError("Voucher đã bị từ chối duyệt.")
+            raise ValidationError({"voucher_code": ["Voucher đã bị từ chối duyệt."]})
         if voucher.status != PromotionStatus.ACTIVE:
-            raise ValidationError("Voucher không hoạt động.")
+            raise ValidationError({"voucher_code": ["Voucher không hoạt động."]})
 
         if voucher.start_date > now:
-            raise ValidationError("Voucher chưa đến thời gian bắt đầu.")
+            raise ValidationError({"voucher_code": ["Voucher chưa đến thời gian bắt đầu."]})
         if voucher.end_date < now:
-            raise ValidationError("Voucher đã hết hạn.")
+            raise ValidationError({"voucher_code": ["Voucher đã hết hạn."]})
         if not voucher.is_within_daily_time(now):
-            raise ValidationError("Voucher chưa đến khung giờ áp dụng trong ngày.")
+            raise ValidationError({"voucher_code": ["Voucher chưa đến khung giờ áp dụng trong ngày."]})
 
     @staticmethod
     def _validate_saved(customer, voucher):
@@ -62,38 +68,19 @@ class CartVoucherService:
             customer=customer,
             promotion=voucher,
         ).exists():
-            raise ValidationError("Bạn cần lưu voucher trước khi áp dụng.")
+            raise ValidationError({"voucher_code": ["Bạn cần lưu voucher trước khi áp dụng."]})
 
     @staticmethod
     def _validate_usage_limits(customer, voucher):
         if voucher.usage_limit is not None:
             global_usage = voucher.usages.count()
             if global_usage >= voucher.usage_limit:
-                raise ValidationError("Voucher đã đạt giới hạn sử dụng.")
+                raise ValidationError({"voucher_code": ["Voucher đã đạt giới hạn sử dụng."]})
 
         if voucher.usage_limit_per_customer is not None:
             customer_usage = voucher.usages.filter(order__customer=customer).count()
             if customer_usage >= voucher.usage_limit_per_customer:
-                raise ValidationError("Customer đã sử dụng voucher.")
-
-    @staticmethod
-    def _validate_customer_targets(customer, targets):
-        if targets.exists():
-            has_customer_targets = False
-            has_customer_match = False
-            for target in targets:
-                if target.target_type in ["all", "segment", "customer"]:
-                    has_customer_targets = True
-                    if target.target_type == "all":
-                        has_customer_match = True
-                    elif target.target_type == "segment":
-                        if customer.segment_memberships.filter(segment_id=target.segment_id).exists():
-                            has_customer_match = True
-                    elif target.target_type == "customer":
-                        if target.customer == customer:
-                            has_customer_match = True
-            if has_customer_targets and not has_customer_match:
-                raise ValidationError("Voucher không áp dụng cho tài khoản của bạn.")
+                raise ValidationError({"voucher_code": ["Customer đã sử dụng voucher."]})
 
     @staticmethod
     def _validate_common(customer, voucher, *, require_saved=True):
@@ -101,9 +88,12 @@ class CartVoucherService:
         if require_saved:
             CartVoucherService._validate_saved(customer, voucher)
         CartVoucherService._validate_usage_limits(customer, voucher)
-        targets = voucher.targets.all()
-        CartVoucherService._validate_customer_targets(customer, targets)
-        return targets
+        validate_voucher_audience_for_customer(
+            voucher,
+            customer,
+            error_field="voucher_code",
+        )
+        return voucher.targets.all()
 
     @staticmethod
     def _product_matches_voucher(voucher, targets, product):
@@ -111,15 +101,21 @@ class CartVoucherService:
             return False
 
         has_product_or_category_targets = targets.filter(
-            target_type__in=["product", "category"],
+            target_type__in=PRODUCT_TARGET_TYPES,
         ).exists()
         if not has_product_or_category_targets:
             return True
 
         for target in targets:
-            if target.target_type == "product" and target.dealer_product_id == product.id:
+            if (
+                target.target_type == PromotionTargetType.PRODUCT
+                and target.dealer_product_id == product.id
+            ):
                 return True
-            if target.target_type == "category" and target.category_id == product.category_id:
+            if (
+                target.target_type == PromotionTargetType.CATEGORY
+                and target.category_id == product.category_id
+            ):
                 return True
         return False
 
@@ -151,7 +147,13 @@ class CartVoucherService:
         # Đảm bảo toàn bộ sản phẩm trong request đều tồn tại trong DB
         for item in items_data:
             if item["dealer_product_id"] not in product_map:
-                raise ValidationError(f"Sản phẩm ID {item['dealer_product_id']} không tồn tại.")
+                raise ValidationError(
+                    {
+                        "voucher_code": [
+                            f"Sản phẩm ID {item['dealer_product_id']} không tồn tại."
+                        ]
+                    }
+                )
 
         # Tính tổng giá trị đơn hàng thực tế
         order_total = Decimal("0.00")
@@ -174,11 +176,14 @@ class CartVoucherService:
 
         # Báo lỗi nếu giỏ hàng không có sản phẩm nào thuộc phạm vi áp dụng của voucher
         if not has_eligible_item:
-            raise ValidationError("Voucher không áp dụng cho sản phẩm trong giỏ hàng.")
+            raise ValidationError(
+                {"voucher_code": ["Voucher không áp dụng cho sản phẩm trong giỏ hàng."]}
+            )
 
-        # 9. Kiểm tra giá trị tối thiểu của đơn hàng để kích hoạt voucher
         if order_total < voucher.min_order_amount:
-            raise ValidationError("Chưa đạt giá trị đơn hàng tối thiểu.")
+            raise ValidationError(
+                {"voucher_code": ["Chưa đạt giá trị đơn hàng tối thiểu."]}
+            )
 
         discount_amount = CartVoucherService._calculate_discount(voucher, eligible_total)
         final_total = order_total - discount_amount
@@ -214,9 +219,13 @@ class CartVoucherService:
                 eligible_total += item.subtotal
 
         if eligible_total <= 0:
-            raise ValidationError("Voucher không áp dụng cho sản phẩm trong đơn hàng.")
+            raise ValidationError(
+                {"voucher_code": ["Voucher không áp dụng cho sản phẩm trong đơn hàng."]}
+            )
         if order.subtotal_amount < voucher.min_order_amount:
-            raise ValidationError("Chưa đạt giá trị đơn hàng tối thiểu.")
+            raise ValidationError(
+                {"voucher_code": ["Chưa đạt giá trị đơn hàng tối thiểu."]}
+            )
 
         discount_amount = CartVoucherService._calculate_discount(voucher, eligible_total)
         PromotionUsage.objects.create(

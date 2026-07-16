@@ -271,7 +271,7 @@ class StorefrontProductDetailView(APIView):
         summary="Chi tiết sản phẩm",
         description=(
             "Buyer xem thông tin đầy đủ sản phẩm: ảnh, giá, tồn khả dụng, "
-            "hướng dẫn bảo quản, quy trình canh tác từ NCC gốc. "
+            "hướng dẫn bảo quản, quy trình canh tác và chứng nhận từ NCC gốc. "
             "Chỉ sản phẩm `active` của đúng gian hàng."
         ),
         responses={200: StorefrontProductDetailSerializer},
