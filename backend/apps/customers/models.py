@@ -24,6 +24,13 @@ class CustomerProfile(models.Model):
     total_orders = models.PositiveIntegerField(default=0)
     total_spent = models.DecimalField(max_digits=14, decimal_places=2, default=0)
     loyalty_points = models.PositiveIntegerField(default=0)
+    current_tier = models.ForeignKey(
+        "loyalty.LoyaltyTier",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="customers",
+    )
     last_order_at = models.DateTimeField(null=True, blank=True)
     note = models.TextField(
         blank=True,

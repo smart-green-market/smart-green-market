@@ -70,6 +70,7 @@ DEALER_CATALOG_CERTIFICATIONS_PREFETCH = Prefetch(
     .order_by("-issue_date", "-id"),
 )
 
+from .dealer_customer_services import get_supplier_purchasing_dealers_qs
 from .models import Supplier, SupplierVerificationStatus
 from apps.marketing.dealer_catalog_services import track_dealer_catalog_interaction
 from apps.marketing.serializers import (
@@ -91,6 +92,7 @@ from .serializers import (
     SupplierCatalogSerializer,
     SupplierDetailSerializer,
     SupplierListSerializer,
+    SupplierPurchasingDealerSerializer,
     SupplierSerializer,
 )
 
@@ -245,6 +247,8 @@ class SupplierViewSet(viewsets.ModelViewSet):
             return [IsSupplier()]
         if self.action == "documents":
             return [IsAdminOrSupplierProfile()]
+        if self.action == "dealers":
+            return [IsAdminOrSupplier()]
         if self.action == "products":
             return [IsAdminOrDealer()]
         if self.action == "categories":
@@ -634,6 +638,64 @@ class SupplierViewSet(viewsets.ModelViewSet):
             ).data
 
         return paginate_queryset(self, request, categories_qs, serialize)
+
+    @extend_schema(
+        tags=["Suppliers"],
+        summary="Danh sách đại lý đã mua hàng",
+        description=(
+            "NCC xem các đại lý đã từng tạo phiếu nhập từ mình "
+            "(không tính đơn bị hủy hoặc NCC từ chối).\n\n"
+            "Supplier: chỉ xem được trên hồ sơ NCC của chính mình (`GET /api/suppliers/{id}/dealers/`). "
+            "Admin: xem mọi NCC.\n\n"
+            "Mỗi đại lý kèm `order_count`, `completed_order_count`, "
+            "`last_order_at`, `total_purchase_amount` (tổng đơn hoàn tất)."
+            + PAGINATION_QUERY_HELP
+        ),
+        parameters=[
+            OpenApiParameter(
+                "search",
+                str,
+                description="Tìm theo tên cửa hàng, địa chỉ, họ tên/SĐT/email liên hệ",
+                required=False,
+            ),
+            OpenApiParameter(
+                "ordering",
+                str,
+                description=(
+                    "Sắp xếp: store_name, -store_name, last_order_at, -last_order_at, "
+                    "order_count, -order_count, total_purchase_amount, -total_purchase_amount "
+                    "(mặc định: -last_order_at)"
+                ),
+                required=False,
+            ),
+        ],
+        responses={
+            200: paginated_response_schema(
+                SupplierPurchasingDealerSerializer,
+                "PaginatedSupplierPurchasingDealers",
+            ),
+            401: OpenApiResponse(description="Chưa đăng nhập hoặc token hết hạn"),
+            403: OpenApiResponse(description="Tài khoản không phải supplier/admin"),
+            404: OpenApiResponse(description="NCC không tồn tại hoặc không có quyền xem"),
+        },
+    )
+    @action(detail=True, methods=["get"], url_path="dealers")
+    def dealers(self, request, pk=None):
+        supplier = self.get_object()
+        dealers_qs = get_supplier_purchasing_dealers_qs(
+            supplier,
+            search=request.query_params.get("search"),
+            ordering=request.query_params.get("ordering", "-last_order_at"),
+        )
+
+        def serialize(page):
+            return SupplierPurchasingDealerSerializer(
+                page,
+                many=True,
+                context={"request": request},
+            ).data
+
+        return paginate_queryset(self, request, dealers_qs, serialize)
 
     @extend_schema(
         tags=["Suppliers"],

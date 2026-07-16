@@ -13,6 +13,7 @@ from apps.categories.serializers import DealerStoreCategorySerializer
 from apps.dealer_products.models import DealerProduct
 from apps.dealer_products.serializers import DealerProductImageSerializer
 from apps.supplier_products.models import CultivationProcess
+from apps.certifications.models import Certification, CertificationImage, CertificationStatus
 
 
 class StorefrontCategorySerializer(DealerStoreCategorySerializer):
@@ -239,6 +240,60 @@ class StorefrontCultivationStepSerializer(serializers.ModelSerializer):
         fields = ["id", "step_order", "process_name", "description"]
 
 
+class StorefrontCertificationImageSerializer(serializers.ModelSerializer):
+    image_url = serializers.SerializerMethodField()
+
+    class Meta:
+        model = CertificationImage
+        fields = ["id", "image_url", "sort_order"]
+
+    @extend_schema_field(serializers.URLField(allow_null=True))
+    def get_image_url(self, obj):
+        return build_media_url(obj.image_url, self.context.get("request"))
+
+
+class StorefrontCertificationSerializer(serializers.ModelSerializer):
+    """Chứng nhận đã duyệt gắn với sản phẩm NCC gốc — buyer xem trên chi tiết SP."""
+
+    is_expired = serializers.BooleanField(read_only=True)
+    images = StorefrontCertificationImageSerializer(many=True, read_only=True)
+
+    class Meta:
+        model = Certification
+        fields = [
+            "id",
+            "name",
+            "certificate_code",
+            "issued_by",
+            "issue_date",
+            "expiry_date",
+            "description",
+            "is_expired",
+            "images",
+        ]
+
+
+def storefront_approved_certifications(supplier_product):
+    """Chứng nhận đã duyệt của supplier product — dùng prefetch khi có."""
+    cache = getattr(supplier_product, "_prefetched_objects_cache", {})
+    if "product_certifications" in cache:
+        return [
+            link.certification
+            for link in supplier_product.product_certifications.all()
+        ]
+
+    return list(
+        Certification.objects.filter(
+            certified_products__supplier_product=supplier_product,
+            status=CertificationStatus.APPROVED,
+            deleted_at__isnull=True,
+        )
+        .prefetch_related("images")
+        .distinct()
+        .order_by("-issue_date", "-id")
+    )
+
+
 class StorefrontProductDetailSerializer(StorefrontProductListSerializer):
     """Chi tiết sản phẩm — thêm bảo quản và quy trình canh tác từ NCC gốc."""
 
@@ -279,6 +334,20 @@ class StorefrontProductDetailSerializer(StorefrontProductListSerializer):
         many=True,
         read_only=True,
     )
+    certifications = serializers.SerializerMethodField(
+        help_text="Chứng nhận chất lượng đã duyệt gắn với sản phẩm NCC gốc",
+    )
+
+    def get_certifications(self, instance):
+        supplier_product = instance.supplier_product
+        if supplier_product is None:
+            return []
+        certifications = storefront_approved_certifications(supplier_product)
+        return StorefrontCertificationSerializer(
+            certifications,
+            many=True,
+            context=self.context,
+        ).data
 
     def _batch_dates(self, instance):
         cached = getattr(instance, "_storefront_batch_dates", None)
@@ -310,4 +379,5 @@ class StorefrontProductDetailSerializer(StorefrontProductListSerializer):
             "min_storage_temp",
             "max_storage_temp",
             "cultivation_processes",
+            "certifications",
         ]

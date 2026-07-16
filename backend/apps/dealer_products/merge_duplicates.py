@@ -376,6 +376,128 @@ def merge_all_duplicate_dealer_products(*, user=None) -> dict:
     return totals
 
 
+def _historical_product_stock(apps, product_id: int) -> int:
+    DealerInventoryBatch = apps.get_model("dealer_products", "DealerInventoryBatch")
+    total = (
+        DealerInventoryBatch.objects.filter(
+            dealer_product_id=product_id,
+            deleted_at__isnull=True,
+        ).aggregate(total=Sum("remaining_quantity"))["total"]
+        or 0
+    )
+    return int(total)
+
+
+def _pick_canonical_product_historical(apps, products: list) -> object:
+    return max(
+        products,
+        key=lambda p: (
+            1 if p.status == "active" else 0,
+            _historical_product_stock(apps, p.id),
+            -p.id,
+        ),
+    )
+
+
+def merge_duplicate_dealer_products_by_title_for_migration(apps, dealer_profile_id: int) -> dict:
+    """Gộp SP trùng tên bằng historical models — dùng trong migration 0014."""
+    DealerProduct = apps.get_model("dealer_products", "DealerProduct")
+    DealerProductImage = apps.get_model("dealer_products", "DealerProductImage")
+    AgeDiscountPolicy = apps.get_model("dealer_products", "AgeDiscountPolicy")
+    OrderItem = apps.get_model("orders", "OrderItem")
+    PreOrderRequestItem = apps.get_model("orders", "PreOrderRequestItem")
+    PromotionTarget = apps.get_model("promotions", "PromotionTarget")
+    ProductReview = apps.get_model("reviews", "ProductReview")
+    ProductRecommendation = apps.get_model("reviews", "ProductRecommendation")
+    CustomerInteraction = apps.get_model("marketing", "CustomerInteraction")
+    DealerProductRelatedRecommendation = apps.get_model(
+        "dealer_products",
+        "DealerProductRelatedRecommendation",
+    )
+
+    products = list(
+        DealerProduct.objects.filter(dealer_profile_id=dealer_profile_id)
+        .exclude(status="deleted")
+        .order_by("id")
+    )
+    groups: dict[str, list] = defaultdict(list)
+    for product in products:
+        key = normalize_dealer_product_title(product.title)
+        if key:
+            groups[key].append(product)
+
+    merged_groups = 0
+    merged_products = 0
+    for group in groups.values():
+        if len(group) < 2:
+            continue
+
+        canonical = _pick_canonical_product_historical(apps, group)
+        duplicates = [product for product in group if product.id != canonical.id]
+        duplicate_ids = [product.id for product in duplicates]
+
+        new_title = strip_title_suffix(canonical.title)
+        if new_title and canonical.title != new_title:
+            canonical.title = new_title
+            canonical.save(update_fields=["title"])
+
+        for model, field_name in (
+            (DealerProductImage, "dealer_product"),
+            (AgeDiscountPolicy, "dealer_product"),
+            (OrderItem, "dealer_product"),
+            (PreOrderRequestItem, "dealer_product"),
+            (PromotionTarget, "dealer_product"),
+            (ProductReview, "dealer_product"),
+            (ProductRecommendation, "dealer_product"),
+        ):
+            model.objects.filter(**{f"{field_name}__in": duplicate_ids}).update(
+                **{field_name: canonical.id}
+            )
+
+        dup_rows = list(
+            CustomerInteraction.objects.filter(dealer_product_id__in=duplicate_ids)
+        )
+        for row in dup_rows:
+            existing = CustomerInteraction.objects.filter(
+                customer_id=row.customer_id,
+                dealer_product_id=canonical.id,
+            ).first()
+            if existing:
+                existing.view_count += row.view_count
+                existing.add_cart_count += row.add_cart_count
+                existing.purchase_count += row.purchase_count
+                existing.save()
+                row.delete()
+            else:
+                row.dealer_product_id = canonical.id
+                row.save(update_fields=["dealer_product_id"])
+
+        for dup_rec in DealerProductRelatedRecommendation.objects.filter(
+            dealer_product_id__in=duplicate_ids
+        ):
+            dup_rec.dealer_product_id = canonical.id
+            dup_rec.save(update_fields=["dealer_product_id"])
+
+        DealerProduct.objects.filter(id__in=duplicate_ids).update(status="deleted")
+        merged_groups += 1
+        merged_products += len(duplicate_ids)
+
+    return {"merged_groups": merged_groups, "merged_products": merged_products}
+
+
+def merge_all_duplicate_dealer_products_for_migration(apps) -> dict:
+    """Migration 0014: gộp trùng tên trước khi thêm ràng buộc unique."""
+    DealerProfile = apps.get_model("dealers", "DealerProfile")
+    totals = {"dealers": 0, "merged_groups": 0, "merged_products": 0}
+    for dealer in DealerProfile.objects.all().order_by("id"):
+        result = merge_duplicate_dealer_products_by_title_for_migration(apps, dealer.id)
+        if result["merged_groups"]:
+            totals["dealers"] += 1
+        totals["merged_groups"] += result["merged_groups"]
+        totals["merged_products"] += result["merged_products"]
+    return totals
+
+
 def cleanup_batches_on_deleted_dealer_products(
     dealer_profile=None, *, user=None
 ) -> int:

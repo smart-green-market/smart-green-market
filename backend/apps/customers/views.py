@@ -25,6 +25,7 @@ from .serializers import (
     CustomerAddressSerializer,
     CustomerProfileSerializer,
     CustomerProfileUpdateSerializer,
+    StorefrontCustomerProfileSerializer,
 )
 from .services import customer_profile_detail_queryset
 from .storefront_serializers import DealerCustomerListSerializer, DealerCustomerNoteSerializer
@@ -49,6 +50,7 @@ def _customer_profile_queryset():
         parameters=[
             OpenApiParameter("search", str, description="Tìm kiếm theo tên, email, sđt", required=False),
             OpenApiParameter("status", str, description="Lọc theo trạng thái tài khoản", required=False),
+            OpenApiParameter("tier_code", str, description="Lọc theo mã hạng thành viên", required=False),
         ],
     ),
     retrieve=extend_schema(tags=["Dealer Customers"], summary="Chi tiết khách hàng"),
@@ -96,6 +98,9 @@ class DealerCustomerViewSet(viewsets.ModelViewSet):
             qs = filter_by_status_param(
                 qs, request.query_params.get("status"), field="user__status"
             )
+        tier_code = request.query_params.get("tier_code")
+        if tier_code:
+            qs = qs.filter(current_tier__code=tier_code.strip().upper())
         return qs
 
     def list(self, request, *args, **kwargs):
@@ -155,31 +160,31 @@ class DealerCustomerViewSet(viewsets.ModelViewSet):
         summary="Hồ sơ buyer hiện tại",
         description=(
             "Trả hồ sơ buyer đầy đủ: `user`, `favorite_category`, `addresses[]`, "
-            "`default_address`, `segments[]`, `primary_segment`, thống kê đơn hàng.\n\n"
+            "`default_address`, thông tin hạng thành viên (`loyalty`), thống kê đơn hàng.\n\n"
             "Cập nhật: `PATCH /api/storefronts/{dealer_slug}/me/` (multipart, chọn file avatar)."
         ),
-        responses={200: CustomerProfileSerializer},
+        responses={200: StorefrontCustomerProfileSerializer},
     ),
     partial_update=extend_schema(
         tags=["Storefront Customer"],
         summary="Cập nhật hồ sơ buyer",
         description=STOREFRONT_PROFILE_UPDATE_HELP,
         request=multipart_request(StorefrontCustomerProfileUpdateForm),
-        responses={200: CustomerProfileSerializer},
+        responses={200: StorefrontCustomerProfileSerializer},
     ),
     update=extend_schema(
         tags=["Storefront Customer"],
         summary="Cập nhật hồ sơ buyer",
         description=STOREFRONT_PROFILE_UPDATE_HELP,
         request=multipart_request(StorefrontCustomerProfileUpdateForm),
-        responses={200: CustomerProfileSerializer},
+        responses={200: StorefrontCustomerProfileSerializer},
     ),
 )
 class StorefrontCustomerProfileViewSet(viewsets.GenericViewSet):
     """Buyer xem/cập nhật hồ sơ tại gian hàng đang đăng nhập."""
 
     permission_classes = [IsStorefrontCustomer]
-    serializer_class = CustomerProfileSerializer
+    serializer_class = StorefrontCustomerProfileSerializer
     parser_classes = [JSONParser, MultiPartParser, FormParser]
 
     def get_queryset(self):
@@ -190,7 +195,7 @@ class StorefrontCustomerProfileViewSet(viewsets.GenericViewSet):
 
     def _serialize_profile(self, profile, request):
         profile = self.get_queryset().get(pk=profile.pk)
-        return CustomerProfileSerializer(profile, context={"request": request}).data
+        return StorefrontCustomerProfileSerializer(profile, context={"request": request}).data
 
     @extend_schema(tags=["Storefront Customer"], summary="Hồ sơ buyer hiện tại")
     def retrieve(self, request, *args, **kwargs):
