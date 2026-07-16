@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Clock, X } from 'lucide-react';
 import { voucherService } from '../../../services/api/voucherService';
 import { customerSegmentService } from '../../../services/api/customerSegmentService';
+import { loyaltyService } from '../../../services/api/loyaltyService';
 import { toast } from 'sonner';
 
 export default function CreateVoucherModal({ isOpen, onClose, onSuccess }) {
@@ -34,9 +35,11 @@ export default function CreateVoucherModal({ isOpen, onClose, onSuccess }) {
   });
 
   const [segments, setSegments] = useState([]);
+  const [loyaltyTiers, setLoyaltyTiers] = useState([]);
 
-  const [targetType, setTargetType] = useState('customer_group');
-  const [targetId, setTargetId] = useState('');
+  const [audienceType, setAudienceType] = useState('ALL');
+  const [selectedTiers, setSelectedTiers] = useState([]);
+  const [selectedSegments, setSelectedSegments] = useState([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
@@ -57,18 +60,23 @@ export default function CreateVoucherModal({ isOpen, onClose, onSuccess }) {
         daily_start_time: '09:00',
         daily_end_time: '12:00',
       });
-      setTargetType('customer_group');
-      setTargetId('');
+      setAudienceType('ALL');
+      setSelectedTiers([]);
+      setSelectedSegments([]);
       fetchTargetsData();
     }
   }, [isOpen]);
 
   const fetchTargetsData = async () => {
     try {
-      const data = await customerSegmentService.getAll({ limit: 100 }).catch(() => ({ results: [] }));
-      setSegments(Array.isArray(data) ? data : data?.results || []);
+      const [segmentsData, tiersData] = await Promise.all([
+        customerSegmentService.getAll({ limit: 100 }).catch(() => ({ results: [] })),
+        loyaltyService.getTiers().catch(() => ({ results: [] })),
+      ]);
+      setSegments(Array.isArray(segmentsData) ? segmentsData : segmentsData?.results || []);
+      setLoyaltyTiers(Array.isArray(tiersData) ? tiersData : tiersData?.results || []);
     } catch (error) {
-      console.error('Error fetching segments:', error);
+      console.error('Error fetching segments or tiers:', error);
     }
   };
 
@@ -110,8 +118,13 @@ export default function CreateVoucherModal({ isOpen, onClose, onSuccess }) {
       }
     }
 
-    if (!targetId) {
-      toast.error('Vui lòng chọn nhóm khách hàng áp dụng');
+    if (audienceType === 'LOYALTY_TIER' && selectedTiers.length === 0) {
+      toast.error('Vui lòng chọn ít nhất một hạng thành viên áp dụng');
+      return;
+    }
+
+    if (audienceType === 'CUSTOMER_SEGMENT' && selectedSegments.length === 0) {
+      toast.error('Vui lòng chọn ít nhất một nhóm phân khúc áp dụng');
       return;
     }
 
@@ -124,10 +137,13 @@ export default function CreateVoucherModal({ isOpen, onClose, onSuccess }) {
         description: formData.description,
         discount_type: formData.discount_type,
         discount_value: Number(formData.discount_value),
-        min_order_amount: Number(formData.min_order_amount),
+        min_order_amount: Number(formData.min_order_amount || 0),
         start_date: new Date(formData.start_date).toISOString(),
         end_date: new Date(formData.end_date).toISOString(),
         schedule_type: formData.schedule_type,
+        audience_type: audienceType,
+        loyalty_tier_ids: audienceType === 'LOYALTY_TIER' ? selectedTiers.map(Number) : [],
+        customer_segment_ids: audienceType === 'CUSTOMER_SEGMENT' ? selectedSegments.map(Number) : [],
       };
 
       if (formData.schedule_type === 'daily_time') {
@@ -147,13 +163,6 @@ export default function CreateVoucherModal({ isOpen, onClose, onSuccess }) {
       if (formData.usage_limit_per_customer) {
         payload.usage_limit_per_customer = parseInt(formData.usage_limit_per_customer, 10);
       }
-
-      // Add targets payload
-      const targetObj = {
-        target_type: 'segment',
-        segment: parseInt(targetId, 10)
-      };
-      payload.targets = [targetObj];
 
       await voucherService.create(payload);
       toast.success('Tạo voucher thành công');
@@ -241,26 +250,103 @@ export default function CreateVoucherModal({ isOpen, onClose, onSuccess }) {
               </div>
             </div>
 
-            {/* Đối tượng áp dụng (Targets) */}
+            {/* Đối tượng áp dụng (Audience Targets) */}
             <div>
               <h3 className="text-lg font-semibold text-gray-800 mb-4 border-b pb-2">Đối tượng áp dụng</h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Chọn nhóm khách hàng</label>
-                  <select
-                    value={targetId}
-                    onChange={(e) => setTargetId(e.target.value)}
-                    required
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 bg-white"
-                  >
-                    <option value="">-- Chọn nhóm khách hàng --</option>
-                    {segments.map(group => (
-                      <option key={group.id} value={group.id}>
-                        {group.name} {group.code ? `(${group.code})` : ''}
-                      </option>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Chọn kiểu đối tượng</label>
+                  <div className="grid grid-cols-3 gap-3">
+                    {[
+                      { value: 'ALL', label: 'Tất cả khách hàng' },
+                      { value: 'LOYALTY_TIER', label: 'Hạng thành viên B2C' },
+                      { value: 'CUSTOMER_SEGMENT', label: 'Phân khúc khách hàng' },
+                    ].map((opt) => (
+                      <button
+                        key={opt.value}
+                        type="button"
+                        onClick={() => setAudienceType(opt.value)}
+                        className={`px-3 py-2.5 text-xs font-bold rounded-lg border text-center transition-all cursor-pointer ${
+                          audienceType === opt.value
+                            ? 'bg-green-600 text-white border-green-600 shadow-sm'
+                            : 'bg-white text-gray-600 border-gray-200 hover:border-green-300'
+                        }`}
+                      >
+                        {opt.label}
+                      </button>
                     ))}
-                  </select>
+                  </div>
                 </div>
+
+                {/* Checklist for loyalty tiers */}
+                {audienceType === 'LOYALTY_TIER' && (
+                  <div className="p-4 bg-gray-50 border border-gray-150 rounded-xl">
+                    <label className="block text-xs font-black text-gray-500 uppercase tracking-wider mb-2">
+                      Chọn các Hạng thành viên được áp dụng:
+                    </label>
+                    {loyaltyTiers.length === 0 ? (
+                      <p className="text-xs text-gray-400">Không có hạng thành viên nào.</p>
+                    ) : (
+                      <div className="grid grid-cols-2 gap-2.5">
+                        {loyaltyTiers.map((tier) => {
+                          const isChecked = selectedTiers.includes(tier.id);
+                          return (
+                            <label key={tier.id} className="flex items-center gap-2 px-3 py-2 bg-white border border-gray-200 rounded-lg hover:bg-neutral-50/50 cursor-pointer select-none">
+                              <input
+                                type="checkbox"
+                                checked={isChecked}
+                                onChange={() => {
+                                  if (isChecked) {
+                                    setSelectedTiers(selectedTiers.filter(id => id !== tier.id));
+                                  } else {
+                                    setSelectedTiers([...selectedTiers, tier.id]);
+                                  }
+                                }}
+                                className="w-4 h-4 rounded text-green-600 focus:ring-green-500 border-gray-300 accent-green-600"
+                              />
+                              <span className="text-xs font-bold text-gray-700">{tier.name}</span>
+                            </label>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* Checklist for customer segments */}
+                {audienceType === 'CUSTOMER_SEGMENT' && (
+                  <div className="p-4 bg-gray-50 border border-gray-150 rounded-xl">
+                    <label className="block text-xs font-black text-gray-500 uppercase tracking-wider mb-2">
+                      Chọn các Phân khúc khách hàng được áp dụng:
+                    </label>
+                    {segments.length === 0 ? (
+                      <p className="text-xs text-gray-400">Không có nhóm phân khúc nào.</p>
+                    ) : (
+                      <div className="grid grid-cols-2 gap-2.5">
+                        {segments.map((seg) => {
+                          const isChecked = selectedSegments.includes(seg.id);
+                          return (
+                            <label key={seg.id} className="flex items-center gap-2 px-3 py-2 bg-white border border-gray-200 rounded-lg hover:bg-neutral-50/50 cursor-pointer select-none">
+                              <input
+                                type="checkbox"
+                                checked={isChecked}
+                                onChange={() => {
+                                  if (isChecked) {
+                                    setSelectedSegments(selectedSegments.filter(id => id !== seg.id));
+                                  } else {
+                                    setSelectedSegments([...selectedSegments, seg.id]);
+                                  }
+                                }}
+                                className="w-4 h-4 rounded text-green-600 focus:ring-green-500 border-gray-300 accent-green-600"
+                              />
+                              <span className="text-xs font-bold text-gray-700">{seg.name}</span>
+                            </label>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
             </div>
 

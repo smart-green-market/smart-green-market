@@ -1,6 +1,6 @@
-import { X, Package, CheckCircle2, Truck, CreditCard, User, Calendar, MapPin, Receipt, ArrowRight, Printer, Phone, XCircle } from "lucide-react";
+import { X, Package, CheckCircle2, Truck, CreditCard, User, Calendar, MapPin, Receipt, ArrowRight, Printer, Phone, XCircle, ClipboardList } from "lucide-react";
 
-export default function ({ order, onClose, onPrint, onConfirm, onStartProcessing, onShipOrder, onCancel, onProposeReschedule, onApproveReturn, onRejectReturn }) {
+export default function ({ order, onClose, onPrint, onPrintPicking, onConfirm, onStartProcessing, onShipOrder, onCancel, onProposeReschedule, onApproveReturn, onRejectReturn }) {
   if (!order) return null;
 
   // Status visual mapping
@@ -300,12 +300,23 @@ export default function ({ order, onClose, onPrint, onConfirm, onStartProcessing
           </button>
         )}
 
-        <button
-          onClick={() => onPrint && onPrint(order)}
-          className="w-full py-3 rounded-xl bg-neutral-100 hover:bg-neutral-200 text-neutral-700 font-bold text-sm transition-all cursor-pointer flex items-center justify-center gap-2"
-        >
-          <Printer className="w-4 h-4" /> In hoá đơn
-        </button>
+        {(fullData.status === "confirmed" || order.status === "Đã xác nhận") && (
+          <button
+            onClick={() => onPrintPicking && onPrintPicking(order)}
+            className="w-full py-3 rounded-xl bg-emerald-50 hover:bg-emerald-100/80 text-emerald-700 border border-emerald-200 font-bold text-sm transition-all cursor-pointer flex items-center justify-center gap-2"
+          >
+            <ClipboardList className="w-4 h-4" /> In phiếu soạn
+          </button>
+        )}
+
+        {(fullData.status === "delivered" || fullData.status === "completed" || order.status === "Đã giao" || order.status === "Hoàn tất") && (
+          <button
+            onClick={() => onPrint && onPrint(order)}
+            className="w-full py-3 rounded-xl bg-neutral-100 hover:bg-neutral-200 text-neutral-700 font-bold text-sm transition-all cursor-pointer flex items-center justify-center gap-2"
+          >
+            <Printer className="w-4 h-4" /> In hoá đơn
+          </button>
+        )}
       </div>
     </div>
   );

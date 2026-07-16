@@ -14,6 +14,7 @@ import {
   Percent,
   Sparkles,
   BarChart3,
+  Coins,
 } from "lucide-react";
 
 // Cấu trúc danh mục chia nhóm rõ ràng
@@ -49,6 +50,7 @@ const MENU_GROUPS = [
     title: "Hệ thống",
     items: [
       { label: "Cấu hình", icon: Settings, to: "/dai-ly/cau-hinh" },
+      { label: "Tích điểm & Hạng", icon: Coins, to: "/dai-ly/loyalty" },
     ],
   },
 ];

@@ -149,6 +149,7 @@ export default function CreatePurchaseOrder({ onClose, onSuccess }) {
 
         // Mặc định chọn "Tất cả" (selectedSupplier = "")
 
+        //Tự điền thông tin người nhận vào thông tin giao hàng
         if (dealerData?.length > 0 && !savedDraft) {
           const dealer = dealerData[0];
           const dt = new Date();
@@ -217,11 +218,23 @@ export default function CreatePurchaseOrder({ onClose, onSuccess }) {
    * [productId]: num --> gán dữ liệu mới vào hoặc cập nhật lại số lượng
    */
   const handleCardQtyChange = (productId, val) => {
-    let num = parseInt(val);
-    if (isNaN(num) || num < 0) num = 0;
+    // Cho phép nhập số lượng lẻ (thập phân, tối đa 2 chữ số sau dấu phẩy)
+    let sanitized = val.replace(/[^0-9.]/g, "");
+
+    // Đảm bảo chỉ có tối đa một dấu chấm
+    const parts = sanitized.split(".");
+    if (parts.length > 2) {
+      sanitized = parts[0] + "." + parts.slice(1).join("");
+    }
+
+    // Giới hạn tối đa 2 chữ số thập phân
+    if (parts.length === 2 && parts[1].length > 2) {
+      sanitized = parts[0] + "." + parts[1].slice(0, 2);
+    }
+
     setCardQuantities((prev) => ({
       ...prev,
-      [productId]: num,
+      [productId]: sanitized,
     }));
   };
 
@@ -229,11 +242,13 @@ export default function CreatePurchaseOrder({ onClose, onSuccess }) {
    * Tăng hoặc giảm số lượng thông qua nút cộng/trừ của thẻ sản phẩm.
    */
   const adjustCardQty = (productId, delta) => {
-    const current = cardQuantities[productId] || 0;
+    const current = parseFloat(cardQuantities[productId]) || 0;
     const nextVal = Math.max(0, current + delta);
+    // Làm tròn tối đa 2 chữ số thập phân và chuyển về string
+    const formattedVal = Number(nextVal.toFixed(2)).toString();
     setCardQuantities((prev) => ({
       ...prev,
-      [productId]: nextVal,
+      [productId]: formattedVal,
     }));
   };
 
@@ -241,10 +256,10 @@ export default function CreatePurchaseOrder({ onClose, onSuccess }) {
    * Thêm sản phẩm vào phiếu nhập nháp với số lượng đã chọn.
    */
   const handleAddToCart = (product) => {
-    const qtyToAdd = cardQuantities[product.id] || 0;
+    const qtyToAdd = parseFloat(cardQuantities[product.id]) || 0;
     if (qtyToAdd <= 0) {
       toast.warning(
-        `Vui lòng chọn số lượng để thêm sản phẩm ${product.name}.`,
+        `Vui lòng chọn số lượng lớn hơn 0 để thêm sản phẩm ${product.name}.`,
         {
           position: "top-center",
           duration: 3000,
@@ -253,23 +268,26 @@ export default function CreatePurchaseOrder({ onClose, onSuccess }) {
       return;
     }
 
-
-    setCart((prev) => ({
-      ...prev,
-      [product.id]: {
-        product,
-        quantity: (prev[product.id]?.quantity || 0) + qtyToAdd,
-      },
-    }));
+    setCart((prev) => {
+      const existingQty = prev[product.id]?.quantity || 0;
+      const newQty = parseFloat((existingQty + qtyToAdd).toFixed(2));
+      return {
+        ...prev,
+        [product.id]: {
+          product,
+          quantity: newQty,
+        },
+      };
+    });
 
     toast.success(
       `Đã thêm ${qtyToAdd} ${product.unit} ${product.name} vào phiếu nháp.`,
       { position: "top-center", duration: 3000 },
     );
-    // Reset lại ô số lượng trên card sản phẩm về 0
+    // Reset lại ô số lượng trên card sản phẩm về "0"
     setCardQuantities((prev) => ({
       ...prev,
-      [product.id]: 0,
+      [product.id]: "0",
     }));
   };
 
@@ -345,7 +363,34 @@ export default function CreatePurchaseOrder({ onClose, onSuccess }) {
       return;
     }
 
+    // Validate tên người nhận tối đa 255 ký tự
+    if (deliveryInfo.receiverName.trim().length > 255) {
+      toast.error("Tên người nhận không được vượt quá 255 ký tự!", { position: "top-center", duration: 5000 });
+      return;
+    }
+
+    // Validate số điện thoại Việt Nam hợp lệ (cả di động và cố định)
+    const phoneRegex = /^(0|\+84)(2[0-9]{9}|[35789][0-9]{8})$/;
+    if (!phoneRegex.test(deliveryInfo.receiverPhone.trim())) {
+      toast.error("Số điện thoại không đúng định dạng! Vui lòng nhập số điện thoại hợp lệ (ví dụ: 0912345678 hoặc +842412345678).", { position: "top-center", duration: 5000 });
+      return;
+    }
+
+    // Validate thời gian giao dự kiến không được chọn ngày đã qua (ở quá khứ)
+    const requestedTime = new Date(deliveryInfo.requestedDeliveryTime);
+    const now = new Date();
+    // Reset giây và mili giây để so sánh chính xác theo phút
+    now.setSeconds(0);
+    now.setMilliseconds(0);
+    if (requestedTime < now) {
+      toast.error("Thời gian giao dự kiến phải ở trong tương lai!", { position: "top-center", duration: 5000 });
+      return;
+    }
+
     // Nhóm sản phẩm theo nhà cung cấp
+    //ac là biến tích luỹ (accumulator)
+    //item là phần tử hiện tại đang được xử lý 
+    //{} là giá trị ban đầu của ac (một object rỗng)
     const groupedItems = cartItems.reduce((acc, item) => {
       const supplierId = item.product.supplier?.id || 1;
       if (!acc[supplierId]) acc[supplierId] = [];
@@ -353,7 +398,7 @@ export default function CreatePurchaseOrder({ onClose, onSuccess }) {
       return acc;
     }, {});
 
-    const supplierIds = Object.keys(groupedItems);
+    const supplierIds = Object.keys(groupedItems);//lấy danh sách các supplierId
 
     // Kiểm tra tổng hoá đơn của từng nhà cung cấp có trên 500.000đ hay không
     for (const supplierId of supplierIds) {
@@ -505,8 +550,8 @@ export default function CreatePurchaseOrder({ onClose, onSuccess }) {
                   <ProductCard
                     key={p.id}
                     product={p}
-                    inputQty={cardQuantities[p.id] || 0}
-                    previewPricing={getLinePricing(p, cardQuantities[p.id] || 0)}
+                    inputQty={cardQuantities[p.id] ?? "0"}
+                    previewPricing={getLinePricing(p, parseFloat(cardQuantities[p.id]) || 0)}
                     onQtyChange={(val) => handleCardQtyChange(p.id, val)}
                     onQtyAdjust={(delta) => adjustCardQty(p.id, delta)}
                     onAddToCart={() => handleAddToCart(p)}
