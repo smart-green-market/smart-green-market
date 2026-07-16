@@ -65,7 +65,7 @@ export default function RejectModal({
     };
 
     return (
-        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50 p-4">
+        <div className="fixed inset-0 z-[560] flex items-center justify-center bg-black/50 p-4">
             <div
                 className={`mx-4 w-full max-w-md overflow-hidden rounded-xl border bg-white shadow-xl ${style.panelClass}`}
             >

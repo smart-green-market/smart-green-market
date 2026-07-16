@@ -1,21 +1,29 @@
-"""Queryset lô tồn kho bán được — dùng chung orders FIFO và age discount."""
+"""Queryset lô tồn kho bán được — lô MAIN duy nhất / sản phẩm."""
 
-from django.db.models import Q
-from django.utils import timezone
+from .canonical_inventory import CANONICAL_BATCH_NUMBER
+from .models import DealerInventoryBatch, DealerInventoryBatchStatus, DealerProductStatus
 
-from .models import DealerInventoryBatch, DealerInventoryBatchStatus
+
+def get_warehouse_inventory_batches_qs(base_qs=None):
+    """
+    Danh sách kho đại lý: một dòng / sản phẩm — chỉ lô MAIN của SP chưa xóa.
+    """
+    qs = base_qs if base_qs is not None else DealerInventoryBatch.objects.all()
+    return qs.filter(
+        deleted_at__isnull=True,
+        batch_number=CANONICAL_BATCH_NUMBER,
+    ).exclude(dealer_product__status=DealerProductStatus.DELETED)
 
 
 def get_sellable_batches_qs(dealer_product, *, for_update=False):
-    """Lô active, còn tồn, chưa xóa, chưa hết hạn — FIFO (cũ trước)."""
-    today = timezone.localdate()
+    """Lô MAIN còn tồn — không lọc HSD (đại lý tự kiểm tra thực tế)."""
     qs = DealerInventoryBatch.objects.filter(
         dealer_product=dealer_product,
+        batch_number=CANONICAL_BATCH_NUMBER,
         status=DealerInventoryBatchStatus.ACTIVE,
         remaining_quantity__gt=0,
         deleted_at__isnull=True,
-    ).filter(Q(expiry_date__isnull=True) | Q(expiry_date__gte=today))
-    qs = qs.order_by("import_date", "created_at", "id")
+    ).order_by("id")
     if for_update:
         qs = qs.select_for_update()
     return qs

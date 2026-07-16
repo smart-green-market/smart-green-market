@@ -10,6 +10,7 @@ from django.utils import timezone
 from apps.accounts.models import Account, AccountRole, AccountStatus
 from apps.categories.models import Category, CategoryScope, CategoryStatus
 from apps.customers.models import CustomerAddress, CustomerProfile
+from apps.dealer_products.canonical_inventory import CANONICAL_BATCH_NUMBER
 from apps.dealer_products.models import (
     DealerInventoryBatch,
     DealerInventoryBatchStatus,
@@ -122,7 +123,7 @@ class PreOrderFlowTestBase(TestCase):
         )
         self.batch = DealerInventoryBatch.objects.create(
             dealer_product=self.dealer_product,
-            batch_number=f"B-PO-{self._testMethodName}",
+            batch_number=CANONICAL_BATCH_NUMBER,
             quantity=10,
             remaining_quantity=10,
             import_price="10000.00",
@@ -143,11 +144,12 @@ class PreOrderFlowTestBase(TestCase):
 
     def _create_waiting_order(self, *, quantity=20, delivery_time=None):
         preorder = self._create_preorder(quantity=quantity)
-        preorder_services.dealer_confirm_preorder(preorder, self.dealer_user)
         if delivery_time is not None:
             preorder.requested_delivery_time = delivery_time
             preorder.save(update_fields=["requested_delivery_time"])
-        return preorder_services.customer_accept_preorder(preorder, self.buyer_user)
+        preorder_services.dealer_confirm_preorder(preorder, self.dealer_user)
+        preorder.refresh_from_db()
+        return preorder.converted_order
 
 
 class CheckStockTests(PreOrderFlowTestBase):
@@ -199,11 +201,9 @@ class PreOrderWorkflowTests(PreOrderFlowTestBase):
 
         preorder_services.dealer_confirm_preorder(preorder, self.dealer_user)
         preorder.refresh_from_db()
-        self.assertEqual(preorder.status, PreOrderRequestStatus.CUSTOMER_CONFIRMATION_PENDING)
-
-        order = preorder_services.customer_accept_preorder(preorder, self.buyer_user)
-        preorder.refresh_from_db()
         self.assertEqual(preorder.status, PreOrderRequestStatus.CONVERTED)
+
+        order = preorder.converted_order
         self.assertEqual(order.status, OrderStatus.WAITING_STOCK)
         self.assertIsNone(order.items.first().batch)
 
@@ -257,6 +257,22 @@ class PreOrderWorkflowTests(PreOrderFlowTestBase):
                 account=self.dealer_user,
                 notification__reference_type="customer_preorder_request",
                 notification__reference_id=preorder.id,
+            ).exists()
+        )
+
+    def test_dealer_confirm_auto_creates_order_and_notifies_buyer(self):
+        preorder = self._create_preorder(quantity=20)
+        preorder_services.dealer_confirm_preorder(preorder, self.dealer_user)
+        preorder.refresh_from_db()
+        self.assertEqual(preorder.status, PreOrderRequestStatus.CONVERTED)
+        order = preorder.converted_order
+        self.assertEqual(order.status, OrderStatus.WAITING_STOCK)
+        self.assertTrue(
+            NotificationReceipt.objects.filter(
+                account=self.buyer_user,
+                notification__reference_type="customer_order",
+                notification__reference_id=order.id,
+                notification__title__icontains="Chờ hàng về kho",
             ).exists()
         )
 

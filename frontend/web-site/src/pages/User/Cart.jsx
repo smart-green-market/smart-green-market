@@ -7,7 +7,7 @@ import SuggestProduct from "../../components/User/Home/SuggestProduct";
 import { useCart } from "../../contexts/cartProvider";
 import { useBuyerCatalog } from "../../hooks/useBuyerCatalog";
 import { useStorefrontPaths } from "../../hooks/useStorefrontPaths";
-import { isCartItemOutOfStock } from "../../utils/cartUtils";
+import { isCartItemPreorderOnly } from "../../utils/cartUtils";
 
 export default function CartPage() {
   const paths = useStorefrontPaths();
@@ -35,7 +35,7 @@ export default function CartPage() {
 
   const allSelected = cartItems.length > 0 && selectedItems.length === cartItems.length;
   const selectedCount = selectedItems.length;
-  const hasOutOfStockSelected = selectedItems.some(isCartItemOutOfStock);
+  const hasPreorderSelected = selectedItems.some(isCartItemPreorderOnly);
   const subtotal = selectedItems.reduce((sum, item) => sum + item.price * item.quantity, 0);
 
   const handleToggleAll = () => {
@@ -43,7 +43,7 @@ export default function CartPage() {
   };
 
   const handleCheckout = () => {
-    if (selectedCount === 0 || hasOutOfStockSelected) return;
+    if (selectedCount === 0) return;
     navigate(paths.checkout);
   };
 
@@ -98,10 +98,10 @@ export default function CartPage() {
               subtotal={subtotal}
               shippingFee={10000}
               onCheckout={handleCheckout}
-              checkoutDisabled={selectedCount === 0 || hasOutOfStockSelected}
+              checkoutDisabled={selectedCount === 0}
               checkoutHint={
-                hasOutOfStockSelected
-                  ? "Có sản phẩm hết hàng trong giỏ — vui lòng bỏ chọn hoặc xóa trước khi đặt"
+                hasPreorderSelected
+                  ? "Một số sản phẩm hết tồn — bạn sẽ gửi yêu cầu đặt trước ở bước thanh toán"
                   : ""
               }
               sticky

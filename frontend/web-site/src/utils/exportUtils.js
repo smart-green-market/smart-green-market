@@ -196,8 +196,7 @@ export const exportProductsToExcel = async (products) => {
  */
 export const exportOrdersToExcel = async (orders) => {
   if (!orders || orders.length === 0) {
-    alert("Không có dữ liệu đơn hàng để xuất!");
-    return;
+    throw new Error("Không có dữ liệu đơn hàng để xuất!");
   }
 
   try {
@@ -206,7 +205,7 @@ export const exportOrdersToExcel = async (orders) => {
 
   // 1. Dòng tiêu đề chính
   const titleRow = worksheet.addRow(["DANH SÁCH GOM HÀNG VÀ CHUẨN BỊ THEO ĐƠN"]);
-  worksheet.mergeCells("A1:L1");
+  worksheet.mergeCells("A1:M1");
   titleRow.height = 35;
   const titleCell = titleRow.getCell(1);
   titleCell.font = { name: "Segoe UI", size: 16, bold: true, color: { argb: "FF064E3B" } };
@@ -214,7 +213,7 @@ export const exportOrdersToExcel = async (orders) => {
 
   // 2. Dòng thông tin phụ
   const infoRow = worksheet.addRow([`Ngày xuất: ${new Date().toLocaleDateString("vi-VN")} | Hệ thống Smart Green Market`]);
-  worksheet.mergeCells("A2:L2");
+  worksheet.mergeCells("A2:M2");
   infoRow.height = 20;
   const infoCell = infoRow.getCell(1);
   infoCell.font = { name: "Segoe UI", size: 10, italic: true, color: { argb: "FF6B7280" } };
@@ -225,6 +224,7 @@ export const exportOrdersToExcel = async (orders) => {
 
   // 4. Header thực tế của bảng
   const headers = [
+    "STT",
     "Mã đơn hàng",
     "Đại lý",
     "Ngày tạo",
@@ -253,11 +253,23 @@ export const exportOrdersToExcel = async (orders) => {
 
   const getStatusLabel = (status) => {
     switch (status) {
-      case "pending": return "Chờ xác nhận";
-      case "confirmed": return "Đã xác nhận";
-      case "processing": return "Đang xử lý";
+      case "pending_supplier_confirmation": return "Chờ NCC xác nhận";
+      case "rejected": return "NCC từ chối";
+      case "pending_dealer_confirmation": return "Chờ đại lý xác nhận điều chỉnh";
+      case "confirmed": return "NCC đã xác nhận";
+      case "deposit_pending_verification": return "Chờ xác nhận tiền cọc";
+      case "deposit_paid": return "Đã thanh toán cọc";
+      case "processing": return "Đang chuẩn bị hàng";
       case "shipping": return "Đang giao hàng";
-      case "completed": return "Hoàn thành";
+      case "delivered": return "Đã giao hàng";
+      case "final_payment_pending_verification": return "Chờ xác nhận thanh toán cuối";
+      case "return_requested": return "Yêu cầu trả hàng";
+      case "return_request": return "Yêu cầu trả hàng";
+      case "return_pending_review": return "Yêu cầu trả hàng";
+      case "return_approved": return "Đã duyệt trả hàng";
+      case "return_rejected": return "Từ chối trả hàng";
+      case "returned": return "Đã trả hàng";
+      case "completed": return "Hoàn tất";
       case "cancelled": return "Đã hủy";
       default: return status || "Chờ xử lý";
     }
@@ -291,6 +303,7 @@ export const exportOrdersToExcel = async (orders) => {
 
     if (items.length === 0) {
       const dataRow = worksheet.addRow([
+        colorGroupIndex,
         order.order_code || "—",
         order.dealer_name || "—",
         order.created_at ? new Date(order.created_at).toLocaleDateString("vi-VN") : "—",
@@ -312,25 +325,28 @@ export const exportOrdersToExcel = async (orders) => {
         });
       }
 
-      dataRow.getCell(1).alignment = { horizontal: "center", vertical: "middle" };
-      dataRow.getCell(2).alignment = { horizontal: "left", vertical: "middle" };
-      dataRow.getCell(3).alignment = { horizontal: "center", vertical: "middle" };
-      dataRow.getCell(4).alignment = { horizontal: "center", vertical: "middle" };
-      dataRow.getCell(5).alignment = { horizontal: "left", vertical: "middle" };
+      dataRow.getCell(1).alignment = { horizontal: "center", vertical: "middle" }; // STT
+      dataRow.getCell(2).alignment = { horizontal: "center", vertical: "middle" }; // Mã đơn hàng
+      dataRow.getCell(3).alignment = { horizontal: "left", vertical: "middle" };   // Đại lý
+      dataRow.getCell(4).alignment = { horizontal: "center", vertical: "middle" }; // Ngày tạo
+      dataRow.getCell(5).alignment = { horizontal: "center", vertical: "middle" }; // Ngày giao mong muốn
+      dataRow.getCell(6).alignment = { horizontal: "left", vertical: "middle" };   // Tên sản phẩm
       
-      dataRow.getCell(6).numFmt = `#,##0`;
-      dataRow.getCell(6).alignment = { horizontal: "right", vertical: "middle" };
-      dataRow.getCell(7).alignment = { horizontal: "center", vertical: "middle" };
+      dataRow.getCell(7).numFmt = `#,##0`;
+      dataRow.getCell(7).alignment = { horizontal: "right", vertical: "middle" };
       dataRow.getCell(8).alignment = { horizontal: "center", vertical: "middle" };
+      dataRow.getCell(9).alignment = { horizontal: "center", vertical: "middle" };
       
-      dataRow.getCell(9).numFmt = `#,##0"đ"`;
-      dataRow.getCell(9).alignment = { horizontal: "right", vertical: "middle" };
       dataRow.getCell(10).numFmt = `#,##0"đ"`;
       dataRow.getCell(10).alignment = { horizontal: "right", vertical: "middle" };
       dataRow.getCell(11).numFmt = `#,##0"đ"`;
       dataRow.getCell(11).alignment = { horizontal: "right", vertical: "middle" };
+      
+      dataRow.getCell(12).numFmt = `#,##0"đ"`;
+      dataRow.getCell(12).alignment = { horizontal: "right", vertical: "middle" };
+      dataRow.getCell(12).font = { name: "Segoe UI", size: 10, bold: true };
 
-      dataRow.getCell(12).alignment = { horizontal: "center", vertical: "middle" };
+      dataRow.getCell(13).alignment = { horizontal: "center", vertical: "middle" };
     } else {
       items.forEach((item, idx) => {
         const prodName = item.product_name || "—";
@@ -339,6 +355,7 @@ export const exportOrdersToExcel = async (orders) => {
         const price = Number(item.unit_price) || 0;
 
         const dataRow = worksheet.addRow([
+          idx === 0 ? colorGroupIndex : "", // STT
           idx === 0 ? (order.order_code || "—") : "",
           idx === 0 ? (order.dealer_name || "—") : "",
           idx === 0 ? (order.created_at ? new Date(order.created_at).toLocaleDateString("vi-VN") : "—") : "",
@@ -362,33 +379,34 @@ export const exportOrdersToExcel = async (orders) => {
         }
 
         // Căn lề từng cột
-        dataRow.getCell(1).alignment = { horizontal: "center", vertical: "middle" }; // Code
-        dataRow.getCell(2).alignment = { horizontal: "left", vertical: "middle" };   // Dealer
-        dataRow.getCell(3).alignment = { horizontal: "center", vertical: "middle" }; // Ngày tạo
-        dataRow.getCell(4).alignment = { horizontal: "center", vertical: "middle" }; // Ngày giao mong muốn
-        dataRow.getCell(5).alignment = { horizontal: "left", vertical: "middle" };   // Sản phẩm
+        dataRow.getCell(1).alignment = { horizontal: "center", vertical: "middle" }; // STT
+        dataRow.getCell(2).alignment = { horizontal: "center", vertical: "middle" }; // Code
+        dataRow.getCell(3).alignment = { horizontal: "left", vertical: "middle" };   // Dealer
+        dataRow.getCell(4).alignment = { horizontal: "center", vertical: "middle" }; // Ngày tạo
+        dataRow.getCell(5).alignment = { horizontal: "center", vertical: "middle" }; // Ngày giao mong muốn
+        dataRow.getCell(6).alignment = { horizontal: "left", vertical: "middle" };   // Sản phẩm
         
         // Số lượng cần
-        const qtyCell = dataRow.getCell(6);
+        const qtyCell = dataRow.getCell(7);
         qtyCell.numFmt = `#,##0`;
         qtyCell.alignment = { horizontal: "right", vertical: "middle" };
 
-        dataRow.getCell(7).alignment = { horizontal: "center", vertical: "middle" }; // Thực tế điền tay
-        dataRow.getCell(8).alignment = { horizontal: "center", vertical: "middle" }; // Đơn vị
+        dataRow.getCell(8).alignment = { horizontal: "center", vertical: "middle" }; // Thực tế điền tay
+        dataRow.getCell(9).alignment = { horizontal: "center", vertical: "middle" }; // Đơn vị
 
         // Đơn giá
-        const priceCell = dataRow.getCell(9);
+        const priceCell = dataRow.getCell(10);
         priceCell.numFmt = `#,##0"đ"`;
         priceCell.alignment = { horizontal: "right", vertical: "middle" };
 
         // Thành tiền
-        const subtotalCell = dataRow.getCell(10);
+        const subtotalCell = dataRow.getCell(11);
         subtotalCell.numFmt = `#,##0"đ"`;
         subtotalCell.alignment = { horizontal: "right", vertical: "middle" };
 
         // Tổng đơn
         if (idx === 0) {
-          const totalCell = dataRow.getCell(11);
+          const totalCell = dataRow.getCell(12);
           totalCell.numFmt = `#,##0"đ"`;
           totalCell.alignment = { horizontal: "right", vertical: "middle" };
           totalCell.font = { name: "Segoe UI", size: 10, bold: true };
@@ -396,7 +414,7 @@ export const exportOrdersToExcel = async (orders) => {
 
         // Trạng thái
         if (idx === 0) {
-          const statusCell = dataRow.getCell(12);
+          const statusCell = dataRow.getCell(13);
           statusCell.alignment = { horizontal: "center", vertical: "middle" };
           statusCell.font = { name: "Segoe UI", size: 10, bold: true };
           if (order.status === "completed") {
@@ -413,6 +431,6 @@ export const exportOrdersToExcel = async (orders) => {
   await saveExcelFile(workbook, `Danh_Sach_Don_Hang_${new Date().toISOString().slice(0, 10)}.xlsx`);
   } catch (error) {
     console.error("Lỗi khi xuất Excel đơn hàng:", error);
-    alert("Không thể xuất file Excel. Vui lòng thử lại sau.");
+    throw error;
   }
 };

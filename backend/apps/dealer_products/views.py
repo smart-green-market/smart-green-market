@@ -21,6 +21,7 @@ from common.pagination import LoadMorePagination
 from common.status_counts import build_count_status, filter_by_status_param
 
 from common.soft_delete import default_exclude_deleted
+from .inventory_queries import get_warehouse_inventory_batches_qs
 from .archive import soft_delete_dealer_product
 from .models import (
     DealerInventoryBatch,
@@ -382,7 +383,8 @@ class DealerInventoryBatchViewSet(viewsets.ReadOnlyModelViewSet):
     serializer_class = DealerInventoryBatchSerializer
 
     def get_queryset(self):
-        return _filter_inventory_scope(self.queryset, self.request.user)
+        qs = _filter_inventory_scope(self.queryset, self.request.user)
+        return qs.exclude(dealer_product__status=DealerProductStatus.DELETED)
 
     def list(self, request, *args, **kwargs):
         dealer_id = getattr(getattr(request.user, "dealer_profile", None), "id", None)
@@ -390,7 +392,7 @@ class DealerInventoryBatchViewSet(viewsets.ReadOnlyModelViewSet):
             dealer_id = None
         mark_expired_inventory_batches(dealer_profile_id=dealer_id)
 
-        qs = self.get_queryset()
+        qs = get_warehouse_inventory_batches_qs(self.get_queryset())
 
         search = request.query_params.get("search", "").strip()
         if search:

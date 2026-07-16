@@ -88,6 +88,10 @@ export default function DraftOrderPreviewPage() {
     navigate("/dai-ly/nhap-hang/tao-moi", { state: { draftData: combinedDraft } });
   };
 
+  const grandGrossSubtotal = draftList.reduce((acc, curr) => acc + Number(curr.gross_subtotal || 0), 0);
+  const grandTotalDiscount = draftList.reduce((acc, curr) => acc + Number(curr.total_discount_amount || 0), 0);
+  const grandTotalAmount = draftList.reduce((acc, curr) => acc + Number(curr.total_amount || 0), 0);
+
   return (
     <div className="font-['Geist',sans-serif] pb-12 px-4 sm:px-8 md:px-16 lg:px-24 bg-emerald-50/15 min-h-screen pt-6">
       <div className="flex items-center gap-3 mb-6">
@@ -180,6 +184,36 @@ export default function DraftOrderPreviewPage() {
           );
         })}
       </div>
+
+      {/* Tổng cộng tất cả phiếu nếu có từ 2 nhà cung cấp trở lên */}
+      {draftList.length > 1 && (
+        <div className="mt-8 bg-emerald-800 text-white rounded-2xl p-6 shadow-md flex flex-col md:flex-row md:items-center justify-between gap-6">
+          <div>
+            <h3 className="text-lg font-bold">Tổng cộng tất cả phiếu nhập ({draftList.length} nhà cung cấp)</h3>
+            <p className="text-xs text-emerald-100/80 mt-1">Tổng hợp chi phí của tất cả các phiếu nhập hàng dự thảo phía trên.</p>
+          </div>
+          <div className="flex flex-col items-end gap-1 min-w-[280px]">
+            {grandTotalDiscount > 0 && (
+              <>
+                <div className="flex justify-between w-full text-sm text-emerald-100">
+                  <span className="font-medium">Tổng tạm tính gốc:</span>
+                  <span>{grandGrossSubtotal.toLocaleString("vi-VN")} đ</span>
+                </div>
+                <div className="flex justify-between w-full text-sm text-emerald-200">
+                  <span className="font-medium">Tổng giảm giá:</span>
+                  <span>-{grandTotalDiscount.toLocaleString("vi-VN")} đ</span>
+                </div>
+              </>
+            )}
+            <div className="flex items-center gap-4 pt-2 border-t border-emerald-700/50 w-full justify-between mt-1">
+              <span className="font-semibold text-base">Tổng thanh toán:</span>
+              <span className="text-3xl font-extrabold text-white">
+                {grandTotalAmount.toLocaleString("vi-VN")} đ
+              </span>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Các nút hành động */}
       <div className="flex flex-col sm:flex-row justify-end gap-4 border-t border-neutral-200 mt-8 pt-6">

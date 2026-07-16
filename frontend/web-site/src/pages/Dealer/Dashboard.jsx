@@ -5,9 +5,12 @@ import {
     ShoppingBag,
     Leaf,
     AlertTriangle,
+    Sparkles,
+    ArrowRight,
 } from "lucide-react";
 import dashboardService from "../../services/api/dashboard";
 import { dealerService } from "../../services/api/dealerService";
+import aiPredictionService from "../../services/api/aiPredictionService";
 import {
     DashboardHeader,
     StatsCards,
@@ -26,6 +29,7 @@ export default function DealerDashboardPage() {
     const [chartData, setChartData] = useState([]);
     const [topProducts, setTopProducts] = useState([]);
     const [purchaseSummary, setPurchaseSummary] = useState(null);
+    const [aiRecommendations, setAiRecommendations] = useState([]);
 
     useEffect(() => {
         const fetchDashboardData = async () => {
@@ -37,17 +41,20 @@ export default function DealerDashboardPage() {
                     chartDataRes,
                     topProductsData,
                     purchaseSummaryData,
+                    aiRecommendationsData,
                 ] = await Promise.all([
                     dealerService.getMe(),
                     dashboardService.getSummary(),
                     dashboardService.getRevenueChart(),
                     dashboardService.getTopProducts(),
                     dashboardService.getPurchaseSummary(),
+                    aiPredictionService.getDecisionRecommendations(7),
                 ]);
 
                 setDealerProfile(profileData);
                 setSummary(summaryData);
                 setPurchaseSummary(purchaseSummaryData);
+                setAiRecommendations(aiRecommendationsData?.recommendations || []);
 
                 // Format chart data for Tailwind visual (needs day labels like T2, T3...)
                 const formattedChart = chartDataRes.map(item => {
@@ -131,6 +138,37 @@ export default function DealerDashboardPage() {
             <DashboardHeader storeName={dealerProfile?.store_name} />
 
             <StatsCards stats={stats} />
+
+            {/* AI Recommendations Banner */}
+            {aiRecommendations && aiRecommendations.length > 0 && (
+                <div className="mb-8 bg-gradient-to-r from-emerald-600 to-green-700 rounded-2xl p-5 text-white shadow-md flex flex-col md:flex-row justify-between items-start md:items-center gap-4 relative overflow-hidden font-['Geist'] animate-in fade-in slide-in-from-top-4 duration-300">
+                    {/* Decorative abstract circle */}
+                    <div className="absolute -right-6 -bottom-6 w-32 h-32 bg-white/10 rounded-full blur-xl pointer-events-none"></div>
+                    <div className="absolute right-12 -top-12 w-24 h-24 bg-emerald-400/20 rounded-full blur-lg pointer-events-none"></div>
+
+                    <div className="flex items-start gap-3.5 relative z-10">
+                        <div className="p-2.5 bg-white/15 rounded-xl shrink-0 mt-0.5 border border-white/10 shadow-xs">
+                            <Sparkles className="w-5 h-5 text-emerald-100 animate-pulse" />
+                        </div>
+                        <div className="space-y-1">
+                            <div className="flex items-center gap-2">
+                                <span className="text-[10px] font-extrabold uppercase tracking-wider bg-emerald-500 text-white px-2 py-0.5 rounded border border-emerald-400/35">Dự báo AI</span>
+                                <h3 className="text-sm font-extrabold text-white">Trợ lý quyết định đề xuất hành động</h3>
+                            </div>
+                            <p className="text-xs text-emerald-50/90 leading-relaxed max-w-3xl">
+                                AI phát hiện: <span className="font-bold underline">{aiRecommendations[0]?.title}</span>. {aiRecommendations[0]?.description.substring(0, 120)}...
+                            </p>
+                        </div>
+                    </div>
+                    <button
+                        onClick={() => navigate("/dai-ly/du-bao-ai")}
+                        className="w-full md:w-auto shrink-0 flex items-center justify-center gap-2 px-4 py-2.5 bg-white text-emerald-800 hover:bg-emerald-50 active:scale-95 transition-all text-xs font-bold rounded-xl shadow-sm cursor-pointer relative z-10"
+                    >
+                        Xem tất cả gợi ý ({aiRecommendations.length})
+                        <ArrowRight className="w-3.5 h-3.5 text-emerald-700" />
+                    </button>
+                </div>
+            )}
 
             {/* Graphics and Tables */}
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">

@@ -12,14 +12,13 @@ import { useDealerSlug } from "../hooks/useStorefrontPaths";
 import {
     buildCartItemFromProduct,
     getBuyerCartId,
-    isCartItemOutOfStock,
     loadCartFromSession,
     normalizeCartQuantity,
     resolveCartOwner,
     saveCartToSession,
 } from "../utils/cartUtils";
 import { isBuyerUser } from "../utils/buyerAuthUtils";
-import { isProductInStock } from "../utils/userProductUtils";
+import { isProductPurchasable, isProductInStock } from "../utils/userProductUtils";
 import {
     clearProductSpamEntry,
     registerDuplicateAddAttempt,
@@ -69,12 +68,17 @@ export function CartProvider({ children }) {
                 return { added: false, reason: "invalid", showToast: false };
             }
 
-            if (!isProductInStock(product)) {
-                return { added: false, reason: "out_of_stock", showToast: true };
+            if (!isProductPurchasable(product)) {
+                return { added: false, reason: "unavailable", showToast: true };
             }
 
             const nextItem = buildCartItemFromProduct(product, quantity);
-            let result = { added: true, showToast: true };
+            const preorderOnly = !isProductInStock(product);
+            let result = {
+                added: true,
+                showToast: true,
+                preorderOnly,
+            };
 
             setItems((prev) => {
                 const exists = prev.some(
@@ -110,7 +114,6 @@ export function CartProvider({ children }) {
         setItems((prev) =>
             prev.map((item) => {
                 if (String(item.id) !== String(id)) return item;
-                if (isCartItemOutOfStock(item)) return item;
 
                 return { ...item, quantity: item.quantity + 1 };
             }),
@@ -134,7 +137,6 @@ export function CartProvider({ children }) {
         setItems((prev) =>
             prev.map((item) => {
                 if (String(item.id) !== String(id)) return item;
-                if (isCartItemOutOfStock(item)) return item;
 
                 return {
                     ...item,
@@ -149,34 +151,34 @@ export function CartProvider({ children }) {
             return;
         }
 
-        const stockById = new Map(
-            catalogProducts.map((product) => [
-                String(product.id),
-                product.available_quantity ?? null,
-            ]),
+        const catalogById = new Map(
+            catalogProducts.map((product) => [String(product.id), product]),
         );
 
         setItems((prev) =>
             prev.map((item) => {
-                const latestStock = stockById.get(String(item.id));
+                const catalogProduct = catalogById.get(String(item.id));
+                if (!catalogProduct) return item;
+
+                const inStock = isProductInStock(catalogProduct);
                 const rawAvailable =
-                    latestStock ?? item.availableQuantity ?? null;
+                    catalogProduct.available_quantity ??
+                    item.availableQuantity ??
+                    null;
                 const parsed =
                     rawAvailable != null && rawAvailable !== ""
                         ? Number(rawAvailable)
                         : null;
-                const availableQuantity = Number.isFinite(parsed)
-                    ? parsed
-                    : null;
-                const outOfStock = isCartItemOutOfStock({
-                    ...item,
-                    availableQuantity,
-                });
+                const availableQuantity = inStock
+                    ? Number.isFinite(parsed)
+                        ? parsed
+                        : null
+                    : 0;
 
                 return {
                     ...item,
+                    inStock,
                     availableQuantity,
-                    selected: outOfStock ? false : item.selected,
                 };
             }),
         );
@@ -186,7 +188,6 @@ export function CartProvider({ children }) {
         setItems((prev) =>
             prev.map((item) => {
                 if (String(item.id) !== String(id)) return item;
-                if (isCartItemOutOfStock(item)) return item;
 
                 return { ...item, selected: !item.selected };
             }),

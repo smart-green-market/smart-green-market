@@ -237,6 +237,9 @@ class DealerProfileViewSet(viewsets.ModelViewSet):
 
     def perform_create(self, serializer):
         dealer = serializer.save()
+        from apps.loyalty.tier_defaults import seed_default_loyalty_for_dealer
+
+        seed_default_loyalty_for_dealer(dealer)
         notify_admins(
             title="[Đại lý] Có hồ sơ mới chờ duyệt",
             content=f"Đại lý {dealer.store_name} cần được duyệt.",
@@ -341,6 +344,9 @@ class DealerProfileViewSet(viewsets.ModelViewSet):
             if account.status == AccountStatus.PENDING:
                 account.status = AccountStatus.ACTIVE
                 account.save(update_fields=["status", "updated_at"])
+            from apps.loyalty.tier_defaults import seed_default_loyalty_for_dealer
+
+            seed_default_loyalty_for_dealer(dealer)
         elif new_status == DealerProfileStatus.REJECTED:
             dealer.account.status = AccountStatus.PENDING
             dealer.account.save(update_fields=["status", "updated_at"])

@@ -11,6 +11,7 @@ class CustomerProfileAdmin(admin.ModelAdmin):
         "total_orders",
         "total_spent",
         "loyalty_points",
+        "current_tier",
         "last_order_at",
     )
     search_fields = (

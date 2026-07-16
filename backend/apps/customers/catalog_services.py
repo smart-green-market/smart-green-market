@@ -1,12 +1,33 @@
 """Query catalog sản phẩm gian hàng đại lý cho buyer."""
 
-from django.db.models import Count, IntegerField, OuterRef, Q, Subquery, Sum
+from django.db.models import Count, IntegerField, OuterRef, Prefetch, Q, Subquery, Sum
 from django.db.models.functions import Coalesce
 
 from apps.categories.models import Category, CategoryScope, CategoryStatus
+from apps.certifications.models import (
+    Certification,
+    CertificationImage,
+    CertificationStatus,
+    SupplierProductCertification,
+)
 from apps.dealer_products.models import DealerProduct, DealerProductStatus
 from apps.dealer_products.services import annotate_dealer_product_stock
 from apps.orders.models import OrderItem, OrderStatus
+
+STOREFRONT_APPROVED_CERTIFICATIONS_PREFETCH = Prefetch(
+    "supplier_product__product_certifications",
+    queryset=SupplierProductCertification.objects.select_related("certification")
+    .filter(
+        certification__status=CertificationStatus.APPROVED,
+        certification__deleted_at__isnull=True,
+    )
+    .prefetch_related(
+        Prefetch(
+            "certification__images",
+            queryset=CertificationImage.objects.order_by("sort_order", "id"),
+        )
+    ),
+)
 
 # Đơn đã xác nhận trở đi — tính vào số lượng bán.
 _BESTSELLER_ORDER_STATUSES = (
@@ -105,7 +126,10 @@ def get_storefront_product_detail(dealer, product_id):
     """Chi tiết một sản phẩm active thuộc gian hàng."""
     return (
         get_storefront_products_qs(dealer)
-        .prefetch_related("supplier_product__cultivation_processes")
+        .prefetch_related(
+            "supplier_product__cultivation_processes",
+            STOREFRONT_APPROVED_CERTIFICATIONS_PREFETCH,
+        )
         .filter(pk=product_id)
         .first()
     )

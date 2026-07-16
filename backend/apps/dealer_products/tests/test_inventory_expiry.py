@@ -81,7 +81,7 @@ class InventoryExpiryTests(TestCase):
         self.product = DealerProduct.objects.create(
             dealer_profile=self.dealer,
             supplier_product=self.supplier_product,
-            title="Cà chua bán lẻ",
+            title="Cà chua",
             retail_price="15000.00",
             status=DealerProductStatus.ACTIVE,
         )
@@ -119,16 +119,20 @@ class InventoryExpiryTests(TestCase):
             quantity=50,
             original_quantity=50,
             unit_price=Decimal("10000"),
+            base_unit_price=Decimal("10000"),
             subtotal=Decimal("500000"),
             review_status="approved",
         )
         import_date = timezone.localdate()
         _import_dealer_inventory(order, self.dealer.account)
 
-        batch = DealerInventoryBatch.objects.get(purchase_order_item=item)
-        self.assertEqual(batch.expiry_date, import_date + timedelta(days=7))
-        self.assertEqual(batch.production_date, import_date)
+        batch = DealerInventoryBatch.objects.get(
+            dealer_product=self.product,
+            batch_number="MAIN",
+        )
+        self.assertIsNone(batch.expiry_date)
         self.assertEqual(batch.status, DealerInventoryBatchStatus.ACTIVE)
+        self.assertEqual(batch.remaining_quantity, 50)
 
     def test_compute_batch_production_date(self):
         import_date = timezone.localdate()
@@ -194,11 +198,13 @@ class InventoryExpiryTests(TestCase):
         batch.refresh_from_db()
         self.assertEqual(batch.status, DealerInventoryBatchStatus.EXPIRED)
 
-    def test_available_quantity_excludes_expired_after_mark(self):
+    def test_available_quantity_uses_main_batch_only(self):
         today = timezone.localdate()
+        from apps.dealer_products.canonical_inventory import CANONICAL_BATCH_NUMBER
+
         DealerInventoryBatch.objects.create(
             dealer_product=self.product,
-            batch_number="OK-1",
+            batch_number=CANONICAL_BATCH_NUMBER,
             quantity=30,
             remaining_quantity=30,
             import_price="10000.00",
@@ -214,9 +220,8 @@ class InventoryExpiryTests(TestCase):
             import_price="10000.00",
             import_date=today - timedelta(days=10),
             expiry_date=today - timedelta(days=1),
-            status=DealerInventoryBatchStatus.ACTIVE,
+            status=DealerInventoryBatchStatus.EXPIRED,
         )
-        mark_expired_inventory_batches(dealer_profile_id=self.dealer.id)
 
         product = annotate_dealer_product_stock(
             DealerProduct.objects.filter(pk=self.product.pk)

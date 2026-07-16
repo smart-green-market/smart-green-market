@@ -1,5 +1,9 @@
 import { getStoredDealerSlug } from "./buyerAuthUtils";
-import { getProductPrice, normalizeUnitKey } from "./userProductUtils";
+import {
+  getProductPrice,
+  isProductInStock,
+  normalizeUnitKey,
+} from "./userProductUtils";
 
 export const CART_SESSION_PREFIX = "gm_cart";
 
@@ -39,11 +43,24 @@ export function getCartItemMaxQuantity(item) {
 }
 
 export function isCartItemOutOfStock(item) {
+  if (typeof item?.inStock === "boolean") {
+    return !item.inStock;
+  }
+
   const available = getCartItemAvailableQuantity(item);
   return available != null && available <= 0;
 }
 
+/** Mục giỏ hàng hết tồn — checkout sẽ đi luồng đặt trước. */
+export function isCartItemPreorderOnly(item) {
+  return isCartItemOutOfStock(item);
+}
+
 export function cartItemExceedsStock(item) {
+  if (isCartItemOutOfStock(item)) {
+    return Number(item.quantity) >= 1;
+  }
+
   const available = getCartItemAvailableQuantity(item);
   if (available == null || available <= 0) return false;
   return Number(item.quantity) > available;
@@ -72,12 +89,18 @@ export function buildCartItemFromProduct(product, quantity = 1) {
     product.images?.[0]?.image_url ??
     "https://placehold.co/160x160";
 
+  const inStock = isProductInStock(product);
   const availableQuantity =
     product.available_quantity ?? product.availableQuantity ?? null;
   const parsedAvailable =
     availableQuantity != null && availableQuantity !== ""
       ? Number(availableQuantity)
       : null;
+  const effectiveAvailable = inStock
+    ? Number.isFinite(parsedAvailable)
+      ? parsedAvailable
+      : null
+    : 0;
 
   return {
     id: product.id,
@@ -87,7 +110,8 @@ export function buildCartItemFromProduct(product, quantity = 1) {
     quantity: normalizeCartQuantity(quantity),
     selected: true,
     image,
-    availableQuantity: Number.isFinite(parsedAvailable) ? parsedAvailable : null,
+    inStock,
+    availableQuantity: effectiveAvailable,
   };
 }
 
@@ -102,7 +126,14 @@ function isValidCartItem(item) {
 }
 
 function normalizeCartItem(item) {
-  const availableQuantity = getCartItemAvailableQuantity(item);
+  const rawAvailable = getCartItemAvailableQuantity(item);
+  const inStock =
+    typeof item.inStock === "boolean"
+      ? item.inStock
+      : typeof item.in_stock === "boolean"
+        ? item.in_stock
+        : rawAvailable == null || rawAvailable > 0;
+  const availableQuantity = inStock ? rawAvailable : 0;
 
   return {
     id: item.id,
@@ -110,8 +141,9 @@ function normalizeCartItem(item) {
     price: Number(item.price),
     unit: item.unit ?? "kg",
     quantity: normalizeCartQuantity(item.quantity),
-    selected: item.selected !== false && !isCartItemOutOfStock({ ...item, availableQuantity }),
+    selected: item.selected !== false,
     image: item.image ?? "https://placehold.co/160x160",
+    inStock,
     availableQuantity,
   };
 }

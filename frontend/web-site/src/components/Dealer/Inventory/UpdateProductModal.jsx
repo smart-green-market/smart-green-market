@@ -143,7 +143,7 @@ export default function UpdateProductModal({ data, onClose, onSave }) {
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-neutral-100">
           <h2 className="text-base font-extrabold text-emerald-950 flex items-center gap-2">
-            <ClipboardList className="w-5 h-5 text-emerald-600" /> Cập nhật Lô hàng {data.batchCode}
+            <ClipboardList className="w-5 h-5 text-emerald-600" /> Cập nhật tồn kho — {data.productName}
           </h2>
           <button
             onClick={onClose}

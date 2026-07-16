@@ -4,7 +4,7 @@ import { useNavigate } from "react-router-dom";
 const STAT_CARDS = [
   {
     key: "all",
-    label: "Tổng số lô hàng",
+    label: "Tổng số sản phẩm",
     icon: Package,
     filterValue: "",
     bgColor: "bg-gray-50",
@@ -70,7 +70,7 @@ export default function InventoryStatsCards({ inventory = [], activeFilter = "",
             <Package className="w-6 h-6 text-emerald-600" /> Quản Lý Kho Hàng
           </h1>
           <p className="text-sm text-emerald-800/70 mt-1">
-            Xem số lượng tồn kho nông sản theo lô hàng, hạn dùng, trạng thái tươi sạch và giá cả.
+            Xem số lượng tồn kho theo từng sản phẩm trên cửa hàng đại lý.
           </p>
         </div>
         <button

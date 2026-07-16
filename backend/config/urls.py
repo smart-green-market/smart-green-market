@@ -48,6 +48,7 @@ urlpatterns = [
     path("api/", include("apps.supplier_products.urls")),
     path("api/", include("apps.dealer_products.urls")),
     path("api/", include("apps.customers.urls")),
+    path("api/", include("apps.loyalty.urls")),
     path("api/", include("apps.purchase_orders.urls")),
     path("api/", include("apps.orders.urls")),
     path("api/", include("apps.reviews.urls")),
@@ -58,6 +59,7 @@ urlpatterns = [
     path("api/", include("apps.marketing.urls")),
     path("api/", include("common.urls")),
     path("api/", include("apps.training_models.urls")),
+    path("api/", include("apps.statistical.urls")),
 ]
 
 # DEBUG=True: django.contrib.staticfiles phục vụ media.

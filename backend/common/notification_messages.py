@@ -337,9 +337,9 @@ def preorder_request_event(preorder, event_key, extra=""):
             "warning",
         ),
         "dealer_confirmed": (
-            f"[YC đặt trước] {code} — Đại lý đã xác nhận",
-            f"Đại lý xác nhận YC {code}. Vui lòng xác nhận để tạo đơn chờ hàng.",
-            "info",
+            f"[YC đặt trước] {code} — Đã tạo đơn chờ hàng",
+            f"YC {code} đã được chuyển thành đơn chờ hàng về kho.",
+            "success",
         ),
         "dealer_proposed": (
             f"[YC đặt trước] {code} — Đại lý đề xuất điều chỉnh",

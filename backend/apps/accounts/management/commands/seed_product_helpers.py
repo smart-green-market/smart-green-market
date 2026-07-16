@@ -180,79 +180,32 @@ def create_dealer_inventory_batches(
     retail_price,
     force_near_expiry: bool = False,
 ) -> list[DealerInventoryBatch]:
-    """Tạo 2–3 lô: tươi, sắp hết hạn (tuỳ chọn), và lô cũ còn hàng."""
-    today = timezone.localdate()
-    sp = supplier_product
-    batches: list[DealerInventoryBatch] = []
-    storage_days = sp.storage_duration_days or 7
+    """Tạo một lô MAIN duy nhất với tồn ngẫu nhiên."""
+    from apps.dealer_products.canonical_inventory import CANONICAL_BATCH_NUMBER
 
-    # Lô chính — nhập gần đây
-    import_fresh = today - timedelta(days=random.randint(1, 5))
-    prod_fresh, exp_fresh = _batch_dates_for_fresh_import(sp, import_fresh)
-    qty_fresh = random.randint(80, 150)
-    remaining_fresh = random.randint(max(1, qty_fresh // 2), qty_fresh)
-    batches.append(
+    today = timezone.localdate()
+    qty = random.randint(80, 150)
+    remaining = random.randint(max(1, qty // 2), qty)
+    import_date = today - timedelta(days=random.randint(1, 5))
+    prod, exp = _batch_dates_for_fresh_import(supplier_product, import_date)
+    manual_price = None
+    if force_near_expiry:
+        exp = today + timedelta(days=random.randint(2, 4))
+
+    return [
         DealerInventoryBatch.objects.create(
             dealer_product=dealer_product,
-            batch_number=f"BATCH-F-{random.randint(1000, 9999)}",
-            quantity=qty_fresh,
-            remaining_quantity=remaining_fresh,
-            import_price=int_money(sp.wholesale_price),
-            import_date=import_fresh,
-            production_date=prod_fresh,
-            expiry_date=exp_fresh,
+            batch_number=CANONICAL_BATCH_NUMBER,
+            quantity=qty,
+            remaining_quantity=remaining,
+            import_price=int_money(supplier_product.wholesale_price),
+            import_date=import_date,
+            production_date=prod,
+            expiry_date=exp,
+            manual_sale_price=manual_price,
             status=DealerInventoryBatchStatus.ACTIVE,
         )
-    )
-
-    # Lô sắp hết hạn — ~30% SP hoặc bắt buộc cho demo age discount
-    if force_near_expiry or random.random() < 0.35:
-        days_left = random.randint(2, 4)
-        exp_near = today + timedelta(days=days_left)
-        prod_near = exp_near - timedelta(days=storage_days)
-        import_near = prod_near + timedelta(days=min(2, max(0, storage_days - days_left - 1)))
-        qty_near = random.randint(15, 40)
-        remaining_near = random.randint(max(1, qty_near // 3), qty_near)
-        manual_price = None
-        if random.random() < 0.2:
-            manual_price = int_money(int(retail_price) * 85 // 100)
-        batches.append(
-            DealerInventoryBatch.objects.create(
-                dealer_product=dealer_product,
-                batch_number=f"BATCH-N-{random.randint(1000, 9999)}",
-                quantity=qty_near,
-                remaining_quantity=remaining_near,
-                import_price=int_money(sp.wholesale_price),
-                import_date=import_near,
-                production_date=prod_near,
-                expiry_date=exp_near,
-                manual_sale_price=manual_price,
-                status=DealerInventoryBatchStatus.ACTIVE,
-            )
-        )
-
-    # Lô nhập sớm hơn — HSD còn xa
-    if random.random() < 0.5:
-        import_old = today - timedelta(days=random.randint(8, 20))
-        prod_old, exp_old = _batch_dates_for_fresh_import(sp, import_old)
-        if exp_old and exp_old > today + timedelta(days=7):
-            qty_old = random.randint(30, 60)
-            remaining_old = random.randint(max(1, qty_old // 3), qty_old)
-            batches.append(
-                DealerInventoryBatch.objects.create(
-                    dealer_product=dealer_product,
-                    batch_number=f"BATCH-O-{random.randint(1000, 9999)}",
-                    quantity=qty_old,
-                    remaining_quantity=remaining_old,
-                    import_price=int_money(sp.wholesale_price),
-                    import_date=import_old,
-                    production_date=prod_old,
-                    expiry_date=exp_old,
-                    status=DealerInventoryBatchStatus.ACTIVE,
-                )
-            )
-
-    return batches
+    ]
 
 
 def seed_supplier_certifications(*, supplier, admin_account, fake) -> list:

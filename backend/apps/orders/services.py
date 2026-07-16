@@ -107,26 +107,19 @@ def _active_batches_qs(dealer_product):
 
 
 def _allocate_batches(dealer_product, quantity):
-    """Phân bổ FIFO — trả list (batch, qty)."""
-    allocations = []
-    remaining = quantity
-    for batch in _active_batches_qs(dealer_product):
-        if remaining <= 0:
-            break
-        take = min(batch.remaining_quantity, remaining)
-        if take > 0:
-            allocations.append((batch, take))
-            remaining -= take
-    if remaining > 0:
+    """Phân bổ từ lô MAIN duy nhất — trả list (batch, qty)."""
+    batch = _active_batches_qs(dealer_product).first()
+    if batch is None or batch.remaining_quantity < quantity:
+        available = batch.remaining_quantity if batch else 0
         raise ValidationError(
             {
                 "items": (
                     f"Sản phẩm '{dealer_product.title}' không đủ tồn "
-                    f"(thiếu {remaining} đơn vị)."
+                    f"(thiếu {quantity - available} đơn vị)."
                 )
             }
         )
-    return allocations
+    return [(batch, quantity)]
 
 
 def _deduct_batch(batch, quantity, order_code, user):
@@ -443,6 +436,9 @@ def buyer_confirm_received(order, user, note=""):
 
     _mark_cod_paid(order)
     _update_customer_stats(order.customer, order)
+    from apps.loyalty.services import award_points_for_completed_order
+
+    award_points_for_completed_order(order, actor=user)
 
     return record_status_change(
         order,
@@ -585,6 +581,10 @@ def dealer_review_return(order_return, user, *, approved, review_note=""):
         Decimal("0"),
     )
     order.customer.save(update_fields=["total_spent", "updated_at"])
+
+    from apps.loyalty.services import deduct_points_for_approved_return
+
+    deduct_points_for_approved_return(order, actor=user)
 
     order.payments.filter(status=CustomerPaymentStatus.PAID).update(
         status=CustomerPaymentStatus.REFUNDED,

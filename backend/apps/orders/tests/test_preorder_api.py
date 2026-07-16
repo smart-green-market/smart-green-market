@@ -74,6 +74,31 @@ class PreOrderApiTests(PreOrderFlowTestBase):
         self.assertEqual(confirm_resp.status_code, 200)
         self.assertEqual(
             confirm_resp.data["status"],
+            PreOrderRequestStatus.CONVERTED,
+        )
+        self.assertIsNotNone(confirm_resp.data.get("converted_order_id"))
+
+    def test_dealer_propose_then_customer_accept_via_api(self):
+        create_resp = self.buyer_client.post(
+            self._preorder_url(),
+            self._preorder_payload(),
+            format="json",
+        )
+        preorder_id = create_resp.data["id"]
+
+        propose_resp = self.dealer_client.post(
+            f"/api/preorder-requests/{preorder_id}/propose/",
+            {
+                "proposed_delivery_date": "2026-06-22",
+                "proposed_delivery_slot": "afternoon",
+                "item_quantities": {},
+                "note": "Giao chiều",
+            },
+            format="json",
+        )
+        self.assertEqual(propose_resp.status_code, 200)
+        self.assertEqual(
+            propose_resp.data["status"],
             PreOrderRequestStatus.CUSTOMER_CONFIRMATION_PENDING,
         )
 

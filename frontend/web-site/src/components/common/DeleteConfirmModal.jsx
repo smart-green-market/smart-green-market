@@ -7,6 +7,8 @@ export default function DeleteConfirmModal({
     itemName,
     itemType = "mục",
     loading = false,
+    showToast = true,
+    ...props
 }) {
     return (
         <ConfirmModal
@@ -21,6 +23,8 @@ export default function DeleteConfirmModal({
             loading={loading}
             successMessage={`Đã xóa ${itemType} thành công`}
             errorMessage={`Không thể xóa ${itemType}`}
+            showToast={showToast}
+            {...props}
         />
     );
 }

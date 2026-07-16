@@ -3,7 +3,7 @@ import { Minus, Plus, Trash2 } from "lucide-react";
 import {
     cartItemExceedsStock,
     getCartItemAvailableQuantity,
-    isCartItemOutOfStock,
+    isCartItemPreorderOnly,
     normalizeCartQuantity,
 } from "../../../utils/cartUtils";
 import { formatCurrency } from "./mockData";
@@ -17,7 +17,7 @@ export default function CartItemRow({
     onRemove,
 }) {
     const availableQuantity = getCartItemAvailableQuantity(item);
-    const outOfStock = isCartItemOutOfStock(item);
+    const preorderOnly = isCartItemPreorderOnly(item);
     const exceedsStock = cartItemExceedsStock(item);
     const [draftQuantity, setDraftQuantity] = useState(item.quantity);
 
@@ -50,15 +50,14 @@ export default function CartItemRow({
 
     return (
         <div
-            className={`grid grid-cols-[40px_1.6fr_1fr_1fr_1fr] items-center gap-4 border-t border-stone-300/10 p-6 first:border-t-0 ${outOfStock ? "bg-red-50/40" : ""}`}
+            className={`grid grid-cols-[40px_1.6fr_1fr_1fr_1fr] items-center gap-4 border-t border-stone-300/10 p-6 first:border-t-0 ${preorderOnly ? "bg-amber-50/50" : ""}`}
         >
             <div>
                 <input
                     type="checkbox"
                     checked={item.selected}
                     onChange={() => onToggleSelect(item.id)}
-                    disabled={outOfStock}
-                    className="h-4 w-4 rounded border-stone-400 text-teal-800 focus:ring-teal-700 disabled:cursor-not-allowed disabled:opacity-40"
+                    className="h-4 w-4 rounded border-stone-400 text-teal-800 focus:ring-teal-700"
                 />
             </div>
 
@@ -75,11 +74,6 @@ export default function CartItemRow({
                     {availableQuantity != null ? (
                         <p className="mt-1 text-xs text-neutral-500">
                             Tồn kho: {availableQuantity} {item.unit}
-                        </p>
-                    ) : null}
-                    {outOfStock ? (
-                        <p className="mt-1 text-xs font-medium text-red-700">
-                            Hết hàng — vui lòng xóa khỏi giỏ
                         </p>
                     ) : null}
                     {exceedsStock ? (
@@ -107,7 +101,7 @@ export default function CartItemRow({
                     <button
                         type="button"
                         onClick={() => onDecrease(item.id)}
-                        disabled={outOfStock || normalizedQuantity <= 1}
+                        disabled={normalizedQuantity <= 1}
                         className="px-3 text-emerald-950 disabled:opacity-40 cursor-pointer "
                         aria-label={`Giảm số lượng ${item.name}`}
                     >
@@ -119,7 +113,6 @@ export default function CartItemRow({
                         value={draftQuantity}
                         onChange={handleQuantityChange}
                         onBlur={handleQuantityBlur}
-                        disabled={outOfStock}
                         inputMode="numeric"
                         aria-label={`Số lượng ${item.name}`}
                         className="w-12 border-x border-stone-300 bg-white py-2 text-center text-base font-semibold text-zinc-900 [appearance:textfield] focus:outline-none focus:ring-2 focus:ring-emerald-500/30 disabled:cursor-not-allowed disabled:opacity-50 [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
@@ -127,7 +120,6 @@ export default function CartItemRow({
                     <button
                         type="button"
                         onClick={() => onIncrease(item.id)}
-                        disabled={outOfStock}
                         className="px-3 text-emerald-950 cursor-pointer disabled:opacity-40"
                         aria-label={`Tăng số lượng ${item.name}`}
                     >

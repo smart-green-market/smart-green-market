@@ -168,7 +168,6 @@ export default function ProductDetailSpecs({ product }) {
                         value={priceLabel}
                         highlight
                     />
-                    <SpecRow label="Nhà cung cấp gốc" value={product.supplier_name} />
                     <SpecRow
                         label="Tồn kho"
                         value={

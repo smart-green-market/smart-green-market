@@ -16,15 +16,14 @@ from .models import (
 
 
 def _sellable_batch_filter():
-    """Lô còn bán được: active, còn tồn, chưa xóa, chưa hết hạn."""
-    today = timezone.localdate()
+    """Lô MAIN còn bán được: active, còn tồn, chưa xóa."""
+    from .canonical_inventory import CANONICAL_BATCH_NUMBER
+
     return Q(
+        inventory_batches__batch_number=CANONICAL_BATCH_NUMBER,
         inventory_batches__status=DealerInventoryBatchStatus.ACTIVE,
         inventory_batches__remaining_quantity__gt=0,
         inventory_batches__deleted_at__isnull=True,
-    ) & (
-        Q(inventory_batches__expiry_date__isnull=True)
-        | Q(inventory_batches__expiry_date__gte=today)
     )
 
 

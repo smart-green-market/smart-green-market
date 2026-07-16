@@ -12,7 +12,13 @@ class LoadMorePagination(PageNumberPagination):
     page_size_query_param = "page_size"
     max_page_size = 100
 
-    def get_paginated_response(self, data, count_status=None):
+    def get_paginated_response(
+        self,
+        data,
+        count_status=None,
+        count_loyalty=None,
+        count_segment=None,
+    ):
         """Trả response JSON gồm metadata phân trang và danh sách kết quả."""
         payload = {
             "count": self.page.paginator.count,
@@ -25,6 +31,10 @@ class LoadMorePagination(PageNumberPagination):
         }
         if count_status is not None:
             payload["count_status"] = count_status
+        if count_loyalty is not None:
+            payload["count_loyalty"] = count_loyalty
+        if count_segment is not None:
+            payload["count_segment"] = count_segment
         return Response(payload)
 
 

@@ -38,6 +38,11 @@ export default function ProductCard({
           <h3 className="font-bold text-neutral-800 text-base line-clamp-1">
             {product.name}
           </h3>
+          {product.supplier?.company_name && (
+            <p className="text-xs text-gray-500 font-medium mt-0.5">
+              {product.supplier.company_name}
+            </p>
+          )}
           <p className="text-xs text-neutral-400 mt-0.5 font-medium">
             Mã: {product.code} | Đơn vị: {product.unit}
           </p>
@@ -90,14 +95,13 @@ export default function ProductCard({
           </div>
         )}
 
-        {/* Quantity Selector and Add Button */}
-        <div className="mt-5 pt-4 border-t border-neutral-100 flex items-center justify-between gap-3">
-          <div className="flex items-center gap-1.5">
-            <div className="flex items-center border border-neutral-200 rounded-lg overflow-hidden h-9">
+        <div className="mt-5 pt-4 border-t border-neutral-100 flex flex-wrap items-center justify-between gap-x-1.5 gap-y-2">
+          <div className="flex items-center gap-1 min-w-0">
+            <div className="flex items-center border border-neutral-200 rounded-lg overflow-hidden h-8 flex-shrink-0">
               <button
                 type="button"
                 onClick={() => onQtyAdjust(-1)}
-                className="px-2.5 h-full bg-neutral-50 text-neutral-500 hover:bg-neutral-100 active:bg-neutral-200 transition-colors font-bold text-xs"
+                className="w-7 h-full bg-neutral-50 text-neutral-500 hover:bg-neutral-100 active:bg-neutral-200 transition-colors font-bold text-xs flex items-center justify-center"
               >
                 <Minus className="w-3 h-3" />
               </button>
@@ -105,24 +109,25 @@ export default function ProductCard({
                 type="text"
                 value={inputQty}
                 onChange={(e) => onQtyChange(e.target.value)}
-                className="w-14 text-center text-xs font-bold h-full bg-transparent outline-none text-neutral-700"
+                className="w-8 text-center text-xs font-bold h-full bg-transparent outline-none text-neutral-700"
               />
               <button
                 type="button"
                 onClick={() => onQtyAdjust(1)}
-                className="px-2.5 h-full bg-neutral-50 text-neutral-500 hover:bg-neutral-100 active:bg-neutral-200 transition-colors font-bold text-xs"
+                className="w-7 h-full bg-neutral-50 text-neutral-500 hover:bg-neutral-100 active:bg-neutral-200 transition-colors font-bold text-xs flex items-center justify-center"
               >
                 <Plus className="w-3 h-3" />
               </button>
             </div>
-            <span className="text-xs text-neutral-500 font-semibold select-none">{product.unit}</span>
+            <span className="text-xs text-neutral-500 font-semibold select-none truncate">{product.unit}</span>
           </div>
 
           <button
             onClick={onAddToCart}
-            className="flex items-center justify-center gap-1.5 px-4 h-9 bg-emerald-800 hover:bg-emerald-700 text-white rounded-lg text-xs font-bold transition-all shadow-xs cursor-pointer active:scale-95"
+            className="flex-1 min-w-[70px] flex items-center justify-center gap-1 px-2.5 h-8 bg-emerald-800 hover:bg-emerald-700 text-white rounded-lg text-xs font-bold transition-all shadow-xs cursor-pointer active:scale-95"
           >
-            <ShoppingCart className="w-3.5 h-3.5" /> Thêm
+            <ShoppingCart className="w-3.5 h-3.5 flex-shrink-0" />
+            <span className="truncate">Thêm</span>
           </button>
         </div>
       </div>

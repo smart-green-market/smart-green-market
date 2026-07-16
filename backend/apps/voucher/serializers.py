@@ -8,7 +8,19 @@ from apps.promotions.models import (
     PromotionScheduleType,
     PromotionTarget,
     PromotionDiscountType,
+    PromotionTargetType,
+    VoucherAudienceType,
+    PRODUCT_TARGET_TYPES,
 )
+from apps.marketing.models import CustomerSegment
+from apps.loyalty.models import LoyaltyTier
+
+from .audience_sync import (
+    extract_segment_ids_from_legacy_targets,
+    sync_promotion_audience,
+    sync_promotion_product_targets,
+)
+from .audience_validation import validate_audience_payload
 
 
 class VoucherDecimalField(serializers.DecimalField):
@@ -92,11 +104,26 @@ class SavedPromotionSerializer(serializers.ModelSerializer):
         return True
 
 
-class PromotionTargetSerializer(serializers.ModelSerializer):
+class VoucherLoyaltyTierSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = LoyaltyTier
+        fields = ["id", "code", "name"]
+
+
+class VoucherCustomerSegmentSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = CustomerSegment
+        fields = ["id", "code", "name"]
+
+
+class ProductScopeTargetSerializer(serializers.ModelSerializer):
+    """Phạm vi sản phẩm/danh mục — tách khỏi audience khách hàng."""
+
     target_type = serializers.ChoiceField(
-        choices=[("segment", "Theo nhóm khách")],
-        default="segment",
-        help_text="Loại đối tượng áp dụng. Chỉ hỗ trợ 'segment'.",
+        choices=[
+            (PromotionTargetType.PRODUCT, "Theo sản phẩm đại lý"),
+            (PromotionTargetType.CATEGORY, "Theo danh mục"),
+        ],
     )
 
     class Meta:
@@ -104,32 +131,50 @@ class PromotionTargetSerializer(serializers.ModelSerializer):
         fields = [
             "id",
             "target_type",
-            "segment",
+            "dealer_product",
+            "category",
         ]
-
-    def to_internal_value(self, data):
-        data = data.copy() if hasattr(data, 'copy') else dict(data)
-        if "segment" in data:
-            val = data["segment"]
-            if val == "" or val == 0 or val == "0" or val is None:
-                data["segment"] = None
-        return super().to_internal_value(data)
 
     def validate(self, attrs):
         target_type = attrs.get("target_type")
-        segment = attrs.get("segment")
+        dealer_product = attrs.get("dealer_product")
+        category = attrs.get("category")
 
-        if target_type != "segment":
-            raise serializers.ValidationError({"target_type": "Chỉ chấp nhận đối tượng áp dụng là phân nhóm khách hàng (segment)."})
-
-        if segment is None:
-            raise serializers.ValidationError({"segment": "Trường segment không được để trống khi target_type là 'segment'."})
-
+        if target_type == PromotionTargetType.PRODUCT and dealer_product is None:
+            raise serializers.ValidationError(
+                {"dealer_product": "Bắt buộc khi target_type là product."}
+            )
+        if target_type == PromotionTargetType.CATEGORY and category is None:
+            raise serializers.ValidationError(
+                {"category": "Bắt buộc khi target_type là category."}
+            )
+        if target_type == PromotionTargetType.CUSTOMER:
+            raise serializers.ValidationError(
+                {"target_type": "Không hỗ trợ tạo voucher theo một khách hàng cụ thể."}
+            )
         return attrs
 
 
 class PromotionSerializer(serializers.ModelSerializer):
-    targets = PromotionTargetSerializer(many=True, required=False)
+    product_targets = ProductScopeTargetSerializer(many=True, required=False)
+    loyalty_tier_ids = serializers.ListField(
+        child=serializers.IntegerField(min_value=1),
+        write_only=True,
+        required=False,
+    )
+    customer_segment_ids = serializers.ListField(
+        child=serializers.IntegerField(min_value=1),
+        write_only=True,
+        required=False,
+    )
+    loyalty_tiers = VoucherLoyaltyTierSerializer(many=True, read_only=True)
+    customer_segments = serializers.SerializerMethodField()
+    targets = serializers.ListField(
+        child=serializers.DictField(),
+        write_only=True,
+        required=False,
+        help_text="Tương thích cũ: chỉ normalize segment sang customer_segment_ids.",
+    )
     title = serializers.CharField(
         error_messages={
             "blank": "Tiêu đề voucher không được để trống.",
@@ -223,11 +268,133 @@ class PromotionSerializer(serializers.ModelSerializer):
             "daily_end_time",
             "status",
             "reject_reason",
+            "audience_type",
+            "loyalty_tier_ids",
+            "customer_segment_ids",
+            "loyalty_tiers",
+            "customer_segments",
+            "product_targets",
             "targets",
             "created_at",
             "updated_at",
         ]
-        read_only_fields = ["id", "dealer", "created_by", "status", "reject_reason", "created_at", "updated_at"]
+        read_only_fields = [
+            "id",
+            "dealer",
+            "created_by",
+            "status",
+            "reject_reason",
+            "loyalty_tiers",
+            "customer_segments",
+            "created_at",
+            "updated_at",
+        ]
+
+    def get_customer_segments(self, obj):
+        segments = CustomerSegment.objects.filter(
+            promotion_targets__promotion=obj,
+            promotion_targets__target_type=PromotionTargetType.SEGMENT,
+        ).distinct()
+        return VoucherCustomerSegmentSerializer(segments, many=True).data
+
+    def to_representation(self, instance):
+        data = super().to_representation(instance)
+        product_qs = instance.targets.filter(target_type__in=PRODUCT_TARGET_TYPES)
+        data["product_targets"] = ProductScopeTargetSerializer(
+            product_qs,
+            many=True,
+        ).data
+        return data
+
+    def _resolve_dealer(self, validated_data):
+        request = self.context.get("request")
+        user = getattr(request, "user", None) if request else None
+        if user and hasattr(user, "dealer_profile"):
+            return user.dealer_profile
+        return validated_data.get("dealer") or getattr(self.instance, "dealer", None)
+
+    def _parse_audience_inputs(self, attrs):
+        legacy_targets = attrs.pop("targets", None) or []
+        loyalty_tier_ids = attrs.pop("loyalty_tier_ids", None)
+        customer_segment_ids = attrs.pop("customer_segment_ids", None)
+        product_targets = attrs.pop("product_targets", None)
+
+        has_customer_target = False
+        for row in legacy_targets:
+            if row.get("target_type") == PromotionTargetType.CUSTOMER:
+                has_customer_target = True
+            if row.get("target_type") in PRODUCT_TARGET_TYPES:
+                raise serializers.ValidationError(
+                    {
+                        "targets": [
+                            "Dùng product_targets cho phạm vi sản phẩm, không gửi qua targets."
+                        ]
+                    }
+                )
+
+        if customer_segment_ids is None and legacy_targets:
+            extracted = extract_segment_ids_from_legacy_targets(legacy_targets)
+            if extracted:
+                customer_segment_ids = extracted
+
+        return {
+            "loyalty_tier_ids": loyalty_tier_ids,
+            "customer_segment_ids": customer_segment_ids,
+            "product_targets": product_targets,
+            "reject_customer_target": has_customer_target,
+        }
+
+    def _audience_fields_in_request(self):
+        if not hasattr(self, "initial_data"):
+            return False
+        return any(
+            key in self.initial_data
+            for key in (
+                "audience_type",
+                "loyalty_tier_ids",
+                "customer_segment_ids",
+                "targets",
+            )
+        )
+
+    def _validate_and_prepare_audience(self, attrs, audience_inputs, *, is_partial_update=False):
+        audience_type = attrs.get("audience_type")
+        if audience_type is None and self.instance:
+            audience_type = self.instance.audience_type
+        elif audience_type is None:
+            audience_type = VoucherAudienceType.ALL
+
+        loyalty_tier_ids = audience_inputs.get("loyalty_tier_ids")
+        customer_segment_ids = audience_inputs.get("customer_segment_ids")
+
+        if is_partial_update and self.instance:
+            if (
+                audience_type == VoucherAudienceType.LOYALTY_TIER
+                and loyalty_tier_ids is None
+            ):
+                loyalty_tier_ids = list(
+                    self.instance.loyalty_tiers.values_list("id", flat=True)
+                )
+            if (
+                audience_type == VoucherAudienceType.CUSTOMER_SEGMENT
+                and customer_segment_ids is None
+            ):
+                customer_segment_ids = list(
+                    self.instance.targets.filter(
+                        target_type=PromotionTargetType.SEGMENT,
+                    ).values_list("segment_id", flat=True)
+                )
+
+        dealer = self._resolve_dealer(attrs)
+
+        tier_ids, segment_ids = validate_audience_payload(
+            audience_type=audience_type,
+            loyalty_tier_ids=loyalty_tier_ids,
+            customer_segment_ids=customer_segment_ids,
+            dealer=dealer,
+            reject_customer_target=audience_inputs.get("reject_customer_target", False),
+        )
+        return audience_type, tier_ids, segment_ids
 
     def validate_code(self, value):
         if value:
@@ -281,36 +448,66 @@ class PromotionSerializer(serializers.ModelSerializer):
             if global_query.exists():
                 raise serializers.ValidationError({"code": "Mã voucher này đã tồn tại trong gian hàng của bạn."})
 
+        audience_inputs = self._parse_audience_inputs(attrs)
+        is_create = self.instance is None
+        if is_create or self._audience_fields_in_request():
+            audience_type, tier_ids, segment_ids = self._validate_and_prepare_audience(
+                attrs,
+                audience_inputs,
+                is_partial_update=not is_create,
+            )
+            attrs["_audience_type"] = audience_type
+            attrs["_loyalty_tier_ids"] = tier_ids
+            attrs["_customer_segment_ids"] = segment_ids
+        else:
+            attrs["_audience_type"] = None
+            attrs["_loyalty_tier_ids"] = None
+            attrs["_customer_segment_ids"] = None
+        attrs["_product_targets"] = audience_inputs.get("product_targets")
         return attrs
 
     def create(self, validated_data):
-        targets_data = validated_data.pop("targets", [])
+        audience_type = validated_data.pop("_audience_type", VoucherAudienceType.ALL)
+        loyalty_tier_ids = validated_data.pop("_loyalty_tier_ids", [])
+        customer_segment_ids = validated_data.pop("_customer_segment_ids", [])
+        product_targets_data = validated_data.pop("_product_targets", None)
         request = self.context.get("request")
 
-        # Determine dealer from request context
         if request and request.user:
             if hasattr(request.user, "dealer_profile"):
                 validated_data["dealer"] = request.user.dealer_profile
             validated_data["created_by"] = request.user
 
+        validated_data["audience_type"] = audience_type
+
         try:
             promotion = Promotion.objects.create(**validated_data)
         except IntegrityError:
-            # Lưới an toàn cuối cùng cho race condition (2 request tạo cùng lúc)
             raise serializers.ValidationError({
                 "code": ["Mã voucher này đã tồn tại, vui lòng chọn mã khác."]
             })
 
-        for target_data in targets_data:
-            PromotionTarget.objects.create(promotion=promotion, **target_data)
+        sync_promotion_audience(
+            promotion,
+            audience_type=audience_type,
+            loyalty_tier_ids=loyalty_tier_ids,
+            customer_segment_ids=customer_segment_ids,
+        )
+        if product_targets_data is not None:
+            sync_promotion_product_targets(promotion, product_targets_data)
         return promotion
 
     def update(self, instance, validated_data):
-        targets_data = validated_data.pop("targets", None)
+        audience_type = validated_data.pop("_audience_type", None)
+        loyalty_tier_ids = validated_data.pop("_loyalty_tier_ids", None)
+        customer_segment_ids = validated_data.pop("_customer_segment_ids", None)
+        product_targets_data = validated_data.pop("_product_targets", None)
 
-        # Update promotion fields
         for attr, value in validated_data.items():
             setattr(instance, attr, value)
+
+        if audience_type is not None:
+            instance.audience_type = audience_type
 
         try:
             instance.save()
@@ -319,11 +516,17 @@ class PromotionSerializer(serializers.ModelSerializer):
                 "code": ["Mã voucher này đã tồn tại, vui lòng chọn mã khác."]
             })
 
-        # Update targets if provided
-        if targets_data is not None:
-            instance.targets.all().delete()
-            for target_data in targets_data:
-                PromotionTarget.objects.create(promotion=instance, **target_data)
+        if audience_type is not None:
+            sync_promotion_audience(
+                instance,
+                audience_type=audience_type,
+                loyalty_tier_ids=loyalty_tier_ids or [],
+                customer_segment_ids=customer_segment_ids or [],
+            )
+
+        if product_targets_data is not None:
+            sync_promotion_product_targets(instance, product_targets_data)
+
         return instance
 
 

@@ -120,6 +120,7 @@ INSTALLED_APPS = [
     "apps.dealers",
     "apps.dealer_products",
     "apps.customers",
+    "apps.loyalty",
     "apps.purchase_orders",
     "apps.orders",
     "apps.marketing",
@@ -131,6 +132,7 @@ INSTALLED_APPS = [
     "apps.dashboard",
     "apps.training_models",
     "apps.voucher",
+    "apps.statistical",
 ]
 
 if CLOUDINARY_URL:
@@ -534,6 +536,26 @@ if not DEBUG:
     SESSION_COOKIE_SECURE = True
     CSRF_COOKIE_SECURE = True
     
+# Email thông báo — bật NOTIFICATION_EMAIL_ENABLED=True và cấu hình SMTP trong .env
+NOTIFICATION_EMAIL_ENABLED = _env_bool("NOTIFICATION_EMAIL_ENABLED", False)
+NOTIFICATION_EMAIL_ASYNC = _env_bool("NOTIFICATION_EMAIL_ASYNC", True)
+DEFAULT_FROM_EMAIL = os.environ.get(
+    "DEFAULT_FROM_EMAIL",
+    "noreply@smartgreenmarket.com",
+)
+EMAIL_HOST = os.environ.get("EMAIL_HOST", "")
+EMAIL_PORT = int(os.environ.get("EMAIL_PORT", "587"))
+EMAIL_HOST_USER = os.environ.get("EMAIL_HOST_USER", "")
+EMAIL_HOST_PASSWORD = os.environ.get("EMAIL_HOST_PASSWORD", "")
+EMAIL_USE_TLS = _env_bool("EMAIL_USE_TLS", True)
+EMAIL_USE_SSL = _env_bool("EMAIL_USE_SSL", False)
+
+if NOTIFICATION_EMAIL_ENABLED:
+    if EMAIL_HOST:
+        EMAIL_BACKEND = "django.core.mail.backends.smtp.EmailBackend"
+    else:
+        EMAIL_BACKEND = "django.core.mail.backends.console.EmailBackend"
+
 ASGI_APPLICATION = "config.asgi.application"
 
 _is_test_run = "test" in sys.argv or "pytest" in sys.modules

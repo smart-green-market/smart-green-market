@@ -211,13 +211,18 @@ export function formatDealerProduct(raw) {
 
   const retailPrice = raw?.retail_price ?? null;
   const effectivePrice = raw?.effective_price ?? retailPrice;
-  const inStock = raw?.in_stock;
-  const status =
-    typeof inStock === "boolean"
-      ? inStock
-        ? "active"
-        : "inactive"
-      : raw?.status;
+  const availableQtyRaw = raw?.available_quantity ?? raw?.availableQuantity;
+  const availableQuantity =
+    availableQtyRaw != null && availableQtyRaw !== ""
+      ? Number(availableQtyRaw)
+      : 0;
+  const status = raw?.status ?? "active";
+  const inStock =
+    typeof raw?.in_stock === "boolean"
+      ? raw.in_stock
+      : availableQtyRaw != null && availableQtyRaw !== ""
+        ? availableQuantity > 0
+        : status === "active" || status === "approved";
 
   return {
     id: raw.id,
@@ -237,11 +242,8 @@ export function formatDealerProduct(raw) {
     age_discount_reason: raw?.age_discount_reason ?? "",
     wholesale_price: retailPrice,
     price: effectivePrice ?? retailPrice,
-    available_quantity: raw.available_quantity ?? 0,
-    in_stock:
-      typeof inStock === "boolean"
-        ? inStock
-        : status === "active" || status === "approved",
+    available_quantity: inStock ? availableQuantity : 0,
+    in_stock: inStock,
     storage_duration_days: raw.storage_duration_days,
     min_storage_temp: raw.min_storage_temp,
     max_storage_temp: raw.max_storage_temp,
@@ -367,7 +369,7 @@ export function formatProductPrice(price) {
 export function isProductInStock(productOrStatus) {
   if (productOrStatus && typeof productOrStatus === "object") {
     if (typeof productOrStatus.in_stock === "boolean") {
-      return productOrStatus.in_stock;
+      if (!productOrStatus.in_stock) return false;
     }
 
     const rawAvail =
@@ -377,6 +379,10 @@ export function isProductInStock(productOrStatus) {
       if (Number.isFinite(avail)) {
         return avail > 0;
       }
+    }
+
+    if (typeof productOrStatus.in_stock === "boolean") {
+      return productOrStatus.in_stock;
     }
 
     if (productOrStatus.status != null) {
@@ -390,9 +396,48 @@ export function isProductInStock(productOrStatus) {
   return status === "active" || status === "approved";
 }
 
+const UNAVAILABLE_PRODUCT_STATUSES = new Set([
+  "inactive",
+  "pending",
+  "rejected",
+  "deleted",
+  "paused",
+]);
+
+/** SP còn được đặt (mua ngay hoặc đặt trước khi hết tồn). */
+export function isProductPurchasable(product) {
+  if (!product || typeof product !== "object") return false;
+
+  const status = product.status;
+  if (status && UNAVAILABLE_PRODUCT_STATUSES.has(status)) {
+    return false;
+  }
+
+  if (status === "active" || status === "approved") {
+    return true;
+  }
+
+  if (
+    typeof product.in_stock === "boolean" ||
+    product.available_quantity != null ||
+    product.availableQuantity != null
+  ) {
+    return true;
+  }
+
+  return isProductInStock(product);
+}
+
+/** SP đang bán nhưng hết tồn — chỉ đi luồng đặt trước. */
+export function isProductPreorderOnly(product) {
+  return isProductPurchasable(product) && !isProductInStock(product);
+}
+
 export function getStockLabel(status, inStock) {
   if (typeof inStock === "boolean") {
-    return inStock ? "Còn hàng" : "Hết hàng";
+    if (inStock) return "Còn hàng";
+    if (status === "active" || status === "approved") return "Đặt trước";
+    return "Hết hàng";
   }
   if (status === "active" || status === "approved") return "Còn hàng";
   if (status === "inactive" || status === "paused") return "Ngừng bán";
@@ -514,7 +559,7 @@ export function toCardProduct(product) {
     rating: product.rating,
     sold: product.sold,
     in_stock: inStock,
-    available_quantity: product.available_quantity ?? 0,
+    available_quantity: inStock ? (product.available_quantity ?? 0) : 0,
     category_id: product.category_id,
     priceValue: effectivePrice,
     retailPriceValue: retailPrice,

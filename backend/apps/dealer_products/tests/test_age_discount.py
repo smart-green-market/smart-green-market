@@ -13,6 +13,7 @@ from apps.dealer_products.age_discount import (
     compute_product_display_price,
     price_for_order_allocation,
 )
+from apps.dealer_products.canonical_inventory import CANONICAL_BATCH_NUMBER
 from apps.dealer_products.inventory_queries import get_sellable_batches_qs
 from apps.dealer_products.models import (
     DealerInventoryBatch,
@@ -80,29 +81,19 @@ class AgeDiscountServiceTests(TestCase):
             dealer_profile=self.dealer,
             supplier_product=supplier_product,
             category=self.category,
-            title="Cà chua bán lẻ",
+            title="Cà chua",
             retail_price=Decimal("25000.00"),
             status=DealerProductStatus.ACTIVE,
         )
         today = timezone.localdate()
         self.batch_old = DealerInventoryBatch.objects.create(
             dealer_product=self.product,
-            batch_number="OLD-1",
-            quantity=5,
-            remaining_quantity=5,
+            batch_number=CANONICAL_BATCH_NUMBER,
+            quantity=25,
+            remaining_quantity=25,
             import_price="10000.00",
             import_date=today - timedelta(days=8),
             expiry_date=today + timedelta(days=2),
-            status=DealerInventoryBatchStatus.ACTIVE,
-        )
-        self.batch_new = DealerInventoryBatch.objects.create(
-            dealer_product=self.product,
-            batch_number="NEW-1",
-            quantity=20,
-            remaining_quantity=20,
-            import_price="10000.00",
-            import_date=today - timedelta(days=1),
-            expiry_date=today + timedelta(days=9),
             status=DealerInventoryBatchStatus.ACTIVE,
         )
 
@@ -157,37 +148,19 @@ class AgeDiscountServiceTests(TestCase):
         self.assertEqual(display.effective_unit_price, old_price.effective_unit_price)
         self.assertEqual(display.effective_unit_price, Decimal("20000.00"))
 
-    def test_fifo_allocation_uses_batch_prices(self):
-        self.batch_old.manual_sale_price = Decimal("18000.00")
-        self.batch_old.save(update_fields=["manual_sale_price"])
+    def test_main_batch_allocation_uses_single_batch(self):
         allocations = _allocate_batches(self.product, 7)
-        self.assertEqual(len(allocations), 2)
-        batch_a, qty_a = allocations[0]
-        batch_b, qty_b = allocations[1]
-        self.assertEqual(batch_a.id, self.batch_old.id)
-        self.assertEqual(qty_a, 5)
-        self.assertEqual(batch_b.id, self.batch_new.id)
-        self.assertEqual(qty_b, 2)
-        self.assertEqual(price_for_order_allocation(batch_a, qty_a), Decimal("18000.00"))
-        self.assertEqual(
-            price_for_order_allocation(batch_b, qty_b),
-            self.product.retail_price,
-        )
+        self.assertEqual(len(allocations), 1)
+        batch, qty = allocations[0]
+        self.assertEqual(batch.id, self.batch_old.id)
+        self.assertEqual(qty, 7)
 
-    def test_expired_batch_not_sellable(self):
+    def test_expired_main_batch_still_sellable(self):
         today = timezone.localdate()
-        expired = DealerInventoryBatch.objects.create(
-            dealer_product=self.product,
-            batch_number="EXP-1",
-            quantity=10,
-            remaining_quantity=10,
-            import_price="10000.00",
-            import_date=today - timedelta(days=15),
-            expiry_date=today - timedelta(days=1),
-            status=DealerInventoryBatchStatus.ACTIVE,
-        )
-        self.assertFalse(
-            get_sellable_batches_qs(self.product).filter(pk=expired.pk).exists()
+        self.batch_old.expiry_date = today - timedelta(days=1)
+        self.batch_old.save(update_fields=["expiry_date", "updated_at"])
+        self.assertTrue(
+            get_sellable_batches_qs(self.product).filter(pk=self.batch_old.pk).exists()
         )
 
     def test_daily_time_window_uses_vietnam_timezone(self):

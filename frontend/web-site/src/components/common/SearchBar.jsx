@@ -9,7 +9,7 @@ import { Search, X } from "lucide-react";
  */
 export default function SearchBar({ value, onChange, placeholder = "Tìm kiếm..." }) {
     return (
-        <div className="relative w-96">
+        <div className="relative w-full">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-neutral-400 pointer-events-none" />
             <input
                 type="text"

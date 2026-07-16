@@ -16,6 +16,7 @@ from .serializers import (
     SavedPromotionSerializer,
 )
 from .services import CartVoucherService
+from .audience_service import filter_promotions_matching_audience
 from rest_framework import viewsets
 from common.permission import IsActive, IsAdminOrDealer, IsBuyer, IsAdmin
 from common.querysets import filter_admin_or_dealer_account
@@ -57,7 +58,7 @@ class PromotionViewSet(viewsets.ModelViewSet):
     Dealer chỉ có quyền thao tác trên các voucher thuộc tài khoản của mình.
     """
     permission_classes = [IsActive, IsAdminOrDealer]
-    queryset = Promotion.objects.prefetch_related("targets").select_related(
+    queryset = Promotion.objects.prefetch_related("targets", "loyalty_tiers").select_related(
         "dealer", "dealer__account"
     )
     serializer_class = PromotionSerializer
@@ -83,13 +84,12 @@ class PromotionViewSet(viewsets.ModelViewSet):
 
     def _available_promotions_for_customer(self, customer, dealer):
         now = timezone.now()
-        segment_ids = list(customer.segment_memberships.values_list("segment_id", flat=True))
 
         promotions = Promotion.objects.filter(
             status=PromotionStatus.ACTIVE,
             start_date__lte=now,
             end_date__gte=now,
-        ).prefetch_related("targets")
+        ).prefetch_related("targets", "loyalty_tiers")
 
         if dealer:
             from django.db.models import Q
@@ -125,15 +125,7 @@ class PromotionViewSet(viewsets.ModelViewSet):
             Q(customer_usage_count__lt=F("usage_limit_per_customer"))
         )
 
-        target_filter = Q(targets__isnull=True) | Q(targets__target_type="all")
-
-        if segment_ids:
-            target_filter |= Q(targets__target_type="segment", targets__segment_id__in=segment_ids)
-
-        target_filter |= Q(targets__target_type="customer", targets__customer=customer)
-        target_filter |= Q(targets__target_type="product") | Q(targets__target_type="category")
-
-        promotions = promotions.filter(target_filter).distinct()
+        promotions = filter_promotions_matching_audience(promotions, customer)
         active_ids = [
             promotion.id
             for promotion in promotions

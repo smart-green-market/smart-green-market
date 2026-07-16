@@ -36,7 +36,7 @@ export default function StockShortfallModal({
       isOpen={open}
       onClose={onClose}
       onConfirm={() => onConfirm(choices)}
-      title="Một số sản phẩm không đủ tồn"
+      title="Một số sản phẩm thiếu hoặc hết tồn"
       confirmText="Tiếp tục đặt hàng"
       cancelText="Quay lại"
       variant="warning"
@@ -46,8 +46,8 @@ export default function StockShortfallModal({
       message={
         <div className="space-y-4 text-sm text-neutral-700">
           <p>
-            Vui lòng chọn cách xử lý cho từng sản phẩm thiếu hàng. Bạn có thể đặt
-            phần còn trong kho, gửi yêu cầu đặt trước, hoặc bỏ sản phẩm khỏi đơn.
+            Vui lòng chọn cách xử lý cho từng sản phẩm thiếu hoặc hết hàng. Bạn có thể
+            đặt phần còn trong kho, gửi yêu cầu đặt trước, hoặc bỏ sản phẩm khỏi đơn.
           </p>
 
           <div className="space-y-3">

@@ -8,6 +8,7 @@ from apps.accounts.document_serializers import AccountDocumentReadSerializer
 from apps.accounts.models import AccountRole, AccountStatus
 from apps.certifications.serializers import CertificationReadSerializer
 from apps.certifications.serializers import CertificationCatalogSerializer
+from apps.dealers.models import DealerProfile
 from apps.supplier_products.serializer import SupplierProductReadSerializer
 from common.approval_nested import ApprovalSupplierNestedSerializer
 from common.avatar import build_avatar_url
@@ -381,3 +382,58 @@ class SupplierDetailSerializer(serializers.ModelSerializer):
     @extend_schema_field(serializers.URLField(allow_null=True))
     def get_logo_url(self, obj):
         return build_media_url(obj.logo, self.context.get("request"))
+
+
+class SupplierPurchasingDealerContactSerializer(serializers.Serializer):
+    full_name = serializers.CharField(read_only=True)
+    phone = serializers.CharField(read_only=True)
+    email = serializers.EmailField(read_only=True)
+    avatar_url = serializers.URLField(read_only=True, allow_null=True)
+
+
+class SupplierPurchasingDealerSerializer(serializers.ModelSerializer):
+    """Đại lý đã từng đặt phiếu nhập từ NCC — kèm thống kê đơn hàng."""
+
+    logo_url = serializers.SerializerMethodField(read_only=True)
+    contact = serializers.SerializerMethodField(read_only=True)
+    order_count = serializers.IntegerField(read_only=True)
+    completed_order_count = serializers.IntegerField(read_only=True)
+    last_order_at = serializers.DateTimeField(read_only=True, allow_null=True)
+    total_purchase_amount = serializers.DecimalField(
+        max_digits=14,
+        decimal_places=2,
+        read_only=True,
+    )
+
+    class Meta:
+        model = DealerProfile
+        fields = [
+            "id",
+            "store_name",
+            "slug",
+            "store_address",
+            "logo_url",
+            "status",
+            "contact",
+            "order_count",
+            "completed_order_count",
+            "last_order_at",
+            "total_purchase_amount",
+            "created_at",
+        ]
+
+    @extend_schema_field(serializers.URLField(allow_null=True))
+    def get_logo_url(self, obj):
+        return build_media_url(obj.logo, self.context.get("request"))
+
+    @extend_schema_field(SupplierPurchasingDealerContactSerializer)
+    def get_contact(self, obj):
+        account = obj.account
+        return SupplierPurchasingDealerContactSerializer(
+            {
+                "full_name": account.full_name,
+                "phone": account.phone or "",
+                "email": account.email,
+                "avatar_url": build_avatar_url(account, self.context.get("request")),
+            }
+        ).data

@@ -511,7 +511,7 @@ class SupplierProductSerializer(serializers.ModelSerializer):
                 )
 
         instance = self.instance
-        category = attrs.get("category") or (instance.category if instance else None)
+        category = attrs.get("category") or (instance.category if instance else None)#tạo mới hoặc update
         if category is None:
             raise serializers.ValidationError({"category": "Bắt buộc chọn danh mục."})
 
