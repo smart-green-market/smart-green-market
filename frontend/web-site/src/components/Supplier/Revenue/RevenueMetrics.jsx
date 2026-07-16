@@ -8,6 +8,8 @@ import { fmtMoney } from './revenueHelpers';
 export default function RevenueMetrics({ revenueStats }) {
   const {
     totalCashIn = 0,
+    totalDeposit = 0,
+    totalFinalPayment = 0,
     totalRefund = 0,
     netCashFlow = 0,
     grossRevenue = 0,
