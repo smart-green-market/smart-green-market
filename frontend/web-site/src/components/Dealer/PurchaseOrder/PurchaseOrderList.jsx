@@ -1,4 +1,5 @@
 import { Calendar, Package, ChevronRight, AlertCircle, CheckCircle2, Clock, Truck, CreditCard, Ban, XCircle } from "lucide-react";
+import { useState, useEffect } from "react";
 import SortableHeader from "../../common/SortableHeader";
 import useTableSort from "../../../hooks/useTableSort";
 
@@ -10,8 +11,40 @@ const COLUMN_CONFIG = {
   status: { key: "status", type: "string" },
 };
 
-export default function PurchaseOrderList({ purchaseOrders, onViewDetail }) {
+export default function PurchaseOrderList({ purchaseOrders, onViewDetail, onSelectedRowsChange, clearSelectedRows }) {
+  const [selectedIds, setSelectedIds] = useState(new Set());
   const { sortedData, sortColumn, sortDirection, handleSort } = useTableSort(purchaseOrders, COLUMN_CONFIG);
+
+  useEffect(() => {
+    setSelectedIds(new Set());
+  }, [clearSelectedRows]);
+
+  const handleSelectAll = (e) => {
+    if (e.target.checked) {
+      const newSelected = new Set(purchaseOrders.map(r => r.rawId || r.id));
+      setSelectedIds(newSelected);
+      onSelectedRowsChange && onSelectedRowsChange({ selectedRows: purchaseOrders });
+    } else {
+      setSelectedIds(new Set());
+      onSelectedRowsChange && onSelectedRowsChange({ selectedRows: [] });
+    }
+  };
+
+  const handleSelectRow = (row, checked) => {
+    const newSelected = new Set(selectedIds);
+    const rowId = row.rawId || row.id;
+    if (checked) {
+      newSelected.add(rowId);
+    } else {
+      newSelected.delete(rowId);
+    }
+    setSelectedIds(newSelected);
+
+    const selectedRows = purchaseOrders.filter(r => newSelected.has(r.rawId || r.id));
+    onSelectedRowsChange && onSelectedRowsChange({ selectedRows });
+  };
+
+  const allSelected = purchaseOrders.length > 0 && selectedIds.size === purchaseOrders.length;
 
   const getStatusConfig = (status) => {
     switch (status) {
@@ -73,9 +106,17 @@ export default function PurchaseOrderList({ purchaseOrders, onViewDetail }) {
   return (
     <div className="w-full rounded-2xl border border-neutral-100 overflow-hidden bg-white shadow-xs font-['Geist',sans-serif]">
       <div className="overflow-x-auto">
-        <table className="w-full border-collapse text-left">
+        <table className="w-full border-collapse text-left whitespace-nowrap">
           <thead>
             <tr className="bg-neutral-50 border-b border-neutral-200/60">
+              <th className="px-6 py-4 w-12 text-center">
+                <input
+                  type="checkbox"
+                  checked={allSelected}
+                  onChange={handleSelectAll}
+                  className="w-4 h-4 rounded border-neutral-300 text-emerald-600 focus:ring-emerald-500 cursor-pointer"
+                />
+              </th>
               <SortableHeader label="Mã Đơn" column="id" sortColumn={sortColumn} sortDirection={sortDirection} onSort={handleSort} />
               <SortableHeader label="Nhà Cung Cấp" column="supplier" sortColumn={sortColumn} sortDirection={sortDirection} onSort={handleSort} />
               <SortableHeader label="Thời Gian" column="date" sortColumn={sortColumn} sortDirection={sortDirection} onSort={handleSort} />
@@ -87,12 +128,21 @@ export default function PurchaseOrderList({ purchaseOrders, onViewDetail }) {
           <tbody className="divide-y divide-neutral-100">
             {sortedData.map((row) => {
               const statusConfig = getStatusConfig(row.status);
+              const isSelected = selectedIds.has(row.rawId || row.id);
               return (
                 <tr
                   key={row.rawId || row.id}
                   onClick={() => onViewDetail && onViewDetail(row)}
-                  className="hover:bg-emerald-50/30 cursor-pointer transition-colors duration-150 group"
+                  className={`transition-colors duration-150 cursor-pointer group ${isSelected ? 'bg-emerald-50/50' : 'hover:bg-emerald-50/30'}`}
                 >
+                  <td className="px-6 py-4 text-center" onClick={(e) => e.stopPropagation()}>
+                    <input
+                      type="checkbox"
+                      checked={isSelected}
+                      onChange={(e) => handleSelectRow(row, e.target.checked)}
+                      className="w-4 h-4 rounded border-neutral-300 text-emerald-600 focus:ring-emerald-500 cursor-pointer"
+                    />
+                  </td>
                   {/* Mã đơn */}
                   <td className="px-6 py-4">
                     <span className="font-mono font-bold text-xs text-neutral-600 bg-neutral-100 px-2.5 py-1 rounded-md">

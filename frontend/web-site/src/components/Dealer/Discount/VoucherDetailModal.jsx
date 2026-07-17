@@ -193,6 +193,45 @@ export default function VoucherDetailModal({ isOpen, onClose, voucherId }) {
                 </div>
               </div>
 
+              {/* Audience details */}
+              <div className="border border-gray-100 rounded-xl p-4 bg-gray-50/50 space-y-3">
+                <h4 className="text-sm font-semibold text-gray-800 uppercase tracking-wider text-xs border-b pb-1.5 mb-2">Đối tượng áp dụng</h4>
+                <div className="flex justify-between items-center text-sm">
+                  <span className="text-gray-500">Loại đối tượng:</span>
+                  <span className="font-semibold text-gray-900">
+                    {voucher.audience_type === 'LOYALTY_TIER' 
+                      ? 'Hạng thành viên B2C' 
+                      : voucher.audience_type === 'CUSTOMER_SEGMENT' 
+                      ? 'Phân khúc khách hàng' 
+                      : 'Tất cả khách hàng'}
+                  </span>
+                </div>
+                {voucher.audience_type === 'LOYALTY_TIER' && voucher.loyalty_tiers && voucher.loyalty_tiers.length > 0 && (
+                  <div className="flex flex-col gap-1 text-sm">
+                    <span className="text-gray-500">Các hạng áp dụng:</span>
+                    <div className="flex flex-wrap gap-1 mt-1">
+                      {voucher.loyalty_tiers.map(tier => (
+                        <span key={tier.id} className="px-2 py-0.5 bg-emerald-50 text-emerald-700 border border-emerald-100 rounded text-xs font-bold">
+                          {tier.name}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                {voucher.audience_type === 'CUSTOMER_SEGMENT' && voucher.customer_segments && voucher.customer_segments.length > 0 && (
+                  <div className="flex flex-col gap-1 text-sm">
+                    <span className="text-gray-500">Các phân khúc áp dụng:</span>
+                    <div className="flex flex-wrap gap-1 mt-1">
+                      {voucher.customer_segments.map(seg => (
+                        <span key={seg.id} className="px-2 py-0.5 bg-blue-50 text-blue-700 border border-blue-100 rounded text-xs font-bold">
+                          {seg.name}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+
               {/* Time Details */}
               <div className="border border-gray-100 rounded-xl p-4 bg-gray-50/50 space-y-3">
                 <h4 className="text-sm font-semibold text-gray-800 uppercase tracking-wider text-xs border-b pb-1.5 mb-2">Thời gian hoạt động</h4>

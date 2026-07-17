@@ -1,8 +1,9 @@
 import { useNavigate, useParams } from "react-router-dom";
 import { useState, useEffect, useCallback } from "react";
 import { toast } from "sonner";
-import { XCircle, CheckCircle, RotateCcw } from "lucide-react";
+import { XCircle, CheckCircle, RotateCcw, Printer } from "lucide-react";
 import { purchaseOrderService } from "../../../services/api/purchaseOrderService";
+import PrintWarehouseReceiptModal from "../../../components/Dealer/PurchaseOrderDetail/PrintWarehouseReceiptModal";
 import RejectModal from "../../../components/common/RejectModal";
 import RequestReturnModal from "../../../components/Dealer/PurchaseOrderDetail/RequestReturnModal";
 import ApproveAdjustmentModal from "../../../components/Dealer/PurchaseOrderDetail/ApproveAdjustmentModal";
@@ -48,6 +49,7 @@ export default function DealerPurchaseOrderDetailPage() {
   const [isCancelModalOpen, setIsCancelModalOpen] = useState(false);
   const [isReturnModalOpen, setIsReturnModalOpen] = useState(false);
   const [isApproveModalOpen, setIsApproveModalOpen] = useState(false);
+  const [isPrintReceiptOpen, setIsPrintReceiptOpen] = useState(false);
 
   const fetchOrderDetail = useCallback(async ({ silent = false } = {}) => {
     if (!silent) setLoading(true);
@@ -280,7 +282,7 @@ export default function DealerPurchaseOrderDetailPage() {
 
   // Kiểm tra điều kiện hiển thị quét VietQR thanh toán cọc (status === 'confirmed')
   const showDepositQr = orderData.rawStatus === "confirmed" && orderData.depositAmount > 0;
-  
+
   // Kiểm tra điều kiện hiển thị quét VietQR thanh toán cuối (status === 'delivered')
   const showFinalQr = orderData.rawStatus === "delivered" && orderData.remainingAmount > 0;
 
@@ -349,6 +351,16 @@ export default function DealerPurchaseOrderDetailPage() {
 
       {/* 8. Các nút hành động ở cuối trang */}
       <div className="flex flex-col sm:flex-row justify-end gap-4 border-t border-neutral-100 pt-6">
+        {/* Nút In Phiếu Nhập Kho */}
+        {orderData.rawStatus !== "cancelled" && orderData.rawStatus !== "rejected" && (
+          <button
+            onClick={() => setIsPrintReceiptOpen(true)}
+            className="flex items-center justify-center gap-2 px-6 h-11 bg-white border border-neutral-200 hover:bg-neutral-50 text-neutral-700 rounded-xl text-xs font-bold transition-all shadow-xs cursor-pointer w-full sm:w-auto sm:min-w-36 active:scale-95"
+          >
+            <Printer className="w-4 h-4" /> In phiếu nhập hàng
+          </button>
+        )}
+
         {/* Nút hủy đơn */}
         {canCancel && (
           <button
@@ -415,6 +427,12 @@ export default function DealerPurchaseOrderDetailPage() {
         isOpen={isApproveModalOpen}
         onClose={() => setIsApproveModalOpen(false)}
         onConfirm={handleApproveAdjustmentConfirm}
+      />
+
+      <PrintWarehouseReceiptModal
+        isOpen={isPrintReceiptOpen}
+        orders={orderData ? [orderData] : []}
+        onClose={() => setIsPrintReceiptOpen(false)}
       />
     </div>
   );
