@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
     Award,
-    DollarSign,
     Package,
     RefreshCw,
     Store,
@@ -16,35 +15,51 @@ import {
 import StatisticsDataSection from "../../components/Admin/Statistics/StatisticsDataSection";
 import LeaderboardPanel from "../../components/Admin/Statistics/LeaderboardPanel";
 import RevenueOverviewPanel from "../../components/Admin/Statistics/RevenueOverviewPanel";
-import TrendBadge from "../../components/Admin/Statistics/TrendBadge";
 import {
     adminDashboardService,
     handleApiError,
+    normalizeAdminRevenueChart,
 } from "../../services/api/Admin/adminDashboardService";
 import {
     formatCurrency,
-    getPreviousMonthRevenue,
     truncateLabel,
 } from "../../utils/adminStatisticsUtils";
 
-function KPIOverviewCard({ title, value, icon: Icon, colorClass, bgClass, borderClass, trend }) {
+function KPIOverviewCard({
+    title,
+    value,
+    icon: Icon,
+    colorClass,
+    bgClass,
+    borderClass,
+    description,
+    accentClass = "bg-emerald-500",
+}) {
     return (
-        <div
-            className={`flex items-center justify-between rounded-2xl border ${borderClass} bg-white p-5 shadow-sm transition-all duration-200 hover:shadow-md`}
+        <article
+            className={`group relative flex min-h-[190px] flex-col overflow-hidden rounded-3xl border ${borderClass} bg-white p-5 shadow-sm transition-all duration-300 hover:-translate-y-0.5 hover:shadow-lg`}
         >
-            <div className="min-w-0">
-                <span className="block truncate text-xs font-bold uppercase tracking-wider text-neutral-500">
-                    {title}
+            <div className={`absolute inset-x-0 top-0 h-1 ${accentClass}`} />
+            <div className="flex items-start justify-between gap-3">
+                <span className={`inline-flex h-11 w-11 items-center justify-center rounded-2xl ${bgClass} ${colorClass} transition-transform duration-300 group-hover:scale-105`}>
+                    <Icon className="h-5 w-5" />
                 </span>
-                <h3 className="mt-2 truncate text-2xl font-black leading-none text-neutral-900">
-                    {value}
-                </h3>
-                {trend ? <div className="mt-2">{trend}</div> : null}
+                <span className={`mt-1 h-2 w-2 rounded-full ${accentClass} ring-4 ring-white`} />
             </div>
-            <div className={`shrink-0 rounded-xl p-3 ${bgClass} ${colorClass}`}>
-                <Icon className="h-6 w-6" />
-            </div>
-        </div>
+
+            <p className="mt-5 text-xs font-bold uppercase leading-5 tracking-[0.08em] text-neutral-500">
+                {title}
+            </p>
+            <h3 className="mt-1 text-4xl font-black leading-none tracking-tight text-neutral-950">
+                {value}
+            </h3>
+
+            {description ? (
+                <p className="mt-auto border-t border-neutral-100 pt-3 text-xs leading-5 text-neutral-500">
+                    {description}
+                </p>
+            ) : null}
+        </article>
     );
 }
 
@@ -67,7 +82,7 @@ function RankBadge({ rank }) {
 function ProductTypeBadge({ type }) {
     const normalized = String(type ?? "").toLowerCase();
     const isB2B = normalized.includes("b2b") || normalized.includes("supplier");
-    const label = isB2B ? "B2B (NCC)" : "B2C (Đại lý)";
+    const label = isB2B ? "B2B · NCC → Đại lý" : "B2C · Đại lý → Buyer";
 
     return (
         <span
@@ -85,7 +100,11 @@ export default function AdminStatisticsPage() {
     const [loadError, setLoadError] = useState("");
     const [fetchWarnings, setFetchWarnings] = useState([]);
     const [summary, setSummary] = useState(null);
-    const [chartData, setChartData] = useState([]);
+    const [chartData, setChartData] = useState({
+        dealers: [],
+        suppliers: [],
+        hasSupplierSeries: false,
+    });
     const [topDealers, setTopDealers] = useState([]);
     const [topSuppliers, setTopSuppliers] = useState([]);
     const [topProducts, setTopProducts] = useState([]);
@@ -127,7 +146,7 @@ export default function AdminStatisticsPage() {
             const results = await Promise.allSettled(requests.map((request) => request.run()));
             const payload = {
                 summary: null,
-                chart: [],
+                chart: { dealers: [], suppliers: [], hasSupplierSeries: false },
                 topDealers: [],
                 topSuppliers: [],
                 topProducts: [],
@@ -143,9 +162,11 @@ export default function AdminStatisticsPage() {
                     payload[request.key] =
                         request.key === "summary"
                             ? value
-                            : Array.isArray(value)
-                              ? value
-                              : (value?.results ?? []);
+                            : request.key === "chart"
+                              ? normalizeAdminRevenueChart(value)
+                              : Array.isArray(value)
+                                ? value
+                                : (value?.results ?? []);
                     successCount += 1;
                     return;
                 }
@@ -172,25 +193,86 @@ export default function AdminStatisticsPage() {
     }, []);
 
     useEffect(() => {
+        // Đồng bộ dữ liệu dashboard từ API khi trang được mở.
+        // eslint-disable-next-line react-hooks/set-state-in-effect
         fetchStatistics();
     }, [fetchStatistics]);
 
-    const previousMonthRevenue = useMemo(
-        () => getPreviousMonthRevenue(chartData),
-        [chartData],
-    );
-
-    const revenueTableRows = useMemo(
-        () =>
-            chartData.map((item, index) => ({
+    const buildRevenueRows = useCallback(
+        (items) =>
+            items.map((item, index) => ({
                 id: item.month ?? index,
                 month: item.month,
                 revenue: Number(item.revenue || 0),
                 previousRevenue:
-                    index > 0 ? Number(chartData[index - 1]?.revenue || 0) : null,
+                    index > 0 ? Number(items[index - 1]?.revenue || 0) : null,
             })),
-        [chartData],
+        [],
     );
+
+    const currentMonth = useMemo(
+        () =>
+            new Intl.DateTimeFormat("sv-SE", {
+                year: "numeric",
+                month: "2-digit",
+            }).format(new Date()),
+        [],
+    );
+
+    const revenueMonths = useMemo(() => {
+        const months = new Set(
+            [...chartData.dealers, ...chartData.suppliers]
+                .map((item) => item.month)
+                .filter(Boolean),
+        );
+
+        if (months.size === 0 && summary?.revenue?.this_month_supplier != null) {
+            months.add(currentMonth);
+        }
+
+        return [...months].sort((left, right) => left.localeCompare(right));
+    }, [chartData.dealers, chartData.suppliers, currentMonth, summary]);
+
+    const dealerRevenueRows = useMemo(() => {
+        const revenueByMonth = new Map(
+            chartData.dealers.map((item) => [item.month, Number(item.revenue || 0)]),
+        );
+        const alignedItems = revenueMonths.map((month) => ({
+            month,
+            revenue: revenueByMonth.get(month) ?? 0,
+        }));
+        return buildRevenueRows(alignedItems);
+    }, [buildRevenueRows, chartData.dealers, revenueMonths]);
+
+    const supplierRevenueRows = useMemo(() => {
+        const revenueByMonth = new Map(
+            chartData.suppliers.map((item) => [item.month, Number(item.revenue || 0)]),
+        );
+
+        if (!chartData.hasSupplierSeries) {
+            const currentSupplierRevenue = summary?.revenue?.this_month_supplier;
+            const fallbackMonth = revenueMonths.includes(currentMonth)
+                ? currentMonth
+                : revenueMonths.at(-1);
+
+            if (currentSupplierRevenue != null && fallbackMonth) {
+                revenueByMonth.set(fallbackMonth, Number(currentSupplierRevenue || 0));
+            }
+        }
+
+        const alignedItems = revenueMonths.map((month) => ({
+            month,
+            revenue: revenueByMonth.get(month) ?? 0,
+        }));
+        return buildRevenueRows(alignedItems);
+    }, [
+        buildRevenueRows,
+        chartData.hasSupplierSeries,
+        chartData.suppliers,
+        currentMonth,
+        revenueMonths,
+        summary,
+    ]);
 
     if (isLoading) {
         return (
@@ -220,7 +302,7 @@ export default function AdminStatisticsPage() {
                 <div>
                     <h1 className="text-xl font-bold">Thống kê hệ thống</h1>
                     <p className="mt-1 text-sm text-emerald-100">
-                        Doanh thu, đối tác và sản phẩm nổi bật trên toàn nền tảng SmartGreenMarket.
+                        Theo dõi riêng doanh thu bán lẻ B2C và giao dịch nhập hàng B2B trên SmartGreenMarket.
                     </p>
                 </div>
                 <button
@@ -233,21 +315,7 @@ export default function AdminStatisticsPage() {
                 </button>
             </div>
 
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-                <KPIOverviewCard
-                    title="Doanh thu tháng này"
-                    value={formatCurrency(summary?.revenue?.this_month)}
-                    icon={DollarSign}
-                    colorClass="text-emerald-700"
-                    bgClass="bg-emerald-50"
-                    borderClass="border-emerald-100"
-                    trend={
-                        <TrendBadge
-                            current={summary?.revenue?.this_month}
-                            previous={previousMonthRevenue}
-                        />
-                    }
-                />
+            <div className="grid grid-cols-1 gap-5 md:grid-cols-3">
                 <KPIOverviewCard
                     title="Đại lý hoạt động"
                     value={summary?.active_dealers ?? 0}
@@ -255,6 +323,8 @@ export default function AdminStatisticsPage() {
                     colorClass="text-sky-700"
                     bgClass="bg-sky-50"
                     borderClass="border-sky-100"
+                    accentClass="bg-sky-500"
+                    description="Tài khoản Đại lý đang ở trạng thái hoạt động."
                 />
                 <KPIOverviewCard
                     title="Nhà cung cấp hoạt động"
@@ -263,6 +333,8 @@ export default function AdminStatisticsPage() {
                     colorClass="text-indigo-700"
                     bgClass="bg-indigo-50"
                     borderClass="border-indigo-100"
+                    accentClass="bg-indigo-500"
+                    description="Tài khoản Nhà cung cấp đang ở trạng thái hoạt động."
                 />
                 <KPIOverviewCard
                     title="Khách hàng mới (Tháng)"
@@ -271,44 +343,108 @@ export default function AdminStatisticsPage() {
                     colorClass="text-amber-700"
                     bgClass="bg-amber-50"
                     borderClass="border-amber-100"
+                    accentClass="bg-amber-500"
+                    description="Buyer đăng ký mới từ đầu tháng đến hiện tại."
                 />
             </div>
 
-            <div className="grid grid-cols-1 gap-6 xl:grid-cols-[minmax(0,1.55fr)_minmax(300px,0.85fr)] xl:items-start">
-                <RevenueOverviewPanel
-                    rows={revenueTableRows}
-                    emptyMessage="Không có dữ liệu biểu đồ doanh thu"
-                />
+            <section className="overflow-hidden rounded-3xl border border-emerald-200 bg-gradient-to-br from-emerald-50/80 to-white p-4 sm:p-6">
+                <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
+                    <div className="flex items-center gap-3">
+                        <span className="flex h-11 w-11 items-center justify-center rounded-2xl bg-emerald-700 text-white shadow-sm">
+                            <Store className="h-5 w-5" />
+                        </span>
+                        <div>
+                            <p className="text-[10px] font-black uppercase tracking-[0.16em] text-emerald-700">
+                                Phân hệ Đại lý · B2C
+                            </p>
+                            <h2 className="mt-0.5 text-lg font-black text-emerald-950">
+                                Hiệu quả bán hàng của Đại lý
+                            </h2>
+                            <p className="mt-0.5 text-xs text-emerald-800/70">
+                                Dữ liệu đơn hàng Buyer đã giao hoặc hoàn tất, không bao gồm phiếu nhập Nhà cung cấp.
+                            </p>
+                        </div>
+                    </div>
+                </div>
 
-                <div className="flex min-w-0 flex-col gap-4">
+                <div className="grid grid-cols-1 gap-5 xl:grid-cols-[minmax(0,1.55fr)_minmax(320px,0.85fr)] xl:items-stretch">
+                    <RevenueOverviewPanel
+                        rows={dealerRevenueRows}
+                        title="Doanh thu Đại lý theo tháng"
+                        subtitle="Doanh thu B2C từ Buyer trong các tháng gần nhất"
+                        valueLabel="Doanh thu Đại lý"
+                        infoText="Chỉ tính đơn bán lẻ B2C đã giao hoặc hoàn tất của các Đại lý."
+                        emptyMessage="Không có dữ liệu doanh thu Đại lý"
+                    />
                     <LeaderboardPanel
-                        compact
-                        visibleItems={3}
-                        title="Top 10 Đại lý doanh thu tốt nhất"
-                        subtitle="Xếp hạng các đại lý có doanh thu hoàn tất cao nhất"
+                        compact={false}
+                        visibleItems={5}
+                        className="h-full"
+                        title="Top Đại lý theo doanh thu"
+                        subtitle="Xếp theo doanh thu B2C từ đơn Buyer đã giao/hoàn tất"
                         icon={Award}
                         items={topDealers}
                         nameKey="store_name"
                         revenueKey="total_revenue"
+                        valueLabel="Doanh thu B2C"
+                        orderLabel="đơn B2C"
                         orderKey="total_orders"
                     />
+                </div>
+            </section>
+
+            <section className="overflow-hidden rounded-3xl border border-indigo-200 bg-gradient-to-br from-indigo-50/80 to-white p-4 sm:p-6">
+                <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
+                    <div className="flex items-center gap-3">
+                        <span className="flex h-11 w-11 items-center justify-center rounded-2xl bg-indigo-700 text-white shadow-sm">
+                            <Truck className="h-5 w-5" />
+                        </span>
+                        <div>
+                            <p className="text-[10px] font-black uppercase tracking-[0.16em] text-indigo-700">
+                                Phân hệ Nhà cung cấp · B2B
+                            </p>
+                            <h2 className="mt-0.5 text-lg font-black text-indigo-950">
+                                Giá trị nhập hàng từ Nhà cung cấp
+                            </h2>
+                            <p className="mt-0.5 text-xs text-indigo-800/70">
+                                Dữ liệu phiếu nhập Đại lý đã giao hoặc hoàn tất, tách biệt doanh thu bán lẻ.
+                            </p>
+                        </div>
+                    </div>
+                </div>
+
+                <div className="grid grid-cols-1 gap-5 xl:grid-cols-[minmax(0,1.55fr)_minmax(320px,0.85fr)] xl:items-stretch">
+                    <RevenueOverviewPanel
+                        rows={supplierRevenueRows}
+                        title="Giá trị nhập hàng theo tháng"
+                        subtitle="Giá trị B2B Đại lý nhập từ Nhà cung cấp trong các tháng gần nhất"
+                        valueLabel="Giá trị nhập hàng"
+                        infoText="Chỉ tính phiếu nhập B2B đã giao hoặc hoàn tất từ Nhà cung cấp."
+                        emptyMessage="Không có dữ liệu nhập hàng Nhà cung cấp"
+                        tone="indigo"
+                    />
                     <LeaderboardPanel
-                        compact
-                        visibleItems={3}
-                        title="Top 10 Nhà cung cấp nổi bật"
-                        subtitle="Xếp hạng các đối tác có doanh thu nhập hàng lớn nhất"
+                        compact={false}
+                        visibleItems={5}
+                        className="h-full"
+                        title="Top Nhà cung cấp theo B2B"
+                        subtitle="Xếp theo giá trị phiếu nhập Đại lý đã giao/hoàn tất"
                         icon={Award}
                         items={topSuppliers}
                         nameKey="company_name"
                         revenueKey="total_revenue"
                         orderKey="total_orders"
+                        valueLabel="Giá trị B2B"
+                        orderLabel="phiếu nhập"
+                        tone="indigo"
                     />
                 </div>
-            </div>
+            </section>
 
             <StatisticsDataSection
-                title="Top 10 Sản phẩm bán chạy nhất"
-                subtitle="So sánh doanh thu sản phẩm B2C (Đại lý) và B2B (Nhà cung cấp)"
+                title="Top 10 sản phẩm theo giá trị giao dịch"
+                subtitle="Mỗi sản phẩm thuộc riêng kênh B2C hoặc B2B; các giá trị chỉ dùng để xếp hạng, không cộng thành tổng doanh thu"
                 icon={Package}
                 rows={topProducts}
                 chartLabelKey={(row) => truncateLabel(row.name, 10)}
@@ -350,7 +486,7 @@ export default function AdminStatisticsPage() {
                     },
                     {
                         key: "revenue",
-                        label: "Doanh thu",
+                        label: "Giá trị theo kênh",
                         align: "right",
                         className: "font-mono font-bold",
                         render: (row) => formatCurrency(row.revenue),

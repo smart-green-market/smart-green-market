@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { BarChart3, Table2, TrendingUp } from "lucide-react";
+import { BarChart3, Info, Table2, TrendingUp } from "lucide-react";
 import StatisticsChart from "./StatisticsChart";
 import TrendBadge from "./TrendBadge";
 import { formatCurrency } from "../../../utils/adminStatisticsUtils";
@@ -7,6 +7,11 @@ import { formatCurrency } from "../../../utils/adminStatisticsUtils";
 export default function RevenueOverviewPanel({
     rows = [],
     emptyMessage = "Không có dữ liệu biểu đồ doanh thu",
+    title = "Doanh thu Đại lý theo tháng",
+    subtitle = "Dòng tiền Buyer → Đại lý từ đơn đã giao/hoàn tất trong 6 tháng gần nhất",
+    valueLabel = "Doanh thu Đại lý",
+    infoText = "Chỉ phản ánh doanh thu bán lẻ B2C từ đơn Buyer.",
+    tone = "emerald",
 }) {
     const [viewMode, setViewMode] = useState("chart");
     const [chartType, setChartType] = useState("line");
@@ -16,17 +21,29 @@ export default function RevenueOverviewPanel({
         label: row.month,
         value: row.revenue,
     }));
+    const toneClasses =
+        tone === "indigo"
+            ? {
+                  icon: "text-indigo-600",
+                  active: "text-indigo-800",
+                  info: "border-indigo-100 bg-indigo-50/70 text-indigo-900",
+              }
+            : {
+                  icon: "text-emerald-600",
+                  active: "text-emerald-800",
+                  info: "border-emerald-100 bg-emerald-50/70 text-emerald-900",
+              };
 
     return (
         <section className="flex h-full flex-col rounded-2xl border border-neutral-200 bg-white p-4 shadow-sm sm:p-5">
             <div className="mb-3 flex flex-wrap items-start justify-between gap-3">
                 <div>
                     <h2 className="flex items-center gap-1.5 text-sm font-bold text-neutral-900">
-                        <TrendingUp className="h-4 w-4 shrink-0 text-emerald-600" />
-                        Doanh thu hệ thống (6 tháng gần nhất)
+                        <TrendingUp className={`h-4 w-4 shrink-0 ${toneClasses.icon}`} />
+                        {title}
                     </h2>
                     <p className="mt-0.5 text-xs text-neutral-500">
-                        Biểu đồ thể hiện lịch sử doanh thu hàng tháng
+                        {subtitle}
                     </p>
                 </div>
 
@@ -37,7 +54,7 @@ export default function RevenueOverviewPanel({
                             onClick={() => setViewMode("table")}
                             className={`inline-flex cursor-pointer items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs font-semibold transition-all ${
                                 viewMode === "table"
-                                    ? "bg-white text-emerald-800 shadow-sm"
+                                    ? `bg-white ${toneClasses.active} shadow-sm`
                                     : "text-neutral-500 hover:text-neutral-800"
                             }`}
                         >
@@ -49,7 +66,7 @@ export default function RevenueOverviewPanel({
                             onClick={() => setViewMode("chart")}
                             className={`inline-flex cursor-pointer items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs font-semibold transition-all ${
                                 viewMode === "chart"
-                                    ? "bg-white text-emerald-800 shadow-sm"
+                                    ? `bg-white ${toneClasses.active} shadow-sm`
                                     : "text-neutral-500 hover:text-neutral-800"
                             }`}
                         >
@@ -65,7 +82,7 @@ export default function RevenueOverviewPanel({
                                 onClick={() => setChartType("line")}
                                 className={`cursor-pointer rounded-lg px-2.5 py-1.5 text-xs font-semibold transition-all ${
                                     chartType === "line"
-                                        ? "bg-white text-emerald-800 shadow-sm"
+                                        ? `bg-white ${toneClasses.active} shadow-sm`
                                         : "text-neutral-500 hover:text-neutral-800"
                                 }`}
                             >
@@ -76,7 +93,7 @@ export default function RevenueOverviewPanel({
                                 onClick={() => setChartType("bar")}
                                 className={`cursor-pointer rounded-lg px-2.5 py-1.5 text-xs font-semibold transition-all ${
                                     chartType === "bar"
-                                        ? "bg-white text-emerald-800 shadow-sm"
+                                        ? `bg-white ${toneClasses.active} shadow-sm`
                                         : "text-neutral-500 hover:text-neutral-800"
                                 }`}
                             >
@@ -100,7 +117,7 @@ export default function RevenueOverviewPanel({
                                     Tháng
                                 </th>
                                 <th className="px-3 py-2.5 text-right text-xs font-bold uppercase tracking-wide text-neutral-500">
-                                    Doanh thu
+                                    {valueLabel}
                                 </th>
                                 <th className="px-3 py-2.5 text-right text-xs font-bold uppercase tracking-wide text-neutral-500">
                                     Xu hướng
@@ -144,9 +161,16 @@ export default function RevenueOverviewPanel({
                         showChartTypeToggle={false}
                         compact
                         emptyMessage={emptyMessage}
+                        tooltipLabel={valueLabel}
+                        tone={tone}
                     />
                 </div>
             )}
+
+            <div className={`mt-3 flex items-start gap-2 rounded-xl border px-3 py-2.5 text-[11px] leading-4 ${toneClasses.info}`}>
+                <Info className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+                {infoText}
+            </div>
         </section>
     );
 }

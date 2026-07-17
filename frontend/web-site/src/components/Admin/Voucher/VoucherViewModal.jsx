@@ -37,15 +37,19 @@ export default function VoucherViewModal({
 
     const isPending = isVoucherPending(voucher.status);
     const isActive = voucher.status === "active";
+    const isInactive = voucher.status === "inactive";
     const isRejected = voucher.status === "rejected";
+
 
     const statusLabel = isPending
         ? "Chờ duyệt"
         : isActive
           ? "Đang hoạt động"
-          : isRejected
-            ? "Từ chối"
-            : voucher.status;
+          : isInactive
+            ? "Ngừng hoạt động"
+            : isRejected
+                ? "Từ chối"
+                : voucher.status;
 
     const statusClass = isPending
         ? "bg-amber-100 text-amber-800"
@@ -124,7 +128,7 @@ export default function VoucherViewModal({
 
                             <div className="grid grid-cols-2 gap-4">
                                 <InfoField label="Mã Voucher" value={voucher.code} />
-                                <InfoField label="Người tạo / Đại lý" value={creatorDisplay} />
+                                <InfoField label="Người tạo" value={"Đại lý"} />
                             </div>
 
                             <InfoField label="Tiêu đề" value={voucher.title} />

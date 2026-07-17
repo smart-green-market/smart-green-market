@@ -5,9 +5,9 @@ import { formatDateTime } from "../../common/formatDateTime";
 // ── Status ─────────────────────────────────────────────────────────────
 const STATUS_CONFIG = {
     active:   { label: "HOẠT ĐỘNG",   bg: "bg-green-200",   text: "text-green-800"  },
+    inactive: { label: "NGỪNG HOẠT ĐỘNG", bg: "bg-gray-200",   text: "text-gray-800" },
     rejected: { label: "TỪ CHỐI",     bg: "bg-red-200",     text: "text-red-800"   },
-    pending:  { label: "ĐĂNG KÝ",     bg: "bg-amber-200",   text: "text-amber-800" },
-    draft:    { label: "ĐĂNG KÝ",     bg: "bg-amber-200",   text: "text-amber-800" },
+    pending:  { label: "CHỜ DUYỆT",     bg: "bg-amber-200",   text: "text-amber-800" },
 };
 
 const formatCurrency = (val) => {
@@ -68,7 +68,7 @@ const buildColumns = (onView) => [
         name: "Tiêu đề",
         selector: (row) => row.title,
         sortable: true,
-        grow: 1.5,
+        grow: 1,
         cell: (row) => (
             <div className="flex flex-col py-2 font-['Geist',sans-serif]">
                 <span className="font-semibold text-sm text-zinc-900 leading-tight">
@@ -119,7 +119,7 @@ const buildColumns = (onView) => [
         selector: (row) => row.status,
         sortable: true,
         center: true,
-        width: "130px",
+        width: "180px",
         cell: (row) => {
             const st = STATUS_CONFIG[row.status] ?? STATUS_CONFIG.pending;
             return (
