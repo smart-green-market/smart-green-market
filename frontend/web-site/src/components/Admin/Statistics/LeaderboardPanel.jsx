@@ -12,6 +12,9 @@ export default function LeaderboardPanel({
     compact = true,
     visibleItems = 3,
     className = "",
+    valueLabel = "Doanh thu",
+    orderLabel = "đơn hàng",
+    tone = "emerald",
 }) {
     const maxRevenue = useMemo(
         () => Math.max(...items.map((item) => Number(item[revenueKey] || 0)), 1),
@@ -19,6 +22,10 @@ export default function LeaderboardPanel({
     );
 
     const listMaxHeight = visibleItems * (compact ? 52 : 56);
+    const accent =
+        tone === "indigo"
+            ? { icon: "bg-indigo-50 text-indigo-700", bar: "bg-indigo-600" }
+            : { icon: "bg-emerald-50 text-emerald-700", bar: "bg-emerald-600" };
 
     return (
         <section
@@ -29,7 +36,7 @@ export default function LeaderboardPanel({
                     compact ? "px-4 py-3" : "px-5 py-4"
                 }`}
             >
-                <div className="shrink-0 rounded-lg bg-emerald-50 p-2 text-emerald-700">
+                <div className={`shrink-0 rounded-lg p-2 ${accent.icon}`}>
                     <Icon className="h-4 w-4" />
                 </div>
                 <div className="min-w-0">
@@ -87,6 +94,9 @@ export default function LeaderboardPanel({
                                         </span>
                                     </div>
                                     <div className="flex shrink-0 flex-col text-right">
+                                        <span className="text-[9px] font-bold uppercase tracking-wide text-neutral-400">
+                                            {valueLabel}
+                                        </span>
                                         <span
                                             className={`font-bold font-mono text-neutral-900 ${
                                                 compact ? "text-xs" : "text-sm"
@@ -95,13 +105,13 @@ export default function LeaderboardPanel({
                                             {formatCurrency(revenue)}
                                         </span>
                                         <span className="text-[10px] text-neutral-400">
-                                            {orders} đơn hàng
+                                            {orders} {orderLabel}
                                         </span>
                                     </div>
                                 </div>
                                 <div className="h-1 w-full overflow-hidden rounded-full bg-stone-100">
                                     <div
-                                        className="h-full rounded-full bg-emerald-600 transition-all duration-500"
+                                        className={`h-full rounded-full transition-all duration-500 ${accent.bar}`}
                                         style={{ width: `${percentage}%` }}
                                     />
                                 </div>

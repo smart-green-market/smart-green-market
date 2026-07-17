@@ -236,6 +236,13 @@ export const VOUCHER_STAT_CARDS = [
     style: "success",
   }),
   card({
+    key: "inactive",
+    label: "Ngừng hoạt động",
+    filterValue: "inactive",
+    icon: Lock,
+    style: "muted",
+  }),
+  card({
     key: "rejected",
     label: "Từ chối",
     filterValue: "rejected",
@@ -244,9 +251,9 @@ export const VOUCHER_STAT_CARDS = [
   }),
   card({
     key: "pending",
-    label: "Đăng ký",
+    label: "Chờ duyệt",
     filterValue: "pending",
-    countStatusKeys: ["pending", "draft"],
+    countStatusKeys: "pending",
     icon: Clock,
     style: "warning",
     match: (row) => row.status === "pending" || row.status === "draft",
