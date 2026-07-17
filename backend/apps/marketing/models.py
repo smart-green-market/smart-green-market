@@ -65,8 +65,13 @@ class CustomerSegmentMember(models.Model):
 
 class CustomerSegmentationHistory(models.Model):
     """lưu trữ lịch sử các phiên chạy phân loại khách hàng bằng AI và điểm đánh giá"""
-    dealer_id = models.IntegerField(verbose_name="Mã đại lý")
-    silhouette_score = models.FloatField(verbose_name="Điểm Silhouette Score")
+    dealer_id = models.IntegerField(verbose_name="Mã đại lý",default=0)
+    silhouette_score = models.FloatField(verbose_name="Điểm Silhouette Score",default=0.0)
+    total_customers = models.IntegerField(verbose_name="Tổng số khách hàng được phân loại", default=0)
+    vip_count = models.IntegerField(verbose_name="Số khách hàng VIP",default=0)
+    potential_count = models.IntegerField(verbose_name="Số khách hàng tiềm năng",default=0)
+    passive_count = models.IntegerField(verbose_name="Số khách hàng thụ động",default=0)
+    risk_count = models.IntegerField(verbose_name="Số khách hàng rủi ro",default=0)
     created_at = models.DateTimeField(default=timezone.now, verbose_name="Thời gian thực hiện")
 
     class Meta:
