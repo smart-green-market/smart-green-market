@@ -21,7 +21,7 @@ import StorefrontEntryRedirect from "./components/User/StorefrontEntryRedirect";
 //User Pages
 import { HomePage, ProductDetailPage, ProductsPage, CartPage, OrderPage, PaymentPage, OrderStatusPage, UserProfilePage, ChangePasswordPage, OrderHistoryPage, PreOrderRequestsPage, ProductReviewsPage, UserVoucherPage, BuyerNotificationsPage, UserLoginPage, UserRegisterPage, SearchProductPage, DealerSlugEntryPage, CheckoutPage, OrderTrackingPage, PoliciesPage, SupportPage, AboutUsPage } from "./pages/User";
 //Supplier Pages
-import { OrderSupplierPage, ProductSupplierPage, CertificationSupplierPage, RegisterPage, SupplierLoginPage, SupplierInfoPage, CategorySupplierPage, CultivationSupplierPage, DashboardSupplierPage, SupplierNotificationPage, NotFound, OrderStats, RevenuePage, SupplierDiscountPage } from "./pages/Supplier";
+import { OrderSupplierPage, ProductSupplierPage, CertificationSupplierPage, RegisterPage, SupplierLoginPage, SupplierInfoPage, CategorySupplierPage, CultivationSupplierPage, DashboardSupplierPage, SupplierNotificationPage, NotFound, OrderStats, RevenuePage, SupplierDiscountPage, CustomerSupplierPage } from "./pages/Supplier";
 //Admin Pages
 import { AdminStatisticsPage, AdminLoginPage, AdminDashboardPage, SettingPage, SupplierPage, CategoryPage, ProductPage, ProductMasterPage, SeasonPage, CertificationPage, DocumentPage, NotificationPage, DealerPage, VoucherPage, SupplierFinancePage, } from "./pages/Admin";
 //Dealer Pages
@@ -82,6 +82,7 @@ export default function App() {
                             <Route path="thong-ke-don-hang" element={<OrderStats />} />
                             <Route path="doanh-thu" element={<RevenuePage />} />
                             <Route path="giam-gia" element={<SupplierDiscountPage />} />
+                            <Route path="khach-hang" element={<CustomerSupplierPage />} />
                             <Route path="*" element={<NotFound />} />
                         </Route>
                     </Route>
