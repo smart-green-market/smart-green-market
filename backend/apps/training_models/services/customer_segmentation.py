@@ -381,8 +381,35 @@ class CustomerSegmentationService:
                 CustomerSegmentMember.objects.bulk_create(new_members)
             
             # BƯỚC 3: Lưu lịch sử phân loại
+            counts_dict = df_labeled['Customer_Tag_Code'].value_counts().to_dict()
+            
+            # Chuẩn hóa toàn bộ key của dictionary thành CHỮ HOA để tìm kiếm chính xác
+            normalized_counts = {str(k).upper(): v for k, v in counts_dict.items()}
+
+            # Hàm trích xuất số lượng linh hoạt dựa trên từ khóa trong mã code
+            def get_count_by_keyword(keyword):
+                for code_key, count_val in normalized_counts.items():
+                    if keyword in code_key:  # Khớp từ khóa (Ví dụ: 'VIP' nằm trong 'VIP_MEMBER')
+                        return count_val
+                return 0
+
+            total_customers = len(df_labeled)
+            vip_count = get_count_by_keyword('VIP')
+            potential_count = get_count_by_keyword('POTENTIAL')
+            passive_count = get_count_by_keyword('PASSIVE')
+            # Kiểm tra cả từ khóa 'RISK' hoặc 'AT_RISK' cho nhóm rủi ro
+            risk_count = get_count_by_keyword('RISK') 
+
+            # =================================================================
+            # BƯỚC 4: LƯU LỊCH SỬ PHÂN LOẠI VÀO MODEL MỚI
+            # =================================================================
             CustomerSegmentationHistory.objects.create(
                 dealer_id=dealer_id,
                 silhouette_score=silhouette_score,
+                total_customers=total_customers,
+                vip_count=vip_count,
+                potential_count=potential_count,
+                passive_count=passive_count,
+                risk_count=risk_count,
                 created_at=now
             )
