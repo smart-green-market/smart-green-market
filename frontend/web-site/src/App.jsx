@@ -19,11 +19,11 @@ import NotFoundPage from "../public/404";
 
 import StorefrontEntryRedirect from "./components/User/StorefrontEntryRedirect";
 //User Pages
-import { HomePage, ProductDetailPage, ProductsPage, CartPage, OrderPage, PaymentPage, OrderStatusPage, UserProfilePage, ChangePasswordPage, OrderHistoryPage, PreOrderRequestsPage, ProductReviewsPage, UserVoucherPage, BuyerNotificationsPage, UserLoginPage, UserRegisterPage, SearchProductPage, DealerSlugEntryPage, CheckoutPage, OrderTrackingPage, PoliciesPage, SupportPage, AboutUsPage } from "./pages/User";
+import { LoyaltyHistoryPage, HomePage, ProductDetailPage, ProductsPage, CartPage, OrderPage, PaymentPage, OrderStatusPage, UserProfilePage, ChangePasswordPage, OrderHistoryPage, PreOrderRequestsPage, ProductReviewsPage, UserVoucherPage, BuyerNotificationsPage, UserLoginPage, UserRegisterPage, SearchProductPage, DealerSlugEntryPage, CheckoutPage, OrderTrackingPage, PoliciesPage, SupportPage, AboutUsPage } from "./pages/User";
 //Supplier Pages
 import { OrderSupplierPage, ProductSupplierPage, CertificationSupplierPage, RegisterPage, SupplierLoginPage, SupplierInfoPage, CategorySupplierPage, CultivationSupplierPage, DashboardSupplierPage, SupplierNotificationPage, NotFound, OrderStats, RevenuePage, SupplierDiscountPage } from "./pages/Supplier";
 //Admin Pages
-import { AdminStatisticsPage, AdminLoginPage, AdminDashboardPage, SettingPage, SupplierPage, CategoryPage, ProductPage, ProductMasterPage, SeasonPage, CertificationPage, DocumentPage, NotificationPage, DealerPage, VoucherPage, SupplierFinancePage, } from "./pages/Admin";
+import { DetailDealerPage, AdminStatisticsPage, AdminLoginPage, AdminDashboardPage, SettingPage, SupplierPage, CategoryPage, ProductPage, ProductMasterPage, SeasonPage, CertificationPage, DocumentPage, NotificationPage, DealerPage, VoucherPage, SupplierFinancePage, } from "./pages/Admin";
 //Dealer Pages
 import { RegisterDealerPage, DealerLoginPage, DealerDashboardPage, DealerInventoryPage, DealerSupplierPage, DealerCategoryPage, DealerSalesOrderPage, DealerPreOrderPage, DealerPurchaseOrderPage, DealerCreatePurchaseOrderPage, DealerPurchaseOrderDetailPage, DealerDraftOrderPreviewPage, DealerSupplierDetailPage, DealerCategoryDetail, DealerInfoPage, DealerCustomerPage, DealerProductManagementPage, DealerProductDetailPage, DealerDiscountPage, DealerAiPredictionPage, DealerStatsPage } from "./pages/Dealer";
 export default function App() {
@@ -57,6 +57,7 @@ export default function App() {
                                     <Route path="" element={<UserProfilePage />} />
                                     <Route path="doi-mat-khau" element={<ChangePasswordPage />} />
                                     <Route path="lich-su-don-hang" element={<OrderHistoryPage />} />
+                                    <Route path="lich-su-diem" element={<LoyaltyHistoryPage />} />
                                     <Route path="dat-truoc" element={<PreOrderRequestsPage />} />
                                     <Route path="danh-gia-san-pham" element={<ProductReviewsPage />} />
                                     <Route path="vouchers" element={<UserVoucherPage />} />
@@ -106,6 +107,7 @@ export default function App() {
                             <Route path="giay-to" element={<DocumentPage />} />
                             <Route path="tat-ca-thong-bao" element={<NotificationPage />} />
                             <Route path="dai-ly" element={<DealerPage />} />
+                            <Route path="dai-ly/:id" element={<DetailDealerPage />} />
                             <Route path="khuyen-mai" element={<VoucherPage />} />
                         </Route>
                     </Route>

@@ -4,13 +4,16 @@ import AddressFormModal from "../../../components/User/Profile/AddressFormModal"
 import AddressSection from "../../../components/User/Profile/AddressSection";
 import EditProfileModal from "../../../components/User/Profile/EditProfileModal";
 import PersonalInfoCard from "../../../components/User/Profile/PersonalInfoCard";
+import LoyaltyTierModal from "../../../components/User/Profile/LoyaltyTierModal";
 import BuyerConfirmModal from "../../../components/User/Ui/BuyerConfirmModal";
 import { useBuyerAddresses } from "../../../hooks/useBuyerAddresses";
 import { useBuyerProfile } from "../../../hooks/useBuyerProfile";
+import { useBuyerLoyalty } from "../../../hooks/useBuyerLoyalty";
 import { appToast } from "../../../components/common/toast";
 
 export default function UserProfilePage() {
     const [isEditProfileOpen, setIsEditProfileOpen] = useState(false);
+    const [isLoyaltyTierOpen, setIsLoyaltyTierOpen] = useState(false);
     const [addressModal, setAddressModal] = useState({
         open: false,
         mode: "create",
@@ -31,6 +34,15 @@ export default function UserProfilePage() {
     } = useBuyerProfile();
 
     const {
+        score: loyaltyScore,
+        tiers: loyaltyTiers,
+        scoreLoading: loyaltyScoreLoading,
+        tiersLoading: loyaltyTiersLoading,
+        tiersError: loyaltyTiersError,
+        loadTiers,
+    } = useBuyerLoyalty();
+
+    const {
         addresses,
         loading: addressLoading,
         saving: addressSaving,
@@ -46,6 +58,11 @@ export default function UserProfilePage() {
 
     const openAddressModal = (mode, address = null) => {
         setAddressModal({ open: true, mode, address });
+    };
+
+    const openLoyaltyTiers = () => {
+        setIsLoyaltyTierOpen(true);
+        loadTiers();
     };
 
     const closeAddressModal = () => {
@@ -120,7 +137,10 @@ export default function UserProfilePage() {
         <div className="space-y-8">
             <PersonalInfoCard
                 profile={profile}
+                loyaltyScore={loyaltyScore}
+                loyaltyLoading={loyaltyScoreLoading}
                 onEdit={() => setIsEditProfileOpen(true)}
+                onOpenLoyaltyTiers={openLoyaltyTiers}
             />
 
             <AddressSection
@@ -152,6 +172,16 @@ export default function UserProfilePage() {
                 saving={profileSaving}
                 onClose={() => setIsEditProfileOpen(false)}
                 onSave={saveProfile}
+            />
+
+            <LoyaltyTierModal
+                open={isLoyaltyTierOpen}
+                onClose={() => setIsLoyaltyTierOpen(false)}
+                score={loyaltyScore}
+                tiers={loyaltyTiers}
+                loading={loyaltyTiersLoading}
+                error={loyaltyTiersError}
+                onRetry={() => loadTiers({ force: true })}
             />
 
             <AddressFormModal

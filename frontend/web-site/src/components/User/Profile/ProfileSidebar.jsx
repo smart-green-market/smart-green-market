@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Bell, ClipboardList, KeyRound, Loader2, LogOut, ScrollText, Star, Ticket, UserCircle2 } from "lucide-react";
+import { Bell, ClipboardList, Coins, KeyRound, Loader2, LogOut, ScrollText, Star, Ticket, UserCircle2 } from "lucide-react";
 import { NavLink } from "react-router-dom";
 import { useAuth } from "../../../contexts/authProvider";
 import { useStorefrontPaths } from "../../../hooks/useStorefrontPaths";
@@ -27,6 +27,12 @@ export default function ProfileSidebar() {
       label: "Lịch sử đơn hàng",
       to: `${paths.account}/lich-su-don-hang`,
       icon: ScrollText,
+    },
+    {
+      key: "loyalty-history",
+      label: "Lịch sử điểm",
+      to: `${paths.account}/lich-su-diem`,
+      icon: Coins,
     },
     {
       key: "preorders",

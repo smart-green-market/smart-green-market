@@ -1,4 +1,5 @@
 import { useCallback, useState } from "react";
+import { useNavigate } from "react-router-dom";
 
 import Toolbar from "../../components/Admin/UI/Toolbar";
 import { AdminInitialLoadGate } from "../../components/Admin/UI/AdminFetchState";
@@ -7,9 +8,6 @@ import AdminListPagination from "../../components/Admin/UI/AdminListPagination";
 import { DEALER_STAT_CARDS } from "../../components/Admin/UI/adminFilterStatsPresets";
 import DealerFilter from "../../components/Admin/Dealer/DealerFilter";
 import DealerTable from "../../components/Admin/Dealer/DealerTable";
-import DealerViewModal from "../../components/Admin/Dealer/DealerViewModal";
-import { getDealerApprovalDocumentError } from "../../components/Admin/Dealer/dealerDocumentHelpers";
-import { appToast } from "../../components/common/toast";
 import { dealerService, handleApiError } from "../../services/api/dealerService";
 import { useAdminPaginatedList } from "../../hooks/useAdminPaginatedList";
 import {
@@ -34,31 +32,11 @@ function formatDealerListItem(dealer) {
     };
 }
 
-function formatDealerDetail(detail) {
-    return {
-        id: detail.id,
-        store_name: detail.store_name,
-        store_address: detail.store_address,
-        description: detail.description,
-        status: detail.status,
-        rejection_reason: detail.rejection_reason,
-        verified_by: detail.verified_by_username || detail.verified_by,
-        verified_at: detail.verified_at,
-        created_at: detail.created_at,
-        updated_at: detail.updated_at,
-        account: detail.account || {},
-        documents: detail.documents || [],
-        products: detail.products || [],
-    };
-}
-
 export default function DealerPage() {
-    const [actionLoading, setActionLoading] = useState(false);
-    const [error, setError] = useState("");
+    const navigate = useNavigate();
     const [search, setSearch] = useState("");
     const debouncedSearch = useDebouncedValue(search, 350);
     const [statusFilter, setStatusFilter] = useState("");
-    const [viewRow, setViewRow] = useState(null);
 
     const {
         data,
@@ -72,7 +50,6 @@ export default function DealerPage() {
         pageRange,
         totalCount,
         fetchData,
-        refresh,
         handlePageChange,
         setCurrentPage,
     } = useAdminPaginatedList({
@@ -87,19 +64,10 @@ export default function DealerPage() {
             handleApiError(err, "Không thể tải danh sách đại lý"),
     });
 
-    const handleViewDealer = useCallback(async (row) => {
-        try {
-            setActionLoading(true);
-            setError("");
-
-            const detail = await dealerService.getById(row.id);
-            setViewRow(formatDealerDetail(detail));
-        } catch (err) {
-            setError(handleApiError(err, "Không thể tải chi tiết đại lý"));
-        } finally {
-            setActionLoading(false);
-        }
-    }, []);
+    const handleViewDealer = useCallback(
+        (row) => navigate(`/quan-tri/dai-ly/${row.id}`),
+        [navigate],
+    );
 
     const dealerStats = useAdminFilterStats({
         countStatus,
@@ -107,88 +75,6 @@ export default function DealerPage() {
         cards: DEALER_STAT_CARDS,
     });
     const statsLoading = useAdminStatsLoading(isFetching, countStatus);
-
-    const handleApprove = async (dealer) => {
-        try {
-            setActionLoading(true);
-
-            const detail = await dealerService.getById(dealer.id);
-            const docError = getDealerApprovalDocumentError(detail.documents);
-
-            if (docError) {
-                throw new Error(docError);
-            }
-
-            await dealerService.verify(dealer.id, { status: "active" });
-            setViewRow(null);
-            await refresh();
-        } catch (err) {
-            const msg = handleApiError(err, "Không thể duyệt đại lý");
-            if (msg.includes("giấy tờ")) {
-                appToast.warning(msg);
-            } else {
-                appToast.danger(msg);
-            }
-            console.error(msg);
-            throw new Error(msg);
-        } finally {
-            setActionLoading(false);
-        }
-    };
-
-    const handleReject = async (dealer, rejectionReason) => {
-        try {
-            setActionLoading(true);
-            await dealerService.verify(dealer.id, {
-                status: "rejected",
-                rejection_reason: rejectionReason,
-            });
-            setViewRow(null);
-            await refresh();
-        } catch (err) {
-            const msg = handleApiError(err, "Không thể từ chối đại lý");
-            console.error(msg);
-            throw new Error(msg);
-        } finally {
-            setActionLoading(false);
-        }
-    };
-
-    const handleLock = async (dealer) => {
-        try {
-            setActionLoading(true);
-            await dealerService.statusUpdate(dealer.id, {
-                status: "inactive",
-                reason: "Tạm khóa bởi admin",
-            });
-            setViewRow(null);
-            await refresh();
-        } catch (err) {
-            const msg = handleApiError(err, "Không thể khóa đại lý");
-            console.error(msg);
-            throw new Error(msg);
-        } finally {
-            setActionLoading(false);
-        }
-    };
-
-    const handleUnlock = async (dealer) => {
-        try {
-            setActionLoading(true);
-            await dealerService.statusUpdate(dealer.id, {
-                status: "active",
-                reason: "Mở khóa bởi admin",
-            });
-            setViewRow(null);
-            await refresh();
-        } catch (err) {
-            const msg = handleApiError(err, "Không thể mở khóa đại lý");
-            console.error(msg);
-            throw new Error(msg);
-        } finally {
-            setActionLoading(false);
-        }
-    };
 
     const handleFilterChange = useCallback(
         (value) => {
@@ -226,9 +112,9 @@ export default function DealerPage() {
                     }
                 />
 
-                {error || listError ? (
+                {listError ? (
                     <div className="rounded-xl bg-red-100 px-4 py-3 text-sm text-red-700">
-                        {error || listError}
+                        {listError}
                     </div>
                 ) : null}
 
@@ -255,17 +141,6 @@ export default function DealerPage() {
                         </p>
                     </div>
                 )}
-
-                <DealerViewModal
-                    isOpen={viewRow !== null}
-                    onClose={() => setViewRow(null)}
-                    dealer={viewRow}
-                    onApprove={handleApprove}
-                    onReject={handleReject}
-                    onLock={handleLock}
-                    onUnlock={handleUnlock}
-                    loading={actionLoading}
-                />
             </div>
         </AdminInitialLoadGate>
     );
