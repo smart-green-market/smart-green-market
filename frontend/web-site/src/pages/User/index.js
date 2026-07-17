@@ -8,6 +8,7 @@ export { default as OrderStatusPage } from "./OrderStatus";
 export { default as UserProfilePage } from "./Profile/Profile";
 export { default as ChangePasswordPage } from "./Profile/ChangePassword";
 export { default as OrderHistoryPage } from "./Profile/OrderHistoryPage";
+export { default as LoyaltyHistoryPage } from "./Profile/LoyaltyHistoryPage";
 export { default as PreOrderRequestsPage } from "./Profile/PreOrderRequestsPage";
 export { default as ProductReviewsPage } from "./Profile/ProductReviewsPage";
 export { default as UserVoucherPage } from "./Profile/UserVoucherPage";

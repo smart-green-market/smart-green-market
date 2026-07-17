@@ -31,6 +31,7 @@ export default function DeliveryInfoForm({
               name="receiverName"
               value={deliveryInfo.receiverName}
               onChange={handleChange}
+              maxLength={255}
               placeholder="Tên người nhận"
               className="w-full text-sm pl-9 pr-3 py-2 rounded-xl border border-neutral-200 focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500/20 transition-all bg-neutral-50/50 hover:bg-white"
             />
@@ -49,6 +50,7 @@ export default function DeliveryInfoForm({
               name="receiverPhone"
               value={deliveryInfo.receiverPhone}
               onChange={handleChange}
+              maxLength={20}
               placeholder="Số điện thoại"
               className="w-full text-sm pl-9 pr-3 py-2 rounded-xl border border-neutral-200 focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500/20 transition-all bg-neutral-50/50 hover:bg-white"
             />
@@ -85,6 +87,7 @@ export default function DeliveryInfoForm({
               name="requestedDeliveryTime"
               value={deliveryInfo.requestedDeliveryTime}
               onChange={handleChange}
+              min={new Date(new Date().getTime() - new Date().getTimezoneOffset() * 60000).toISOString().slice(0, 16)}
               className="w-full text-sm pl-9 pr-3 py-2 rounded-xl border border-neutral-200 focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500/20 transition-all bg-neutral-50/50 hover:bg-white"
             />
           </div>

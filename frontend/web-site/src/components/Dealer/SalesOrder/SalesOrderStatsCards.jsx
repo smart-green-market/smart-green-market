@@ -13,6 +13,17 @@ const STAT_CARDS = [
         activeBg: "bg-gray-100",
     },
     {
+        key: "completed",
+        label: "Hoàn tất",
+        icon: CheckCircle2,
+        filterValue: "completed",
+        bgColor: "bg-emerald-50",
+        iconColor: "text-emerald-500",
+        countColor: "text-emerald-700",
+        borderColor: "border-emerald-200",
+        activeBg: "bg-emerald-100",
+    },
+    {
         key: "pending",
         label: "Chờ xác nhận",
         icon: Clock,
@@ -34,6 +45,7 @@ const STAT_CARDS = [
         borderColor: "border-indigo-200",
         activeBg: "bg-indigo-100",
     },
+
     {
         key: "return_requested",
         label: "Yêu cầu hoàn trả",

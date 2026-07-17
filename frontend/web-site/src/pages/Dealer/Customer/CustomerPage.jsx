@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import SupplierFilter from "../../../components/Dealer/Supplier/SupplierFilter";
 import CustomerHeader from "../../../components/Dealer/Customer/CustomerHeader";
 import CustomerTable from "../../../components/Dealer/Customer/CustomerTable";
+import CustomerLoyaltyModal from "../../../components/Dealer/Customer/CustomerLoyaltyModal";
 import { customerService } from "../../../services/api/customerService";
 import { dealerOrderService } from "../../../services/api/dealerOrderService";
 import { useAuth } from "../../../contexts/authProvider";
@@ -24,6 +25,8 @@ export default function DealerCustomerPage() {
     pageSize: 10,
     hasMore: false,
   });
+  const [selectedLoyaltyCustomer, setSelectedLoyaltyCustomer] = useState(null);
+  const [isLoyaltyOpen, setIsLoyaltyOpen] = useState(false);
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -158,21 +161,35 @@ export default function DealerCustomerPage() {
 
       {/* Table Section */}
       {loading ? (
-          <div className="flex justify-center items-center py-20">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-emerald-600"></div>
-          </div>
+        <div className="flex justify-center items-center py-20">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-emerald-600"></div>
+        </div>
       ) : (
-          <CustomerTable
-            loading={loading}
-            error={error}
-            customers={filteredCustomers}
-            pagination={pagination}
-            onPageChange={fetchCustomers}
-            onRetry={() => fetchCustomers(pagination.page)}
-            searchQuery={searchQuery}
-            statusFilter={statusFilter}
-          />
+        <CustomerTable
+          loading={loading}
+          error={error}
+          customers={filteredCustomers}
+          pagination={pagination}
+          onPageChange={fetchCustomers}
+          onRetry={() => fetchCustomers(pagination.page)}
+          searchQuery={searchQuery}
+          statusFilter={statusFilter}
+          onViewLoyalty={(customer) => {
+            setSelectedLoyaltyCustomer(customer);
+            setIsLoyaltyOpen(true);
+          }}
+        />
       )}
+
+      <CustomerLoyaltyModal
+        customer={selectedLoyaltyCustomer}
+        isOpen={isLoyaltyOpen}
+        onClose={() => {
+          setIsLoyaltyOpen(false);
+          setSelectedLoyaltyCustomer(null);
+        }}
+        onSuccess={() => fetchCustomers(pagination.page)}
+      />
 
     </div>
   );

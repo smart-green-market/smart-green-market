@@ -52,7 +52,7 @@ export default function DealerDiscountPage() {
   const [vouchers, setVouchers] = useState([]);
   const [isVouchersLoading, setIsVouchersLoading] = useState(true);
   const [voucherSearch, setVoucherSearch] = useState("");
-  const [voucherStatus, setVoucherStatus] = useState("all");
+  const [voucherStatus, setVoucherStatus] = useState("active");
   const [voucherPage, setVoucherPage] = useState(1);
   const [vouchersTotalCount, setVouchersTotalCount] = useState(0);
   const vouchersLimit = 10;

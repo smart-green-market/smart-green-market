@@ -243,6 +243,29 @@
   text-overflow: ellipsis;
 }
 
+/* Breakdown tiền cọc / thanh toán cuối */
+.rev-kpi-breakdown {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin-top: 6px;
+  padding-top: 6px;
+  border-top: 1px dashed var(--border);
+}
+
+.rev-kpi-breakdown-item {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 10px;
+  color: var(--text3);
+}
+
+.rev-kpi-breakdown-item i {
+  font-size: 11px;
+  flex-shrink: 0;
+}
+
 /* ══════════════════════════════════════════════════════════════
    PHẦN 3: BIỂU ĐỒ (RECHARTS)
    ══════════════════════════════════════════════════════════════ */
