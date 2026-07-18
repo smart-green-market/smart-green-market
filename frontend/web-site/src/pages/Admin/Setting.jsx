@@ -1,5 +1,7 @@
 import { useState, useEffect, useCallback, useMemo } from "react";
 import {
+    Activity,
+    BrainCircuit,
     HardDrive,
     Loader2,
     RefreshCw,
@@ -7,11 +9,12 @@ import {
     Save,
     Shield,
     ShoppingCart,
-    Sparkles,
     Truck,
     Undo2,
 } from "lucide-react";
+import { Link } from "react-router-dom";
 import { AdminPageLoadError, AdminPageLoading } from "../../components/Admin/UI/AdminFetchState";
+import CustomerSegmentationModal from "../../components/Admin/Segmentation/CustomerSegmentationModal";
 import ConfirmModal from "../../components/common/ConfirmModal";
 import { appToast } from "../../components/common/toast";
 import { settingService, handleApiError } from "../../services/api/settingService";
@@ -294,8 +297,8 @@ export default function SettingsAside() {
     );
     const [isFetching, setIsFetching] = useState(true);
     const [isSaving, setIsSaving] = useState(false);
-    const [isTraining, setIsTraining] = useState(false);
     const [isSyncing, setIsSyncing] = useState(false);
+    const [segmentationOpen, setSegmentationOpen] = useState(false);
     const [loadError, setLoadError] = useState("");
     const [confirmOpen, setConfirmOpen] = useState(false);
 
@@ -320,6 +323,8 @@ export default function SettingsAside() {
     }, [applyConfig]);
 
     useEffect(() => {
+        // Đồng bộ cấu hình từ API khi trang được mở.
+        // eslint-disable-next-line react-hooks/set-state-in-effect
         fetchConfig();
     }, [fetchConfig]);
 
@@ -339,28 +344,6 @@ export default function SettingsAside() {
 
     const handleReset = () => {
         setFormValues(originalValues);
-    };
-
-    const handleTrainAi = async () => {
-        setIsTraining(true);
-        try {
-            const result = await aiTrainingServicer.trainRelatedProducts();
-            if (result?.success) {
-                appToast.success(
-                    result.message || "Đã huấn luyện mô hình gợi ý sản phẩm.",
-                );
-            } else {
-                appToast.warning(
-                    result?.message || "Huấn luyện AI không thành công.",
-                );
-            }
-        } catch (err) {
-            appToast.error(
-                handleTrainingApiError(err, "Không thể huấn luyện mô hình AI."),
-            );
-        } finally {
-            setIsTraining(false);
-        }
     };
 
     const handleSyncRelatedProducts = async () => {
@@ -394,7 +377,9 @@ export default function SettingsAside() {
             const updated = await settingService.update(patch);
             applyConfig(updated);
         } catch (err) {
-            throw new Error(handleApiError(err, "Không thể cập nhật cấu hình"));
+            throw new Error(handleApiError(err, "Không thể cập nhật cấu hình"), {
+                cause: err,
+            });
         } finally {
             setIsSaving(false);
         }
@@ -446,7 +431,7 @@ export default function SettingsAside() {
                         <button
                             type="button"
                             onClick={fetchConfig}
-                            disabled={isSaving || isTraining || isSyncing}
+                            disabled={isSaving || isSyncing}
                             title="Tải lại"
                             className="cursor-pointer inline-flex shrink-0 items-center gap-2 rounded-lg border border-neutral-300 px-4 py-2.5 text-sm font-semibold text-neutral-700 transition-colors hover:bg-neutral-50 disabled:opacity-50"
                         >
@@ -457,7 +442,7 @@ export default function SettingsAside() {
                         <button
                             type="button"
                             onClick={handleSyncRelatedProducts}
-                            disabled={isSaving || isTraining || isSyncing}
+                            disabled={isSaving || isSyncing}
                             title="Đồng bộ gợi ý sản phẩm từ mô hình hiện có"
                             className="cursor-pointer inline-flex shrink-0 items-center gap-2 rounded-lg border border-emerald-300 bg-emerald-50 px-4 py-2.5 text-sm font-semibold text-emerald-800 transition-colors hover:bg-emerald-100 disabled:opacity-50"
                         >
@@ -469,19 +454,23 @@ export default function SettingsAside() {
                             Đồng bộ
                         </button>
 
+                        <Link
+                            to="/quan-tri/danh-gia-phan-khuc"
+                            className="inline-flex shrink-0 items-center gap-2 rounded-lg border border-sky-300 bg-sky-50 px-4 py-2.5 text-sm font-semibold text-sky-800 no-underline transition-colors hover:bg-sky-100"
+                        >
+                            <Activity className="h-4 w-4" />
+                            Đánh giá mô hình
+                        </Link>
+
                         <button
                             type="button"
-                            onClick={handleTrainAi}
-                            disabled={isSaving || isTraining || isSyncing}
-                            title="Huấn luyện gợi ý sản phẩm liên quan"
+                            onClick={() => setSegmentationOpen(true)}
+                            disabled={isSaving || isSyncing}
+                            title="Phân loại khách hàng theo Đại lý"
                             className="cursor-pointer inline-flex shrink-0 items-center gap-2 rounded-lg border border-violet-300 bg-violet-50 px-4 py-2.5 text-sm font-semibold text-violet-800 transition-colors hover:bg-violet-100 disabled:opacity-50"
                         >
-                            {isTraining ? (
-                                <Loader2 className="h-4 w-4 animate-spin" />
-                            ) : (
-                                <Sparkles className="h-4 w-4" />
-                            )}
-                            Training AI
+                            <BrainCircuit className="h-4 w-4" />
+                            Phân loại khách hàng
                         </button>
 
                         {isDirty ? (
@@ -593,6 +582,13 @@ export default function SettingsAside() {
                 errorMessage="Không thể cập nhật cấu hình. Vui lòng thử lại."
                 loading={isSaving}
             />
+
+            {segmentationOpen ? (
+                <CustomerSegmentationModal
+                    open
+                    onClose={() => setSegmentationOpen(false)}
+                />
+            ) : null}
         </aside>
     );
 }

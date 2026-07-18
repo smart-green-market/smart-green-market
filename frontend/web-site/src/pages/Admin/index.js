@@ -1,6 +1,7 @@
 export { default as AdminLoginPage } from "./AdminLoginPage";
 export { default as AdminDashboardPage } from "./Dashboard";
 export { default as AdminStatisticsPage } from "./Statistics";
+export { default as SegmentModelEvaluationPage } from "./SegmentModelEvaluation";
 export { default as SettingPage } from "./Setting";
 export { default as SupplierPage } from "./Suppiler";
 export { default as CategoryPage } from "./Category";
