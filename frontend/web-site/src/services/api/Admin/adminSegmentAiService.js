@@ -196,23 +196,39 @@ export const adminSegmentAiService = {
 
   // GET /api/dealer/segmentation-history/?dealer_id={id}
   // Các phiên phân loại trong 60 ngày gần nhất, API sắp xếp tăng dần.
-  getDealerHistory: (dealerId) =>
-    axiosClient
+  getDealerHistory: (dealerId) => {
+    const normalizedDealerId = toNumber(dealerId, null);
+    if (normalizedDealerId == null) {
+      return Promise.reject(new Error("ID Đại lý không hợp lệ."));
+    }
+
+    return axiosClient
       .get("/dealer/segmentation-history/", {
-        params: { dealer_id: Number(dealerId) },
+        params: { dealer_id: normalizedDealerId },
       })
       .then((response) => {
         const items = Array.isArray(response.data)
           ? response.data
           : (response.data?.results ?? []);
         return items
-          .map(normalizeSegmentationRecord)
+          .filter(
+            (item) =>
+              item?.dealer_id == null ||
+              toNumber(item.dealer_id, null) === normalizedDealerId,
+          )
+          .map((item) =>
+            normalizeSegmentationRecord({
+              ...item,
+              dealer_id: item?.dealer_id ?? normalizedDealerId,
+            }),
+          )
           .sort(
             (left, right) =>
               new Date(left.created_at || 0).getTime() -
               new Date(right.created_at || 0).getTime(),
           );
-      }),
+      });
+  },
   // Lịch sử phân nhóm khách hàng trong 60 ngày gần nhất của Dealer
   //Trả về toàn bộ các phiên phân cụm AI trong vòng 60 ngày qua, sắp xếp tuần tự tăng dần phục vụ vẽ biểu đồ miền.
 

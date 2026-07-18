@@ -30,6 +30,44 @@ const SEGMENT_AREAS = [
   { key: "churnRisk", name: "Có nguy cơ rời bỏ", color: "#ea580c" },
 ];
 
+function getApiTimestamp(item) {
+  const formatted = String(item?.formatted_created_at || "").trim();
+  const createdAt = item?.created_at ? new Date(item.created_at) : null;
+  const hasValidCreatedAt = createdAt && !Number.isNaN(createdAt.getTime());
+  const seconds = hasValidCreatedAt
+    ? String(createdAt.getUTCSeconds()).padStart(2, "0")
+    : "";
+
+  if (formatted) {
+    const [datePart, timePart = ""] = formatted.split(/\s+/, 2);
+    const timeParts = timePart.split(":");
+    const exactTime =
+      timePart && timeParts.length === 2 && seconds
+        ? `${timePart}:${seconds}`
+        : timePart;
+    const shortDate = datePart.split("/").slice(0, 2).join("/");
+    return {
+      day: shortDate,
+      time: exactTime,
+      full: [datePart, exactTime].filter(Boolean).join(" "),
+    };
+  }
+
+  if (!hasValidCreatedAt) return { day: "—", time: "", full: "—" };
+
+  const day = String(createdAt.getUTCDate()).padStart(2, "0");
+  const month = String(createdAt.getUTCMonth() + 1).padStart(2, "0");
+  const year = createdAt.getUTCFullYear();
+  const hour = String(createdAt.getUTCHours()).padStart(2, "0");
+  const minute = String(createdAt.getUTCMinutes()).padStart(2, "0");
+  const exactTime = `${hour}:${minute}:${seconds}`;
+  return {
+    day: `${day}/${month}`,
+    time: exactTime,
+    full: `${day}/${month}/${year} ${exactTime}`,
+  };
+}
+
 const STATUS_LABELS = {
   active: "Hoạt động",
   inactive: "Tạm khóa",
@@ -103,18 +141,19 @@ function TablePagination({ page, pageSize, totalCount, onPageChange }) {
 }
 
 export function DealerSegmentChart({ data = [], loading, error, onRetry }) {
-  const chartRows = data.map((item) => {
+  const chartRows = data.map((item, index) => {
     const counts = Object.fromEntries(
       (item.segment_counts || []).map((segment) => [segment.code, segment.count]),
     );
-    const createdAt = item.created_at ? new Date(item.created_at) : null;
-    const hasValidCreatedAt = createdAt && !Number.isNaN(createdAt.getTime());
+    const timestamp = getApiTimestamp(item);
+    const previousTimestamp = index > 0 ? getApiTimestamp(data[index - 1]) : null;
     return {
       id: item.id,
-      date: hasValidCreatedAt
-        ? new Intl.DateTimeFormat("vi-VN", { day: "2-digit", month: "2-digit" }).format(createdAt)
-        : item.formatted_created_at || "—",
-      fullDate: item.formatted_created_at || (hasValidCreatedAt ? formatDateTime(item.created_at) : "—"),
+      date:
+        previousTimestamp?.day === timestamp.day && timestamp.time
+          ? timestamp.time
+          : timestamp.day,
+      fullDate: timestamp.full,
       vip: Number(counts.VIP || 0),
       potential: Number(counts.POTENTIAL || 0),
       passive: Number(counts.PASSIVE || 0),
@@ -188,7 +227,11 @@ export function DealerSegmentChart({ data = [], loading, error, onRetry }) {
                   ))}
                 </defs>
                 <CartesianGrid strokeDasharray="4 4" vertical={false} stroke="#e5e7eb" />
-                <XAxis dataKey="date" tick={{ fontSize: 11, fill: "#6b7280" }} />
+                <XAxis
+                  dataKey="date"
+                  interval={0}
+                  tick={{ fontSize: 11, fill: "#6b7280" }}
+                />
                 <YAxis allowDecimals={false} tick={{ fontSize: 11, fill: "#6b7280" }} />
                 <Tooltip
                   labelFormatter={(_, payload) => payload?.[0]?.payload?.fullDate || ""}
