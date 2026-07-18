@@ -436,7 +436,7 @@ function DealerInformation({
                 Duyệt đại lý
               </button>
             ) : null}
-            {displayStatus === "active" || displayStatus === "pending" ? (
+            {displayStatus === "pending" ? (
               <button
                 type="button"
                 disabled={actionLoading}
@@ -446,7 +446,7 @@ function DealerInformation({
                 Từ chối
               </button>
             ) : null}
-            {displayStatus === "active" ? (
+            {/* {displayStatus === "active" ? (
               <button
                 type="button"
                 disabled={actionLoading}
@@ -465,7 +465,7 @@ function DealerInformation({
               >
                 Mở khóa
               </button>
-            ) : null}
+            ) : null} */}
           </div>
         </div>
       </div>
