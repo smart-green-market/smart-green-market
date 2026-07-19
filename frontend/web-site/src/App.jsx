@@ -23,7 +23,7 @@ import { LoyaltyHistoryPage, HomePage, ProductDetailPage, ProductsPage, CartPage
 //Supplier Pages
 import { OrderSupplierPage, ProductSupplierPage, CertificationSupplierPage, RegisterPage, SupplierLoginPage, SupplierInfoPage, CategorySupplierPage, CultivationSupplierPage, DashboardSupplierPage, SupplierNotificationPage, NotFound, OrderStats, RevenuePage, SupplierDiscountPage, CustomerSupplierPage } from "./pages/Supplier";
 //Admin Pages
-import { SegmentModelEvaluationPage, DetailDealerPage, AdminStatisticsPage, AdminLoginPage, AdminDashboardPage, SettingPage, SupplierPage, CategoryPage, ProductPage, ProductMasterPage, SeasonPage, CertificationPage, DocumentPage, NotificationPage, DealerPage, VoucherPage, SupplierFinancePage, } from "./pages/Admin";
+import { TrainingHistoryPage, SegmentModelEvaluationPage, DetailDealerPage, AdminStatisticsPage, AdminLoginPage, AdminDashboardPage, SettingPage, SupplierPage, CategoryPage, ProductPage, ProductMasterPage, SeasonPage, CertificationPage, DocumentPage, NotificationPage, DealerPage, VoucherPage, SupplierFinancePage, } from "./pages/Admin";
 //Dealer Pages
 import { RegisterDealerPage, DealerLoginPage, DealerDashboardPage, DealerInventoryPage, DealerSupplierPage, DealerCategoryPage, DealerSalesOrderPage, DealerPreOrderPage, DealerPurchaseOrderPage, DealerCreatePurchaseOrderPage, DealerPurchaseOrderDetailPage, DealerDraftOrderPreviewPage, DealerSupplierDetailPage, DealerCategoryDetail, DealerInfoPage, DealerCustomerPage, DealerProductManagementPage, DealerProductDetailPage, DealerDiscountPage, DealerAiPredictionPage, DealerStatsPage, DealerLoyaltyPage } from "./pages/Dealer";
 export default function App() {
@@ -111,6 +111,7 @@ export default function App() {
                             <Route path="dai-ly" element={<DealerPage />} />
                             <Route path="dai-ly/:id" element={<DetailDealerPage />} />
                             <Route path="khuyen-mai" element={<VoucherPage />} />
+                            <Route path="lich-su-huan-luyen-ai" element={<TrainingHistoryPage />} />
                         </Route>
                     </Route>
 
