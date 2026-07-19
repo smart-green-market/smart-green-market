@@ -12,4 +12,5 @@ export { default as NotFound } from "./NotFound"
 export { default as RevenuePage } from "./Revenue";
 export { default as OrderStats } from "./OrderStats";
 export { default as SupplierDiscountPage } from "./Discount";
+export { default as CustomerSupplierPage } from "./Customer";
 

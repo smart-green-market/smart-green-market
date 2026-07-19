@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useId, useMemo, useState } from "react";
 import { formatCurrency, formatCurrencyShort } from "../../../utils/adminStatisticsUtils";
 
 export default function StatisticsChart({
@@ -14,7 +14,26 @@ export default function StatisticsChart({
     compact = false,
     hideXLabels = false,
     fitContainer = false,
+    tooltipLabel = "Giá trị",
+    tone = "emerald",
 }) {
+    const gradientId = useId().replace(/:/g, "");
+    const palette =
+        tone === "indigo"
+            ? {
+                  primary: "#4f46e5",
+                  secondary: "#818cf8",
+                  area: "#6366f1",
+                  activeText: "text-indigo-800",
+                  tooltipText: "text-indigo-300",
+              }
+            : {
+                  primary: "#059669",
+                  secondary: "#10b981",
+                  area: "#10b981",
+                  activeText: "text-emerald-800",
+                  tooltipText: "text-emerald-400",
+              };
     const [internalChartType, setInternalChartType] = useState("line");
     const chartType = chartTypeProp ?? internalChartType;
     const setChartType = onChartTypeChange ?? setInternalChartType;
@@ -111,7 +130,7 @@ export default function StatisticsChart({
                             onClick={() => setChartType("line")}
                             className={`cursor-pointer rounded-lg px-3 py-1.5 text-xs font-semibold transition-all ${
                                 chartType === "line"
-                                    ? "bg-white text-emerald-800 shadow-sm"
+                                    ? `bg-white ${palette.activeText} shadow-sm`
                                     : "text-neutral-500 hover:text-neutral-800"
                             }`}
                         >
@@ -122,7 +141,7 @@ export default function StatisticsChart({
                             onClick={() => setChartType("bar")}
                             className={`cursor-pointer rounded-lg px-3 py-1.5 text-xs font-semibold transition-all ${
                                 chartType === "bar"
-                                    ? "bg-white text-emerald-800 shadow-sm"
+                                    ? `bg-white ${palette.activeText} shadow-sm`
                                     : "text-neutral-500 hover:text-neutral-800"
                             }`}
                         >
@@ -145,13 +164,13 @@ export default function StatisticsChart({
                     preserveAspectRatio="xMidYMid meet"
                 >
                     <defs>
-                        <linearGradient id="statsAreaGradient" x1="0" y1="0" x2="0" y2="1">
-                            <stop offset="0%" stopColor="#10b981" stopOpacity="0.25" />
-                            <stop offset="100%" stopColor="#10b981" stopOpacity="0" />
+                        <linearGradient id={`${gradientId}-area`} x1="0" y1="0" x2="0" y2="1">
+                            <stop offset="0%" stopColor={palette.area} stopOpacity="0.25" />
+                            <stop offset="100%" stopColor={palette.area} stopOpacity="0" />
                         </linearGradient>
-                        <linearGradient id="statsBarGradient" x1="0" y1="0" x2="0" y2="1">
-                            <stop offset="0%" stopColor="#059669" />
-                            <stop offset="100%" stopColor="#10b981" />
+                        <linearGradient id={`${gradientId}-bar`} x1="0" y1="0" x2="0" y2="1">
+                            <stop offset="0%" stopColor={palette.primary} />
+                            <stop offset="100%" stopColor={palette.secondary} />
                         </linearGradient>
                     </defs>
 
@@ -222,11 +241,11 @@ export default function StatisticsChart({
                           })}
 
                     {chartType === "line" && areaPath ? (
-                        <path d={areaPath} fill="url(#statsAreaGradient)" />
+                        <path d={areaPath} fill={`url(#${gradientId}-area)`} />
                     ) : null}
 
                     {chartType === "line" && linePath ? (
-                        <path d={linePath} fill="none" stroke="#10b981" strokeWidth={3} strokeLinecap="round" />
+                        <path d={linePath} fill="none" stroke={palette.secondary} strokeWidth={3} strokeLinecap="round" />
                     ) : null}
 
                     {chartType === "bar"
@@ -246,7 +265,7 @@ export default function StatisticsChart({
                                       y={point.y}
                                       width={barWidth}
                                       height={barHeight}
-                                      fill={isHovered ? "#047857" : "url(#statsBarGradient)"}
+                                      fill={isHovered ? palette.primary : `url(#${gradientId}-bar)`}
                                       rx={4}
                                       className="cursor-pointer transition-all duration-200"
                                   />
@@ -261,7 +280,7 @@ export default function StatisticsChart({
                                   cx={point.x}
                                   cy={point.y}
                                   r={hoveredIndex === index ? 6 : 4}
-                                  fill={hoveredIndex === index ? "#059669" : "#10b981"}
+                                  fill={hoveredIndex === index ? palette.primary : palette.secondary}
                                   stroke="#ffffff"
                                   strokeWidth={2}
                               />
@@ -313,8 +332,11 @@ export default function StatisticsChart({
                         <div className="text-[9px] font-bold uppercase tracking-wider text-neutral-400">
                             {hoveredPoint.label}
                         </div>
-                        <div className="mt-0.5 text-xs font-black text-emerald-400">
+                        <div className={`mt-0.5 text-xs font-black ${palette.tooltipText}`}>
                             {formatCurrency(hoveredPoint.value)}
+                        </div>
+                        <div className="mt-0.5 text-[9px] font-semibold text-neutral-300">
+                            {tooltipLabel}
                         </div>
                     </div>
                 ) : null}
