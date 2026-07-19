@@ -35,14 +35,26 @@ class ProductPredictionResult(models.Model):
         return f"{self.product_name} - {self.decision} ({self.decision_confidence * 100:.1f}%)"
     
 class AITrainingHistory(models.Model):
-    model_name = models.CharField(max_length=50, default="Item2Vec")
-    run_date = models.DateTimeField(default=timezone.now)
-    epochs_run = models.IntegerField(help_text="Số epoch thực tế đã chạy (sau khi EarlyStopping)")
-    final_loss = models.FloatField(help_text="Độ suy hao (Loss) ở epoch cuối cùng")
-    catalog_coverage = models.FloatField(help_text="Độ phủ danh mục (%)")
-    total_items_trained = models.IntegerField(help_text="Tổng số sản phẩm tham gia huấn luyện")
-    status = models.CharField(max_length=20, default="SUCCESS")
+    model_name = models.CharField(max_length=50, default="Item2Vec", verbose_name="Thuật toán áp dụng")
+    run_date = models.DateTimeField(default=timezone.now, verbose_name="Thời gian chạy")
+    epochs_run = models.IntegerField(help_text="Số chu kỳ học (vòng lặp) để AI nắm bắt dữ liệu", verbose_name="Chu kỳ học")
+    final_loss = models.FloatField(help_text="Độ sai lệch (càng thấp càng tốt)", verbose_name="Chỉ số sai lệch (Loss)")
+    catalog_coverage = models.FloatField(help_text="Tỷ lệ % sản phẩm hệ thống có đủ dữ liệu để hỗ trợ gợi ý", verbose_name="Tỷ lệ bao phủ sản phẩm")
+    total_items_trained = models.IntegerField(help_text="Số lượng sản phẩm đủ điều kiện tham gia phân tích", verbose_name="Tổng sản phẩm phân tích")
+    status = models.CharField(max_length=20, default="SUCCESS", verbose_name="Trạng thái")
+    loss_history = models.JSONField(
+        default=list,
+        help_text="Dữ liệu biểu diễn mức độ cải thiện của AI qua từng chu kỳ học",
+        verbose_name="Biểu đồ học hỏi"
+    )
+    dealer_coverage_detail = models.JSONField(
+        default=list,
+        help_text="Chi tiết khả năng AI hỗ trợ từng cửa hàng (Tỷ lệ sản phẩm được AI ưu tiên gợi ý)",
+        verbose_name="Chi tiết hiệu quả theo Cửa hàng"
+    )
     
     class Meta:
         db_table = 'ai_training_history'
         ordering = ['-run_date']
+        verbose_name = "Lịch sử Hệ thống Phân tích Gợi ý"
+        verbose_name_plural = "Lịch sử Hệ thống Phân tích Gợi ý"
