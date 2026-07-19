@@ -16,8 +16,12 @@ from apps.marketing.serializers import DealerSegmentationHistorySerializer, Admi
 from common.permission import IsAdmin, IsAdminOrDealer
 from common.pagination import LoadMorePagination
 from common.openapi import paginated_response_schema
-from .models import ProductPredictionResult
-from .serializers import ProductPredictionResultSerializer
+from .models import ProductPredictionResult, AITrainingHistory
+from .serializers import (
+    ProductPredictionResultSerializer, 
+    AITrainingHistorySerializer, 
+    AITrainingHistorySummarySerializer
+)
 
 import logging
 logger = logging.getLogger(__name__)
@@ -246,10 +250,44 @@ admin_segmentation_history = AdminSegmentationHistoryView.as_view()
 )
 class TrainRelatedProductView(APIView):
     """
-    API POST (LUỒNG 1): Huấn luyện lại mô hình AI.
-    Chỉ dành cho Admin gọi định kỳ hoặc khi thực sự cần update file .keras.
+    API (GET/POST): Huấn luyện lại mô hình AI và lấy lịch sử (Dashboard).
+    GET: Trả về danh sách lịch sử huấn luyện (Dùng cho Dashboard Admin).
+    POST: Thực hiện huấn luyện lại mô hình Item2Vec.
+    Chỉ dành cho Admin gọi định kỳ hoặc khi thực sự cần update.
     """
     permission_classes = [IsAdmin]
+
+    @extend_schema(
+        tags=["AI Recommendation"],
+        summary="[Admin] Lịch sử huấn luyện mô hình AI (Phân trang)",
+        description=(
+            "Trả về danh sách các phiên huấn luyện Item2Vec, bao gồm loss, "
+            "coverage tổng thể, và chi tiết coverage theo từng Dealer. "
+            "Dùng để vẽ biểu đồ Loss/Coverage và phát hiện Dealer có vấn đề."
+        ),
+        responses={200: paginated_response_schema(AITrainingHistorySummarySerializer, "PaginatedAITrainingHistory")}
+    )
+    def get(self, request):
+
+        queryset = AITrainingHistory.objects.all().order_by("-run_date")
+
+        paginator = LoadMorePagination()
+        page = paginator.paginate_queryset(queryset, request, view=self)
+        serializer = AITrainingHistorySummarySerializer(page, many=True)
+        return paginator.get_paginated_response(serializer.data)
+
+    @extend_schema(
+        tags=["AI Recommendation"],
+        summary="Huấn luyện mô hình gợi ý sản phẩm (Item2Vec)",
+        description="Huấn luyện mô hình AI và trả về kết quả training.",
+        responses={200: inline_serializer(
+            name="TrainRelatedProductSuccessResponse",
+            fields={
+                "success": serializers.BooleanField(),
+                "message": serializers.CharField(),
+            },
+        )}
+    )
 
     def post(self, request):
         try:
@@ -336,6 +374,34 @@ class SyncRelatedProductView(APIView):
 train_related_products = TrainRelatedProductView.as_view()
 sync_related_products = SyncRelatedProductView.as_view()
 
+
+# ---------------------------------------------------------
+# DASHBOARD: LỊCH SỬ HUẤN LUYỆN AI (Admin)
+# ---------------------------------------------------------
+
+
+@extend_schema(
+    tags=["AI Recommendation"],
+    summary="[Admin] Chi tiết một phiên huấn luyện AI",
+    description=(
+        "Trả về toàn bộ thông tin chi tiết của một phiên huấn luyện, "
+        "bao gồm mảng loss qua từng epoch (để vẽ biểu đồ đường) "
+        "và danh sách Dealer bị cảnh báo thiếu gợi ý."
+    ),
+    responses={200: AITrainingHistorySerializer}
+)
+class AdminTrainingDashboardDetailView(APIView):
+    """Chi tiết một phiên huấn luyện AI cụ thể."""
+    permission_classes = [IsAdmin]
+
+    def get(self, request, pk):
+        from django.shortcuts import get_object_or_404
+        training = get_object_or_404(AITrainingHistory, pk=pk)
+        serializer = AITrainingHistorySerializer(training)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
+
+admin_training_dashboard_detail = AdminTrainingDashboardDetailView.as_view()
 
 # ---------------------------------------------------------
 # API 1: HUẤN LUYỆN MÔ HÌNH (TRAIN)

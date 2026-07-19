@@ -12,6 +12,7 @@ urlpatterns = [
     path("train-related-products/", views.train_related_products, name="train_related_products"),
     path("sync-related-products/", views.sync_related_products, name="sync_related_products"),
 
+    path("train-related-products/<int:pk>/", views.admin_training_dashboard_detail, name="admin_training_dashboard_detail"),
 
     path("dealer/train/", views.dealer_train_model, name="dealer_train_model"),
     path("dealer/analyze/", views.dealer_analyze_data, name="dealer_analyze_data"),
