@@ -9,6 +9,7 @@ import BuyerConfirmModal from "../../../components/User/Ui/BuyerConfirmModal";
 import { useBuyerAddresses } from "../../../hooks/useBuyerAddresses";
 import { useBuyerProfile } from "../../../hooks/useBuyerProfile";
 import { useBuyerLoyalty } from "../../../hooks/useBuyerLoyalty";
+import { useBuyerCompletedOrderCount } from "../../../hooks/useBuyerCompletedOrderCount";
 import { appToast } from "../../../components/common/toast";
 
 export default function UserProfilePage() {
@@ -41,6 +42,12 @@ export default function UserProfilePage() {
         tiersError: loyaltyTiersError,
         loadTiers,
     } = useBuyerLoyalty();
+
+    const {
+        count: completedOrders,
+        loading: ordersLoading,
+    } = useBuyerCompletedOrderCount();
+
 
     const {
         addresses,
@@ -139,6 +146,8 @@ export default function UserProfilePage() {
                 profile={profile}
                 loyaltyScore={loyaltyScore}
                 loyaltyLoading={loyaltyScoreLoading}
+                completedOrders={completedOrders}
+                ordersLoading={ordersLoading}
                 onEdit={() => setIsEditProfileOpen(true)}
                 onOpenLoyaltyTiers={openLoyaltyTiers}
             />
