@@ -103,8 +103,44 @@ export function parseBuyerOrderList(response) {
   return results.map(parseBuyerOrderSummary).filter(Boolean);
 }
 
+/** Fetch tất cả đơn hàng qua nhiều trang (loop theo trường `next`) */
+async function fetchAllPages(firstUrl, axiosInstance) {
+  const allResults = [];
+  let nextUrl = firstUrl;
+
+  while (nextUrl) {
+    const res = await axiosInstance.get(nextUrl);
+    const data = res.data;
+
+    const results = Array.isArray(data) ? data : (data?.results ?? []);
+    allResults.push(...results);
+
+    // Lấy URL trang tiếp theo (relative hoặc absolute)
+    const rawNext = data?.next ?? null;
+    if (!rawNext) break;
+
+    // Nếu `next` là full URL (http://...), chỉ lấy phần path+query
+    try {
+      const url = new URL(rawNext);
+      nextUrl = url.pathname + url.search;
+    } catch {
+      // Nếu không phải URL hợp lệ, dùng nguyên
+      nextUrl = rawNext;
+    }
+  }
+
+  return allResults;
+}
+
 export const buyerOrder = {
-  getAll: (dealer_slug) => axiosClient.get(`/storefronts/${dealer_slug}/orders/`).then((res) => res.data),
+  getAll: async (dealer_slug) => {
+    const allResults = await fetchAllPages(
+      `/storefronts/${dealer_slug}/orders/?page_size=100`,
+      axiosClient,
+    );
+    // Trả về dạng giống response gốc để parseBuyerOrderList hoạt động
+    return { results: allResults, count: allResults.length };
+  },
 
   // {
   //     "count": 0,

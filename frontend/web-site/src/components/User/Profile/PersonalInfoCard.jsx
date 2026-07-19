@@ -137,6 +137,8 @@ export default function PersonalInfoCard({
   profile,
   loyaltyScore,
   loyaltyLoading = false,
+  completedOrders = null,
+  ordersLoading = false,
   onEdit,
   onOpenLoyaltyTiers,
 }) {
@@ -255,8 +257,12 @@ export default function PersonalInfoCard({
             <InfoCell icon={Phone} label="Số điện thoại" value={phone} />
             <InfoCell
               icon={ShoppingBag}
-              label="Tổng đơn hàng"
-              value={`${totalOrders} đơn hàng`}
+              label="Đơn hàng hoàn thành"
+              value={
+                ordersLoading
+                  ? "Đang tải..."
+                  : `${completedOrders ?? 0} đơn hàng`
+              }
               onClick={toOrders}
             />
             <InfoCell
