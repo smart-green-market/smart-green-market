@@ -1,6 +1,6 @@
 from datetime import timedelta
 from django.utils import timezone
-from django.db.models import Sum, Count, F, Q, ExpressionWrapper, DurationField
+from django.db.models import Sum, Count, F, Q, ExpressionWrapper, DurationField, Max
 from django.db.models.functions import TruncDate, TruncMonth
 from rest_framework import viewsets, serializers
 from rest_framework.permissions import IsAuthenticated
@@ -330,19 +330,17 @@ class DealerDashboardViewSet(viewsets.ViewSet):
             status__in=[PurchaseOrderStatus.COMPLETED, PurchaseOrderStatus.DELIVERED]
         ).values('supplier').distinct().count()
 
-        # 5. Phiếu nhập đang chờ xác nhận (Chờ NCC xác nhận hoặc Chờ đại lý xác nhận điều chỉnh)
-        pending_orders = purchase_orders.filter(
-            status__in=[
-                PurchaseOrderStatus.PENDING_SUPPLIER_CONFIRMATION,
-                PurchaseOrderStatus.PENDING_DEALER_CONFIRMATION
-            ]
-        ).count()
+        # 5. Phân loại và thống kê tất cả các trạng thái
+        completed_statuses = [PurchaseOrderStatus.COMPLETED]
+        cancelled_statuses = [
+            PurchaseOrderStatus.CANCELLED,
+            PurchaseOrderStatus.REJECTED,
+            PurchaseOrderStatus.RETURNED,
+        ]
 
-        # 6. Phiếu nhập đã hoàn thành
-        completed_orders = purchase_orders.filter(status=PurchaseOrderStatus.COMPLETED).count()
-
-        # 7. Phiếu nhập đã hủy
-        cancelled_orders = purchase_orders.filter(status=PurchaseOrderStatus.CANCELLED).count()
+        completed_orders = purchase_orders.filter(status__in=completed_statuses).count()
+        cancelled_orders = purchase_orders.filter(status__in=cancelled_statuses).count()
+        pending_orders = purchase_orders.exclude(status__in=completed_statuses + cancelled_statuses).count()
 
         return Response({
             "total_orders": total_orders,
@@ -353,6 +351,57 @@ class DealerDashboardViewSet(viewsets.ViewSet):
             "completed_orders": completed_orders,
             "cancelled_orders": cancelled_orders
         })
+
+    @extend_schema(
+        summary="Thống kê nhà cung cấp đại lý đã mua hàng",
+        tags=["Dashboard"],
+        description="Lấy danh sách các nhà cung cấp đại lý đã mua hàng, sắp xếp giảm dần theo tổng tiền mua hàng. Trả về tên nhà cung cấp, số lần mua, thời gian mua gần nhất, và tổng tiền.",
+        responses={
+            200: inline_serializer(
+                name="DealerPurchasedSuppliersResponse",
+                fields={
+                    "supplier_id": serializers.IntegerField(),
+                    "supplier_name": serializers.CharField(),
+                    "purchase_count": serializers.IntegerField(),
+                    "last_purchase_time": serializers.DateTimeField(),
+                    "total_purchase_amount": serializers.FloatField(),
+                },
+                many=True
+            ),
+            403: OpenApiResponse(description="User is not a dealer.")
+        }
+    )
+    @action(detail=False, methods=["get"], url_path="purchased-suppliers")
+    def purchased_suppliers(self, request):
+        dealer = self._get_dealer(request)
+        if not dealer:
+            return Response({"detail": "User is not a dealer."}, status=403)
+
+        stats = (
+            PurchaseOrder.objects.filter(
+                dealer=dealer,
+                status__in=[PurchaseOrderStatus.COMPLETED, PurchaseOrderStatus.DELIVERED]
+            )
+            .values("supplier_id", "supplier__company_name")
+            .annotate(
+                purchase_count=Count("id"),
+                last_purchase_time=Max("created_at"),
+                total_purchase_amount=Sum("total_amount")
+            )
+            .order_by("-total_purchase_amount")
+        )
+
+        results = []
+        for item in stats:
+            results.append({
+                "supplier_id": item["supplier_id"],
+                "supplier_name": item["supplier__company_name"] or "Chưa có tên",
+                "purchase_count": item["purchase_count"],
+                "last_purchase_time": item["last_purchase_time"],
+                "total_purchase_amount": float(item["total_purchase_amount"] or 0),
+            })
+
+        return Response(results)
 
 class SupplierDashboardViewSet(viewsets.ViewSet):
     """
