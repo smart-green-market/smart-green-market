@@ -18,6 +18,7 @@ import {
     TopProducts,
     RecentOrders,
     PurchaseDonutChart,
+    TopSuppliers,
     formatCurrency,
 } from "../../components/Dealer/Dashboard";
 
@@ -30,6 +31,7 @@ export default function DealerDashboardPage() {
     const [topProducts, setTopProducts] = useState([]);
     const [purchaseSummary, setPurchaseSummary] = useState(null);
     const [aiRecommendations, setAiRecommendations] = useState([]);
+    const [purchasedSuppliers, setPurchasedSuppliers] = useState([]);
 
     useEffect(() => {
         const fetchDashboardData = async () => {
@@ -42,6 +44,7 @@ export default function DealerDashboardPage() {
                     topProductsData,
                     purchaseSummaryData,
                     aiRecommendationsData,
+                    purchasedSuppliersData,
                 ] = await Promise.all([
                     dealerService.getMe(),
                     dashboardService.getSummary(),
@@ -49,12 +52,14 @@ export default function DealerDashboardPage() {
                     dashboardService.getTopProducts(),
                     dashboardService.getPurchaseSummary(),
                     aiPredictionService.getDecisionRecommendations(7),
+                    dashboardService.getPurchasedSuppliers(),
                 ]);
 
                 setDealerProfile(profileData);
                 setSummary(summaryData);
                 setPurchaseSummary(purchaseSummaryData);
                 setAiRecommendations(aiRecommendationsData?.recommendations || []);
+                setPurchasedSuppliers(purchasedSuppliersData || []);
 
                 // Format chart data for Tailwind visual (needs day labels like T2, T3...)
                 const formattedChart = chartDataRes.map(item => {
@@ -180,12 +185,17 @@ export default function DealerDashboardPage() {
 
                 <TopProducts topProducts={topProducts} />
 
-                <RecentOrders
+                <TopSuppliers
                     className="lg:col-span-2"
-                    initialParams={{ ordering: "-created_at", status: "pending", page_size: 5 }}
+                    purchasedSuppliers={purchasedSuppliers}
                 />
 
                 <PurchaseDonutChart purchaseSummary={purchaseSummary} />
+
+                <RecentOrders
+                    className="lg:col-span-3"
+                    initialParams={{ ordering: "-created_at", status: "pending", page_size: 5 }}
+                />
             </div>
         </div>
     );

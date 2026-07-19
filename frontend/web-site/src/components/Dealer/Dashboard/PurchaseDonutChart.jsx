@@ -37,7 +37,7 @@ export default function PurchaseDonutChart({ purchaseSummary }) {
 
             <div className="flex flex-col sm:flex-row lg:flex-col xl:flex-row items-center justify-around gap-6 my-auto">
                 {/* Donut Visual */}
-                <div 
+                <div
                     className="w-36 h-36 rounded-full flex items-center justify-center relative shadow-md transition-transform hover:scale-105 duration-300 shrink-0"
                     style={{ background: conicGradient }}
                 >
@@ -50,7 +50,7 @@ export default function PurchaseDonutChart({ purchaseSummary }) {
                 {/* Legend */}
                 <div className="flex flex-col gap-3.5 w-full sm:w-auto lg:w-full xl:w-auto">
                     {/* Hoàn thành */}
-                    <div className="flex items-center justify-between gap-4 p-2 rounded-xl hover:bg-neutral-50 transition-colors">
+                    <div className="relative group flex items-center justify-between gap-4 p-2 rounded-xl hover:bg-neutral-50 transition-colors cursor-help">
                         <div className="flex items-center gap-2">
                             <span className="w-3 h-3 rounded-full bg-emerald-500 shrink-0" />
                             <span className="text-xs font-semibold text-neutral-600">Hoàn thành</span>
@@ -59,29 +59,50 @@ export default function PurchaseDonutChart({ purchaseSummary }) {
                             <span className="text-xs font-bold text-neutral-800">{completed}</span>
                             <span className="text-[10px] text-neutral-400 ml-1.5">({completedPercent.toFixed(0)}%)</span>
                         </div>
+
+                        {/* Tooltip */}
+                        <div className="absolute bottom-full right-0 mb-2 hidden group-hover:block z-30 bg-neutral-900/95 backdrop-blur-xs text-white text-[10px] p-2.5 rounded-xl shadow-lg border border-neutral-700 w-56 text-left whitespace-normal leading-relaxed pointer-events-none transition-all">
+                            <p className="font-extrabold text-[10px] text-emerald-400 mb-1">Hoàn thành bao gồm:</p>
+                            <p className="text-neutral-200">Hoàn tất đơn hàng.</p>
+                            <div className="absolute top-full right-4 border-4 border-transparent border-t-neutral-900/95"></div>
+                        </div>
                     </div>
 
-                    {/* Chờ xác nhận */}
-                    <div className="flex items-center justify-between gap-4 p-2 rounded-xl hover:bg-neutral-50 transition-colors">
+                    {/* Đang xử lý */}
+                    <div className="relative group flex items-center justify-between gap-4 p-2 rounded-xl hover:bg-neutral-50 transition-colors cursor-help">
                         <div className="flex items-center gap-2">
                             <span className="w-3 h-3 rounded-full bg-amber-500 shrink-0" />
-                            <span className="text-xs font-semibold text-neutral-600">Chờ xác nhận</span>
+                            <span className="text-xs font-semibold text-neutral-600">Đang xử lý</span>
                         </div>
                         <div className="text-right">
                             <span className="text-xs font-bold text-neutral-800">{pending}</span>
                             <span className="text-[10px] text-neutral-400 ml-1.5">({pendingPercent.toFixed(0)}%)</span>
                         </div>
+
+                        {/* Tooltip */}
+                        <div className="absolute bottom-full right-0 mb-2 hidden group-hover:block z-30 bg-neutral-900/95 backdrop-blur-xs text-white text-[10px] p-2.5 rounded-xl shadow-lg border border-neutral-700 w-56 text-left whitespace-normal leading-relaxed pointer-events-none transition-all">
+                            <p className="font-extrabold text-[10px] text-amber-400 mb-1">Đang xử lý bao gồm:</p>
+                            <p className="text-neutral-200">Chờ NCC xác nhận, Chờ đại lý duyệt, Đã xác nhận, Chờ cọc, Đã cọc, Đang chuẩn bị hàng, Đang giao, Đã giao, Yêu cầu trả hàng...</p>
+                            <div className="absolute top-full right-4 border-4 border-transparent border-t-neutral-900/95"></div>
+                        </div>
                     </div>
 
-                    {/* Đã hủy */}
-                    <div className="flex items-center justify-between gap-4 p-2 rounded-xl hover:bg-neutral-50 transition-colors">
+                    {/* Đã hủy / Từ chối */}
+                    <div className="relative group flex items-center justify-between gap-4 p-2 rounded-xl hover:bg-neutral-50 transition-colors cursor-help">
                         <div className="flex items-center gap-2">
                             <span className="w-3 h-3 rounded-full bg-rose-500 shrink-0" />
-                            <span className="text-xs font-semibold text-neutral-600">Đã hủy</span>
+                            <span className="text-xs font-semibold text-neutral-600">Đã hủy / Từ chối</span>
                         </div>
                         <div className="text-right">
                             <span className="text-xs font-bold text-neutral-800">{cancelled}</span>
                             <span className="text-[10px] text-neutral-400 ml-1.5">({cancelledPercent.toFixed(0)}%)</span>
+                        </div>
+
+                        {/* Tooltip */}
+                        <div className="absolute bottom-full right-0 mb-2 hidden group-hover:block z-30 bg-neutral-900/95 backdrop-blur-xs text-white text-[10px] p-2.5 rounded-xl shadow-lg border border-neutral-700 w-56 text-left whitespace-normal leading-relaxed pointer-events-none transition-all">
+                            <p className="font-extrabold text-[10px] text-rose-400 mb-1">Đã hủy / Từ chối bao gồm:</p>
+                            <p className="text-neutral-200">Đã hủy đơn, Nhà cung cấp từ chối, Đã trả hàng.</p>
+                            <div className="absolute top-full right-4 border-4 border-transparent border-t-neutral-900/95"></div>
                         </div>
                     </div>
                 </div>

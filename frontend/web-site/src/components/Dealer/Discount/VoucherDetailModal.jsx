@@ -104,22 +104,31 @@ export default function VoucherDetailModal({ isOpen, onClose, voucherId }) {
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 overflow-y-auto p-4">
-      <div className="bg-white rounded-xl shadow-xl w-full max-w-lg my-8">
-        <div className="flex justify-between items-center px-6 py-4 border-b border-gray-100">
-          <h2 className="text-xl font-bold text-gray-800">Chi tiết Voucher</h2>
-          <button onClick={onClose} className="text-gray-400 hover:text-gray-600 transition-colors">
-            <X size={24} />
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+      <div 
+        className="bg-white rounded-2xl shadow-2xl w-full max-w-md flex flex-col max-h-[85vh] overflow-hidden"
+        style={{ animation: 'fadeInScale 0.25s ease-out' }}
+      >
+        <div className="flex justify-between items-center px-6 py-5 border-b border-gray-100 bg-gradient-to-r from-green-50 to-emerald-50 rounded-t-2xl">
+          <div className="flex items-center gap-3">
+            <h2 className="text-lg font-bold text-gray-800">Chi tiết Voucher</h2>
+          </div>
+          <button 
+            onClick={onClose} 
+            className="text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg p-1.5 transition-all"
+            aria-label="Đóng"
+          >
+            <X size={20} />
           </button>
         </div>
 
-        <div className="p-6">
+        <div className="p-6 overflow-y-auto flex-1">
           {isLoading ? (
             <div className="flex justify-center items-center h-48">
               <Loader2 className="w-8 h-8 animate-spin text-green-600" />
             </div>
           ) : voucher ? (
-            <div className="space-y-6 font-['Geist',sans-serif]">
+            <div className="space-y-4 font-['Geist',sans-serif]">
               {/* Title & Code */}
               <div>
                 <div className="flex items-center gap-3 mb-2">
@@ -275,15 +284,22 @@ export default function VoucherDetailModal({ isOpen, onClose, voucherId }) {
           )}
         </div>
 
-        <div className="flex justify-end gap-3 px-6 py-4 border-t border-gray-100 bg-gray-50 rounded-b-xl">
+        <div className="flex justify-end gap-3 px-6 py-4 border-t border-gray-100 bg-gray-50/50 rounded-b-2xl">
           <button
             onClick={onClose}
-            className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+            className="px-5 py-2.5 text-sm font-medium text-gray-700 bg-white border border-gray-200 rounded-xl hover:bg-gray-50 transition-all"
           >
             Đóng
           </button>
         </div>
       </div>
+
+      <style>{`
+        @keyframes fadeInScale {
+          from { opacity: 0; transform: scale(0.95); }
+          to { opacity: 1; transform: scale(1); }
+        }
+      `}</style>
     </div>
   );
 }
