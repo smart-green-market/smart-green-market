@@ -1,6 +1,9 @@
 import { useState, useEffect, useCallback, useMemo } from "react";
 import {
+    Activity,
+    BrainCircuit,
     HardDrive,
+    History,
     Loader2,
     RefreshCw,
     RotateCw,
@@ -11,7 +14,9 @@ import {
     Truck,
     Undo2,
 } from "lucide-react";
+import { Link } from "react-router-dom";
 import { AdminPageLoadError, AdminPageLoading } from "../../components/Admin/UI/AdminFetchState";
+import CustomerSegmentationModal from "../../components/Admin/Segmentation/CustomerSegmentationModal";
 import ConfirmModal from "../../components/common/ConfirmModal";
 import { appToast } from "../../components/common/toast";
 import { settingService, handleApiError } from "../../services/api/settingService";
@@ -296,6 +301,7 @@ export default function SettingsAside() {
     const [isSaving, setIsSaving] = useState(false);
     const [isTraining, setIsTraining] = useState(false);
     const [isSyncing, setIsSyncing] = useState(false);
+    const [segmentationOpen, setSegmentationOpen] = useState(false);
     const [loadError, setLoadError] = useState("");
     const [confirmOpen, setConfirmOpen] = useState(false);
 
@@ -320,6 +326,8 @@ export default function SettingsAside() {
     }, [applyConfig]);
 
     useEffect(() => {
+        // Đồng bộ cấu hình từ API khi trang được mở.
+        // eslint-disable-next-line react-hooks/set-state-in-effect
         fetchConfig();
     }, [fetchConfig]);
 
@@ -341,7 +349,7 @@ export default function SettingsAside() {
         setFormValues(originalValues);
     };
 
-    const handleTrainAi = async () => {
+    const handleTrainRelatedProducts = async () => {
         setIsTraining(true);
         try {
             const result = await aiTrainingServicer.trainRelatedProducts();
@@ -394,7 +402,9 @@ export default function SettingsAside() {
             const updated = await settingService.update(patch);
             applyConfig(updated);
         } catch (err) {
-            throw new Error(handleApiError(err, "Không thể cập nhật cấu hình"));
+            throw new Error(handleApiError(err, "Không thể cập nhật cấu hình"), {
+                cause: err,
+            });
         } finally {
             setIsSaving(false);
         }
@@ -423,74 +433,108 @@ export default function SettingsAside() {
     return (
         <aside className="min-h-screen w-full max-w-full bg-neutral-50 p-4 font-sans antialiased text-zinc-900 md:p-8">
             <div className="flex w-full flex-col items-start justify-start gap-8 rounded-lg border border-neutral-200 bg-white px-6 py-8 shadow-sm md:px-8 md:pb-16 md:pt-10">
-                <div className="flex w-full flex-wrap items-start justify-between gap-4">
-                    <div>
-                        <h1 className="font-['Noto_Serif',serif] text-2xl font-semibold leading-8 text-zinc-900">
-                            Cấu hình hệ thống
-                        </h1>
-                        <p className="mt-1 text-sm text-neutral-500">
-                            Xem và chỉnh sửa giới hạn nghiệp vụ toàn hệ thống.
-                        </p>
-                        <p className="mt-2 text-xs text-neutral-400">
-                            Cập nhật lần cuối:{" "}
-                            <span className="font-medium text-neutral-600">
-                                {formatUpdatedAt(config?.updated_at)}
-                            </span>
-                            {config?.updated_by_username
-                                ? ` · bởi ${config.updated_by_username}`
-                                : null}
-                        </p>
+                <header className="w-full overflow-hidden rounded-2xl border border-slate-200 bg-gradient-to-br from-slate-50 via-white to-indigo-50 shadow-sm">
+                    <div className="flex flex-col gap-6 px-5 py-6 lg:flex-row lg:items-center lg:justify-between lg:px-7">
+                        <div className="min-w-0">
+                            <div className="mb-3 inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white/80 px-3 py-1 text-[10px] font-black uppercase tracking-[0.14em] text-slate-500">
+                                <Shield className="h-3.5 w-3.5 text-emerald-700" />
+                                Trung tâm điều khiển Admin
+                            </div>
+                            <h1 className="font-['Noto_Serif',serif] text-2xl font-semibold leading-8 text-zinc-950 sm:text-3xl">
+                                Cấu hình hệ thống
+                            </h1>
+                            <p className="mt-2 text-sm text-neutral-500">
+                                Quản lý giới hạn nghiệp vụ và vận hành các mô hình AI toàn hệ thống.
+                            </p>
+                            <p className="mt-3 text-xs text-neutral-400">
+                                Cập nhật lần cuối:{" "}
+                                <span className="font-semibold text-neutral-600">
+                                    {formatUpdatedAt(config?.updated_at)}
+                                </span>
+                                {config?.updated_by_username
+                                    ? ` · bởi ${config.updated_by_username}`
+                                    : null}
+                            </p>
+                        </div>
+
+                        <div className="flex w-full flex-col gap-3 sm:flex-row lg:w-auto lg:shrink-0">
+                            <button
+                                type="button"
+                                onClick={handleTrainRelatedProducts}
+                                disabled={isSaving || isSyncing || isTraining}
+                                className="inline-flex min-h-12 flex-1 cursor-pointer items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-indigo-700 to-violet-700 px-5 py-3 text-sm font-black text-white shadow-lg shadow-indigo-200/70 transition hover:-translate-y-0.5 hover:shadow-xl disabled:cursor-not-allowed disabled:opacity-60 lg:flex-none"
+                                title="Huấn luyện lại mô hình gợi ý sản phẩm và tạo phiên lịch sử mới"
+                            >
+                                {isTraining ? (
+                                    <Loader2 className="h-4 w-4 animate-spin" />
+                                ) : (
+                                    <Sparkles className="h-4 w-4" />
+                                )}
+                                {isTraining ? "Đang huấn luyện..." : "Huấn luyện AI"}
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => setSegmentationOpen(true)}
+                                disabled={isSaving || isSyncing || isTraining}
+                                className="inline-flex min-h-12 flex-1 cursor-pointer items-center justify-center gap-2 rounded-xl border border-violet-200 bg-white px-5 py-3 text-sm font-black text-violet-800 shadow-sm transition hover:-translate-y-0.5 hover:border-violet-300 hover:bg-violet-50 disabled:cursor-not-allowed disabled:opacity-60 lg:flex-none"
+                                title="Phân loại khách hàng theo Đại lý"
+                            >
+                                <BrainCircuit className="h-4 w-4" />
+                                Phân loại khách hàng
+                            </button>
+                        </div>
                     </div>
 
-                    <div className="flex flex-wrap items-center gap-2">
-                        <button
-                            type="button"
-                            onClick={fetchConfig}
-                            disabled={isSaving || isTraining || isSyncing}
-                            title="Tải lại"
-                            className="cursor-pointer inline-flex shrink-0 items-center gap-2 rounded-lg border border-neutral-300 px-4 py-2.5 text-sm font-semibold text-neutral-700 transition-colors hover:bg-neutral-50 disabled:opacity-50"
+                    <div className="flex flex-wrap items-center gap-2 border-t border-slate-200/80 bg-white/70 px-5 py-3 lg:px-7">
+                        <Link
+                            to="/quan-tri/lich-su-huan-luyen-ai"
+                            className="inline-flex shrink-0 items-center gap-2 rounded-lg px-3 py-2 text-sm font-bold text-indigo-800 no-underline transition hover:bg-indigo-50"
                         >
-                            <RefreshCw className="h-4 w-4" />
-                            Tải lại
-                        </button>
+                            <History className="h-4 w-4" />
+                            Lịch sử huấn luyện
+                        </Link>
+
+                        <Link
+                            to="/quan-tri/danh-gia-phan-khuc"
+                            className="inline-flex shrink-0 items-center gap-2 rounded-lg px-3 py-2 text-sm font-bold text-sky-800 no-underline transition hover:bg-sky-50"
+                        >
+                            <Activity className="h-4 w-4" />
+                            Đánh giá phân khúc
+                        </Link>
 
                         <button
                             type="button"
                             onClick={handleSyncRelatedProducts}
-                            disabled={isSaving || isTraining || isSyncing}
+                            disabled={isSaving || isSyncing || isTraining}
                             title="Đồng bộ gợi ý sản phẩm từ mô hình hiện có"
-                            className="cursor-pointer inline-flex shrink-0 items-center gap-2 rounded-lg border border-emerald-300 bg-emerald-50 px-4 py-2.5 text-sm font-semibold text-emerald-800 transition-colors hover:bg-emerald-100 disabled:opacity-50"
+                            className="inline-flex cursor-pointer items-center gap-2 rounded-lg px-3 py-2 text-sm font-bold text-emerald-800 transition hover:bg-emerald-50 disabled:cursor-not-allowed disabled:opacity-50"
                         >
                             {isSyncing ? (
                                 <Loader2 className="h-4 w-4 animate-spin" />
                             ) : (
                                 <RotateCw className="h-4 w-4" />
                             )}
-                            Đồng bộ
+                            Đồng bộ gợi ý
                         </button>
 
                         <button
                             type="button"
-                            onClick={handleTrainAi}
-                            disabled={isSaving || isTraining || isSyncing}
-                            title="Huấn luyện gợi ý sản phẩm liên quan"
-                            className="cursor-pointer inline-flex shrink-0 items-center gap-2 rounded-lg border border-violet-300 bg-violet-50 px-4 py-2.5 text-sm font-semibold text-violet-800 transition-colors hover:bg-violet-100 disabled:opacity-50"
+                            onClick={fetchConfig}
+                            disabled={isSaving || isSyncing || isTraining}
+                            title="Tải lại cấu hình"
+                            className="inline-flex cursor-pointer items-center gap-2 rounded-lg px-3 py-2 text-sm font-bold text-neutral-600 transition hover:bg-neutral-100 disabled:cursor-not-allowed disabled:opacity-50"
                         >
-                            {isTraining ? (
-                                <Loader2 className="h-4 w-4 animate-spin" />
-                            ) : (
-                                <Sparkles className="h-4 w-4" />
-                            )}
-                            Training AI
+                            <RefreshCw className="h-4 w-4" />
+                            Tải lại
                         </button>
 
                         {isDirty ? (
-                            <>
+                            <div className="ml-auto flex flex-wrap items-center gap-2">
                                 <button
                                     type="button"
                                     onClick={handleReset}
-                                    disabled={isSaving}
-                                    className="cursor-pointer inline-flex items-center gap-2 rounded-lg border border-neutral-300 px-4 py-2.5 text-sm font-semibold text-neutral-700 transition-colors hover:bg-neutral-50 disabled:opacity-50"
+                                    disabled={isSaving || isTraining}
+                                    className="inline-flex cursor-pointer items-center gap-2 rounded-lg border border-neutral-300 bg-white px-3 py-2 text-sm font-bold text-neutral-700 transition hover:bg-neutral-50 disabled:opacity-50"
                                 >
                                     <Undo2 className="h-4 w-4" />
                                     Hoàn tác
@@ -498,16 +542,16 @@ export default function SettingsAside() {
                                 <button
                                     type="button"
                                     onClick={() => setConfirmOpen(true)}
-                                    disabled={isSaving}
-                                    className="cursor-pointer inline-flex items-center gap-2 rounded-lg bg-emerald-800 px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-emerald-700 disabled:opacity-50"
+                                    disabled={isSaving || isTraining}
+                                    className="inline-flex cursor-pointer items-center gap-2 rounded-lg bg-emerald-800 px-4 py-2 text-sm font-bold text-white transition hover:bg-emerald-700 disabled:opacity-50"
                                 >
                                     <Save className="h-4 w-4" />
                                     Cập nhật ({changedCount})
                                 </button>
-                            </>
+                            </div>
                         ) : null}
                     </div>
-                </div>
+                </header>
 
                 {isDirty ? (
                     <div className="w-full rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
@@ -593,6 +637,13 @@ export default function SettingsAside() {
                 errorMessage="Không thể cập nhật cấu hình. Vui lòng thử lại."
                 loading={isSaving}
             />
+
+            {segmentationOpen ? (
+                <CustomerSegmentationModal
+                    open
+                    onClose={() => setSegmentationOpen(false)}
+                />
+            ) : null}
         </aside>
     );
 }

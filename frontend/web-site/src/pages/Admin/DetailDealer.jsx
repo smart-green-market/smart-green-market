@@ -24,6 +24,10 @@ import RejectModal from "../../components/common/RejectModal";
 import { formatDateTime } from "../../components/common/formatDateTime";
 import { appToast } from "../../components/common/toast";
 import { aiTrainingServicer } from "../../services/api/Admin/aiTrainingServicer";
+import {
+  adminSegmentAiService,
+  handleSegmentAiError,
+} from "../../services/api/Admin/adminSegmentAiService";
 import { adminDealerService } from "../../services/api/Admin/adminDealerService";
 import { dealerService, handleApiError } from "../../services/api/dealerService";
 import { useDebouncedValue } from "../../hooks/useDebouncedValue";
@@ -63,6 +67,9 @@ export default function DetailDealerPage() {
   const [segmentCount, setSegmentCount] = useState(0);
   const [segmentLoading, setSegmentLoading] = useState(true);
   const [segmentError, setSegmentError] = useState("");
+  const [segmentHistory, setSegmentHistory] = useState([]);
+  const [segmentHistoryLoading, setSegmentHistoryLoading] = useState(true);
+  const [segmentHistoryError, setSegmentHistoryError] = useState("");
 
   const [customers, setCustomers] = useState([]);
   const [customerPage, setCustomerPage] = useState(1);
@@ -74,7 +81,8 @@ export default function DetailDealerPage() {
   const [customerSegmentCode, setCustomerSegmentCode] = useState("");
   const customerRequestIdRef = useRef(0);
   const debouncedCustomerSearch = useDebouncedValue(customerSearch, 350);
-  const selectedDealerId = dealer?.id;
+  const routeDealerId = Number(id);
+  const selectedDealerId = Number.isFinite(routeDealerId) ? routeDealerId : null;
 
   const fetchDealer = useCallback(async () => {
     try {
@@ -147,6 +155,22 @@ export default function DetailDealerPage() {
     selectedDealerId,
   ]);
 
+  const fetchSegmentHistory = useCallback(async () => {
+    if (!selectedDealerId) return;
+    setSegmentHistoryLoading(true);
+    setSegmentHistoryError("");
+    try {
+      const data = await adminSegmentAiService.getDealerHistory(selectedDealerId);
+      setSegmentHistory(data);
+    } catch (error) {
+      setSegmentHistoryError(
+        handleSegmentAiError(error, "Không thể tải lịch sử phân loại của đại lý"),
+      );
+    } finally {
+      setSegmentHistoryLoading(false);
+    }
+  }, [selectedDealerId]);
+
   useEffect(() => {
     const load = async () => {
       await Promise.all([fetchDealer(), fetchSegments(1)]);
@@ -161,17 +185,12 @@ export default function DetailDealerPage() {
     load();
   }, [fetchDealerCustomers]);
 
-  const chartData = useMemo(() => {
-    const fromApi = normalizeSegmentCounts(countSegment);
-    if (fromApi.length > 0) return fromApi;
-
-    const fallbackCounts = new Map();
-    customers.forEach((customer) => {
-      const name = customer.primary_segment?.name || "Chưa phân loại";
-      fallbackCounts.set(name, (fallbackCounts.get(name) || 0) + 1);
-    });
-    return Array.from(fallbackCounts, ([name, value]) => ({ name, value }));
-  }, [countSegment, customers]);
+  useEffect(() => {
+    if (!selectedDealerId) return;
+    // Đồng bộ lịch sử AI 60 ngày khi đã xác định đúng dealer từ route chi tiết.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    fetchSegmentHistory();
+  }, [fetchSegmentHistory, selectedDealerId]);
 
   const segmentFilterOptions = useMemo(() => {
     const options = new Map();
@@ -306,8 +325,10 @@ export default function DetailDealerPage() {
       />
 
       <DealerSegmentChart
-        data={chartData}
-        loading={customerLoading && chartData.length === 0}
+        data={segmentHistory}
+        loading={segmentHistoryLoading}
+        error={segmentHistoryError}
+        onRetry={fetchSegmentHistory}
       />
 
       <DealerSegmentTable
@@ -357,31 +378,6 @@ export default function DetailDealerPage() {
       />
     </div>
   );
-}
-
-function normalizeSegmentCounts(counts) {
-  const entries = Array.isArray(counts)
-    ? counts.map((item, index) => [item?.code || item?.name || String(index), item])
-    : Object.entries(counts || {});
-
-  return entries
-    .map(([key, rawValue]) => {
-      const value = Number(
-        typeof rawValue === "object"
-          ? rawValue?.count ?? rawValue?.value ?? rawValue?.total
-          : rawValue,
-      ) || 0;
-      const code = String(
-        typeof rawValue === "object" ? rawValue?.code || key : key,
-      ).toUpperCase();
-      const name =
-        (typeof rawValue === "object" && rawValue?.name) ||
-        SEGMENT_LABELS[code] ||
-        String(key).replaceAll("_", " ");
-      return { name, value };
-    })
-    .filter((item) => item.value > 0)
-    .sort((left, right) => right.value - left.value);
 }
 
 function formatCodeLabel(value) {
@@ -440,7 +436,7 @@ function DealerInformation({
                 Duyệt đại lý
               </button>
             ) : null}
-            {displayStatus === "active" || displayStatus === "pending" ? (
+            {displayStatus === "pending" ? (
               <button
                 type="button"
                 disabled={actionLoading}
@@ -450,7 +446,7 @@ function DealerInformation({
                 Từ chối
               </button>
             ) : null}
-            {displayStatus === "active" ? (
+            {/* {displayStatus === "active" ? (
               <button
                 type="button"
                 disabled={actionLoading}
@@ -469,7 +465,7 @@ function DealerInformation({
               >
                 Mở khóa
               </button>
-            ) : null}
+            ) : null} */}
           </div>
         </div>
       </div>

@@ -190,6 +190,33 @@ export default function CreateVoucherModal({ isOpen, onClose, onSuccess }) {
     }
   };
 
+  const getAudienceSummaryText = () => {
+    if (audienceType === 'ALL') {
+      return 'Tất cả khách hàng';
+    }
+    if (audienceType === 'LOYALTY_TIER') {
+      if (selectedTiers.length === 0) {
+        return 'Hạng thành viên B2C (chưa chọn hạng cụ thể)';
+      }
+      const names = selectedTiers
+        .map(id => loyaltyTiers.find(t => t.id === Number(id))?.name || `Hạng #${id}`)
+        .filter(Boolean)
+        .join(', ');
+      return `Hạng thành viên B2C (${names})`;
+    }
+    if (audienceType === 'CUSTOMER_SEGMENT') {
+      if (selectedSegments.length === 0) {
+        return 'Phân khúc khách hàng (chưa chọn phân khúc cụ thể)';
+      }
+      const names = selectedSegments
+        .map(id => segments.find(s => s.id === Number(id))?.name || `Phân khúc #${id}`)
+        .filter(Boolean)
+        .join(', ');
+      return `Phân khúc khách hàng (${names})`;
+    }
+    return '';
+  };
+
   if (!isOpen) return null;
 
   return (
@@ -348,6 +375,11 @@ export default function CreateVoucherModal({ isOpen, onClose, onSuccess }) {
                   </div>
                 )}
               </div>
+            </div>
+
+            {/* Audience description helper */}
+            <div className="bg-green-50 border border-green-200 text-green-800 px-4 py-3 rounded-lg text-sm font-medium">
+              Bạn đang chọn giảm giá cho: <span className="font-bold">{getAudienceSummaryText()}</span>
             </div>
 
             {/* Discount Rules */}

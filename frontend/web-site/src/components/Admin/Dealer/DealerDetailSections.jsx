@@ -1,5 +1,7 @@
 import { useEffect, useId, useRef, useState } from "react";
 import {
+  Activity,
+  AlertTriangle,
   Check,
   ChevronDown,
   ChevronLeft,
@@ -9,14 +11,10 @@ import {
   Users,
 } from "lucide-react";
 import {
-  Bar,
-  BarChart,
+  Area,
+  AreaChart,
   CartesianGrid,
-  Cell,
-  LabelList,
   Legend,
-  Pie,
-  PieChart,
   ResponsiveContainer,
   Tooltip,
   XAxis,
@@ -25,15 +23,50 @@ import {
 
 import { formatDateTime } from "../../common/formatDateTime";
 
-const CHART_COLORS = [
-  "#059669",
-  "#2563eb",
-  "#7c3aed",
-  "#ea580c",
-  "#db2777",
-  "#0891b2",
-  "#64748b",
+const SEGMENT_AREAS = [
+  { key: "vip", name: "Khách hàng VIP", color: "#7c3aed" },
+  { key: "potential", name: "Khách hàng tiềm năng", color: "#2563eb" },
+  { key: "passive", name: "Khách hàng thụ động", color: "#059669" },
+  { key: "churnRisk", name: "Có nguy cơ rời bỏ", color: "#ea580c" },
 ];
+
+function getApiTimestamp(item) {
+  const formatted = String(item?.formatted_created_at || "").trim();
+  const createdAt = item?.created_at ? new Date(item.created_at) : null;
+  const hasValidCreatedAt = createdAt && !Number.isNaN(createdAt.getTime());
+  const seconds = hasValidCreatedAt
+    ? String(createdAt.getUTCSeconds()).padStart(2, "0")
+    : "";
+
+  if (formatted) {
+    const [datePart, timePart = ""] = formatted.split(/\s+/, 2);
+    const timeParts = timePart.split(":");
+    const exactTime =
+      timePart && timeParts.length === 2 && seconds
+        ? `${timePart}:${seconds}`
+        : timePart;
+    const shortDate = datePart.split("/").slice(0, 2).join("/");
+    return {
+      day: shortDate,
+      time: exactTime,
+      full: [datePart, exactTime].filter(Boolean).join(" "),
+    };
+  }
+
+  if (!hasValidCreatedAt) return { day: "—", time: "", full: "—" };
+
+  const day = String(createdAt.getUTCDate()).padStart(2, "0");
+  const month = String(createdAt.getUTCMonth() + 1).padStart(2, "0");
+  const year = createdAt.getUTCFullYear();
+  const hour = String(createdAt.getUTCHours()).padStart(2, "0");
+  const minute = String(createdAt.getUTCMinutes()).padStart(2, "0");
+  const exactTime = `${hour}:${minute}:${seconds}`;
+  return {
+    day: `${day}/${month}`,
+    time: exactTime,
+    full: `${day}/${month}/${year} ${exactTime}`,
+  };
+}
 
 const STATUS_LABELS = {
   active: "Hoạt động",
@@ -107,112 +140,125 @@ function TablePagination({ page, pageSize, totalCount, onPageChange }) {
   );
 }
 
-export function DealerSegmentChart({ data, loading }) {
-  const totalCustomers = data.reduce((sum, item) => sum + item.value, 0);
-  const chartRows = data.map((item) => ({
-    ...item,
-    percentage: totalCustomers > 0 ? Number(((item.value / totalCustomers) * 100).toFixed(1)) : 0,
-  }));
+export function DealerSegmentChart({ data = [], loading, error, onRetry }) {
+  const chartRows = data.map((item, index) => {
+    const counts = Object.fromEntries(
+      (item.segment_counts || []).map((segment) => [segment.code, segment.count]),
+    );
+    const timestamp = getApiTimestamp(item);
+    const previousTimestamp = index > 0 ? getApiTimestamp(data[index - 1]) : null;
+    return {
+      id: item.id,
+      date:
+        previousTimestamp?.day === timestamp.day && timestamp.time
+          ? timestamp.time
+          : timestamp.day,
+      fullDate: timestamp.full,
+      vip: Number(counts.VIP || 0),
+      potential: Number(counts.POTENTIAL || 0),
+      passive: Number(counts.PASSIVE || 0),
+      churnRisk: Number(counts.CHURN_RISK || 0),
+      silhouetteScore: item.silhouette_score,
+      totalCustomers: item.total_customers,
+    };
+  });
+  const latest = chartRows.at(-1);
+  const lowConfidence = latest?.silhouetteScore != null && latest.silhouetteScore < 0.4;
 
   return (
     <section className="rounded-2xl border border-neutral-200 bg-white p-6 shadow-sm">
-      <div className="mb-5">
-        <h2 className="text-lg font-bold text-neutral-900">
-          Tỷ lệ phân loại khách hàng
-        </h2>
-        <p className="mt-1 text-sm text-neutral-500">
-          Tỷ lệ được tính trên toàn bộ khách hàng thuộc cửa hàng.
-        </p>
+      <div className="mb-5 flex flex-wrap items-start justify-between gap-4">
+        <div>
+          <div className="flex items-center gap-2">
+            <Activity className="h-5 w-5 text-violet-700" />
+            <h2 className="text-lg font-bold text-neutral-900">
+              Theo dõi phân khúc khách hàng
+            </h2>
+          </div>
+          <p className="mt-1 text-sm text-neutral-500">
+            Biến động số khách hàng theo từng phân khúc trong 60 ngày gần nhất.
+          </p>
+        </div>
+        {latest ? (
+          <div className="flex gap-3">
+            <div className="rounded-xl border border-neutral-200 bg-neutral-50 px-4 py-2 text-right">
+              <p className="text-[10px] font-black uppercase tracking-wide text-neutral-400">Phiên gần nhất</p>
+              <p className="mt-0.5 text-sm font-black text-neutral-900">{latest.fullDate}</p>
+            </div>
+            <div className={`rounded-xl border px-4 py-2 text-right ${lowConfidence ? "border-amber-200 bg-amber-50" : "border-emerald-200 bg-emerald-50"}`}>
+              <p className="text-[10px] font-black uppercase tracking-wide text-neutral-400">Silhouette Score</p>
+              <p className={`mt-0.5 text-lg font-black ${lowConfidence ? "text-amber-700" : "text-emerald-700"}`}>
+                {latest.silhouetteScore == null ? "—" : Number(latest.silhouetteScore).toFixed(3)}
+              </p>
+            </div>
+          </div>
+        ) : null}
       </div>
 
       {loading ? (
         <div className="flex h-80 items-center justify-center">
           <div className="h-8 w-8 animate-spin rounded-full border-b-2 border-emerald-600" />
         </div>
-      ) : totalCustomers > 0 ? (
-        <div className="grid gap-6 xl:grid-cols-2">
-          <div className="rounded-xl border border-neutral-100 bg-neutral-50/40 p-4">
-            <h3 className="mb-2 text-sm font-bold text-neutral-700">Biểu đồ tròn</h3>
-            <div className="h-80 w-full">
-              <ResponsiveContainer width="100%" height="100%">
-                <PieChart>
-                  <Pie
-                    data={chartRows}
-                    dataKey="value"
-                    nameKey="name"
-                    cx="50%"
-                    cy="46%"
-                    innerRadius={58}
-                    outerRadius={100}
-                    paddingAngle={2}
-                    label={({ percent }) => `${(percent * 100).toFixed(1)}%`}
-                  >
-                    {chartRows.map((entry, index) => (
-                      <Cell
-                        key={`${entry.name}-${entry.value}`}
-                        fill={CHART_COLORS[index % CHART_COLORS.length]}
-                      />
-                    ))}
-                  </Pie>
-                  <Tooltip
-                    formatter={(value, name) => [
-                      `${value} khách (${((value / totalCustomers) * 100).toFixed(1)}%)`,
-                      name,
-                    ]}
-                  />
-                  <Legend verticalAlign="bottom" />
-                </PieChart>
-              </ResponsiveContainer>
+      ) : error ? (
+        <div className="flex h-72 flex-col items-center justify-center rounded-xl border border-red-200 bg-red-50 px-6 text-center text-red-700">
+          <AlertTriangle className="h-8 w-8" />
+          <p className="mt-3 text-sm font-semibold">{error}</p>
+          <button type="button" onClick={onRetry} className="mt-4 cursor-pointer rounded-lg bg-red-600 px-4 py-2 text-sm font-bold text-white">
+            Thử lại
+          </button>
+        </div>
+      ) : chartRows.length > 0 ? (
+        <div>
+          {lowConfidence ? (
+            <div className="mb-4 flex gap-3 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm leading-5 text-amber-900">
+              <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0" />
+              <p><strong>SC của phiên gần nhất dưới 0.4.</strong> Nên thu thập thêm dữ liệu hoặc tăng số khách hàng trước khi sử dụng kết quả.</p>
             </div>
-          </div>
-
-          <div className="rounded-xl border border-neutral-100 bg-neutral-50/40 p-4">
-            <h3 className="mb-2 text-sm font-bold text-neutral-700">Biểu đồ cột theo tỷ lệ</h3>
-            <div className="h-80 w-full">
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={chartRows} margin={{ top: 30, right: 20, left: 0, bottom: 45 }}>
-                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e5e7eb" />
-                  <XAxis
-                    dataKey="name"
-                    angle={-20}
-                    textAnchor="end"
-                    interval={0}
-                    height={70}
-                    tick={{ fontSize: 11, fill: "#6b7280" }}
+          ) : null}
+          <div className="h-[390px] w-full rounded-xl border border-neutral-100 bg-neutral-50/30 p-3">
+            <ResponsiveContainer width="100%" height="100%">
+              <AreaChart data={chartRows} margin={{ top: 18, right: 24, left: 8, bottom: 8 }}>
+                <defs>
+                  {SEGMENT_AREAS.map((area) => (
+                    <linearGradient key={area.key} id={`segment-${area.key}`} x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor={area.color} stopOpacity={0.65} />
+                      <stop offset="95%" stopColor={area.color} stopOpacity={0.12} />
+                    </linearGradient>
+                  ))}
+                </defs>
+                <CartesianGrid strokeDasharray="4 4" vertical={false} stroke="#e5e7eb" />
+                <XAxis
+                  dataKey="date"
+                  interval={0}
+                  tick={{ fontSize: 11, fill: "#6b7280" }}
+                />
+                <YAxis allowDecimals={false} tick={{ fontSize: 11, fill: "#6b7280" }} />
+                <Tooltip
+                  labelFormatter={(_, payload) => payload?.[0]?.payload?.fullDate || ""}
+                  formatter={(value, name) => [`${Number(value).toLocaleString("vi-VN")} khách`, name]}
+                />
+                <Legend verticalAlign="top" height={38} />
+                {SEGMENT_AREAS.map((area) => (
+                  <Area
+                    key={area.key}
+                    type="monotone"
+                    dataKey={area.key}
+                    name={area.name}
+                    stackId="segments"
+                    stroke={area.color}
+                    strokeWidth={2}
+                    fill={`url(#segment-${area.key})`}
+                    activeDot={{ r: 5 }}
                   />
-                  <YAxis
-                    domain={[0, 100]}
-                    tickFormatter={(value) => `${value}%`}
-                    tick={{ fontSize: 11, fill: "#6b7280" }}
-                  />
-                  <Tooltip formatter={(value) => [`${value}%`, "Tỷ lệ"]} />
-                  <Bar
-                    dataKey="percentage"
-                    radius={[8, 8, 0, 0]}
-                    maxBarSize={72}
-                  >
-                    {chartRows.map((entry, index) => (
-                      <Cell
-                        key={`bar-${entry.name}`}
-                        fill={CHART_COLORS[index % CHART_COLORS.length]}
-                      />
-                    ))}
-                    <LabelList
-                      dataKey="percentage"
-                      position="top"
-                      formatter={(value) => `${value}%`}
-                      className="fill-neutral-600 text-xs font-semibold"
-                    />
-                  </Bar>
-                </BarChart>
-              </ResponsiveContainer>
-            </div>
+                ))}
+              </AreaChart>
+            </ResponsiveContainer>
           </div>
         </div>
       ) : (
         <div className="flex h-64 flex-col items-center justify-center text-neutral-400">
           <Users className="mb-3 h-10 w-10" />
-          <p className="text-sm font-medium">Cửa hàng chưa có khách hàng.</p>
+          <p className="text-sm font-medium">Chưa có lịch sử phân loại trong 60 ngày gần nhất.</p>
         </div>
       )}
     </section>
