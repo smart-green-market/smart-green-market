@@ -75,8 +75,8 @@ class RelatedProductRecommendationService:
         lines = []
         for d in warning_dealers:
             lines.append(
-                f"- Cửa hàng \"{d['store_name']}\": "
-                f"{d['missing_count']}/{d['total_products']} sản phẩm chưa được AI đề xuất bán kèm hiệu quả (Độ bao phủ: {d['coverage_pct']}%)"
+                f"- Cửa hàng \"{d['dealer_name']}\": "
+                f"Thiếu {d['missing_count']}/{d['total_products']} sản phẩm chưa được AI đề xuất bán kèm hiệu quả (Độ bao phủ: {d['coverage_pct']}%)"
             )
         detail_text = '\n'.join(lines)
 
@@ -289,7 +289,7 @@ class RelatedProductRecommendationService:
 
             dealer_coverage_detail.append({
                 'dealer_id': dealer_id,
-                'store_name': dealer_names.get(dealer_id, f'Dealer #{dealer_id}'),
+                'dealer_name': dealer_names.get(dealer_id, f'Dealer #{dealer_id}'),
                 'total_products': total,
                 'covered': covered,
                 'missing_count': missing_count,

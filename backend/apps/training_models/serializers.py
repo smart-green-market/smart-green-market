@@ -1,6 +1,53 @@
 from rest_framework import serializers
 from .models import ProductPredictionResult, AITrainingHistory
+from apps.marketing.models import CustomerSegmentationHistory
 
+class DealerSegmentationHistorySerializer(serializers.ModelSerializer):
+    """Serializer trả về 5 phiên gần nhất phục vụ vẽ biểu đồ miền (Area Chart)"""
+    formatted_created_at = serializers.SerializerMethodField()
+
+    class Meta:
+        model = CustomerSegmentationHistory
+        fields = [
+            "id",
+            "total_customers",
+            "vip_count",
+            "potential_count",
+            "passive_count",
+            "risk_count",
+            "silhouette_score",
+            "created_at",
+            "formatted_created_at"
+        ]
+
+    def get_formatted_created_at(self, obj):
+        return obj.created_at.strftime("%d/%m/%Y %H:%M")
+
+
+class AdminSegmentationHistorySerializer(serializers.ModelSerializer):
+    """Serializer phục vụ admin giám sát hiệu năng kèm tên đại lý chi tiết"""
+    formatted_created_at = serializers.SerializerMethodField()
+    dealer_name = serializers.SerializerMethodField() # Thêm trường tên đại lý ở đây
+
+    class Meta:
+        model = CustomerSegmentationHistory
+        fields = [
+            "id",
+            "dealer_id",
+            "dealer_name", # Đưa vào danh sách fields trả về
+            "silhouette_score",
+            "total_customers",
+            "created_at",
+            "formatted_created_at"
+        ]
+
+    def get_formatted_created_at(self, obj):
+        return obj.created_at.strftime("%d/%m/%Y %H:%M")
+
+    def get_dealer_name(self, obj):
+        # Tối ưu: Lấy tên đại lý từ bộ map lưu trong context truyền từ View xuống
+        dealer_map = self.context.get("dealer_map", {})
+        return dealer_map.get(obj.dealer_id, "Không xác định")
 class ProductPredictionResultSerializer(serializers.ModelSerializer):
     # Định dạng lại tỷ lệ phần trăm hiển thị cho UI đỡ phải tự tính
     growth_rate_percentage = serializers.SerializerMethodField()
