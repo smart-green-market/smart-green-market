@@ -89,7 +89,7 @@ export default function TrainingHistoryDetailModal({ open, sessionId, onClose })
       [...(detail?.dealer_coverage_detail || [])].sort(
         (left, right) =>
           Number(right.has_warning) - Number(left.has_warning) ||
-          left.coverage - right.coverage,
+          left.coverage_pct - right.coverage_pct,
       ),
     [detail?.dealer_coverage_detail],
   );
@@ -175,8 +175,7 @@ export default function TrainingHistoryDetailModal({ open, sessionId, onClose })
               </div>
             </div>
 
-            <section className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-              <Metric icon={Layers3} label="Số epoch" value={formatNumber(detail.epochs_run, 0)} />
+            <section className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
               <Metric icon={Gauge} label="Final loss" value={formatNumber(detail.final_loss, 6)} />
               <Metric icon={CheckCircle2} label="Catalog coverage" value={formatPercent(detail.catalog_coverage)} />
               <Metric icon={Database} label="Sản phẩm đã học" value={formatNumber(detail.total_items_trained, 0)} />
@@ -242,16 +241,19 @@ export default function TrainingHistoryDetailModal({ open, sessionId, onClose })
                       <div>
                         <div className="mb-1.5 flex items-center justify-between gap-3 text-xs">
                           <span className="text-neutral-500">
-                            {dealer.covered_items || dealer.total_items
-                              ? `${formatNumber(dealer.covered_items, 0)}/${formatNumber(dealer.total_items, 0)} sản phẩm`
+                            {dealer.covered || dealer.total_products
+                              ? `${formatNumber(dealer.covered, 0)}/${formatNumber(dealer.total_products, 0)} sản phẩm`
                               : "Phạm vi catalog"}
+                            {dealer.missing_count > 0
+                              ? ` · thiếu ${formatNumber(dealer.missing_count, 0)}`
+                              : ""}
                           </span>
-                          <span className="font-black text-neutral-800">{formatPercent(dealer.coverage)}</span>
+                          <span className="font-black text-neutral-800">{formatPercent(dealer.coverage_pct)}</span>
                         </div>
                         <div className="h-2 overflow-hidden rounded-full bg-neutral-100">
                           <div
                             className={`h-full rounded-full ${dealer.has_warning ? "bg-amber-500" : "bg-emerald-500"}`}
-                            style={{ width: `${Math.min(100, Math.max(0, dealer.coverage))}%` }}
+                            style={{ width: `${Math.min(100, Math.max(0, dealer.coverage_pct))}%` }}
                           />
                         </div>
                       </div>
@@ -259,7 +261,10 @@ export default function TrainingHistoryDetailModal({ open, sessionId, onClose })
                         {dealer.has_warning ? (
                           <span className="inline-flex max-w-64 items-center gap-1.5 rounded-lg bg-amber-50 px-2.5 py-1.5 text-xs font-bold text-amber-800">
                             <AlertTriangle className="h-3.5 w-3.5 shrink-0" />
-                            {dealer.warning_message || "Thiếu dữ liệu gợi ý"}
+                            {dealer.warning_message ||
+                              (dealer.missing_count > 0
+                                ? `Thiếu gợi ý cho ${formatNumber(dealer.missing_count, 0)} sản phẩm`
+                                : "Coverage cần kiểm tra")}
                           </span>
                         ) : (
                           <span className="text-xs font-bold text-emerald-700">Ổn định</span>

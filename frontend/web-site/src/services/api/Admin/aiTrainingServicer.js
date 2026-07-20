@@ -37,11 +37,15 @@ export const normalizeLossHistory = (value) => {
     ? parsed
     : Array.isArray(parsed?.loss)
       ? parsed.loss
-      : Array.isArray(parsed?.values)
-        ? parsed.values
-        : parsed && typeof parsed === "object"
-          ? Object.entries(parsed).map(([epoch, loss]) => ({ epoch, loss }))
-          : [];
+      : Array.isArray(parsed?.loss_history)
+        ? parsed.loss_history
+        : Array.isArray(parsed?.history)
+          ? parsed.history
+          : Array.isArray(parsed?.values)
+            ? parsed.values
+            : parsed && typeof parsed === "object"
+              ? Object.entries(parsed).map(([epoch, loss]) => ({ epoch, loss }))
+              : [];
 
   return source
     .map((item, index) => {
@@ -63,26 +67,40 @@ export const normalizeDealerCoverage = (value) => {
   const parsed = parseSerializedValue(value);
   const source = Array.isArray(parsed)
     ? parsed
-    : parsed && typeof parsed === "object"
-      ? Object.entries(parsed).map(([key, detail]) =>
-          detail && typeof detail === "object"
-            ? { coverage_key: key, ...detail }
-            : { coverage_key: key, coverage: detail },
-        )
-      : [];
+    : Array.isArray(parsed?.dealers)
+      ? parsed.dealers
+      : Array.isArray(parsed?.results)
+        ? parsed.results
+        : Array.isArray(parsed?.coverage)
+          ? parsed.coverage
+          : parsed && typeof parsed === "object"
+            ? Object.entries(parsed).map(([key, detail]) =>
+                detail && typeof detail === "object"
+                  ? { coverage_key: key, ...detail }
+                  : { coverage_key: key, coverage: detail },
+              )
+            : [];
 
   return source.map((item, index) => {
     const dealer =
       item?.dealer && typeof item.dealer === "object" ? item.dealer : {};
-    const totalItems = toNumber(
-      item?.total_items ?? item?.catalog_items ?? item?.item_count,
+    const totalProducts = toNumber(
+      item?.total_products ??
+        item?.total_items ??
+        item?.catalog_items ??
+        item?.item_count,
       0,
     );
-    const coveredItems = toNumber(
-      item?.covered_items ??
+    const covered = toNumber(
+      item?.covered ??
+        item?.covered_items ??
         item?.recommended_items ??
         item?.items_with_recommendations,
       0,
+    );
+    const missingCount = toNumber(
+      item?.missing_count ?? item?.missing_items,
+      Math.max(0, totalProducts - covered),
     );
     const warningMessage =
       item?.warning_message || item?.warning || item?.message || "";
@@ -102,19 +120,22 @@ export const normalizeDealerCoverage = (value) => {
         dealer?.store_name ||
         dealer?.name ||
         `Đại lý #${item?.dealer_id ?? dealer?.id ?? item?.coverage_key ?? index + 1}`,
-      coverage: toPercent(
-        item?.coverage ?? item?.catalog_coverage ?? item?.coverage_percent,
+      coverage_pct: toPercent(
+        item?.coverage_pct ??
+          item?.coverage ??
+          item?.catalog_coverage ??
+          item?.coverage_percent ??
+          item?.coverage_ratio,
       ),
-      total_items: totalItems,
-      covered_items: coveredItems,
-      missing_items: toNumber(
-        item?.missing_items,
-        Math.max(0, totalItems - coveredItems),
-      ),
+      total_products: totalProducts,
+      covered,
+      missing_count: missingCount,
       has_warning:
         toBoolean(
           item?.has_warning ?? item?.has_warnings ?? item?.warning_status,
-        ) || Boolean(warningMessage),
+        ) ||
+        Boolean(warningMessage) ||
+        missingCount > 0,
       warning_message: warningMessage,
     };
   });
