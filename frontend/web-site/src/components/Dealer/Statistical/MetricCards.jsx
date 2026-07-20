@@ -65,7 +65,9 @@ export default function MetricCards({ metrics }) {
                         <Percent className="w-4 h-4" />
                     </div>
                 </div>
-                <h3 className="text-xl font-black text-neutral-800 mb-1">{metrics.profit_margin.toFixed(2)}%</h3>
+                <h3 className="text-xl font-black text-neutral-800 mb-1">
+                    {new Intl.NumberFormat("vi-VN", { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(metrics.profit_margin)}%
+                </h3>
                 <p className="text-[10px] text-neutral-500 font-medium">Tỷ lệ lợi nhuận / doanh thu</p>
             </div>
         </div>

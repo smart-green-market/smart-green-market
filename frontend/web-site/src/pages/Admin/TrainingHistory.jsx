@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import {
   AlertTriangle,
   ArrowLeft,
@@ -7,8 +7,6 @@ import {
   Clock3,
   Database,
   Eye,
-  Gauge,
-  History,
   Loader2,
   RefreshCw,
 } from "lucide-react";
@@ -85,16 +83,6 @@ export default function TrainingHistoryPage() {
   }, [fetchHistory]);
 
   const totalPages = Math.max(1, Math.ceil(history.count / history.page_size));
-  const pageMetrics = useMemo(() => {
-    const rows = history.results;
-    const averageCoverage = rows.length
-      ? rows.reduce((sum, item) => sum + item.catalog_coverage, 0) / rows.length
-      : null;
-    return {
-      averageCoverage,
-      warningCount: rows.filter((item) => item.has_warnings).length,
-    };
-  }, [history.results]);
 
   if (error && history.results.length === 0) {
     return (
@@ -141,30 +129,6 @@ export default function TrainingHistoryPage() {
         </div>
       </section>
 
-      <section className="grid gap-4 md:grid-cols-3">
-        <SummaryCard
-          icon={History}
-          label="Tổng phiên huấn luyện"
-          value={history.count.toLocaleString("vi-VN")}
-          description="Toàn bộ phiên Item2Vec được hệ thống ghi nhận."
-          tone="indigo"
-        />
-        <SummaryCard
-          icon={Gauge}
-          label="Coverage trung bình (trang này)"
-          value={pageMetrics.averageCoverage == null ? "—" : formatPercent(pageMetrics.averageCoverage)}
-          description="Tỷ lệ catalog đã được mô hình bao phủ."
-          tone="emerald"
-        />
-        <SummaryCard
-          icon={AlertTriangle}
-          label="Phiên có cảnh báo (trang này)"
-          value={pageMetrics.warningCount.toLocaleString("vi-VN")}
-          description="Mở chi tiết để xác định Đại lý cần bổ sung dữ liệu."
-          tone={pageMetrics.warningCount > 0 ? "amber" : "emerald"}
-        />
-      </section>
-
       <div className="flex gap-3 rounded-2xl border border-indigo-100 bg-indigo-50 px-5 py-4 text-sm leading-6 text-indigo-950">
         <Database className="mt-0.5 h-5 w-5 shrink-0 text-indigo-700" />
         <p>
@@ -191,9 +155,6 @@ export default function TrainingHistoryPage() {
             <h2 className="text-lg font-black text-neutral-950">Các phiên huấn luyện gần đây</h2>
             <p className="mt-1 text-sm text-neutral-500">Danh sách được phân trang trực tiếp từ API.</p>
           </div>
-          <span className="rounded-full bg-neutral-100 px-3 py-1.5 text-xs font-black text-neutral-600">
-            {history.count.toLocaleString("vi-VN")} phiên
-          </span>
         </div>
 
         {loading ? (
@@ -213,9 +174,8 @@ export default function TrainingHistoryPage() {
                   <tr>
                     <th className="px-6 py-4">Phiên / mô hình</th>
                     <th className="px-4 py-4">Thời gian</th>
-                    <th className="px-4 py-4 text-center">Epoch</th>
                     <th className="px-4 py-4 text-right">Final loss</th>
-                    <th className="px-4 py-4">Catalog coverage</th>
+                    <th className="px-4 py-4">Catalog coverage (%)</th>
                     <th className="px-4 py-4 text-right">Sản phẩm đã học</th>
                     <th className="px-4 py-4">Trạng thái</th>
                     <th className="px-6 py-4 text-right">Thao tác</th>
@@ -233,9 +193,6 @@ export default function TrainingHistoryPage() {
                         </td>
                         <td className="whitespace-nowrap px-4 py-4 text-sm text-neutral-600">
                           {formatDateTime(session.run_date)}
-                        </td>
-                        <td className="px-4 py-4 text-center font-black text-neutral-900">
-                          {formatNumber(session.epochs_run, 0)}
                         </td>
                         <td className="px-4 py-4 text-right font-mono text-sm font-black text-neutral-900">
                           {formatNumber(session.final_loss, 6)}
@@ -296,23 +253,5 @@ export default function TrainingHistoryPage() {
         onClose={() => setSelectedSessionId(null)}
       />
     </AdminPageShell>
-  );
-}
-
-function SummaryCard({ icon: Icon, label, value, description, tone }) {
-  const tones = {
-    indigo: "border-indigo-100 bg-indigo-50 text-indigo-700",
-    emerald: "border-emerald-100 bg-emerald-50 text-emerald-700",
-    amber: "border-amber-100 bg-amber-50 text-amber-700",
-  };
-  return (
-    <article className="rounded-2xl border border-neutral-200 bg-white p-5 shadow-sm">
-      <span className={`flex h-10 w-10 items-center justify-center rounded-xl border ${tones[tone]}`}>
-        <Icon className="h-5 w-5" />
-      </span>
-      <p className="mt-4 text-[11px] font-black uppercase tracking-wide text-neutral-500">{label}</p>
-      <p className="mt-1 text-3xl font-black text-neutral-950">{value}</p>
-      <p className="mt-3 text-xs leading-5 text-neutral-500">{description}</p>
-    </article>
   );
 }
