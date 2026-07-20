@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import {
   Activity,
   AlertTriangle,
@@ -31,9 +31,9 @@ function scoreMeta(score) {
     return { label: "Cần cải thiện", className: "bg-amber-100 text-amber-800", icon: AlertTriangle };
   }
   if (score < 0.5) {
-    return { label: "Chấp nhận được", className: "bg-sky-100 text-sky-800", icon: Activity };
+    return { label: "Ổn định", className: "bg-sky-100 text-sky-800", icon: Activity };
   }
-  return { label: "Độ tin cậy tốt", className: "bg-emerald-100 text-emerald-800", icon: CheckCircle2 };
+  return { label: "Đáng tin cậy", className: "bg-emerald-100 text-emerald-800", icon: CheckCircle2 };
 }
 
 function formatDateTime(value) {
@@ -79,15 +79,6 @@ export default function SegmentModelEvaluationPage() {
   }, [fetchHistory]);
 
   const totalPages = Math.max(1, Math.ceil(history.count / history.page_size));
-  const validScores = useMemo(
-    () => history.results.map((item) => item.silhouette_score).filter((score) => score != null),
-    [history.results],
-  );
-  const averageScore = validScores.length
-    ? validScores.reduce((sum, score) => sum + score, 0) / validScores.length
-    : null;
-  const lowScoreCount = validScores.filter((score) => score < 0.4).length;
-  const latestScore = history.results[0]?.silhouette_score ?? null;
 
   if (error && history.results.length === 0) {
     return (
@@ -129,48 +120,17 @@ export default function SegmentModelEvaluationPage() {
         </div>
       </section>
 
-      <section className="grid gap-4 md:grid-cols-3">
-        <MetricCard
-          icon={Activity}
-          label="SC trung bình (trang này)"
-          value={averageScore == null ? "—" : averageScore.toFixed(3)}
-          description="SC càng gần 1, các phân khúc càng tách biệt rõ."
-          tone="violet"
-        />
-        <MetricCard
-          icon={BrainCircuit}
-          label="Tổng phiên phân loại"
-          value={history.count.toLocaleString("vi-VN")}
-          description="Số lần chạy mô hình trên toàn hệ thống."
-          tone="emerald"
-        />
-        <MetricCard
-          icon={AlertTriangle}
-          label="Phiên SC < 0.4 (trang này)"
-          value={lowScoreCount.toLocaleString("vi-VN")}
-          description="Nên thu thập thêm dữ liệu trước khi ra quyết định."
-          tone={lowScoreCount > 0 ? "amber" : "emerald"}
-        />
-      </section>
-
-      {latestScore != null && latestScore < 0.4 ? (
-        <div className="flex gap-3 rounded-2xl border border-amber-200 bg-amber-50 px-5 py-4 text-sm leading-6 text-amber-900">
-          <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0" />
-          <p>
-            <strong>Phiên gần nhất có độ tin cậy thấp (SC {latestScore.toFixed(3)}).</strong>{" "}
-            Khuyến khích tăng số khách hàng, kéo dài khoảng dữ liệu hoặc thu thập thêm đơn hàng trước lần phân loại tiếp theo.
-          </p>
-        </div>
-      ) : null}
+      <div className="flex gap-3 rounded-2xl border border-indigo-100 bg-indigo-50 px-5 py-4 text-sm leading-6 text-indigo-950">
+        <p>
+          <strong>Silhouette Score</strong> chỉ số đánh giá chất lượng phân loại khách hàng <strong>(giao động từ -1 đến 1)</strong>.
+        </p>
+      </div>
 
       <section className="overflow-hidden rounded-2xl border border-neutral-200 bg-white shadow-sm">
         <div className="flex flex-wrap items-center justify-between gap-3 border-b border-neutral-100 px-6 py-5">
           <div>
             <h2 className="text-lg font-black text-neutral-900">Lịch sử phân loại toàn hệ thống</h2>
           </div>
-          <span className="rounded-full bg-neutral-100 px-3 py-1.5 text-xs font-bold text-neutral-600">
-            {history.count.toLocaleString("vi-VN")} phiên
-          </span>
         </div>
 
         {loading ? (
@@ -208,9 +168,8 @@ export default function SegmentModelEvaluationPage() {
                             </span>
                             <div>
                               <p className="font-bold text-neutral-900">
-                                {item.dealer_name || `Đại lý #${item.dealer_id ?? "—"}`}
+                                {item.dealer_name}
                               </p>
-                              <p className="text-xs text-neutral-400">ID: {item.dealer_id ?? "—"}</p>
                             </div>
                           </div>
                         </td>
@@ -243,23 +202,5 @@ export default function SegmentModelEvaluationPage() {
         )}
       </section>
     </AdminPageShell>
-  );
-}
-
-function MetricCard({ icon: Icon, label, value, description, tone }) {
-  const tones = {
-    violet: "border-violet-100 bg-violet-50 text-violet-700",
-    emerald: "border-emerald-100 bg-emerald-50 text-emerald-700",
-    amber: "border-amber-100 bg-amber-50 text-amber-700",
-  };
-  return (
-    <article className="rounded-2xl border border-neutral-200 bg-white p-5 shadow-sm">
-      <span className={`flex h-10 w-10 items-center justify-center rounded-xl border ${tones[tone]}`}>
-        <Icon className="h-5 w-5" />
-      </span>
-      <p className="mt-4 text-[11px] font-black uppercase tracking-wide text-neutral-500">{label}</p>
-      <p className="mt-1 text-3xl font-black text-neutral-950">{value}</p>
-      <p className="mt-3 text-xs leading-5 text-neutral-500">{description}</p>
-    </article>
   );
 }
