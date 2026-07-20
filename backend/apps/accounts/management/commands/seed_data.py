@@ -17,6 +17,7 @@ from apps.orders.models import Order
 from apps.product_catalog.models import ProductMaster
 
 from .seed_customer_journeys import seed_customer_journeys
+from .seed_product_reviews import seed_product_reviews
 from .seed_purchase_orders import seed_purchase_orders_and_payments
 from .seed_dealer_customer_tiers import (
     DEALER_BUYER_COUNTS,
@@ -106,6 +107,11 @@ class Command(BaseCommand):
 
             from apps.loyalty.models import CustomerTierHistory, LoyaltyPointTransaction
 
+            from apps.reviews.models import ProductRecommendation, ProductReview, ReviewImage
+
+            ReviewImage.objects.all().delete()
+            ProductReview.objects.all().delete()
+            ProductRecommendation.objects.all().delete()
             CustomerTierHistory.objects.all().delete()
             LoyaltyPointTransaction.objects.all().delete()
             OrderReturnItem.objects.all().delete()
@@ -226,6 +232,15 @@ class Command(BaseCommand):
                 f"Purchase orders: {po_stats['purchase_orders']}, "
                 f"payments: {po_stats['payments']}, "
                 f"returns: {po_stats['returns']}"
+            )
+        )
+
+        self.stdout.write('Creating product reviews for completed orders...')
+        review_stats = seed_product_reviews(self.dealers)
+        self.stdout.write(
+            self.style.SUCCESS(
+                f"Reviews: {review_stats['reviews']} "
+                f"(dealer01: {review_stats['dealer_01']}, dealer02: {review_stats['dealer_02']})"
             )
         )
 

@@ -23,6 +23,7 @@ Mat khau: `12345678`
 ## 4. Quy tac
 - Email: buyer.dXX.khYYY@seed.example.com (KH001 = buyer01@gmail.com)
 - Ma don: ORD-DXXKYYYYNNN (vd ORD-D01K001N01), moi don 1 CTHD
+- Danh gia san pham (`ProductReview`): 30 review tren don `completed` — 25 dealer01, 5 dealer02; 28x5 sao, 2x4 sao (cau co "dap nhe" / "kich thuoc chua dong deu"); `created_at` = `completed_at` don
 
 ## 5.1 Dealer 01
 ### KH 001 | buyer01@gmail.com | VIP | VIP | 5 HD
