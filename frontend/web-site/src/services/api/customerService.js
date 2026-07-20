@@ -12,6 +12,15 @@ export const customerService = {
       .then((res) => res.data),
 
   /**
+   * Lấy thống kê phân khúc khách hàng
+   * GET /api/dealer-customers/segment-stats/
+   */
+  getSegmentStats: () =>
+    axiosClient
+      .get("/dealer-customers/segment-stats/")
+      .then((res) => res.data),
+
+  /**
    * Lấy chi tiết một khách hàng
    * GET /api/dealer-customers/:id/
    */
@@ -42,4 +51,15 @@ export const customerService = {
       })
       .then((res) => res.data);
   },
+
+  /**
+   * Lấy lịch sử phân khúc của đại lý
+   * GET /api/dealer/segmentation-history/
+   */
+  getSegmentationHistory: (dealerId) =>
+    axiosClient
+      .get("/dealer/segmentation-history/", {
+        params: { dealer_id: Number(dealerId) },
+      })
+      .then((res) => res.data),
 };

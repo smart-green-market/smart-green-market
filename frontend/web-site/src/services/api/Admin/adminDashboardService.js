@@ -1,20 +1,13 @@
 import axiosClient from "../axiosClient";
 
 export const adminDashboardService = {
-  //Lấy thống kê doanh thu toàn nền tảng theo tháng trong vòng 6 tháng gần nhất để vẽ biểu đồ.
+  // Lấy chuỗi doanh thu Đại lý (B2C) và giá trị nhập hàng Nhà cung cấp (B2B).
   chart: async () => {
     const res = await axiosClient.get("/dashboard/admin/revenue-chart");
     return res.data;
   },
 
-  //   [
-  //     {
-  //       "month": "string",
-  //       "revenue": "-4.9"
-  //     }
-  //   ]
-
-  //Lấy dữ liệu thống kê tổng quan của toàn nền tảng cho Admin: doanh thu tháng hiện tại, số đại lý và nhà cung cấp đang hoạt động, và số lượng khách hàng đăng ký mới trong tháng.
+  // Lấy dữ liệu tổng quan của Admin.
   summary: async () => {
     const res = await axiosClient.get("/dashboard/admin/summary");
     return res.data;
@@ -22,7 +15,8 @@ export const adminDashboardService = {
 
   //   {
   //     "revenue": {
-  //       "this_month": 1231500
+  //       "this_month_dealer": 1231500,
+  //       "this_month_supplier": 4560000
   //     },
   //     "active_dealers": 4,
   //     "active_suppliers": 4,
@@ -82,6 +76,83 @@ export const adminDashboardService = {
   //     "revenue": "573233.41"
   //   }
   // ]
+};
+
+const asArray = (value) => {
+  if (Array.isArray(value)) return value;
+  if (Array.isArray(value?.results)) return value.results;
+  return [];
+};
+
+const pickNumericValue = (item, keys) => {
+  for (const key of keys) {
+    if (item?.[key] != null && item[key] !== "") {
+      return Number(item[key]) || 0;
+    }
+  }
+  return 0;
+};
+
+const hasAnyKey = (items, keys) =>
+  items.some((item) =>
+    keys.some((key) => Object.prototype.hasOwnProperty.call(item ?? {}, key)),
+  );
+
+const normalizeSeries = (items, valueKeys) =>
+  items.map((item, index) => ({
+    id: item?.id ?? item?.month ?? index,
+    month: item?.month ?? item?.label ?? "",
+    revenue: pickNumericValue(item, valueKeys),
+  }));
+
+export const normalizeAdminRevenueChart = (payload) => {
+  const sharedItems = asArray(payload);
+  const dealerItems = asArray(
+    payload?.dealer ??
+      payload?.dealers ??
+      payload?.b2c ??
+      payload?.dealer_revenue,
+  );
+  const supplierItems = asArray(
+    payload?.supplier ??
+      payload?.suppliers ??
+      payload?.b2b ??
+      payload?.supplier_revenue,
+  );
+
+  const dealerKeys = [
+    "dealer_revenue",
+    "revenue_dealer",
+    "this_month_dealer",
+    "b2c_revenue",
+    "revenue",
+    "value",
+  ];
+  const supplierKeys = [
+    "supplier_revenue",
+    "revenue_supplier",
+    "this_month_supplier",
+    "b2b_revenue",
+    "purchase_value",
+    "revenue",
+    "value",
+  ];
+
+  const dealerSource = dealerItems.length ? dealerItems : sharedItems;
+  const supplierSource = supplierItems.length ? supplierItems : sharedItems;
+  const sharedSupplierKeys = supplierKeys.filter(
+    (key) => !["revenue", "value"].includes(key),
+  );
+  const hasSupplierSeries =
+    supplierItems.length > 0 || hasAnyKey(sharedItems, sharedSupplierKeys);
+
+  return {
+    dealers: normalizeSeries(dealerSource, dealerKeys),
+    suppliers: hasSupplierSeries
+      ? normalizeSeries(supplierSource, supplierKeys)
+      : [],
+    hasSupplierSeries,
+  };
 };
 
 // Xử lý bug

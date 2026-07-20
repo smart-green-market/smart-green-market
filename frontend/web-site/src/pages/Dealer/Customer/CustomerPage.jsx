@@ -1,7 +1,9 @@
 import { useState, useEffect } from "react";
+import { AlertTriangle } from "lucide-react";
 import SupplierFilter from "../../../components/Dealer/Supplier/SupplierFilter";
 import CustomerHeader from "../../../components/Dealer/Customer/CustomerHeader";
 import CustomerTable from "../../../components/Dealer/Customer/CustomerTable";
+import CustomerLoyaltyModal from "../../../components/Dealer/Customer/CustomerLoyaltyModal";
 import { customerService } from "../../../services/api/customerService";
 import { dealerOrderService } from "../../../services/api/dealerOrderService";
 import { useAuth } from "../../../contexts/authProvider";
@@ -24,6 +26,9 @@ export default function DealerCustomerPage() {
     pageSize: 10,
     hasMore: false,
   });
+  const [selectedLoyaltyCustomer, setSelectedLoyaltyCustomer] = useState(null);
+  const [isLoyaltyOpen, setIsLoyaltyOpen] = useState(false);
+  const [segmentationAlert, setSegmentationAlert] = useState(null);
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -37,6 +42,8 @@ export default function DealerCustomerPage() {
   useEffect(() => {
     fetchCustomers(1);
   }, [debouncedSearchQuery, statusFilter]);
+
+
 
   const fetchCustomers = async (page = 1) => {
     try {
@@ -102,6 +109,17 @@ export default function DealerCustomerPage() {
       const res = await customerService.runSegmentation(dealerId, days);
       if (res.success) {
         toast.success(res.message || "Phân khúc khách hàng thành công!", { id: toastId });
+        
+        // Kiểm tra độ tin cậy của phiên vừa chạy
+        if (res.silhouette_score !== undefined && res.silhouette_score < 0.4) {
+          setSegmentationAlert({
+            score: res.silhouette_score,
+            message: `Phiên gần nhất có độ tin cậy thấp (SC ${res.silhouette_score.toFixed(3)}). Khuyến khích tăng số khách hàng, kéo dài khoảng dữ liệu hoặc thu thập thêm đơn hàng trước lần phân loại tiếp theo.`
+          });
+        } else {
+          setSegmentationAlert(null);
+        }
+
         // Tải lại danh sách khách hàng sau khi cập nhật phân khúc
         fetchCustomers(1);
       } else {
@@ -147,6 +165,16 @@ export default function DealerCustomerPage() {
         onUpdateDays={handleUpdateDays}
       />
 
+      {/* Alert tin cậy thấp */}
+      {segmentationAlert && (
+        <div className="mb-6 p-4 bg-amber-50 border border-amber-200 text-amber-800 rounded-xl flex items-start gap-3 shadow-xs animate-in fade-in duration-200">
+          <AlertTriangle className="w-5 h-5 shrink-0 text-amber-600 mt-0.5" />
+          <div className="text-xs font-semibold leading-relaxed">
+            {segmentationAlert.message}
+          </div>
+        </div>
+      )}
+
       <SupplierFilter
         searchQuery={searchQuery}
         onSearchChange={setSearchQuery}
@@ -158,21 +186,35 @@ export default function DealerCustomerPage() {
 
       {/* Table Section */}
       {loading ? (
-          <div className="flex justify-center items-center py-20">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-emerald-600"></div>
-          </div>
+        <div className="flex justify-center items-center py-20">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-emerald-600"></div>
+        </div>
       ) : (
-          <CustomerTable
-            loading={loading}
-            error={error}
-            customers={filteredCustomers}
-            pagination={pagination}
-            onPageChange={fetchCustomers}
-            onRetry={() => fetchCustomers(pagination.page)}
-            searchQuery={searchQuery}
-            statusFilter={statusFilter}
-          />
+        <CustomerTable
+          loading={loading}
+          error={error}
+          customers={filteredCustomers}
+          pagination={pagination}
+          onPageChange={fetchCustomers}
+          onRetry={() => fetchCustomers(pagination.page)}
+          searchQuery={searchQuery}
+          statusFilter={statusFilter}
+          onViewLoyalty={(customer) => {
+            setSelectedLoyaltyCustomer(customer);
+            setIsLoyaltyOpen(true);
+          }}
+        />
       )}
+
+      <CustomerLoyaltyModal
+        customer={selectedLoyaltyCustomer}
+        isOpen={isLoyaltyOpen}
+        onClose={() => {
+          setIsLoyaltyOpen(false);
+          setSelectedLoyaltyCustomer(null);
+        }}
+        onSuccess={() => fetchCustomers(pagination.page)}
+      />
 
     </div>
   );

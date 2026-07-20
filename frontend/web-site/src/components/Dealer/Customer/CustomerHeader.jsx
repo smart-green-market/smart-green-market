@@ -1,5 +1,6 @@
 import { useState } from "react";
-import { Download, Plus, Users, Award, TrendingUp, XCircle, Clock } from "lucide-react";
+import { Download, Plus, Users, Award, TrendingUp, XCircle, Clock, AreaChart } from "lucide-react";
+import CustomerSegmentChartModal from "./CustomerSegmentChartModal";
 
 const STAT_CARDS = [
   {
@@ -40,6 +41,7 @@ export default function CustomerHeader({
   onUpdateDays,
 }) {
   const [days, setDays] = useState("");
+  const [isChartModalOpen, setIsChartModalOpen] = useState(false);
 
   const handleUpdate = () => {
     if (onUpdateDays) {
@@ -59,7 +61,7 @@ export default function CustomerHeader({
             Phân tích và chăm sóc tập khách hàng đại lý.
           </p>
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex flex-wrap items-center gap-3">
           <div className="flex items-center gap-2">
             <input
               type="number"
@@ -73,9 +75,15 @@ export default function CustomerHeader({
               onClick={handleUpdate}
               className="px-4 py-2.5 bg-[#006A3A] hover:bg-[#005A30] text-white rounded-xl text-sm font-bold transition-all active:scale-95 duration-150 cursor-pointer shadow-md"
             >
-              Train AI
+              Phân loại khách hàng
             </button>
           </div>
+          <button
+            onClick={() => setIsChartModalOpen(true)}
+            className="flex items-center gap-2 px-4 py-2.5 bg-indigo-50 border border-indigo-100 hover:bg-indigo-100 text-indigo-700 rounded-xl text-sm font-bold transition-colors cursor-pointer shadow-sm"
+          >
+            <AreaChart className="w-4 h-4" /> Xem phân loại
+          </button>
           {/* <button
             onClick={onExport}
             className="flex items-center gap-2 px-4 py-2.5 bg-emerald-100 hover:bg-emerald-200 text-emerald-800 rounded-xl text-sm font-bold transition-colors"
@@ -155,6 +163,11 @@ export default function CustomerHeader({
           </div>
         </div>
       </div>
+
+      <CustomerSegmentChartModal
+        isOpen={isChartModalOpen}
+        onClose={() => setIsChartModalOpen(false)}
+      />
     </>
   );
 }

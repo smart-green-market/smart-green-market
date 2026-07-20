@@ -104,22 +104,31 @@ export default function VoucherDetailModal({ isOpen, onClose, voucherId }) {
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 overflow-y-auto p-4">
-      <div className="bg-white rounded-xl shadow-xl w-full max-w-lg my-8">
-        <div className="flex justify-between items-center px-6 py-4 border-b border-gray-100">
-          <h2 className="text-xl font-bold text-gray-800">Chi tiết Voucher</h2>
-          <button onClick={onClose} className="text-gray-400 hover:text-gray-600 transition-colors">
-            <X size={24} />
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+      <div 
+        className="bg-white rounded-2xl shadow-2xl w-full max-w-md flex flex-col max-h-[85vh] overflow-hidden"
+        style={{ animation: 'fadeInScale 0.25s ease-out' }}
+      >
+        <div className="flex justify-between items-center px-6 py-5 border-b border-gray-100 bg-gradient-to-r from-green-50 to-emerald-50 rounded-t-2xl">
+          <div className="flex items-center gap-3">
+            <h2 className="text-lg font-bold text-gray-800">Chi tiết Voucher</h2>
+          </div>
+          <button 
+            onClick={onClose} 
+            className="text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg p-1.5 transition-all"
+            aria-label="Đóng"
+          >
+            <X size={20} />
           </button>
         </div>
 
-        <div className="p-6">
+        <div className="p-6 overflow-y-auto flex-1">
           {isLoading ? (
             <div className="flex justify-center items-center h-48">
               <Loader2 className="w-8 h-8 animate-spin text-green-600" />
             </div>
           ) : voucher ? (
-            <div className="space-y-6 font-['Geist',sans-serif]">
+            <div className="space-y-4 font-['Geist',sans-serif]">
               {/* Title & Code */}
               <div>
                 <div className="flex items-center gap-3 mb-2">
@@ -193,6 +202,45 @@ export default function VoucherDetailModal({ isOpen, onClose, voucherId }) {
                 </div>
               </div>
 
+              {/* Audience details */}
+              <div className="border border-gray-100 rounded-xl p-4 bg-gray-50/50 space-y-3">
+                <h4 className="text-sm font-semibold text-gray-800 uppercase tracking-wider text-xs border-b pb-1.5 mb-2">Đối tượng áp dụng</h4>
+                <div className="flex justify-between items-center text-sm">
+                  <span className="text-gray-500">Loại đối tượng:</span>
+                  <span className="font-semibold text-gray-900">
+                    {voucher.audience_type === 'LOYALTY_TIER' 
+                      ? 'Hạng thành viên B2C' 
+                      : voucher.audience_type === 'CUSTOMER_SEGMENT' 
+                      ? 'Phân khúc khách hàng' 
+                      : 'Tất cả khách hàng'}
+                  </span>
+                </div>
+                {voucher.audience_type === 'LOYALTY_TIER' && voucher.loyalty_tiers && voucher.loyalty_tiers.length > 0 && (
+                  <div className="flex flex-col gap-1 text-sm">
+                    <span className="text-gray-500">Các hạng áp dụng:</span>
+                    <div className="flex flex-wrap gap-1 mt-1">
+                      {voucher.loyalty_tiers.map(tier => (
+                        <span key={tier.id} className="px-2 py-0.5 bg-emerald-50 text-emerald-700 border border-emerald-100 rounded text-xs font-bold">
+                          {tier.name}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                {voucher.audience_type === 'CUSTOMER_SEGMENT' && voucher.customer_segments && voucher.customer_segments.length > 0 && (
+                  <div className="flex flex-col gap-1 text-sm">
+                    <span className="text-gray-500">Các phân khúc áp dụng:</span>
+                    <div className="flex flex-wrap gap-1 mt-1">
+                      {voucher.customer_segments.map(seg => (
+                        <span key={seg.id} className="px-2 py-0.5 bg-blue-50 text-blue-700 border border-blue-100 rounded text-xs font-bold">
+                          {seg.name}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+
               {/* Time Details */}
               <div className="border border-gray-100 rounded-xl p-4 bg-gray-50/50 space-y-3">
                 <h4 className="text-sm font-semibold text-gray-800 uppercase tracking-wider text-xs border-b pb-1.5 mb-2">Thời gian hoạt động</h4>
@@ -236,15 +284,22 @@ export default function VoucherDetailModal({ isOpen, onClose, voucherId }) {
           )}
         </div>
 
-        <div className="flex justify-end gap-3 px-6 py-4 border-t border-gray-100 bg-gray-50 rounded-b-xl">
+        <div className="flex justify-end gap-3 px-6 py-4 border-t border-gray-100 bg-gray-50/50 rounded-b-2xl">
           <button
             onClick={onClose}
-            className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+            className="px-5 py-2.5 text-sm font-medium text-gray-700 bg-white border border-gray-200 rounded-xl hover:bg-gray-50 transition-all"
           >
             Đóng
           </button>
         </div>
       </div>
+
+      <style>{`
+        @keyframes fadeInScale {
+          from { opacity: 0; transform: scale(0.95); }
+          to { opacity: 1; transform: scale(1); }
+        }
+      `}</style>
     </div>
   );
 }

@@ -148,8 +148,9 @@ function OrderRow({ order, onView }) {
 }
 // ─── MAIN DASHBOARD ───────────────────────────────────────────────────────────
 // Các status KHÔNG được tính vào đơn hàng tháng
+// Trạng thái KHÔNG được tính vào đơn hàng tháng
+// (pending_supplier_confirmation được tính — đơn chờ xác nhận vẫn là đơn hàng thật)
 const EXCLUDED_STATUSES = new Set([
-  "pending_supplier_confirmation",
   "cancelled",
   "rejected",
 ]);
@@ -607,7 +608,7 @@ export default function DashboardPage() {
                 </div>
               </div>
               <div className="mc-val">{totalRevenue.toLocaleString("vi-VN")} VNĐ</div>
-              <div className="mc-label">Doanh thu tháng 6</div>
+              <div className="mc-label">Doanh thu</div>
             </div>
           </Link>
 
@@ -621,7 +622,7 @@ export default function DashboardPage() {
                   </svg>
                 </div>
               </div>
-              <div className="mc-val">{count_order_month}</div>
+              <div className="mc-val">{loading ? "…" : count_order_month}</div>
               <div className="mc-label">Đơn hàng tháng này</div>
             </div>
           </Link>

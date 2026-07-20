@@ -13,6 +13,9 @@ const dashboardService = {
   getPurchaseSummary: () => {
     return axiosClient.get("/dashboard/dealer/purchase-summary/").then(res => res.data);
   },
+  getPurchasedSuppliers: () => {
+    return axiosClient.get("/dashboard/dealer/purchased-suppliers/").then(res => res.data);
+  },
 };
 
 export default dashboardService;

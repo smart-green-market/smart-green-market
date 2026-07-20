@@ -26,11 +26,37 @@ function useMockFallback(error) {
   return MOCK_USER_ORDERS;
 }
 
+/** Fetch tất cả đơn hàng qua nhiều trang (loop theo trường `next`) */
+async function fetchAllOrderPages(firstUrl) {
+  const allResults = [];
+  let nextUrl = firstUrl;
+
+  while (nextUrl) {
+    const res = await axiosClient.get(nextUrl);
+    const data = res.data;
+
+    const page = flattenOrderResults(data);
+    allResults.push(...page);
+
+    const rawNext = data?.next ?? null;
+    if (!rawNext) break;
+
+    // Nếu `next` là full URL (http://...), chỉ lấy phần path+query
+    try {
+      const url = new URL(rawNext);
+      nextUrl = url.pathname + url.search;
+    } catch {
+      nextUrl = rawNext;
+    }
+  }
+
+  return allResults;
+}
+
 export const userOrderService = {
   getAll: async () => {
     try {
-      const res = await axiosClient.get("/customer-orders/");
-      const list = flattenOrderResults(res.data);
+      const list = await fetchAllOrderPages("/customer-orders/?page_size=100");
       return list.length ? list : MOCK_USER_ORDERS;
     } catch (error) {
       return useMockFallback(error);

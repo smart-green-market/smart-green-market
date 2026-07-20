@@ -4,7 +4,7 @@ from rest_framework import serializers
 
 from common.openapi_enums import schema_choice_field
 
-from .models import CustomerSegment, CustomerSegmentMember
+from .models import CustomerSegment, CustomerSegmentMember, CustomerSegmentationHistory
 from .services import STOREFRONT_TRACK_ACTIONS
 
 

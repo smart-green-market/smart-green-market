@@ -19,13 +19,13 @@ import NotFoundPage from "../public/404";
 
 import StorefrontEntryRedirect from "./components/User/StorefrontEntryRedirect";
 //User Pages
-import { HomePage, ProductDetailPage, ProductsPage, CartPage, OrderPage, PaymentPage, OrderStatusPage, UserProfilePage, ChangePasswordPage, OrderHistoryPage, PreOrderRequestsPage, ProductReviewsPage, UserVoucherPage, BuyerNotificationsPage, UserLoginPage, UserRegisterPage, SearchProductPage, DealerSlugEntryPage, CheckoutPage, OrderTrackingPage, PoliciesPage, SupportPage, AboutUsPage } from "./pages/User";
+import { LoyaltyHistoryPage, HomePage, ProductDetailPage, ProductsPage, CartPage, OrderPage, PaymentPage, OrderStatusPage, UserProfilePage, ChangePasswordPage, OrderHistoryPage, PreOrderRequestsPage, ProductReviewsPage, UserVoucherPage, BuyerNotificationsPage, UserLoginPage, UserRegisterPage, SearchProductPage, DealerSlugEntryPage, CheckoutPage, OrderTrackingPage, PoliciesPage, SupportPage, AboutUsPage } from "./pages/User";
 //Supplier Pages
-import { OrderSupplierPage, ProductSupplierPage, CertificationSupplierPage, RegisterPage, SupplierLoginPage, SupplierInfoPage, CategorySupplierPage, CultivationSupplierPage, DashboardSupplierPage, SupplierNotificationPage, NotFound, OrderStats, RevenuePage, SupplierDiscountPage } from "./pages/Supplier";
+import { OrderSupplierPage, ProductSupplierPage, CertificationSupplierPage, RegisterPage, SupplierLoginPage, SupplierInfoPage, CategorySupplierPage, CultivationSupplierPage, DashboardSupplierPage, SupplierNotificationPage, NotFound, OrderStats, RevenuePage, SupplierDiscountPage, CustomerSupplierPage } from "./pages/Supplier";
 //Admin Pages
-import { AdminStatisticsPage, AdminLoginPage, AdminDashboardPage, SettingPage, SupplierPage, CategoryPage, ProductPage, ProductMasterPage, SeasonPage, CertificationPage, DocumentPage, NotificationPage, DealerPage, VoucherPage, SupplierFinancePage, } from "./pages/Admin";
+import { TrainingHistoryPage, SegmentModelEvaluationPage, DetailDealerPage, AdminStatisticsPage, AdminLoginPage, AdminDashboardPage, SettingPage, SupplierPage, CategoryPage, ProductPage, ProductMasterPage, SeasonPage, CertificationPage, DocumentPage, NotificationPage, DealerPage, VoucherPage, SupplierFinancePage, } from "./pages/Admin";
 //Dealer Pages
-import { RegisterDealerPage, DealerLoginPage, DealerDashboardPage, DealerInventoryPage, DealerSupplierPage, DealerCategoryPage, DealerSalesOrderPage, DealerPreOrderPage, DealerPurchaseOrderPage, DealerCreatePurchaseOrderPage, DealerPurchaseOrderDetailPage, DealerDraftOrderPreviewPage, DealerSupplierDetailPage, DealerCategoryDetail, DealerInfoPage, DealerCustomerPage, DealerProductManagementPage, DealerProductDetailPage, DealerDiscountPage, DealerAiPredictionPage, DealerStatsPage } from "./pages/Dealer";
+import { RegisterDealerPage, DealerLoginPage, DealerDashboardPage, DealerInventoryPage, DealerSupplierPage, DealerCategoryPage, DealerSalesOrderPage, DealerPreOrderPage, DealerPurchaseOrderPage, DealerCreatePurchaseOrderPage, DealerPurchaseOrderDetailPage, DealerDraftOrderPreviewPage, DealerSupplierDetailPage, DealerCategoryDetail, DealerInfoPage, DealerCustomerPage, DealerProductManagementPage, DealerProductDetailPage, DealerDiscountPage, DealerAiPredictionPage, DealerStatsPage, DealerLoyaltyPage } from "./pages/Dealer";
 export default function App() {
     return (
         <BrowserRouter>
@@ -57,6 +57,7 @@ export default function App() {
                                     <Route path="" element={<UserProfilePage />} />
                                     <Route path="doi-mat-khau" element={<ChangePasswordPage />} />
                                     <Route path="lich-su-don-hang" element={<OrderHistoryPage />} />
+                                    <Route path="lich-su-diem" element={<LoyaltyHistoryPage />} />
                                     <Route path="dat-truoc" element={<PreOrderRequestsPage />} />
                                     <Route path="danh-gia-san-pham" element={<ProductReviewsPage />} />
                                     <Route path="vouchers" element={<UserVoucherPage />} />
@@ -82,6 +83,7 @@ export default function App() {
                             <Route path="thong-ke-don-hang" element={<OrderStats />} />
                             <Route path="doanh-thu" element={<RevenuePage />} />
                             <Route path="giam-gia" element={<SupplierDiscountPage />} />
+                            <Route path="khach-hang" element={<CustomerSupplierPage />} />
                             <Route path="*" element={<NotFound />} />
                         </Route>
                     </Route>
@@ -95,6 +97,7 @@ export default function App() {
                         <Route path="/quan-tri" element={<AdminLayout />}>
                             <Route index element={<AdminDashboardPage />} />
                             <Route path="thong-ke" element={<AdminStatisticsPage />} />
+                            <Route path="danh-gia-phan-khuc" element={<SegmentModelEvaluationPage />} />
                             <Route path="cau-hinh" element={<SettingPage />} />
                             <Route path="nha-cung-cap" element={<SupplierPage />} />
                             <Route path="tai-chinh-ncc" element={<SupplierFinancePage />} />
@@ -106,7 +109,9 @@ export default function App() {
                             <Route path="giay-to" element={<DocumentPage />} />
                             <Route path="tat-ca-thong-bao" element={<NotificationPage />} />
                             <Route path="dai-ly" element={<DealerPage />} />
+                            <Route path="dai-ly/:id" element={<DetailDealerPage />} />
                             <Route path="khuyen-mai" element={<VoucherPage />} />
+                            <Route path="lich-su-huan-luyen-ai" element={<TrainingHistoryPage />} />
                         </Route>
                     </Route>
 
@@ -134,6 +139,7 @@ export default function App() {
                             <Route path="giam-gia" element={<DealerDiscountPage />} />
                             <Route path="du-bao-ai" element={<DealerAiPredictionPage />} />
                             <Route path="thong-ke" element={<DealerStatsPage />} />
+                            <Route path="loyalty" element={<DealerLoyaltyPage />} />
                         </Route>
                     </Route>
                     <Route path="dai-ly/dang-nhap" element={<DealerLoginPage />} />
