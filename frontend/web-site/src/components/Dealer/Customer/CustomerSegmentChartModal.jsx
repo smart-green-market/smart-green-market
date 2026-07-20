@@ -34,22 +34,21 @@ export default function CustomerSegmentChartModal({ isOpen, onClose }) {
       const rawData = res || [];
       // Lọc dữ liệu: lớn hơn 9 thì lấy 8 lần train mới nhất (các phần tử cuối cùng)
       const processedData = rawData.length > 9 ? rawData.slice(-8) : rawData;
-      
-      // Định dạng lại: chỉ lấy ngày, không lấy giờ
+
       const formattedData = processedData.map((item) => {
-        let dateStr = "";
-        if (item.formatted_created_at) {
-          dateStr = item.formatted_created_at.split(" ")[0]; // Cắt bỏ phần giờ "09:01"
-        } else if (item.created_at) {
+        let formattedCreatedAt = item.formatted_created_at;
+        if (!formattedCreatedAt && item.created_at) {
           const d = new Date(item.created_at);
           const day = String(d.getDate()).padStart(2, "0");
           const month = String(d.getMonth() + 1).padStart(2, "0");
           const year = d.getFullYear();
-          dateStr = `${day}/${month}/${year}`;
+          const hours = String(d.getHours()).padStart(2, "0");
+          const minutes = String(d.getMinutes()).padStart(2, "0");
+          formattedCreatedAt = `${day}/${month}/${year} ${hours}:${minutes}`;
         }
         return {
           ...item,
-          formatted_created_at: dateStr,
+          formatted_created_at: formattedCreatedAt,
         };
       });
 
@@ -70,7 +69,7 @@ export default function CustomerSegmentChartModal({ isOpen, onClose }) {
         className="absolute inset-0 bg-neutral-900/40 backdrop-blur-sm"
         onClick={onClose}
       />
-      <div className="relative bg-white rounded-2xl shadow-xl w-full max-w-7xl overflow-hidden flex flex-col max-h-[95vh]">
+      <div className="relative bg-white rounded-2xl shadow-xl w-full max-w-6xl overflow-hidden flex flex-col max-h-[95vh]">
         {/* Header */}
         <div className="flex items-center justify-between p-6 border-b border-neutral-100 bg-neutral-50/50">
           <div className="flex items-center gap-3">
@@ -106,7 +105,7 @@ export default function CustomerSegmentChartModal({ isOpen, onClose }) {
               </div>
               <p className="text-sm font-bold text-red-600 mb-1">Đã có lỗi xảy ra</p>
               <p className="text-xs text-neutral-500 max-w-xs">{error}</p>
-              <button 
+              <button
                 onClick={fetchSegmentationData}
                 className="mt-4 px-4 py-2 bg-neutral-100 hover:bg-neutral-200 text-neutral-700 rounded-lg text-xs font-bold transition-colors"
               >
@@ -127,11 +126,12 @@ export default function CustomerSegmentChartModal({ isOpen, onClose }) {
                 <ResponsiveContainer width="100%" height="100%">
                   <AreaChart
                     data={data}
-                    margin={{ top: 20, right: 30, left: 0, bottom: 10 }}
+                    margin={{ top: 20, right: 65, left: 25, bottom: 30 }}
                   >
                     <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e5e7eb" />
                     <XAxis
                       dataKey="formatted_created_at"
+                      tickFormatter={(val) => val || ""}
                       axisLine={false}
                       tickLine={false}
                       tick={{ fontSize: 10, fill: "#4b5563", fontWeight: 600 }}
@@ -211,21 +211,23 @@ export default function CustomerSegmentChartModal({ isOpen, onClose }) {
                       Độ tin cậy AI (Silhouette): {data[data.length - 1]?.silhouette_score ? data[data.length - 1].silhouette_score.toFixed(4) : "N/A"}
                     </span>
                   </div>
-                  <div className="flex flex-wrap gap-4 justify-start items-center">
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                     {[
                       { label: "VIP", count: data[data.length - 1]?.vip_count || 0, color: "#10b981" },
                       { label: "Tiềm năng", count: data[data.length - 1]?.potential_count || 0, color: "#3b82f6" },
                       { label: "Thụ động", count: data[data.length - 1]?.passive_count || 0, color: "#f59e0b" },
                       { label: "Rủi ro", count: data[data.length - 1]?.risk_count || 0, color: "#ef4444" },
                     ].map((item, index) => (
-                      <div key={index} className="flex items-center gap-2 px-3 py-1 bg-white border border-neutral-200/50 rounded-xl shadow-2xs">
-                        <span
-                          className="w-3 h-3 rounded-full shrink-0"
-                          style={{ backgroundColor: item.color }}
-                        />
-                        <span className="text-xs font-bold text-neutral-700">{item.label}</span>
-                        <span className="text-[10px] font-black text-neutral-400 border-l border-neutral-200 pl-1.5 ml-0.5">
-                          {item.count} khách hàng
+                      <div key={index} className="flex items-center justify-between gap-2 px-4 py-3 bg-white border border-neutral-200/50 rounded-2xl shadow-xs">
+                        <div className="flex items-center gap-2">
+                          <span
+                            className="w-3 h-3 rounded-full shrink-0"
+                            style={{ backgroundColor: item.color }}
+                          />
+                          <span className="text-xs font-extrabold text-neutral-700">{item.label}</span>
+                        </div>
+                        <span className="text-[10px] font-black text-neutral-400 border-l border-neutral-200 pl-2">
+                          {item.count} KH
                         </span>
                       </div>
                     ))}
