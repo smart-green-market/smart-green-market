@@ -10,14 +10,17 @@ from django.http import HttpResponse
 from datetime import timedelta
 
 from apps.accounts.models import AccountRole
+
 from apps.training_models.services import RelatedProductRecommendationService, CustomerSegmentationService, TrendAndDecisionRecommendationService
 from apps.marketing.models import CustomerSegmentationHistory
-from apps.marketing.serializers import DealerSegmentationHistorySerializer, AdminSegmentationHistorySerializer
+from apps.dealers.models import DealerProfile
 from common.permission import IsAdmin, IsAdminOrDealer
 from common.pagination import LoadMorePagination
 from common.openapi import paginated_response_schema
 from .models import ProductPredictionResult, AITrainingHistory
 from .serializers import (
+    DealerSegmentationHistorySerializer, 
+    AdminSegmentationHistorySerializer,
     ProductPredictionResultSerializer, 
     AITrainingHistorySerializer, 
     AITrainingHistorySummarySerializer
@@ -176,24 +179,44 @@ class AdminSegmentationHistoryView(APIView):
     @extend_schema(
         tags=["AI Segmentation"],
         summary="[Admin] Giám sát điểm số Silhouette toàn hệ thống (Phân trang)",
-        description="Lấy danh sách phân trang (load từng trang) tất cả dữ liệu phân cụm AI của mọi đại lý để Admin đánh giá mô hình.",
+        description="Lấy danh sách phân trang tất cả dữ liệu phân cụm AI của mọi đại lý kèm tên đại lý chi tiết.",
         responses={200: paginated_response_schema(AdminSegmentationHistorySerializer, "PaginatedAdminSegmentationHistory")}
     )
     def get(self, request):
-        # Lấy toàn bộ dữ liệu, ưu tiên các phiên mới nhất lên đầu
+        # 1. Lấy dữ liệu phân cụm sắp xếp mới nhất
         queryset = CustomerSegmentationHistory.objects.all().order_by("-created_at")
         
-        # HỌC HỎI TỪ DEALER VIEW: Khởi tạo và áp dụng bộ phân trang LoadMorePagination
+        # 2. Thực hiện phân trang LoadMore
         paginator = LoadMorePagination()
         page = paginator.paginate_queryset(queryset, request, view=self)
         
-        # Serialize dữ liệu của trang hiện tại
-        serializer = AdminSegmentationHistorySerializer(page, many=True)
+        # =================================================================
+        # TỐI ƯU HIỆU NĂNG: Gom ID và Bulk Query tên đại lý của trang hiện tại
+        # =================================================================
+        dealer_map = {}
+        if page:
+            # Trích xuất danh sách ID đại lý duy nhất xuất hiện trên trang này
+            current_page_dealer_ids = list(set(item.dealer_id for item in page))
+            
+            # Chỉ lấy đúng 2 trường id và store_name để tối ưu bộ nhớ
+            dealer_data = DealerProfile.objects.filter(
+                id__in=current_page_dealer_ids
+            ).values('id', 'store_name')
+            
+            # Chuyển đổi thành dictionary dạng: {1: "Cửa hàng A", 2: "Cửa hàng B"}
+            dealer_map = {d['id']: d['store_name'] for d in dealer_data}
+        # =================================================================
+
+        # 3. Serialize dữ liệu và truyền dealer_map qua biến context
+        serializer = AdminSegmentationHistorySerializer(
+            page, 
+            many=True, 
+            context={"dealer_map": dealer_map}
+        )
         
-        # Trả về kết quả bọc trong cấu trúc phân trang chuẩn của hệ thống (hỗ trợ trường `next`, `results`,...)
+        # 4. Trả về cấu trúc phân trang chuẩn
         return paginator.get_paginated_response(serializer.data)
 
-# Tạo alias để map vào urls.py giống convention cũ của bạn
 dealer_segmentation_history = DealerSegmentationHistoryView.as_view()
 admin_segmentation_history = AdminSegmentationHistoryView.as_view()
 
