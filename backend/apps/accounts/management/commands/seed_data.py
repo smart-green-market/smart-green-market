@@ -240,7 +240,10 @@ class Command(BaseCommand):
         self.stdout.write(
             self.style.SUCCESS(
                 f"Reviews: {review_stats['reviews']} "
-                f"(dealer01: {review_stats['dealer_01']}, dealer02: {review_stats['dealer_02']})"
+                f"(dealer01: {review_stats['dealer_01']} / "
+                f"{review_stats.get('products_d1', '?')} SP x3, "
+                f"dealer02: {review_stats['dealer_02']} / "
+                f"{review_stats.get('products_d2', '?')} SP x1)"
             )
         )
 
