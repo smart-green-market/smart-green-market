@@ -17,6 +17,7 @@ from apps.orders.models import Order
 from apps.product_catalog.models import ProductMaster
 
 from .seed_customer_journeys import seed_customer_journeys
+from .seed_purchase_orders import seed_purchase_orders_and_payments
 from .seed_dealer_customer_tiers import (
     DEALER_BUYER_COUNTS,
     BuyerSeedSpec,
@@ -57,9 +58,17 @@ from .seed_product_helpers import (
 SEED_PASSWORD = "12345678"
 DEMO_ACCOUNTS = {
     "admin": {"username": "admin", "email": "admin@example.com", "full_name": "Admin Demo"},
-    "dealer": {"username": "dealer01", "email": "dealer01@example.com", "full_name": "Dealer Demo"},
-    "supplier": {"username": "supplier01", "email": "supplier01@example.com", "full_name": "Supplier Demo"},
-    "buyer": {"email": "buyer01@gmail.com", "full_name": "Buyer Demo"},
+    "dealer": {
+        "username": "dealer01",
+        "email": "dealer01@example.com",
+        "full_name": "Cửa hàng Nông sản Minh Tâm",
+    },
+    "supplier": {
+        "username": "supplier01",
+        "email": "supplier01@example.com",
+        "full_name": "Đại diện Hợp tác xã Nông nghiệp Xanh Đà Lạt",
+    },
+    "buyer": {"email": "buyer01@gmail.com", "full_name": "Nguyễn Minh Anh"},
 }
 
 class Command(BaseCommand):
@@ -95,6 +104,10 @@ class Command(BaseCommand):
                 OrderStatusHistory,
             )
 
+            from apps.loyalty.models import CustomerTierHistory, LoyaltyPointTransaction
+
+            CustomerTierHistory.objects.all().delete()
+            LoyaltyPointTransaction.objects.all().delete()
             OrderReturnItem.objects.all().delete()
             OrderReturn.objects.all().delete()
             CustomerPayment.objects.all().delete()
@@ -202,6 +215,20 @@ class Command(BaseCommand):
             )
         )
 
+        self.stdout.write('Creating purchase orders & supplier cash flow...')
+        po_stats = seed_purchase_orders_and_payments(
+            dealers=self.dealers,
+            suppliers=self.suppliers,
+            supplier_products=self.supplier_products,
+        )
+        self.stdout.write(
+            self.style.SUCCESS(
+                f"Purchase orders: {po_stats['purchase_orders']}, "
+                f"payments: {po_stats['payments']}, "
+                f"returns: {po_stats['returns']}"
+            )
+        )
+
         self.stdout.write(self.style.SUCCESS('Database successfully seeded!'))
         self._print_demo_accounts()
 
@@ -264,16 +291,19 @@ class Command(BaseCommand):
         suppliers = []
         demo = DEMO_ACCOUNTS["supplier"]
         for i in range(count):
+            company_name = (
+                SEED_SUPPLIER_COMPANIES[i]
+                if i < len(SEED_SUPPLIER_COMPANIES)
+                else f"NCC Seed {i + 1:02d}"
+            )
             if i == 0:
                 username = demo["username"]
                 email = demo["email"]
                 full_name = demo["full_name"]
-                company_name = SEED_SUPPLIER_COMPANIES[0]
             else:
                 username = f"supplier{i + 1:02d}"
                 email = f"{username}@example.com"
-                full_name = f"Nguoi dai dien NCC {i + 1:02d}"
-                company_name = SEED_SUPPLIER_COMPANIES[i] if i < len(SEED_SUPPLIER_COMPANIES) else f"NCC Seed {i + 1:02d}"
+                full_name = f"Đại diện {company_name}"
             acc = Account.objects.create(
                 username=username,
                 email=email,
@@ -307,20 +337,19 @@ class Command(BaseCommand):
         dealers = []
         demo = DEMO_ACCOUNTS["dealer"]
         for i in range(count):
+            store_name = (
+                SEED_DEALER_STORE_NAMES[i]
+                if i < len(SEED_DEALER_STORE_NAMES)
+                else f"Cửa hàng Seed Dealer {i + 1:02d}"
+            )
             if i == 0:
                 username = demo["username"]
                 email = demo["email"]
                 full_name = demo["full_name"]
-                store_name = SEED_DEALER_STORE_NAMES[0]
             else:
                 username = f"dealer{i + 1:02d}"
                 email = f"{username}@example.com"
-                full_name = f"Dai ly seed {i + 1:02d}"
-                store_name = (
-                    SEED_DEALER_STORE_NAMES[i]
-                    if i < len(SEED_DEALER_STORE_NAMES)
-                    else f"Cua hang Seed Dealer {i + 1:02d}"
-                )
+                full_name = store_name
             slug = SEED_DEALER_SLUGS[i] if i < len(SEED_DEALER_SLUGS) else None
             acc = Account.objects.create(
                 username=username,

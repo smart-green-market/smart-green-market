@@ -4,9 +4,7 @@ from __future__ import annotations
 
 from datetime import datetime, timedelta, timezone as dt_timezone
 
-from django.utils import timezone
-
-from .seed_dealer_customer_tiers import resolve_buyer_tier
+from .seed_dealer_customer_tiers import DEALER_BUYER_COUNTS, resolve_buyer_tier
 
 # random.seed / Faker.seed trong seed_data.handle
 SEED_RANDOM_SEED = 42
@@ -21,18 +19,59 @@ SEED_DEALER_SLUGS = [
 ]
 
 SEED_SUPPLIER_COMPANIES = [
-    "Cong ty NCC Demo",
-    "NCC Seed Alpha",
-    "NCC Seed Beta",
-    "NCC Seed Gamma",
-    "NCC Seed Delta",
+    "Hợp tác xã Nông nghiệp Xanh Đà Lạt",
+    "Công ty TNHH Nông sản Việt Tươi",
+    "Hợp tác xã Rau sạch Củ Chi",
+    "Công ty Cổ phần Nông nghiệp Mekong Green",
+    "Trang trại Hữu cơ An Phú",
 ]
 
 SEED_DEALER_STORE_NAMES = [
-    "Cua hang Demo",
-    "Cua hang Seed Dealer 02",
-    "Cua hang Seed Dealer 03",
+    "Cửa hàng Nông sản Minh Tâm",
+    "Siêu thị Rau sạch An Nhiên",
+    "Thực phẩm Xanh Gia Phúc",
 ]
+
+SEED_BUYER_FULL_NAMES = [
+    "Nguyễn Minh Anh",
+    "Trần Quốc Bảo",
+    "Lê Hoàng Nam",
+    "Phạm Thùy Linh",
+    "Võ Ngọc Hân",
+    "Đặng Tuấn Kiệt",
+    "Bùi Thanh Trúc",
+    "Nguyễn Đức Huy",
+    "Trần Khánh Vy",
+    "Lê Nhật Minh",
+    "Phan Gia Hân",
+    "Hồ Quang Vinh",
+    "Đỗ Mỹ Duyên",
+    "Nguyễn Thành Đạt",
+    "Trương Bảo Ngọc",
+    "Võ Minh Khang",
+    "Lý Thanh Thảo",
+    "Phạm Quốc Khánh",
+    "Nguyễn Ngọc Mai",
+    "Trần Anh Tuấn",
+    "Lê Thu Trang",
+    "Đặng Hoàng Phúc",
+    "Bùi Kim Ngân",
+    "Nguyễn Gia Bảo",
+    "Phan Thanh Hương",
+    "Hồ Minh Quân",
+    "Đỗ Hải Yến",
+    "Trương Quốc Việt",
+    "Võ Thảo Nhi",
+    "Lê Thành Công",
+]
+
+
+def global_buyer_index(dealer_index: int, slot: int) -> int:
+    offset = 0
+    for d in range(dealer_index):
+        if d < len(DEALER_BUYER_COUNTS):
+            offset += DEALER_BUYER_COUNTS[d]
+    return offset + slot
 
 
 def seed_buyer_email(dealer_index: int, slot: int, *, demo_email: str) -> str:
@@ -44,7 +83,8 @@ def seed_buyer_email(dealer_index: int, slot: int, *, demo_email: str) -> str:
 def seed_buyer_full_name(dealer_index: int, slot: int, *, demo_name: str) -> str:
     if dealer_index == 0 and slot == 0:
         return demo_name
-    return f"Khach hang D{dealer_index + 1:02d}-{slot + 1:03d}"
+    idx = global_buyer_index(dealer_index, slot)
+    return SEED_BUYER_FULL_NAMES[idx % len(SEED_BUYER_FULL_NAMES)]
 
 
 def seed_phone(dealer_index: int, slot: int) -> str:

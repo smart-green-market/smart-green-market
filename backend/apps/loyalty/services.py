@@ -159,6 +159,14 @@ def apply_points_change(
     if points <= 0:
         return None
 
+    from apps.customers.models import CustomerProfile
+
+    customer = (
+        CustomerProfile.objects.select_for_update(of=("self",))
+        .select_related("user")
+        .get(pk=customer.pk)
+    )
+
     dealer = customer.user.store_dealer
     if dealer is None:
         raise ValidationError({"detail": "Khách hàng chưa thuộc cửa hàng đại lý."})
@@ -259,7 +267,7 @@ def sync_customer_tier(customer, *, reason, actor=None, notify=True):
 
 
 @transaction.atomic
-def award_points_for_completed_order(order, *, actor=None):
+def award_points_for_completed_order(order, *, actor=None, notify=True):
     """Cộng điểm khi đơn chuyển sang completed."""
     settings_obj = get_dealer_loyalty_settings(order.dealer)
     if not settings_obj.is_active:
@@ -280,6 +288,7 @@ def award_points_for_completed_order(order, *, actor=None):
         reason=f"Cộng điểm từ đơn hàng {order.order_code}",
         order=order,
         created_by=actor,
+        notify=notify,
     )
 
 

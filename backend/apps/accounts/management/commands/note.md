@@ -8,19 +8,20 @@ Mat khau: `12345678`
 - `admin` / admin@example.com
 
 ## 2. NCC
-- `supplier01` / supplier01@example.com — Cong ty NCC Demo (21 SP)
-- `supplier02` / supplier02@example.com — NCC Seed Alpha (18 SP)
-- `supplier03` / supplier03@example.com — NCC Seed Beta (28 SP)
-- `supplier04` / supplier04@example.com — NCC Seed Gamma (28 SP)
-- `supplier05` / supplier05@example.com — NCC Seed Delta (15 SP)
+- `supplier01` / supplier01@example.com — Hợp tác xã Nông nghiệp Xanh Đà Lạt
+- `supplier02` / supplier02@example.com — Công ty TNHH Nông sản Việt Tươi
+- `supplier03` / supplier03@example.com — Hợp tác xã Rau sạch Củ Chi
+- `supplier04` / supplier04@example.com — Công ty Cổ phần Nông nghiệp Mekong Green
+- `supplier05` / supplier05@example.com — Trang trại Hữu cơ An Phú
 
 ## 3. Dealer
-- Dealer 01: `dealer01` slug `sd1-d01-fix` — 100 KH
-- Dealer 02: `dealer02` slug `sd2-d02-fix` — 30 KH
-- Dealer 03: `dealer03` slug `sd3-d03-fix` — 30 KH
-- Buyer demo: `buyer01@gmail.com` = KH 001 dealer01
+- Dealer 01: `dealer01` — Cửa hàng Nông sản Minh Tâm — slug `sd1-d01-fix` — 100 KH
+- Dealer 02: `dealer02` — Siêu thị Rau sạch An Nhiên — slug `sd2-d02-fix` — 30 KH
+- Dealer 03: `dealer03` — Thực phẩm Xanh Gia Phúc — slug `sd3-d03-fix` — 30 KH
+- Buyer demo: `buyer01@gmail.com` = **Nguyễn Minh Anh** (KH 001 dealer01)
 
 ## 4. Quy tac
+- Ten 30 nguoi dung (lap lai theo thu tu): Nguyễn Minh Anh … Lê Thành Công (xem `SEED_BUYER_FULL_NAMES`)
 - Email: buyer.dXX.khYYY@seed.example.com (KH001 = buyer01@gmail.com)
 - Ma don: ORD-DXXKYYYYNNN (vd ORD-D01K001N01), moi don 1 CTHD
 

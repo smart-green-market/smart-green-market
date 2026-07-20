@@ -351,8 +351,67 @@ def seed_customer_journeys(
 
     stats["interactions"] = CustomerInteraction.objects.count()
     sync_customer_profile_stats(profiles)
+    seed_loyalty_from_completed_orders(buyer_specs)
+    seed_customer_order_payments()
     seed_customer_segment_memberships(buyer_specs)
     return stats
+
+
+def seed_customer_order_payments() -> None:
+    """Thanh toán đã thu trên đơn bán lẻ (đồng bộ paid_amount trên Order)."""
+    from apps.orders.models import (
+        CustomerPayment,
+        CustomerPaymentMethod,
+        CustomerPaymentStatus,
+        CustomerPaymentType,
+        OrderStatus,
+    )
+
+    for order in Order.objects.filter(status=OrderStatus.COMPLETED).iterator():
+        if order.payments.exists():
+            continue
+        paid_at = order.completed_at or order.created_at
+        CustomerPayment.objects.create(
+            order=order,
+            payment_method=CustomerPaymentMethod.CASH,
+            payment_type=CustomerPaymentType.FULL,
+            amount=order.total_amount,
+            status=CustomerPaymentStatus.PAID,
+            paid_at=paid_at,
+        )
+
+
+def seed_loyalty_from_completed_orders(buyer_specs: list[BuyerSeedSpec]) -> None:
+    """Cộng điểm + đồng bộ hạng loyalty theo luồng nghiệp vụ (từ đơn completed)."""
+    from apps.loyalty.services import (
+        assign_base_tier_to_customer,
+        award_points_for_completed_order,
+        sync_customer_tier,
+    )
+
+    profile_ids = [spec.profile.id for spec in buyer_specs]
+    orders = (
+        Order.objects.filter(
+            customer_id__in=profile_ids,
+            status=OrderStatus.COMPLETED,
+        )
+        .select_related("customer", "dealer")
+        .order_by("created_at", "id")
+    )
+    for order in orders:
+        award_points_for_completed_order(order, actor=None, notify=False)
+
+    for spec in buyer_specs:
+        profile = spec.profile
+        profile.refresh_from_db()
+        if profile.total_orders == 0:
+            assign_base_tier_to_customer(profile)
+        else:
+            sync_customer_tier(
+                profile,
+                reason="Dong bo du lieu seed",
+                notify=False,
+            )
 
 
 def seed_customer_segment_memberships(buyer_specs: list[BuyerSeedSpec]) -> None:
@@ -408,18 +467,15 @@ def sync_customer_profile_stats(buyers: list[CustomerProfile]) -> None:
             buyer.total_orders = 0
             buyer.total_spent = int_money(0)
             buyer.last_order_at = None
-            buyer.loyalty_points = 0
         else:
             buyer.total_orders = row["total_orders"] or 0
             buyer.total_spent = int_money(row["total_spent"] or 0)
             buyer.last_order_at = row["last_order_at"]
-            buyer.loyalty_points = int(buyer.total_spent) // 10000 + buyer.total_orders * 5
         buyer.save(
             update_fields=[
                 "total_orders",
                 "total_spent",
                 "last_order_at",
-                "loyalty_points",
                 "updated_at",
             ]
         )
