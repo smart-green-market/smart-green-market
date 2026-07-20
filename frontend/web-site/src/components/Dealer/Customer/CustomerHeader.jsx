@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Download, Plus, Users, Award, TrendingUp, XCircle, Clock, BarChart3 } from "lucide-react";
+import { Download, Plus, Users, Award, TrendingUp, XCircle, Clock, AreaChart } from "lucide-react";
 import CustomerSegmentChartModal from "./CustomerSegmentChartModal";
 
 const STAT_CARDS = [
@@ -75,14 +75,14 @@ export default function CustomerHeader({
               onClick={handleUpdate}
               className="px-4 py-2.5 bg-[#006A3A] hover:bg-[#005A30] text-white rounded-xl text-sm font-bold transition-all active:scale-95 duration-150 cursor-pointer shadow-md"
             >
-              Train AI
+              Phân loại khách hàng
             </button>
           </div>
           <button
             onClick={() => setIsChartModalOpen(true)}
             className="flex items-center gap-2 px-4 py-2.5 bg-indigo-50 border border-indigo-100 hover:bg-indigo-100 text-indigo-700 rounded-xl text-sm font-bold transition-colors cursor-pointer shadow-sm"
           >
-            <BarChart3 className="w-4 h-4" /> Xem phân loại
+            <AreaChart className="w-4 h-4" /> Xem phân loại
           </button>
           {/* <button
             onClick={onExport}

@@ -140,7 +140,18 @@ class DealerStatisticalViewSet(viewsets.ViewSet):
         # 3. Calculate Overview Metrics
         total_revenue = orders_in_range.aggregate(total=Sum("total_amount"))["total"] or 0
         total_purchase_cost = purchases_in_range.aggregate(total=Sum("total_amount"))["total"] or 0
-        gross_profit = total_revenue - total_purchase_cost
+
+        # Calculate actual Cost of Goods Sold (COGS) from completed retail order items
+        total_cogs = OrderItem.objects.filter(
+            order__in=orders_in_range
+        ).annotate(
+            item_cogs=ExpressionWrapper(
+                F("import_price") * F("quantity"),
+                output_field=DecimalField(max_digits=14, decimal_places=2)
+            )
+        ).aggregate(total=Sum("item_cogs"))["total"] or 0
+
+        gross_profit = total_revenue - total_cogs
         profit_margin = round((float(gross_profit) / float(total_revenue)) * 100, 2) if total_revenue > 0 else 0.0
 
         metrics = {
@@ -174,13 +185,26 @@ class DealerStatisticalViewSet(viewsets.ViewSet):
             count=Count("id")
         ).order_by("period")
 
+        # Group COGS by period for detailed breakdown
+        cogs_grouped = OrderItem.objects.filter(
+            order__in=orders_in_range
+        ).annotate(
+            period=trunc_func("order__created_at"),
+            item_cogs=ExpressionWrapper(
+                F("import_price") * F("quantity"),
+                output_field=DecimalField(max_digits=14, decimal_places=2)
+            )
+        ).values("period").annotate(
+            total=Sum("item_cogs")
+        ).order_by("period")
+
         # Initialize chart keys depending on group_by to fill missing periods with 0
         chart_dict = {}
         if group_by == "month":
             curr = start_date.replace(day=1)
             while curr <= end_date:
                 key = curr.strftime("%Y-%m")
-                chart_dict[key] = {"sales": 0.0, "purchases": 0.0, "sales_count": 0, "purchase_count": 0}
+                chart_dict[key] = {"sales": 0.0, "purchases": 0.0, "sales_count": 0, "purchase_count": 0, "cogs": 0.0}
                 # Move to next month
                 next_month = curr.replace(day=28) + timedelta(days=4)
                 curr = next_month.replace(day=1)
@@ -190,13 +214,13 @@ class DealerStatisticalViewSet(viewsets.ViewSet):
             curr = start_monday
             while curr <= end_date:
                 key = str(curr)
-                chart_dict[key] = {"sales": 0.0, "purchases": 0.0, "sales_count": 0, "purchase_count": 0}
+                chart_dict[key] = {"sales": 0.0, "purchases": 0.0, "sales_count": 0, "purchase_count": 0, "cogs": 0.0}
                 curr += timedelta(days=7)
         else:  # day
             curr = start_date
             while curr <= end_date:
                 key = str(curr)
-                chart_dict[key] = {"sales": 0.0, "purchases": 0.0, "sales_count": 0, "purchase_count": 0}
+                chart_dict[key] = {"sales": 0.0, "purchases": 0.0, "sales_count": 0, "purchase_count": 0, "cogs": 0.0}
                 curr += timedelta(days=1)
 
         # Helper to match group format
@@ -226,6 +250,11 @@ class DealerStatisticalViewSet(viewsets.ViewSet):
                 chart_dict[k]["purchases"] = float(item["total"] or 0)
                 chart_dict[k]["purchase_count"] = item["count"]
 
+        for item in cogs_grouped:
+            k = get_period_key(item["period"], group_by)
+            if k in chart_dict:
+                chart_dict[k]["cogs"] = float(item["total"] or 0)
+
         # Convert to chart_data list (chronological) & detailed_breakdown (reverse chronological)
         chart_data = []
         detailed_breakdown = []
@@ -241,7 +270,7 @@ class DealerStatisticalViewSet(viewsets.ViewSet):
                 "revenue": v["sales"],
                 "purchase_count": v["purchase_count"],
                 "purchase_cost": v["purchases"],
-                "profit": v["sales"] - v["purchases"]
+                "profit": v["sales"] - v["cogs"]
             })
 
         detailed_breakdown.sort(key=lambda x: x["period"], reverse=True)

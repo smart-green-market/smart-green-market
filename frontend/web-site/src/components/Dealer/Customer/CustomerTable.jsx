@@ -5,14 +5,14 @@ import useTableSort from "../../../hooks/useTableSort";
 import Pagination from "../../common/Pagination";
 
 const COLUMN_CONFIG = {
-  full_name:   { key: "full_name",   type: "string" },
-  email:       { key: "email",       type: "string" },
-  phone:       { key: "phone",       type: "string" },
+  full_name: { key: "full_name", type: "string" },
+  email: { key: "email", type: "string" },
+  phone: { key: "phone", type: "string" },
   total_spent: { key: "total_spent", type: "number" },
   loyalty_points: { key: "loyalty_points", type: "number" },
   primary_segment_name: { key: "primary_segment_name", type: "string" },
-  status:      { key: "status",      type: "string" },
-  created_at:  { key: "created_at",  type: "date" },
+  status: { key: "status", type: "string" },
+  created_at: { key: "created_at", type: "date" },
 };
 
 export default function CustomerTable({
@@ -46,8 +46,6 @@ export default function CustomerTable({
   /** Format tiền tệ VND */
   const formatCurrency = (value) => {
     const num = parseFloat(value) || 0;
-    if (num >= 1_000_000) return `${(num / 1_000_000).toFixed(1)}M đ`;
-    if (num >= 1_000) return `${(num / 1_000).toFixed(1)}K đ`;
     return `${num.toLocaleString("vi-VN")} đ`;
   };
 
@@ -79,7 +77,7 @@ export default function CustomerTable({
 
   return (
     <div className="bg-white rounded-2xl border border-neutral-100 shadow-[0_2px_10px_rgb(0,0,0,0.02)] overflow-hidden">
-      
+
       {/* Table Header */}
       <div className="p-5 flex justify-between items-center border-b border-neutral-100 bg-neutral-50/50">
         <h3 className="text-base font-black text-neutral-900 tracking-tight">
@@ -189,11 +187,10 @@ export default function CustomerTable({
                       </div>
                     </td>
                     <td className="py-4 px-6">
-                      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold ${
-                        customer.primary_segment_name !== "Chưa có"
-                           ? "bg-indigo-50 text-indigo-700 border border-indigo-100"
-                           : "text-neutral-500 font-medium"
-                      }`}>
+                      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold ${customer.primary_segment_name !== "Chưa có"
+                        ? "bg-indigo-50 text-indigo-700 border border-indigo-100"
+                        : "text-neutral-500 font-medium"
+                        }`}>
                         {customer.primary_segment_name}
                       </span>
                     </td>
@@ -208,7 +205,7 @@ export default function CustomerTable({
                       </span>
                     </td>
                     <td className="py-4 px-6 text-right">
-                      <button 
+                      <button
                         onClick={() => onViewLoyalty && onViewLoyalty(customer)}
                         className="flex items-center gap-1.5 px-3 py-1.5 bg-neutral-50 hover:bg-emerald-50 text-neutral-600 hover:text-emerald-700 border border-neutral-200 hover:border-emerald-200 rounded-xl text-xs font-bold transition-all active:scale-95 cursor-pointer shadow-2xs"
                       >
