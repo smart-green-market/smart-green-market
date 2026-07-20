@@ -17,6 +17,21 @@ from apps.orders.models import Order
 from apps.product_catalog.models import ProductMaster
 
 from .seed_customer_journeys import seed_customer_journeys
+from .seed_dealer_customer_tiers import (
+    DEALER_BUYER_COUNTS,
+    BuyerSeedSpec,
+    resolve_buyer_tier,
+)
+from .seed_deterministic import (
+    SEED_DEALER_SLUGS,
+    SEED_DEALER_STORE_NAMES,
+    SEED_FAKER_SEED,
+    SEED_RANDOM_SEED,
+    SEED_SUPPLIER_COMPANIES,
+    seed_buyer_email,
+    seed_buyer_full_name,
+    seed_phone,
+)
 from .seed_product_helpers import (
     DEALER_CUSTOM_CATEGORY_LABELS,
     SEED_CATEGORY_NAMES,
@@ -37,7 +52,7 @@ from .seed_product_helpers import (
 
 # Chạy lệnh tạo db: python manage.py migrate
 # Chạy lệnh tạo dữ liệu: python manage.py seed_data --clear
-# Gọn:  python manage.py seed_data --clear --buyers 80
+# Ghi chu co dinh: apps/accounts/management/commands/note.md (va backend/SEED_DATA_NOTE.md)
 
 SEED_PASSWORD = "12345678"
 DEMO_ACCOUNTS = {
@@ -53,16 +68,16 @@ class Command(BaseCommand):
     def add_arguments(self, parser):
         parser.add_argument('--clear', action='store_true', help='Clear existing data before seeding')
         parser.add_argument('--suppliers', type=int, default=5, help='Number of suppliers')
-        parser.add_argument('--dealers', type=int, default=1, help='Number of dealers')
-        parser.add_argument('--buyers', type=int, default=120, help='Number of buyers')
+        parser.add_argument('--dealers', type=int, default=3, help='Number of dealers')
         parser.add_argument('--history-days', type=int, default=120, help='Order/interaction history window (days)')
 
     def handle(self, *args, **options):
-        self.fake = Faker('vi_VN')
+        random.seed(SEED_RANDOM_SEED)
+        self.fake = Faker("vi_VN")
+        self.fake.seed_instance(SEED_FAKER_SEED)
         clear = options['clear']
         num_suppliers = options['suppliers']
         num_dealers = options['dealers']
-        num_buyers = options['buyers']
         history_days = options['history_days']
 
         if clear:
@@ -153,8 +168,16 @@ class Command(BaseCommand):
             self.stdout.write(self.style.ERROR('No dealers available to create buyers.'))
             return
  
-        self.stdout.write(f'Creating {num_buyers} Buyers (Customers)...')
-        self.buyers = self._create_buyers(num_buyers, self.dealers)
+        buyer_counts = [
+            DEALER_BUYER_COUNTS[i] if i < len(DEALER_BUYER_COUNTS) else 0
+            for i in range(len(self.dealers))
+        ]
+        total_buyers = sum(buyer_counts)
+        self.stdout.write(
+            f'Creating {total_buyers} Buyers '
+            f'({", ".join(str(c) for c in buyer_counts)} per dealer)...'
+        )
+        self.buyer_specs = self._create_buyers(self.dealers, buyer_counts=buyer_counts)
  
         self.stdout.write('Creating Supplier Products...')
         self.supplier_products = self._create_supplier_products(self.suppliers, self.categories, self.product_masters)
@@ -167,7 +190,10 @@ class Command(BaseCommand):
         self._create_dealer_products(self.dealers, self.supplier_products)
 
         self.stdout.write('Creating customer orders & product interactions...')
-        journey_stats = seed_customer_journeys(buyers=self.buyers, history_days=history_days)
+        journey_stats = seed_customer_journeys(
+            buyer_specs=self.buyer_specs,
+            history_days=history_days,
+        )
         self.stdout.write(
             self.style.SUCCESS(
                 f"Orders: {journey_stats['orders']} "
@@ -242,12 +268,12 @@ class Command(BaseCommand):
                 username = demo["username"]
                 email = demo["email"]
                 full_name = demo["full_name"]
-                company_name = "Cong ty NCC Demo"
+                company_name = SEED_SUPPLIER_COMPANIES[0]
             else:
                 username = f"supplier{i + 1:02d}"
                 email = f"{username}@example.com"
-                full_name = self.fake.name()
-                company_name = self.fake.company()
+                full_name = f"Nguoi dai dien NCC {i + 1:02d}"
+                company_name = SEED_SUPPLIER_COMPANIES[i] if i < len(SEED_SUPPLIER_COMPANIES) else f"NCC Seed {i + 1:02d}"
             acc = Account.objects.create(
                 username=username,
                 email=email,
@@ -255,14 +281,14 @@ class Command(BaseCommand):
                 role=AccountRole.SUPPLIER,
                 status=AccountStatus.ACTIVE,
                 full_name=full_name,
-                phone=self.fake.phone_number()[:20]
+                phone=f"028{1000000 + i:07d}"[:11],
             )
             profile = Supplier.objects.create(
                 account=acc,
                 company_name=company_name,
-                tax_code=f'TAX{self.fake.random_int(10000000, 99999999)}',
+                tax_code=f"TAX{10000000 + i:08d}",
                 phone=acc.phone,
-                address=self.fake.address(),
+                address=f"Dia chi NCC seed {i + 1:02d}, TP.HCM",
                 verification_status=SupplierVerificationStatus.APPROVED,
                 verified_by=self.admin_account,
                 verified_at=timezone.now()
@@ -285,12 +311,17 @@ class Command(BaseCommand):
                 username = demo["username"]
                 email = demo["email"]
                 full_name = demo["full_name"]
-                store_name = "Cua hang Demo"
+                store_name = SEED_DEALER_STORE_NAMES[0]
             else:
                 username = f"dealer{i + 1:02d}"
                 email = f"{username}@example.com"
-                full_name = self.fake.name()
-                store_name = f"Cua hang {self.fake.company()}"
+                full_name = f"Dai ly seed {i + 1:02d}"
+                store_name = (
+                    SEED_DEALER_STORE_NAMES[i]
+                    if i < len(SEED_DEALER_STORE_NAMES)
+                    else f"Cua hang Seed Dealer {i + 1:02d}"
+                )
+            slug = SEED_DEALER_SLUGS[i] if i < len(SEED_DEALER_SLUGS) else None
             acc = Account.objects.create(
                 username=username,
                 email=email,
@@ -298,12 +329,13 @@ class Command(BaseCommand):
                 role=AccountRole.DEALER,
                 status=AccountStatus.ACTIVE,
                 full_name=full_name,
-                phone=self.fake.phone_number()[:20]
+                phone=f"028{2000000 + i:07d}"[:11],
             )
             profile = DealerProfile.objects.create(
                 account=acc,
                 store_name=store_name,
-                store_address=self.fake.address(),
+                slug=slug,
+                store_address=f"Dia chi cua hang seed dealer {i + 1:02d}, TP.HCM",
                 status=DealerProfileStatus.ACTIVE,
                 verified_by=self.admin_account,
                 verified_at=timezone.now()
@@ -317,50 +349,63 @@ class Command(BaseCommand):
         seed_system_customer_segments()
         self.stdout.write(self.style.SUCCESS('System customer segments ready.'))
 
-    def _create_buyers(self, count, dealers):
+    def _create_buyers(self, dealers, *, buyer_counts: list[int]) -> list[BuyerSeedSpec]:
         from apps.customers.services import build_storefront_username
 
-        buyers = []
-        demo_buyer = DEMO_ACCOUNTS["buyer"]
-        primary_dealer = dealers[0]
-        for i in range(count):
-            if i == 0:
-                dealer = primary_dealer
-                email = demo_buyer["email"]
-                full_name = demo_buyer["full_name"]
-            else:
-                dealer = random.choice(dealers)
-                email = f"buyer_{i}_{self.fake.random_int(100, 999)}@example.com"
-                full_name = self.fake.name()
-            username = build_storefront_username(dealer.id, email)
+        if not dealers:
+            return []
 
-            acc = Account.objects.create(
-                username=username,
-                email=email,
-                password=self.password,
-                role=AccountRole.BUYER,
-                status=AccountStatus.ACTIVE,
-                full_name=full_name,
-                phone=self.fake.phone_number()[:20],
-                store_dealer=dealer
-            )
-            profile = CustomerProfile.objects.create(
-                user=acc,
-                total_orders=0,
-                total_spent=int_money(0),
-                loyalty_points=0,
-                last_order_at=None,
-                note="",
-            )
-            CustomerAddress.objects.create(
-                customer=profile,
-                receiver_name=acc.full_name,
-                receiver_phone=acc.phone,
-                address=self.fake.address(),
-                is_default=True
-            )
-            buyers.append(profile)
-        return buyers
+        specs: list[BuyerSeedSpec] = []
+        demo_buyer = DEMO_ACCOUNTS["buyer"]
+
+        for dealer_index, dealer in enumerate(dealers):
+            count = buyer_counts[dealer_index] if dealer_index < len(buyer_counts) else 0
+            for slot in range(count):
+                email = seed_buyer_email(
+                    dealer_index, slot, demo_email=demo_buyer["email"]
+                )
+                full_name = seed_buyer_full_name(
+                    dealer_index, slot, demo_name=demo_buyer["full_name"]
+                )
+
+                username = build_storefront_username(dealer.id, email)
+                acc = Account.objects.create(
+                    username=username,
+                    email=email,
+                    password=self.password,
+                    role=AccountRole.BUYER,
+                    status=AccountStatus.ACTIVE,
+                    full_name=full_name,
+                    phone=seed_phone(dealer_index, slot),
+                    store_dealer=dealer,
+                )
+                profile = CustomerProfile.objects.create(
+                    user=acc,
+                    total_orders=0,
+                    total_spent=int_money(0),
+                    loyalty_points=0,
+                    last_order_at=None,
+                    note="",
+                )
+                CustomerAddress.objects.create(
+                    customer=profile,
+                    receiver_name=acc.full_name,
+                    receiver_phone=acc.phone,
+                    address=f"Dia chi KH D{dealer_index + 1:02d}-{slot + 1:03d}, TP.HCM",
+                    is_default=True,
+                )
+                tier = resolve_buyer_tier(dealer_index, slot)
+                specs.append(
+                    BuyerSeedSpec(
+                        profile=profile,
+                        dealer=dealer,
+                        dealer_index=dealer_index,
+                        slot=slot,
+                        tier=tier,
+                    )
+                )
+
+        return specs
 
     def _create_product_masters(self, categories):
         from apps.product_catalog.models import ProductMasterStatus
@@ -394,7 +439,7 @@ class Command(BaseCommand):
         category -> product_master -> supplier_product.
         """
         products = []
-        for supplier in suppliers:
+        for sup_idx, supplier in enumerate(suppliers):
             # Each supplier has 15-30 products to test scale, bounded by number of available product masters
             num_products = random.randint(15, min(30, len(product_masters)))
             selected_pms = random.sample(product_masters, num_products)
@@ -402,7 +447,7 @@ class Command(BaseCommand):
             for pm in selected_pms:
                 name = f'{pm.name} (NCC {supplier.company_name})'
                 unit = pm.default_unit
-                slug = f'{self.fake.slug()}-{uuid.uuid4().hex[:6]}'
+                slug = f"seed-sp-s{sup_idx + 1}-pm{pm.id}"
                 storage_profile = get_storage_profile(pm.category.name)
                 storage_days = pick_storage_days(storage_profile)
                 master_name = pm.name
