@@ -45,19 +45,31 @@ import {
     parseCheckStockResults,
     splitCheckoutByChoices,
 } from "../../utils/buyerPreorderUtils";
+import { normalizeCartQuantity } from "../../utils/cartUtils";
 
 export default function OrderPage() {
     const navigate = useNavigate();
     const location = useLocation();
     const paths = useStorefrontPaths();
-    const { items: cartItems, removeItem } = useCart();
+    const {
+        items: cartItems,
+        removeItem,
+        increaseQuantity,
+        decreaseQuantity,
+        setItemQuantity,
+    } = useCart();
 
     const buyNowItem = location.state?.buyNow ?? null;
+    const [buyNowQuantity, setBuyNowQuantity] = useState(() =>
+        normalizeCartQuantity(buyNowItem?.quantity ?? 1),
+    );
 
     const checkoutItems = useMemo(() => {
-        if (buyNowItem) return [buyNowItem];
+        if (buyNowItem) {
+            return [{ ...buyNowItem, quantity: buyNowQuantity }];
+        }
         return cartItems.filter((item) => item.selected);
-    }, [buyNowItem, cartItems]);
+    }, [buyNowItem, buyNowQuantity, cartItems]);
 
     const {
         addresses,
@@ -110,6 +122,9 @@ export default function OrderPage() {
                 unitPrice: item.price,
                 unit: item.unit,
                 quantity: item.quantity,
+                inStock: item.inStock ?? item.in_stock,
+                availableQuantity:
+                    item.availableQuantity ?? item.available_quantity,
             })),
         [checkoutItems],
     );
@@ -233,6 +248,46 @@ export default function OrderPage() {
         setVoucherError("");
     }, [checkoutItemsKey]);
 
+    const handleDecreaseQuantity = (productId) => {
+        setPendingStockChoices(null);
+        setMergedStockItems([]);
+
+        if (buyNowItem) {
+            if (String(buyNowItem.id) !== String(productId)) return;
+            setBuyNowQuantity((current) => normalizeCartQuantity(current - 1));
+            return;
+        }
+
+        decreaseQuantity(productId);
+    };
+
+    const handleIncreaseQuantity = (productId) => {
+        setPendingStockChoices(null);
+        setMergedStockItems([]);
+
+        if (buyNowItem) {
+            if (String(buyNowItem.id) !== String(productId)) return;
+            setBuyNowQuantity((current) => normalizeCartQuantity(current + 1));
+            return;
+        }
+
+        increaseQuantity(productId);
+    };
+
+    const handleSetQuantity = (productId, value) => {
+        const nextQuantity = normalizeCartQuantity(value);
+        setPendingStockChoices(null);
+        setMergedStockItems([]);
+
+        if (buyNowItem) {
+            if (String(buyNowItem.id) !== String(productId)) return;
+            setBuyNowQuantity(nextQuantity);
+            return;
+        }
+
+        setItemQuantity(productId, nextQuantity);
+    };
+
     const handleSelectDate = (date) => {
         setSelectedDate(date);
         const entry = deliveryDates.find((item) => item.date === date);
@@ -335,6 +390,8 @@ export default function OrderPage() {
     const handleOpenConfirm = async () => {
         if (!canSubmit || !paths.slug) return;
 
+        setPendingStockChoices(null);
+        setMergedStockItems([]);
         setStockChecking(true);
         setPageError("");
 
@@ -548,7 +605,14 @@ export default function OrderPage() {
 
             <div className="grid grid-cols-1 gap-8 xl:grid-cols-[minmax(0,1fr)_380px]">
                 <div className="space-y-6">
-                    <OrderInfoCard items={orderItems} subtotal={subtotal} />
+                    <OrderInfoCard
+                        items={orderItems}
+                        subtotal={subtotal}
+                        quantityDisabled={submitting || stockChecking}
+                        onDecreaseQuantity={handleDecreaseQuantity}
+                        onIncreaseQuantity={handleIncreaseQuantity}
+                        onSetQuantity={handleSetQuantity}
+                    />
 
                     <CheckoutAddressSection
                         addresses={addresses}

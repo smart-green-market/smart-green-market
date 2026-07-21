@@ -181,10 +181,10 @@ export default function ProductDetailSpecs({ product }) {
                         value={product.supplier_product_name}
                     />
                     <SpecRow label="Nhiệt độ bảo quản" value={tempLabel} />
-                    <SpecRow
+                    {/* <SpecRow
                         label="Ngày hết hạn"
                         value={formatDateVi(product.expiry_date)}
-                    />
+                    /> */}
                     <SpecRow
                         label="Ngày đăng bán"
                         value={formatDateVi(product.production_date)}

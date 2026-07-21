@@ -2,7 +2,14 @@ import { ClipboardList } from "lucide-react";
 import OrderItemRow from "./OrderItemRow";
 import { formatCurrency } from "./mockData";
 
-export default function OrderInfoCard({ items, subtotal }) {
+export default function OrderInfoCard({
+  items,
+  subtotal,
+  quantityDisabled = false,
+  onDecreaseQuantity,
+  onIncreaseQuantity,
+  onSetQuantity,
+}) {
   return (
     <section className="rounded-xl bg-white p-8 shadow-sm outline outline-1 outline-stone-300/30">
       <div className="flex items-center gap-2">
@@ -12,7 +19,14 @@ export default function OrderInfoCard({ items, subtotal }) {
 
       <div className="mt-6 pb-2">
         {items.map((item) => (
-          <OrderItemRow key={item.id} item={item} />
+          <OrderItemRow
+            key={item.id}
+            item={item}
+            quantityDisabled={quantityDisabled}
+            onDecreaseQuantity={onDecreaseQuantity}
+            onIncreaseQuantity={onIncreaseQuantity}
+            onSetQuantity={onSetQuantity}
+          />
         ))}
       </div>
 
