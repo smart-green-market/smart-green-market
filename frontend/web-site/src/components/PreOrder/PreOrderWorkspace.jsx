@@ -7,6 +7,7 @@ import PreOrderStatusSummary from "./PreOrderStatusSummary";
 export default function PreOrderWorkspace({
   title,
   subtitle,
+  headerActions,
   audience = "buyer",
   loading = false,
   requests = [],
@@ -34,12 +35,19 @@ export default function PreOrderWorkspace({
   return (
     <div className="space-y-4">
       {(title || subtitle) && (
-        <div>
-          {title ? (
-            <h1 className="text-xl font-bold text-emerald-950 sm:text-2xl">{title}</h1>
-          ) : null}
-          {subtitle ? (
-            <p className="mt-1 text-sm text-neutral-600">{subtitle}</p>
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            {title ? (
+              <h1 className="text-xl font-bold text-emerald-950 sm:text-2xl">{title}</h1>
+            ) : null}
+            {subtitle ? (
+              <p className="mt-1 text-sm text-neutral-600">{subtitle}</p>
+            ) : null}
+          </div>
+          {headerActions ? (
+            <div className="flex items-center gap-2 self-start sm:self-auto">
+              {headerActions}
+            </div>
           ) : null}
         </div>
       )}

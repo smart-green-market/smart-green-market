@@ -1,4 +1,4 @@
-import { Package, AlertTriangle, XCircle, Plus, CheckCircle2, Clock } from "lucide-react";
+import { Package, AlertTriangle, XCircle, Plus, CheckCircle2 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 
 const STAT_CARDS = [
@@ -34,17 +34,6 @@ const STAT_CARDS = [
     countColor: "text-amber-700",
     borderColor: "border-amber-200",
     activeBg: "bg-amber-100",
-  },
-  {
-    key: "expired",
-    label: "Hết hạn",
-    icon: Clock,
-    filterValue: "expired",
-    bgColor: "bg-red-50",
-    iconColor: "text-red-500",
-    countColor: "text-red-700",
-    borderColor: "border-red-200",
-    activeBg: "bg-red-100",
   },
   {
     key: "cancelled",
