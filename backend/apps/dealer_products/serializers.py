@@ -189,6 +189,25 @@ class DealerProductListSerializer(DealerProductReadSerializer):
         fields = DealerProductReadSerializer.Meta.fields + ["dealer"]
 
 
+class DealerProductWaitingStockSerializer(DealerProductListSerializer):
+    """Sản phẩm có đơn buyer chờ hàng về kho — GET .../waiting-stock/."""
+
+    waiting_stock_quantity = serializers.IntegerField(
+        read_only=True,
+        help_text="Tổng SL trên đơn waiting_stock chưa phân bổ lô",
+    )
+    waiting_stock_order_count = serializers.IntegerField(
+        read_only=True,
+        help_text="Số đơn buyer distinct ở trạng thái waiting_stock",
+    )
+
+    class Meta(DealerProductListSerializer.Meta):
+        fields = DealerProductListSerializer.Meta.fields + [
+            "waiting_stock_quantity",
+            "waiting_stock_order_count",
+        ]
+
+
 class DealerProductDetailSerializer(DealerProductListSerializer):
     """Chi tiết sản phẩm đại lý — thêm hướng dẫn bảo quản từ NCC gốc."""
 

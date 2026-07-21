@@ -3,9 +3,12 @@
 from drf_spectacular.utils import extend_schema, extend_schema_view, OpenApiParameter
 from rest_framework import viewsets
 from rest_framework.decorators import action
+from rest_framework.exceptions import ValidationError
 from rest_framework.parsers import FormParser, MultiPartParser
 from rest_framework.response import Response
 from django.db.models import Q
+
+from apps.accounts.models import AccountRole
 
 from common.notifications import notify_account, notify_admins
 from common.openapi import PAGINATION_QUERY_HELP, paginated_response_schema
@@ -43,6 +46,7 @@ from .serializers import (
     DealerProductDetailSerializer,
     DealerProductImageSerializer,
     DealerProductListSerializer,
+    DealerProductWaitingStockSerializer,
     DealerProductSerializer,
     RecordWastageSerializer,
     BackfillExpiryDatesSerializer,
@@ -58,6 +62,11 @@ from .inventory_expiry import (
     set_batch_expiry_date,
 )
 from .services import annotate_dealer_product_stock, record_wastage
+from .waiting_stock_demand import (
+    queryset_dealer_products_waiting_stock,
+    resolve_dealer_profile_id_for_waiting_stock,
+    waiting_stock_summary,
+)
 
 
 def _annotated_dealer_product(pk):
@@ -139,6 +148,8 @@ class DealerProductViewSet(viewsets.ModelViewSet):
     def get_serializer_class(self):
         if self.action == "retrieve":
             return DealerProductDetailSerializer
+        if self.action == "waiting_stock":
+            return DealerProductWaitingStockSerializer
         if self.action in ("list", "verify"):
             return DealerProductListSerializer
         return DealerProductSerializer
@@ -146,6 +157,8 @@ class DealerProductViewSet(viewsets.ModelViewSet):
     def get_permissions(self):
         if self.action == "verify":
             return [IsAdmin()]
+        if self.action == "waiting_stock":
+            return [IsActive(), IsAdminOrDealer()]
         if self.action in ("create", "update", "partial_update"):
             return [IsActive(), IsDealer()]
         if self.action == "destroy":
@@ -153,7 +166,40 @@ class DealerProductViewSet(viewsets.ModelViewSet):
         return [IsActive()]
 
     def get_queryset(self):
-        qs = _filter_dealer_product_scope(self.queryset, self.request.user)
+        user = self.request.user
+        if self.action == "waiting_stock":
+            if user.role not in (AccountRole.ADMIN, AccountRole.DEALER):
+                return DealerProduct.objects.none()
+            qs = filter_admin_or_dealer_account(
+                self.queryset,
+                user,
+                account_lookup="dealer_profile__account",
+                ordering=(),
+                pending_field=None,
+            )
+            if user.role == AccountRole.ADMIN:
+                dealer_id_param = self.request.query_params.get("dealer_id")
+                if dealer_id_param not in (None, ""):
+                    try:
+                        qs = qs.filter(dealer_profile_id=int(dealer_id_param))
+                    except (TypeError, ValueError) as exc:
+                        raise ValidationError(
+                            {"dealer_id": "dealer_id phải là số nguyên."}
+                        ) from exc
+            try:
+                dealer_scope_id = resolve_dealer_profile_id_for_waiting_stock(
+                    user,
+                    self.request.query_params.get("dealer_id"),
+                )
+            except ValueError as exc:
+                raise ValidationError({"dealer_id": str(exc)}) from exc
+            qs = queryset_dealer_products_waiting_stock(
+                qs,
+                dealer_profile_id=dealer_scope_id,
+            )
+            return annotate_dealer_product_stock(qs)
+
+        qs = _filter_dealer_product_scope(self.queryset, user)
         if self.action != "create":
             qs = annotate_dealer_product_stock(qs)
         return qs
@@ -286,6 +332,68 @@ class DealerProductViewSet(viewsets.ModelViewSet):
                 context={"request": request},
             ).data
         )
+
+    @extend_schema(
+        tags=["Dealer Products"],
+        summary="Sản phẩm có đơn chờ hàng về kho",
+        description=(
+            "Dealer: sản phẩm bán lẻ có ít nhất một dòng trên đơn buyer "
+            "`waiting_stock` (chưa phân bổ lô — sau khi duyệt YC đặt trước).\n"
+            "Admin: tất cả đại lý hoặc lọc `?dealer_id=`.\n"
+            "Mỗi sản phẩm kèm `waiting_stock_quantity`, `waiting_stock_order_count`. "
+            "Response thêm `summary` (số đơn + tổng SL)."
+            + PAGINATION_QUERY_HELP
+        ),
+        parameters=[
+            OpenApiParameter(
+                name="dealer_id",
+                type=int,
+                location=OpenApiParameter.QUERY,
+                required=False,
+                description="Admin: lọc theo hồ sơ đại lý",
+            ),
+            OpenApiParameter(
+                "search",
+                str,
+                description="Tìm theo tên SP, danh mục, NCC",
+                required=False,
+            ),
+        ],
+        responses={
+            200: paginated_response_schema(
+                DealerProductWaitingStockSerializer,
+                "PaginatedDealerProductWaitingStock",
+            )
+        },
+    )
+    @action(detail=False, methods=["get"], url_path="waiting-stock")
+    def waiting_stock(self, request):
+        try:
+            dealer_scope_id = resolve_dealer_profile_id_for_waiting_stock(
+                request.user,
+                request.query_params.get("dealer_id"),
+            )
+        except ValueError as exc:
+            raise ValidationError({"dealer_id": str(exc)}) from exc
+
+        qs = self._apply_dealer_product_list_filters(
+            self.filter_queryset(self.get_queryset()),
+            request,
+            apply_status=False,
+        )
+        summary = waiting_stock_summary(dealer_profile_id=dealer_scope_id)
+
+        paginator = LoadMorePagination()
+        page = paginator.paginate_queryset(qs, request, view=self)
+        serializer = self.get_serializer(page, many=True)
+        response = paginator.get_paginated_response(serializer.data)
+        response.data["summary"] = {
+            "waiting_stock_order_count": summary["waiting_stock_order_count"],
+            "waiting_stock_line_quantity_total": summary[
+                "waiting_stock_line_quantity_total"
+            ],
+        }
+        return response
 
 
 @extend_schema_view(
