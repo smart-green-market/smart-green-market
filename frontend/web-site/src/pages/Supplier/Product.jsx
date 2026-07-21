@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
-import { Package, ShoppingCart, Lock, Clock, Search, Filter, Plus, User, FileSpreadsheet } from "lucide-react";
+import { Package, ShoppingCart, Lock, Clock, Search, Filter, Plus, User, FileSpreadsheet, AlertCircle } from "lucide-react";
 import ProductTable from "../../components/Supplier/Product/ProductTable";
 import DeleteConfirmModal from "../../components/common/DeleteConfirmModal";
 import ConfirmModal from "../../components/common/ConfirmModal";
@@ -9,6 +9,7 @@ import { productService } from "../../services/api/productService";
 import SupplierPageHeader, { SUPPLIER_PAGE_CLASS } from "../../components/Supplier/UI/SupplierPageHeader";
 import { extractApiError } from "../../utils/extractApiError";
 import ListOrderModal from "../../components/Supplier/Product/ListOrderModal";
+import PendingConfirmationModal from "../../components/Supplier/Product/PendingConfirmationModal";
 import { exportProductsToExcel } from "../../utils/exportUtils";
 
 const METRIC_TONE = {
@@ -51,6 +52,8 @@ export default function ProductSupplierPage() {
   const [toggleTarget, setToggleTarget] = useState(null);
   const [togglingId, setTogglingId] = useState(null);
   const [ordersRow, setOrdersRow] = useState(null);
+  const [showPendingModal, setShowPendingModal] = useState(false);
+  const [pendingCount, setPendingCount] = useState(null);
 
   /* ── Fetch ── */
   const fetchStatsAndCategories = async () => {
@@ -107,6 +110,16 @@ export default function ProductSupplierPage() {
   useEffect(() => {
     fetchTableProducts(1);
   }, [fetchTableProducts]);
+
+  // Lấy số đơn chờ xác nhận để hiển thị badge
+  useEffect(() => {
+    productService.getPendingConfirmation({ page_size: 1 })
+      .then((res) => {
+        const count = res?.count ?? (Array.isArray(res?.results) ? res.results.length : 0);
+        setPendingCount(count);
+      })
+      .catch(() => setPendingCount(null));
+  }, []);
 
   /* ── Thống kê ── */
   const stats = {
@@ -191,6 +204,19 @@ export default function ProductSupplierPage() {
           >
             <FileSpreadsheet className="w-4 h-4" />
             Xuất Excel
+          </button>
+
+          <button
+            onClick={() => setShowPendingModal(true)}
+            className="relative flex items-center gap-2 px-4 py-2 text-sm font-semibold text-amber-700 bg-amber-50 hover:bg-amber-100 border border-amber-200 rounded-lg transition-colors cursor-pointer"
+          >
+            <AlertCircle className="w-4 h-4" />
+            Chờ xác nhận
+            {pendingCount != null && pendingCount > 0 && (
+              <span className="absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full bg-amber-500 text-white text-[10px] font-bold flex items-center justify-center">
+                {pendingCount > 99 ? "99+" : pendingCount}
+              </span>
+            )}
           </button>
 
           <button
@@ -311,6 +337,11 @@ export default function ProductSupplierPage() {
         isOpen={ordersRow !== null}
         onClose={() => setOrdersRow(null)}
         product={ordersRow}
+      />
+
+      <PendingConfirmationModal
+        isOpen={showPendingModal}
+        onClose={() => setShowPendingModal(false)}
       />
 
       {showAddCategory && (
