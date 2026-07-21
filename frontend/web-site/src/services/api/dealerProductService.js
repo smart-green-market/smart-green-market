@@ -157,6 +157,12 @@ export const dealerProductService = {
       throw error;
     }
   },
+  getWaitingStock: async (dealerId) => {
+    const res = await axiosClient.get("/dealer-products/waiting-stock/", {
+      params: { dealer_id: dealerId },
+    });
+    return res.data;
+  },
 };
 
 export const handleApiError = (error, defaultMessage = "Có lỗi xảy ra") => {
