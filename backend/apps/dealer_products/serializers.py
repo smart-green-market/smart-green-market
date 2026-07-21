@@ -461,6 +461,14 @@ class DealerInventoryTransactionSerializer(serializers.ModelSerializer):
         read_only=True,
     )
     batch_number = serializers.CharField(source="batch.batch_number", read_only=True)
+    dealer_product = serializers.IntegerField(
+        source="batch.dealer_product_id",
+        read_only=True,
+    )
+    dealer_product_title = serializers.CharField(
+        source="batch.dealer_product.title",
+        read_only=True,
+    )
     created_by_username = serializers.CharField(
         source="created_by.username",
         read_only=True,
@@ -473,6 +481,8 @@ class DealerInventoryTransactionSerializer(serializers.ModelSerializer):
             "id",
             "batch",
             "batch_number",
+            "dealer_product",
+            "dealer_product_title",
             "type",
             "quantity_before",
             "quantity_change",
