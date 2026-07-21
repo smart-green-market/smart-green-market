@@ -77,6 +77,7 @@ class SupplierProductOrderDemandTests(TestCase):
             quantity=Decimal("30"),
             original_quantity=Decimal("30"),
             unit_price=Decimal("10000"),
+            base_unit_price=Decimal("10000"),
             subtotal=Decimal("300000"),
         )
 
@@ -96,6 +97,7 @@ class SupplierProductOrderDemandTests(TestCase):
             quantity=Decimal("50"),
             original_quantity=Decimal("50"),
             unit_price=Decimal("10000"),
+            base_unit_price=Decimal("10000"),
             subtotal=Decimal("500000"),
         )
 
@@ -115,6 +117,7 @@ class SupplierProductOrderDemandTests(TestCase):
             quantity=Decimal("99"),
             original_quantity=Decimal("99"),
             unit_price=Decimal("10000"),
+            base_unit_price=Decimal("10000"),
             subtotal=Decimal("990000"),
         )
 

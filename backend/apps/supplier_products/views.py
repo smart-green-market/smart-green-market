@@ -30,12 +30,19 @@ from common.querysets import (
 )
 from common.soft_delete import default_exclude_deleted
 from .archive import soft_delete_supplier_product
-from .order_demand import annotate_supplier_product_order_demand, purchase_order_items_for_product
+from .order_demand import (
+    annotate_supplier_product_order_demand,
+    pending_confirmation_summary,
+    purchase_order_items_for_product,
+    queryset_supplier_products_pending_confirmation,
+    resolve_supplier_id_for_pending_confirmation,
+)
 from .models import SupplierProduct, SupplierProductImage, CultivationProcess, SupplierProductStatus
 from .openapi import SupplierProductImageBulkUploadForm, SupplierProductImageReplaceForm
 from .serializer import (
     SupplierProductDetailSerializer,
     SupplierProductListSerializer,
+    SupplierProductPendingConfirmationSerializer,
     SupplierProductSerializer,
     SupplierProductImageSerializer,
     SupplierProductImageBulkUploadSerializer,
@@ -164,6 +171,8 @@ class SupplierProductViewSet(viewsets.ModelViewSet):
             return SupplierProductDetailSerializer
         if self.action in ("list", "verify"):
             return SupplierProductListSerializer
+        if self.action == "pending_confirmation":
+            return SupplierProductPendingConfirmationSerializer
         return SupplierProductSerializer
 
     def _should_annotate_order_demand(self):
@@ -194,6 +203,8 @@ class SupplierProductViewSet(viewsets.ModelViewSet):
         """Chỉ Admin được duyệt sản phẩm; dealer chỉ đọc catalog."""
         if self.action == "verify":
             return [IsAdmin()]
+        if self.action == "pending_confirmation":
+            return [IsAdminOrSupplierProfile(), IsActive()]
         if (
             self.request.user.is_authenticated
             and self.request.user.role == AccountRole.DEALER
@@ -250,6 +261,26 @@ class SupplierProductViewSet(viewsets.ModelViewSet):
     def get_queryset(self):
         """Lọc sản phẩm theo quyền Admin, NCC hoặc catalog đại lý."""
         user = self.request.user
+        if self.action == "pending_confirmation":
+            if user.role not in (AccountRole.ADMIN, AccountRole.SUPPLIER):
+                return SupplierProduct.objects.none()
+            qs = filter_admin_or_supplier_account(
+                self.queryset,
+                user,
+                ordering=(),
+                pending_field=None,
+            )
+            if user.role == AccountRole.ADMIN:
+                supplier_id_param = self.request.query_params.get("supplier_id")
+                if supplier_id_param not in (None, ""):
+                    try:
+                        qs = qs.filter(supplier_id=int(supplier_id_param))
+                    except (TypeError, ValueError) as exc:
+                        raise ValidationError(
+                            {"supplier_id": "supplier_id phải là số nguyên."}
+                        ) from exc
+            return queryset_supplier_products_pending_confirmation(qs)
+
         if user.role == AccountRole.DEALER:
             if self.action in ("list", "retrieve"):
                 supplier_id = self.request.query_params.get("supplier_id")
@@ -347,6 +378,68 @@ class SupplierProductViewSet(viewsets.ModelViewSet):
         return Response(
             SupplierProductListSerializer(product, context={"request": request}).data
         )
+
+    @extend_schema(
+        tags=["Supplier Products"],
+        summary="Sản phẩm có phiếu chờ NCC xác nhận",
+        description=(
+            "Supplier: sản phẩm của NCC mình có ít nhất một dòng trên phiếu "
+            "`pending_supplier_confirmation`.\n"
+            "Admin: tất cả NCC hoặc lọc `?supplier_id=`.\n"
+            "Mỗi sản phẩm kèm `pending_order_quantity`, `preparation_quantity`, "
+            "`pending_purchase_order_count`. Response thêm `summary` (số phiếu + tổng SL)."
+            + PAGINATION_QUERY_HELP
+        ),
+        parameters=[
+            OpenApiParameter(
+                name="supplier_id",
+                type=int,
+                location=OpenApiParameter.QUERY,
+                required=False,
+                description="Admin: lọc theo NCC (ID supplier profile)",
+            ),
+            OpenApiParameter("search", str, description="Tìm theo tên SP, NCC, danh mục", required=False),
+            OpenApiParameter(
+                name="category",
+                type=int,
+                location=OpenApiParameter.QUERY,
+                required=False,
+                description="Lọc theo danh mục",
+            ),
+        ],
+        responses={
+            200: paginated_response_schema(
+                SupplierProductPendingConfirmationSerializer,
+                "PaginatedSupplierProductPendingConfirmation",
+            )
+        },
+    )
+    @action(detail=False, methods=["get"], url_path="pending-confirmation")
+    def pending_confirmation(self, request):
+        try:
+            supplier_scope_id = resolve_supplier_id_for_pending_confirmation(
+                request.user,
+                request.query_params.get("supplier_id"),
+            )
+        except ValueError as exc:
+            raise ValidationError({"supplier_id": str(exc)}) from exc
+
+        qs = self._apply_supplier_product_list_filters(
+            self.filter_queryset(self.get_queryset()),
+            request,
+            apply_status=False,
+        )
+        summary = pending_confirmation_summary(supplier_id=supplier_scope_id)
+
+        paginator = LoadMorePagination()
+        page = paginator.paginate_queryset(qs, request, view=self)
+        serializer = self.get_serializer(page, many=True)
+        response = paginator.get_paginated_response(serializer.data)
+        response.data["summary"] = {
+            "pending_purchase_order_count": summary["pending_purchase_order_count"],
+            "pending_line_quantity_total": str(summary["pending_line_quantity_total"]),
+        }
+        return response
 
 
 @extend_schema_view(
