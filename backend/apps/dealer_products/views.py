@@ -81,6 +81,40 @@ def _annotated_dealer_product(pk):
     ).first()
 
 
+def _waiting_stock_page_with_stock(page):
+    """
+    Gắn tồn kho sau paginate — tránh join order_items × inventory_batches
+    khi annotate waiting_stock và stock trên cùng queryset.
+    """
+    if not page:
+        return page
+    waiting_by_pk = {
+        p.pk: (p.waiting_stock_quantity, p.waiting_stock_order_count) for p in page
+    }
+    pks = [p.pk for p in page]
+    stock_by_pk = {
+        p.pk: p
+        for p in annotate_dealer_product_stock(
+            DealerProduct.objects.filter(pk__in=pks)
+            .select_related(
+                "dealer_profile",
+                "dealer_profile__account",
+                "supplier_product",
+                "category",
+            )
+            .prefetch_related("images")
+        )
+    }
+    merged = []
+    for p in page:
+        product = stock_by_pk[p.pk]
+        product.waiting_stock_quantity, product.waiting_stock_order_count = (
+            waiting_by_pk[p.pk]
+        )
+        merged.append(product)
+    return merged
+
+
 def _filter_dealer_product_scope(qs, user):
     return filter_admin_or_dealer_account(
         qs,
@@ -193,11 +227,10 @@ class DealerProductViewSet(viewsets.ModelViewSet):
                 )
             except ValueError as exc:
                 raise ValidationError({"dealer_id": str(exc)}) from exc
-            qs = queryset_dealer_products_waiting_stock(
+            return queryset_dealer_products_waiting_stock(
                 qs,
                 dealer_profile_id=dealer_scope_id,
             )
-            return annotate_dealer_product_stock(qs)
 
         qs = _filter_dealer_product_scope(self.queryset, user)
         if self.action != "create":
@@ -385,6 +418,7 @@ class DealerProductViewSet(viewsets.ModelViewSet):
 
         paginator = LoadMorePagination()
         page = paginator.paginate_queryset(qs, request, view=self)
+        page = _waiting_stock_page_with_stock(page)
         serializer = self.get_serializer(page, many=True)
         response = paginator.get_paginated_response(serializer.data)
         response.data["summary"] = {
