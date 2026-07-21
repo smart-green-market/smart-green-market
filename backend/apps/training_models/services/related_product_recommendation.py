@@ -233,7 +233,7 @@ class RelatedProductRecommendationService:
         for pid, did in product_to_dealer.items():
             dealer_products_map.setdefault(did, set()).add(pid)
 
-        total_valid_items = len(idx2item_clean)
+        total_valid_items = len(product_to_dealer)
         unique_recommended_items = set()
 
         # Đếm số gợi ý thực tế cho mỗi sản phẩm
@@ -277,13 +277,11 @@ class RelatedProductRecommendationService:
         dealer_coverage_detail = []
 
         for dealer_id, dp_ids in dealer_products_map.items():
-            # Chỉ xét sản phẩm tồn tại trong tập huấn luyện
-            trained_ids = {pid for pid in dp_ids if pid in product_rec_count}
-            total = len(trained_ids)
+            total = len(dp_ids)
             if total == 0:
                 continue
 
-            covered = sum(1 for pid in trained_ids if product_rec_count.get(pid, 0) >= top_k)
+            covered = sum(1 for pid in dp_ids if product_rec_count.get(pid, 0) >= top_k)
             missing_count = total - covered
             pct = round((covered / total) * 100, 1)
 
@@ -294,6 +292,8 @@ class RelatedProductRecommendationService:
                 'covered': covered,
                 'missing_count': missing_count,
                 'coverage_pct': pct,
+                'has_warning': missing_count > 0,
+                'warning_message': f"Thiếu gợi ý cho {missing_count} sản phẩm" if missing_count > 0 else "Ổn định",
             })
 
         # Sắp xếp dealer có vấn đề lên đầu
