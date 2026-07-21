@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
+import { PackageSearch } from "lucide-react";
 import PreOrderProposeModal from "../../../components/Dealer/PreOrder/PreOrderProposeModal";
 import PreOrderWorkspace from "../../../components/PreOrder/PreOrderWorkspace";
 import RejectModal from "../../../components/common/RejectModal";
@@ -14,8 +15,12 @@ import {
   countPreOrdersByStatus,
   DEALER_PREORDER_FILTERS,
 } from "../../../utils/preorderStatusConfig";
+import { useAuth } from "../../../contexts/authProvider";
+import WaitingStockModal from "../../../components/Dealer/PreOrder/WaitingStockModal";
 
 export default function DealerPreOrderPage() {
+  const { user } = useAuth();
+  const [waitingStockOpen, setWaitingStockOpen] = useState(false);
   const [allRequests, setAllRequests] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
@@ -171,6 +176,16 @@ export default function DealerPreOrderPage() {
         detail={detail}
         detailLoading={detailLoading}
         emptyDetailMessage="Chọn yêu cầu bên trái để xem và xử lý."
+        headerActions={
+          <button
+            type="button"
+            onClick={() => setWaitingStockOpen(true)}
+            className="flex items-center gap-2 rounded-xl bg-white border border-stone-200 hover:bg-stone-50 hover:border-stone-300 px-4 py-2.5 text-xs font-bold text-stone-700 transition-all shadow-xs"
+          >
+            <PackageSearch className="w-4 h-4 text-emerald-600 animate-pulse" />
+            Thống kê đặt trước
+          </button>
+        }
         detailActions={
           detail ? (
             <>
@@ -232,6 +247,12 @@ export default function DealerPreOrderPage() {
         message="Nhập lý do từ chối để gửi cho khách hàng."
         showToast={false}
         loading={actionLoading}
+      />
+
+      <WaitingStockModal
+        isOpen={waitingStockOpen}
+        onClose={() => setWaitingStockOpen(false)}
+        dealerId={user?.dealer_profile?.id}
       />
     </div>
   );

@@ -8,7 +8,6 @@ const COLUMN_CONFIG = {
   stock:       { key: "stock",       type: "number" },
   priceImport: { key: "priceImport", type: "currency" },
   importDate:  { key: "importDate",  type: "date" },
-  expiryDate:  { key: "expiryDate",  type: "date" },
   status:      { key: "status",      type: "string" },
 };
 
@@ -36,7 +35,6 @@ export default function InventoryTable({ data, onRowClick, currentPage, totalPag
                 <SortableHeader label="Tồn kho" column="stock" sortColumn={sortColumn} sortDirection={sortDirection} onSort={handleSort} />
                 <SortableHeader label="Giá mua" column="priceImport" sortColumn={sortColumn} sortDirection={sortDirection} onSort={handleSort} />
                 <SortableHeader label="Ngày nhập" column="importDate" sortColumn={sortColumn} sortDirection={sortDirection} onSort={handleSort} />
-                <SortableHeader label="Hạn dùng" column="expiryDate" sortColumn={sortColumn} sortDirection={sortDirection} onSort={handleSort} />
                 <SortableHeader label="Trạng thái" column="status" sortColumn={sortColumn} sortDirection={sortDirection} onSort={handleSort} align="center" />
                 <th className="px-6 py-4 text-[11px] font-bold text-neutral-500 uppercase tracking-wider text-right">Thao tác</th>
               </tr>
@@ -76,9 +74,6 @@ export default function InventoryTable({ data, onRowClick, currentPage, totalPag
                     </td>
                     <td className="px-6 py-4">
                       <span className="text-neutral-500 text-xs font-medium">{row.importDate}</span>
-                    </td>
-                    <td className="px-6 py-4">
-                      <span className="text-neutral-600 text-xs font-bold">{row.expiryDate}</span>
                     </td>
                     <td className="px-6 py-4 text-center">
                       <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold inline-block ${statusClass}`}>

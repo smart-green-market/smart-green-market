@@ -1,5 +1,7 @@
 import { useState, useEffect } from "react";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, PackageSearch } from "lucide-react";
+import { useAuth } from "../../../contexts/authProvider";
+import WaitingStockModal from "../PreOrder/WaitingStockModal";
 import { supplierService } from "../../../services/api/suppilerService";
 import { categoryService } from "../../../services/api/categoryService";
 import { dealerService } from "../../../services/api/dealerService";
@@ -38,6 +40,9 @@ function formatPurchaseProduct(p) {
 }
 
 export default function CreatePurchaseOrder({ onClose, onSuccess }) {
+  const { user } = useAuth();
+  const [waitingStockOpen, setWaitingStockOpen] = useState(false);
+
   // --- STATE QUẢN LÝ BỘ LỌC (FILTERS) ---
   const [selectedSupplier, setSelectedSupplier] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("");
@@ -502,21 +507,31 @@ export default function CreatePurchaseOrder({ onClose, onSuccess }) {
   return (
     <div className="font-['Geist',sans-serif]">
       {/* Header và Nút quay lại */}
-      <div className="mb-6 flex items-center gap-3">
-        <button
-          onClick={handleCancel}
-          className="p-2 hover:bg-neutral-100 rounded-xl transition-colors cursor-pointer text-neutral-600 border-none bg-transparent"
-        >
-          <ArrowLeft className="w-5 h-5" />
-        </button>
-        <div>
-          <h1 className="text-2xl font-bold text-neutral-900">
-            Quản lý đơn nhập hàng
-          </h1>
-          <p className="text-sm text-neutral-500 mt-0.5">
-            Tạo phiếu nhập nông sản mới từ các nhà vườn đối tác.
-          </p>
+      <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex items-center gap-3">
+          <button
+            onClick={handleCancel}
+            className="p-2 hover:bg-neutral-100 rounded-xl transition-colors cursor-pointer text-neutral-600 border-none bg-transparent"
+          >
+            <ArrowLeft className="w-5 h-5" />
+          </button>
+          <div>
+            <h1 className="text-2xl font-bold text-neutral-900">
+              Quản lý đơn nhập hàng
+            </h1>
+            <p className="text-sm text-neutral-500 mt-0.5">
+              Tạo phiếu nhập nông sản mới từ các nhà vườn đối tác.
+            </p>
+          </div>
         </div>
+        <button
+          type="button"
+          onClick={() => setWaitingStockOpen(true)}
+          className="flex items-center gap-2 rounded-xl bg-white border border-stone-200 hover:bg-stone-50 hover:border-stone-300 px-4 py-2.5 text-xs font-bold text-stone-700 transition-all shadow-xs self-start sm:self-auto"
+        >
+          <PackageSearch className="w-4 h-4 text-emerald-600 animate-pulse" />
+          Xem sản phẩm đặt trước
+        </button>
       </div>
 
       <div className="flex flex-col lg:flex-row gap-6">
@@ -598,6 +613,11 @@ export default function CreatePurchaseOrder({ onClose, onSuccess }) {
           />
         </div>
       </div>
+      <WaitingStockModal
+        isOpen={waitingStockOpen}
+        onClose={() => setWaitingStockOpen(false)}
+        dealerId={user?.dealer_profile?.id}
+      />
     </div>
   );
 }
