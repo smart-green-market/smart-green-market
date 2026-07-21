@@ -108,6 +108,16 @@ export default function ProductSupplierPage() {
     fetchTableProducts(1);
   }, [fetchTableProducts]);
 
+  // Lấy số đơn chờ xác nhận để hiển thị badge
+  useEffect(() => {
+    productService.getPendingConfirmation({ page_size: 1 })
+      .then((res) => {
+        const count = res?.count ?? (Array.isArray(res?.results) ? res.results.length : 0);
+        setPendingCount(count);
+      })
+      .catch(() => setPendingCount(null));
+  }, []);
+
   /* ── Thống kê ── */
   const stats = {
     total: allProducts.length,
@@ -192,6 +202,7 @@ export default function ProductSupplierPage() {
             <FileSpreadsheet className="w-4 h-4" />
             Xuất Excel
           </button>
+
 
           <button
             onClick={() => { setModalMode("catalog"); setIsModalOpen(true); }}
@@ -312,6 +323,7 @@ export default function ProductSupplierPage() {
         onClose={() => setOrdersRow(null)}
         product={ordersRow}
       />
+
 
       {showAddCategory && (
         <AddCategoryModal

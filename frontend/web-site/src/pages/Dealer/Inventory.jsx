@@ -143,7 +143,7 @@ export default function DealerInventoryPage() {
         type: typeMapping[tx.type] || tx.type, // Loại giao dịch Việt hóa
         isImport: tx.quantity_change > 0, // Nhận biết nhập hay xuất kho
         batchCode: tx.batch_number, // Mã lô hàng liên quan
-        productName: "Nông sản", // Tên sản phẩm tạm thời (API này không trả về tên sản phẩm trực tiếp)
+        productName: tx.dealer_product_title, // Tên sản phẩm tạm thời (API này không trả về tên sản phẩm trực tiếp)
         quantity: Math.abs(tx.quantity_change), // Số lượng thay đổi (dùng giá trị tuyệt đối)
         unit: "kg",
         date: tx.created_at ? new Date(tx.created_at).toLocaleString("vi-VN", {

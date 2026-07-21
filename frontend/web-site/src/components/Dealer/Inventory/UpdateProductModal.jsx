@@ -122,6 +122,7 @@ export default function UpdateProductModal({ data, onClose, onSave }) {
       } : null
     };
 
+    toast.success("Cập nhật thông tin lô hàng thành công!");
     onSave(updated);
     onClose();
   };

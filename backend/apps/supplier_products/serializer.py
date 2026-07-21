@@ -368,6 +368,20 @@ class SupplierProductListSerializer(SupplierProductReadSerializer):
         return get_quantity_discount_tiers_for_product(obj)
 
 
+class SupplierProductPendingConfirmationSerializer(SupplierProductListSerializer):
+    """Sản phẩm có đơn chờ NCC xác nhận — dùng GET .../pending-confirmation/."""
+
+    pending_purchase_order_count = serializers.IntegerField(
+        read_only=True,
+        help_text="Số phiếu nhập distinct ở trạng thái pending_supplier_confirmation",
+    )
+
+    class Meta(SupplierProductListSerializer.Meta):
+        fields = SupplierProductListSerializer.Meta.fields + [
+            "pending_purchase_order_count",
+        ]
+
+
 class SupplierProductDetailSerializer(SupplierProductListSerializer):
     """Chi tiết sản phẩm NCC — kèm danh sách phiếu nhập theo mặt hàng."""
 

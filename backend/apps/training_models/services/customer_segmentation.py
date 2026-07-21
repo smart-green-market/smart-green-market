@@ -5,6 +5,7 @@ from django.utils import timezone
 from django.db import transaction
 
 from apps.orders.models import Order
+from apps.customers.models import CustomerProfile
 from apps.marketing.models import CustomerSegment, CustomerSegmentMember, CustomerInteraction, CustomerSegmentationHistory
 
 from django.utils import timezone
@@ -16,9 +17,8 @@ def load_data(dealer_id, t_days):
     start_date = now - timedelta(days=t_days)
 
     customer_ids = list(
-        Order.objects.filter(dealer_id=dealer_id)
-        .values_list('customer_id', flat=True)
-        .distinct()
+        CustomerProfile.objects.filter(user__store_dealer=dealer_id)
+        .values_list('id', flat=True)
     )
 
     if not customer_ids:
