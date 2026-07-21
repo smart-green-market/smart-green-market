@@ -51,9 +51,9 @@ export default function ConfirmModal({
     return (
         <div className="fixed inset-0 z-550 flex items-center justify-center bg-black/50 p-4">
             <div
-                className={`mx-4 w-full max-w-md overflow-hidden rounded-xl border bg-white shadow-xl ${style.panelClass}`}
+                className={`mx-4 flex max-h-[calc(100dvh-2rem)] w-full max-w-md flex-col overflow-hidden rounded-xl border bg-white shadow-xl ${style.panelClass}`}
             >
-                <div className="flex items-center justify-between border-b border-gray-200 px-6 py-4">
+                <div className="flex shrink-0 items-center justify-between border-b border-gray-200 px-6 py-4">
                     <div className="flex items-center gap-3">
                         <div
                             className={`flex h-10 w-10 items-center justify-center rounded-full ${style.iconWrapClass}`}
@@ -73,11 +73,11 @@ export default function ConfirmModal({
                     </button>
                 </div>
 
-                <div className="px-6 py-4">
+                <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-6 py-4 scrollbar-thin scrollbar-track-transparent scrollbar-thumb-neutral-300">
                     <div className="text-gray-600">{message}</div>
                 </div>
 
-                <div className="flex gap-3 border-t border-neutral-200 bg-neutral-50 px-6 py-4">
+                <div className="flex shrink-0 gap-3 border-t border-neutral-200 bg-neutral-50 px-6 py-4">
                     <button
                         type="button"
                         onClick={onClose}
