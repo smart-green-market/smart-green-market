@@ -40,8 +40,15 @@ const fmtPrice = (v) =>
 
 const PAGE_SIZE = 10;
 
-// Chỉ hiển thị và thống kê các trạng thái đang hoạt động
-const ACTIVE_STATUSES = [ "confirmed"];
+// Hiển thị các trạng thái đơn hàng cần nhà cung cấp chuẩn bị / đang xử lý
+const ACTIVE_STATUSES = [
+  "confirmed",
+  "deposit_pending_verification",
+  "deposit_paid",
+  "processing",
+  "shipping",
+  "final_payment_pending_verification",
+];
 
 function EmptyState() {
   return (
@@ -136,14 +143,39 @@ export default function ListOrderModal({ isOpen, onClose, product }) {
     setLoading(true);
     setError("");
     try {
-      // Fetch list (supplier đã được filter qua JWT token)
-      const res = await purchaseOrderService.getAll({ page_size: 100 });
-      const allOrders = res.results ?? [];
+      // Bước 1: Lấy danh sách đơn hàng (supplier đã được filter qua JWT token)
+      // Fetch nhiều trang nếu cần để lấy đủ dữ liệu
+      let allOrders = [];
+      let nextPage = 1;
+      let hasMore = true;
+      while (hasMore) {
+        const res = await purchaseOrderService.getAll({ page: nextPage, page_size: 100 });
+        const pageResults = Array.isArray(res) ? res : (res?.results ?? []);
+        allOrders = allOrders.concat(pageResults);
+        // Nếu API trả về đủ 100 kết quả thì có thể còn trang tiếp theo
+        hasMore = pageResults.length === 100;
+        nextPage++;
+        // Giới hạn tối đa 5 trang (500 đơn) để tránh quá tải
+        if (nextPage > 5) hasMore = false;
+      }
 
-      // List không có items[], cần fetch detail từng đơn để lọc theo supplier_product_id
-      const details = await Promise.all(
-        allOrders.map((o) => purchaseOrderService.getById(o.id).catch(() => null))
-      );
+      if (allOrders.length === 0) {
+        setOrders([]);
+        setPage(1);
+        return;
+      }
+
+      // Bước 2: Danh sách không có items[], cần fetch detail từng đơn
+      // Chia thành batch nhỏ để tránh quá nhiều request đồng thời
+      const BATCH_SIZE = 10;
+      let details = [];
+      for (let i = 0; i < allOrders.length; i += BATCH_SIZE) {
+        const batch = allOrders.slice(i, i + BATCH_SIZE);
+        const batchResults = await Promise.all(
+          batch.map((o) => purchaseOrderService.getById(o.id).catch(() => null))
+        );
+        details = details.concat(batchResults);
+      }
 
       const filtered = details
         .filter(Boolean)
@@ -156,7 +188,7 @@ export default function ListOrderModal({ isOpen, onClose, product }) {
       setOrders(filtered);
       setPage(1);
     } catch (err) {
-      console.error(err);
+      console.error("Lỗi khi tải danh sách đơn hàng:", err);
       setError("Không thể tải danh sách đơn hàng. Vui lòng thử lại.");
     } finally {
       setLoading(false);
