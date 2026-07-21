@@ -168,7 +168,6 @@ export default function DealerInventoryPage() {
     { label: "Tất cả", value: "", colorClass: "text-neutral-700" },
     { label: "Đang hoạt động", value: "active", colorClass: "text-emerald-700" },
     { label: "Hết hàng", value: "depleted", colorClass: "text-amber-700" },
-    { label: "Hết hạn", value: "expired", colorClass: "text-red-700" },
     { label: "Đã hủy", value: "cancelled", colorClass: "text-red-900" },
   ];
 

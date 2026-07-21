@@ -254,7 +254,7 @@ export default function UpdateProductModal({ data, onClose, onSave }) {
           </div>
 
           {/* Section: Ngày hết hạn */}
-          <div className="mb-6">
+          {/* <div className="mb-6">
             <h3 className="text-xs font-extrabold text-neutral-400 uppercase tracking-wider mb-3 flex items-center gap-1.5">
               <span>Hạn sử dụng</span>
             </h3>
@@ -270,10 +270,10 @@ export default function UpdateProductModal({ data, onClose, onSave }) {
                 className="w-full border border-neutral-200 rounded-xl px-3 py-2.5 text-xs focus:outline-none focus:border-emerald-600 focus:ring-2 focus:ring-emerald-500/10 font-medium text-neutral-700"
               />
             </div>
-          </div>
+          </div> */}
 
           {/* Section: Áp dụng khuyến mãi */}
-          <div className="mb-2">
+          {/* <div className="mb-2">
             <h3 className="text-xs font-extrabold text-neutral-400 uppercase tracking-wider mb-3 flex items-center gap-1.5">
               <Tag className="w-3.5 h-3.5 text-emerald-600" />
               <span>Chương trình khuyến mãi</span>
@@ -308,7 +308,7 @@ export default function UpdateProductModal({ data, onClose, onSave }) {
                 />
               </div>
             </div>
-          </div>
+          </div> */}
         </div>
 
         {/* Footer */}
