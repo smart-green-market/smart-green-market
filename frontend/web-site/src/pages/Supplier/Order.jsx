@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
-import { FileSpreadsheet, Truck } from "lucide-react";
+import { FileSpreadsheet, Truck, AlertCircle } from "lucide-react";
 import { toast } from "sonner";
 import OrderTable from "../../components/Supplier/Order/OrderTable";
 import OrderStatusStats from "../../components/Supplier/Order/OrderStatusStats";
@@ -11,6 +11,8 @@ import { exportOrdersToExcel } from "../../utils/exportUtils";
 import { matchesStatusFilter } from "../../components/Supplier/Order/orderStatusConfig";
 import { useOrderRealtimeRefresh } from "../../hooks/useOrderRealtimeRefresh";
 import { ORDER_REFERENCE_TYPES } from "../../utils/orderRealtimeUtils";
+import PendingConfirmationModal from "../../components/Supplier/Product/PendingConfirmationModal";
+import { productService } from "../../services/api/productService";
 
 export default function OrderSupplierPage() {
   const [data, setData] = useState([]);
@@ -24,6 +26,8 @@ export default function OrderSupplierPage() {
   const [selectedIds, setSelectedIds] = useState([]);
   const [isBatchModalOpen, setIsBatchModalOpen] = useState(false);
   const [batchLoading, setBatchLoading] = useState(false);
+  const [showPendingModal, setShowPendingModal] = useState(false);
+  const [pendingCount, setPendingCount] = useState(null);
 
   // Cache items + returns theo order id (nhấc từ OrderTable lên để dùng chung sản phẩm cho modal confirm)
   const [detailCache, setDetailCache] = useState({});
@@ -55,6 +59,16 @@ export default function OrderSupplierPage() {
     onRefresh: () => fetchOrders({ silent: true }),
     onDetailRefresh: () => setDetailRefreshKey((k) => k + 1),
   });
+
+  // Lấy số sản phẩm chờ xác nhận
+  useEffect(() => {
+    productService.getPendingConfirmation({ page_size: 1 })
+      .then((res) => {
+        const count = res?.count ?? (Array.isArray(res?.results) ? res.results.length : 0);
+        setPendingCount(count);
+      })
+      .catch(() => setPendingCount(null));
+  }, []);
 
   const handleViewOrder = async (row) => {
     setDetailRow(row);
@@ -127,33 +141,47 @@ export default function OrderSupplierPage() {
           placeholder="Tìm theo mã đơn hoặc tên đại lý..."
           className="px-4 py-2 border border-neutral-200 rounded-lg text-sm w-80 outline-none focus:border-emerald-600"
         />
-        <button
-          onClick={async () => {
-            const toastId = toast.loading("Đang tải dữ liệu đơn hàng và xuất Excel...");
-            try {
-              const keyword = (search ?? "").trim().toLowerCase();
-              const filteredData = data.filter((row) => {
-                const matchSearch =
-                  !keyword ||
-                  row.order_code?.toLowerCase().includes(keyword) ||
-                  row.dealer_name?.toLowerCase().includes(keyword);
-                const matchStatus = matchesStatusFilter(row, statusFilter);
-                return matchSearch && matchStatus;
-              });
-              await exportOrdersToExcel(filteredData);
-              toast.success("Xuất file Excel thành công!");
-            } catch (error) {
-              console.error("Lỗi xuất Excel:", error);
-              toast.error(error?.message || "Có lỗi xảy ra khi xuất Excel.");
-            } finally {
-              toast.dismiss(toastId);
-            }
-          }}
-          className="flex items-center gap-2 px-4 py-2 text-sm font-semibold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 rounded-lg transition-colors cursor-pointer"
-        >
-          <FileSpreadsheet className="w-4 h-4" />
-          Xuất Excel
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => setShowPendingModal(true)}
+            className="relative flex items-center gap-2 px-4 py-2 text-sm font-semibold text-amber-700 bg-amber-50 hover:bg-amber-100 border border-amber-200 rounded-lg transition-colors cursor-pointer"
+          >
+            <AlertCircle className="w-4 h-4" />
+            Chờ xác nhận
+            {pendingCount != null && pendingCount > 0 && (
+              <span className="absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full bg-amber-500 text-white text-[10px] font-bold flex items-center justify-center">
+                {pendingCount > 99 ? "99+" : pendingCount}
+              </span>
+            )}
+          </button>
+          <button
+            onClick={async () => {
+              const toastId = toast.loading("Đang tải dữ liệu đơn hàng và xuất Excel...");
+              try {
+                const keyword = (search ?? "").trim().toLowerCase();
+                const filteredData = data.filter((row) => {
+                  const matchSearch =
+                    !keyword ||
+                    row.order_code?.toLowerCase().includes(keyword) ||
+                    row.dealer_name?.toLowerCase().includes(keyword);
+                  const matchStatus = matchesStatusFilter(row, statusFilter);
+                  return matchSearch && matchStatus;
+                });
+                await exportOrdersToExcel(filteredData);
+                toast.success("Xuất file Excel thành công!");
+              } catch (error) {
+                console.error("Lỗi xuất Excel:", error);
+                toast.error(error?.message || "Có lỗi xảy ra khi xuất Excel.");
+              } finally {
+                toast.dismiss(toastId);
+              }
+            }}
+            className="flex items-center gap-2 px-4 py-2 text-sm font-semibold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 rounded-lg transition-colors cursor-pointer"
+          >
+            <FileSpreadsheet className="w-4 h-4" />
+            Xuất Excel
+          </button>
+        </div>
       </div>
 
       {selectedOrders.length > 0 && (
@@ -206,6 +234,11 @@ export default function OrderSupplierPage() {
         onConfirm={handleBatchShip}
         selectedOrders={selectedOrders}
         loading={batchLoading}
+      />
+
+      <PendingConfirmationModal
+        isOpen={showPendingModal}
+        onClose={() => setShowPendingModal(false)}
       />
     </div>
   );

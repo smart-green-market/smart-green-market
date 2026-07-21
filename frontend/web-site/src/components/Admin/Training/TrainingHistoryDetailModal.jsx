@@ -4,22 +4,12 @@ import {
   BrainCircuit,
   CheckCircle2,
   Database,
-  Gauge,
-  Layers3,
+  HeartPulse,
   Loader2,
   RefreshCw,
   Store,
   X,
 } from "lucide-react";
-import {
-  CartesianGrid,
-  Line,
-  LineChart,
-  ResponsiveContainer,
-  Tooltip,
-  XAxis,
-  YAxis,
-} from "recharts";
 import { formatDateTime } from "../../common/formatDateTime";
 import {
   aiTrainingServicer,
@@ -46,6 +36,44 @@ function formatPercent(value) {
     minimumFractionDigits: 1,
     maximumFractionDigits: 1,
   })}%`;
+}
+
+function calculateAIHealthScore(detail) {
+  const coverage = Math.min(100, Math.max(0, Number(detail?.catalog_coverage) || 0));
+  const parsedLoss = detail?.final_loss == null ? null : Number(detail.final_loss);
+  const lossScore = Number.isFinite(parsedLoss)
+    ? (1 - Math.min(1, Math.max(0, parsedLoss))) * 100
+    : coverage;
+
+  return Math.round(Math.min(100, Math.max(0, coverage * 0.7 + lossScore * 0.3)));
+}
+
+function getAIHealthMeta(score) {
+  if (score >= 80) {
+    return {
+      label: "Tuyệt vời",
+      cardClassName: "border-emerald-200 bg-emerald-50/70",
+      iconClassName: "text-emerald-700",
+      valueClassName: "text-emerald-700",
+      descriptionClassName: "text-emerald-700",
+    };
+  }
+  if (score >= 50) {
+    return {
+      label: "Cần thêm hóa đơn bán hàng",
+      cardClassName: "border-amber-200 bg-amber-50/70",
+      iconClassName: "text-amber-700",
+      valueClassName: "text-amber-700",
+      descriptionClassName: "text-amber-700",
+    };
+  }
+  return {
+    label: "Rất thiếu dữ liệu",
+    cardClassName: "border-red-200 bg-red-50/70",
+    iconClassName: "text-red-700",
+    valueClassName: "text-red-700",
+    descriptionClassName: "text-red-700",
+  };
 }
 
 export default function TrainingHistoryDetailModal({ open, sessionId, onClose }) {
@@ -97,6 +125,8 @@ export default function TrainingHistoryDetailModal({ open, sessionId, onClose })
   if (!open) return null;
 
   const statusMeta = STATUS_META[detail?.status] || STATUS_META.unknown;
+  const aiHealthScore = calculateAIHealthScore(detail);
+  const aiHealthMeta = getAIHealthMeta(aiHealthScore);
 
   return (
     <div
@@ -176,46 +206,18 @@ export default function TrainingHistoryDetailModal({ open, sessionId, onClose })
             </div>
 
             <section className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-              <Metric icon={Gauge} label="Final loss" value={formatNumber(detail.final_loss, 6)} />
+              <Metric
+                icon={HeartPulse}
+                label="Sức khỏe AI"
+                value={`${aiHealthScore}/100`}
+                description={aiHealthMeta.label}
+                cardClassName={aiHealthMeta.cardClassName}
+                iconClassName={aiHealthMeta.iconClassName}
+                valueClassName={aiHealthMeta.valueClassName}
+                descriptionClassName={aiHealthMeta.descriptionClassName}
+              />
               <Metric icon={CheckCircle2} label="Catalog coverage" value={formatPercent(detail.catalog_coverage)} />
               <Metric icon={Database} label="Sản phẩm đã học" value={formatNumber(detail.total_items_trained, 0)} />
-            </section>
-
-            <section className="rounded-2xl border border-neutral-200 p-5">
-              <div>
-                <h3 className="font-black text-neutral-950">Loss qua từng epoch</h3>
-                <p className="mt-1 text-xs leading-5 text-neutral-500">
-                  Đường loss giúp nhận biết mô hình có đang hội tụ ổn định trong quá trình huấn luyện hay không.
-                </p>
-              </div>
-              {detail.loss_history.length > 0 ? (
-                <div className="mt-5 h-72 w-full" role="img" aria-label="Biểu đồ loss theo epoch">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <LineChart data={detail.loss_history} margin={{ top: 8, right: 16, left: 4, bottom: 4 }}>
-                      <CartesianGrid strokeDasharray="4 4" vertical={false} stroke="#e5e7eb" />
-                      <XAxis dataKey="epoch" tick={{ fontSize: 11, fill: "#6b7280" }} />
-                      <YAxis tick={{ fontSize: 11, fill: "#6b7280" }} domain={["auto", "auto"]} />
-                      <Tooltip
-                        labelFormatter={(epoch) => `Epoch ${epoch}`}
-                        formatter={(value) => [formatNumber(value, 6), "Loss"]}
-                      />
-                      <Line
-                        type="monotone"
-                        dataKey="loss"
-                        name="Loss"
-                        stroke="#4f46e5"
-                        strokeWidth={3}
-                        dot={false}
-                        activeDot={{ r: 5 }}
-                      />
-                    </LineChart>
-                  </ResponsiveContainer>
-                </div>
-              ) : (
-                <div className="mt-5 flex h-40 items-center justify-center rounded-xl bg-neutral-50 text-sm font-medium text-neutral-400">
-                  API chưa trả lịch sử loss theo epoch.
-                </div>
-              )}
             </section>
 
             <section className="overflow-hidden rounded-2xl border border-neutral-200">
@@ -286,12 +288,24 @@ export default function TrainingHistoryDetailModal({ open, sessionId, onClose })
   );
 }
 
-function Metric({ icon: Icon, label, value }) {
+function Metric({
+  icon: Icon,
+  label,
+  value,
+  description,
+  cardClassName = "border-neutral-200 bg-neutral-50/70",
+  iconClassName = "text-indigo-700",
+  valueClassName = "text-neutral-950",
+  descriptionClassName = "text-neutral-500",
+}) {
   return (
-    <article className="rounded-2xl border border-neutral-200 bg-neutral-50/70 p-4">
-      <Icon className="h-5 w-5 text-indigo-700" />
+    <article className={`rounded-2xl border p-4 ${cardClassName}`}>
+      <Icon className={`h-5 w-5 ${iconClassName}`} />
       <p className="mt-3 text-[10px] font-black uppercase tracking-wide text-neutral-400">{label}</p>
-      <p className="mt-1 text-xl font-black text-neutral-950">{value}</p>
+      <p className={`mt-1 text-xl font-black ${valueClassName}`}>{value}</p>
+      {description ? (
+        <p className={`mt-1 text-xs font-bold ${descriptionClassName}`}>{description}</p>
+      ) : null}
     </article>
   );
 }
