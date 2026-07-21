@@ -162,11 +162,29 @@ class DealerProductWaitingStockApiTests(TestCase):
         row = response.data["results"][0]
         self.assertEqual(row["waiting_stock_quantity"], 20)
         self.assertEqual(row["waiting_stock_order_count"], 1)
+        self.assertEqual(row["available_quantity"], 5)
         self.assertEqual(response.data["summary"]["waiting_stock_order_count"], 1)
         self.assertEqual(
             response.data["summary"]["waiting_stock_line_quantity_total"],
             20,
         )
+
+    def test_available_quantity_not_inflated_by_multiple_waiting_orders(self):
+        """Regression: stock annotate must not join with order_items rows."""
+        self._create_waiting_order(product=self.product_waiting, quantity=10)
+        self._create_waiting_order(product=self.product_waiting, quantity=15)
+        self.client.force_authenticate(user=self.dealer_account)
+        waiting_resp = self.client.get("/api/dealer-products/waiting-stock/")
+        list_resp = self.client.get("/api/dealer-products/")
+        self.assertEqual(waiting_resp.status_code, 200)
+        row = waiting_resp.data["results"][0]
+        self.assertEqual(row["waiting_stock_quantity"], 25)
+        self.assertEqual(row["waiting_stock_order_count"], 2)
+        self.assertEqual(row["available_quantity"], 5)
+        catalog_row = next(
+            r for r in list_resp.data["results"] if r["id"] == self.product_waiting.id
+        )
+        self.assertEqual(row["available_quantity"], catalog_row["available_quantity"])
 
     def test_excludes_orders_not_waiting_stock(self):
         self._create_waiting_order(product=self.product_waiting, quantity=10)
