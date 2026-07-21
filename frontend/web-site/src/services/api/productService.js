@@ -205,6 +205,14 @@ export const productService = {
     const res = await axiosClient.delete(`/supplier-products/${id}/`);
     return res.data;
   },
+
+  /** Lấy danh sách sản phẩm chờ NCC xác nhận (có phiếu nhập đang chờ) */
+  getPendingConfirmation: async (params = {}) => {
+    const res = await axiosClient.get("/supplier-products/pending-confirmation/", {
+      params: { page_size: 100, ...params },
+    });
+    return res.data;
+  },
   // Chặn khi còn phiếu nhập đang xử lý hoặc đại lý đang bán. Admin hoặc NCC sở hữu sản phẩm.
 };
 
