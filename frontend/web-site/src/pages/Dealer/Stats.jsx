@@ -7,7 +7,6 @@ import StatsFilterBar from "../../components/Dealer/Statistical/StatsFilterBar";
 import MetricCards from "../../components/Dealer/Statistical/MetricCards";
 import RevenueChart from "../../components/Dealer/Statistical/RevenueChart";
 import CategoryDistribution from "../../components/Dealer/Statistical/CategoryDistribution";
-import WastageStats from "../../components/Dealer/Statistical/WastageStats";
 import DetailedTable from "../../components/Dealer/Statistical/DetailedTable";
 
 // ─── helpers ───────────────────────────────────────────────────────────────
@@ -97,13 +96,6 @@ export default function DealerStatsPage() {
         completed_purchases_count: 0,
     };
 
-    const wastageStats = data?.wastage_stats || {
-        total_wastage_quantity: 0,
-        total_wastage_cost: 0,
-        total_returned_quantity: 0,
-        total_returned_cost: 0,
-    };
-
     const chartData = data?.chart_data || [];
     const categoryDistribution = data?.category_distribution || [];
     const detailedBreakdown = data?.detailed_breakdown || [];
@@ -138,8 +130,6 @@ export default function DealerStatsPage() {
                 <RevenueChart chartData={chartData} />
                 <CategoryDistribution categoryDistribution={categoryDistribution} />
             </div>
-
-            <WastageStats wastageStats={wastageStats} />
 
             <DetailedTable detailedBreakdown={detailedBreakdown} />
 
