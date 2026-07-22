@@ -7,12 +7,11 @@ const PAGE_SIZE = 10;
 
 // ─── Column definitions ────────────────────────────────────────────────────
 const COLUMNS = [
-    { key: "period",         label: "Thời gian",     align: "left"   },
-    { key: "sales_count",    label: "Đơn bán lẻ",    align: "center" },
-    { key: "revenue",        label: "Doanh thu bán", align: "right"  },
-    { key: "purchase_count", label: "Đơn nhập sỉ",   align: "center" },
-    { key: "purchase_cost",  label: "Chi phí nhập",  align: "right"  },
-    { key: "profit",         label: "Lợi nhuận gộp", align: "right"  },
+    { key: "period", label: "Thời gian", align: "left" },
+    { key: "sales_count", label: "Đơn bán lẻ", align: "center" },
+    { key: "revenue", label: "Doanh thu bán", align: "right" },
+    { key: "purchase_count", label: "Đơn nhập sỉ", align: "center" },
+    { key: "purchase_cost", label: "Chi phí nhập", align: "right" },
 ];
 
 // ─── Sort icon ─────────────────────────────────────────────────────────────
@@ -34,7 +33,7 @@ function SortIcon({ colKey, sortKey, sortDir }) {
  */
 export default function DetailedTable({ detailedBreakdown }) {
     const [sortKey, setSortKey] = useState("period");
-    const [sortDir, setSortDir] = useState("asc");
+    const [sortDir, setSortDir] = useState("desc");
     const [page, setPage] = useState(1);
 
     // ── toggle sort ──────────────────────────────────────────────────────
@@ -77,17 +76,11 @@ export default function DetailedTable({ detailedBreakdown }) {
 
     const rowCell = (row, col) => {
         switch (col.key) {
-            case "period":         return <span className="font-bold text-neutral-800">{row.period}</span>;
-            case "sales_count":    return <span className="font-bold text-neutral-500">{row.sales_count}</span>;
-            case "revenue":        return <span className="text-emerald-700 font-bold">{formatCurrency(row.revenue)}</span>;
+            case "period": return <span className="font-bold text-neutral-800">{row.period}</span>;
+            case "sales_count": return <span className="font-bold text-neutral-500">{row.sales_count}</span>;
+            case "revenue": return <span className="text-emerald-700 font-bold">{formatCurrency(row.revenue)}</span>;
             case "purchase_count": return <span className="font-bold text-neutral-500">{row.purchase_count}</span>;
-            case "purchase_cost":  return <span className="text-amber-700 font-bold">{formatCurrency(row.purchase_cost)}</span>;
-            case "profit":
-                return (
-                    <span className={`font-black ${row.profit >= 0 ? "text-emerald-800" : "text-rose-800"}`}>
-                        {formatCurrency(row.profit)}
-                    </span>
-                );
+            case "purchase_cost": return <span className="text-amber-700 font-bold">{formatCurrency(row.purchase_cost)}</span>;
             default: return null;
         }
     };
@@ -114,11 +107,11 @@ export default function DetailedTable({ detailedBreakdown }) {
                 <table className="w-full text-left border-collapse text-xs">
                     <thead>
                         <tr className="bg-neutral-50 border-b border-neutral-100 text-[10px]">
-                            {COLUMNS.map((col) => (
+                            {COLUMNS.map((col, idx) => (
                                 <th
                                     key={col.key}
                                     onClick={() => handleSort(col.key)}
-                                    className={`p-4 ${col.key === "period" ? "pl-6" : ""} ${col.key === "profit" ? "pr-6" : ""} font-bold text-neutral-400 uppercase tracking-wider cursor-pointer select-none hover:text-emerald-700 transition-colors ${thAlign(col.align)}`}
+                                    className={`p-4 ${idx === 0 ? "pl-6" : ""} ${idx === COLUMNS.length - 1 ? "pr-6" : ""} font-bold text-neutral-400 uppercase tracking-wider cursor-pointer select-none hover:text-emerald-700 transition-colors ${thAlign(col.align)}`}
                                 >
                                     <div className={`inline-flex items-center gap-1 ${col.align === "right" ? "flex-row-reverse" : ""}`}>
                                         {col.label}
@@ -138,10 +131,10 @@ export default function DetailedTable({ detailedBreakdown }) {
                         ) : (
                             paginated.map((row, idx) => (
                                 <tr key={idx} className="hover:bg-neutral-50/50 transition-colors">
-                                    {COLUMNS.map((col) => (
+                                    {COLUMNS.map((col, colIdx) => (
                                         <td
                                             key={col.key}
-                                            className={`p-4 ${col.key === "period" ? "pl-6" : ""} ${col.key === "profit" ? "pr-6" : ""} ${tdAlign(col.align)}`}
+                                            className={`p-4 ${colIdx === 0 ? "pl-6" : ""} ${colIdx === COLUMNS.length - 1 ? "pr-6" : ""} ${tdAlign(col.align)}`}
                                         >
                                             {rowCell(row, col)}
                                         </td>
