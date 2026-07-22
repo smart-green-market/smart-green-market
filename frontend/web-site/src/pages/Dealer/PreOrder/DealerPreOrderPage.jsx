@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { Link } from "react-router-dom";
 import { toast } from "sonner";
-import { PackageSearch } from "lucide-react";
+import { PackageSearch, Plus } from "lucide-react";
 import PreOrderProposeModal from "../../../components/Dealer/PreOrder/PreOrderProposeModal";
 import PreOrderWorkspace from "../../../components/PreOrder/PreOrderWorkspace";
 import RejectModal from "../../../components/common/RejectModal";
@@ -177,14 +178,23 @@ export default function DealerPreOrderPage() {
         detailLoading={detailLoading}
         emptyDetailMessage="Chọn yêu cầu bên trái để xem và xử lý."
         headerActions={
-          <button
-            type="button"
-            onClick={() => setWaitingStockOpen(true)}
-            className="flex items-center gap-2 rounded-xl bg-white border border-stone-200 hover:bg-stone-50 hover:border-stone-300 px-4 py-2.5 text-xs font-bold text-stone-700 transition-all shadow-xs"
-          >
-            <PackageSearch className="w-4 h-4 text-emerald-600 animate-pulse" />
-            Thống kê đặt trước
-          </button>
+          <div className="flex gap-2">
+            <button
+              type="button"
+              onClick={() => setWaitingStockOpen(true)}
+              className="flex items-center gap-2 rounded-xl bg-white border border-stone-200 hover:bg-stone-50 hover:border-stone-300 px-4 py-2.5 text-xs font-bold text-stone-700 transition-all shadow-xs"
+            >
+              <PackageSearch className="w-4 h-4 text-emerald-600 animate-pulse" />
+              Thống kê đặt trước
+            </button>
+            <Link
+              to="/dai-ly/nhap-hang/tao-moi"
+              className="flex items-center gap-2 rounded-xl bg-emerald-600 border border-emerald-600 hover:bg-emerald-700 hover:border-emerald-700 px-4 py-2.5 text-xs font-bold text-white transition-all shadow-xs no-underline"
+            >
+              <Plus className="w-4 h-4" />
+              Tạo đơn nhập hàng
+            </Link>
+          </div>
         }
         detailActions={
           detail ? (

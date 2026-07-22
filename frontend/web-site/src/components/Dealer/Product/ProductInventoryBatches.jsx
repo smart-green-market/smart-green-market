@@ -87,7 +87,6 @@ export default function ProductInventoryBatches({
                   <SortableHeader label="Tồn kho" column="remaining_quantity" sortColumn={sortColumn} sortDirection={sortDirection} onSort={handleSort} />
                   <SortableHeader label="Giá nhập" column="import_price" sortColumn={sortColumn} sortDirection={sortDirection} onSort={handleSort} />
                   <SortableHeader label="Ngày nhập" column="import_date" sortColumn={sortColumn} sortDirection={sortDirection} onSort={handleSort} />
-                  <SortableHeader label="Hạn dùng" column="expiry_date" sortColumn={sortColumn} sortDirection={sortDirection} onSort={handleSort} />
                   <SortableHeader label="Trạng thái" column="status" sortColumn={sortColumn} sortDirection={sortDirection} onSort={handleSort} />
                   <th className="px-6 py-4 text-[11px] font-bold text-neutral-500 uppercase tracking-wider text-center">Thao tác</th>
                 </tr>
@@ -111,11 +110,6 @@ export default function ProductInventoryBatches({
                       <td className="px-6 py-4">
                         <span className="text-neutral-500 text-xs">
                           {row.import_date ? new Date(row.import_date).toLocaleDateString("vi-VN") : "N/A"}
-                        </span>
-                      </td>
-                      <td className="px-6 py-4">
-                        <span className="text-neutral-600 font-bold text-xs">
-                          {row.expiry_date ? new Date(row.expiry_date).toLocaleDateString("vi-VN") : "N/A"}
                         </span>
                       </td>
                       <td className="px-6 py-4">
